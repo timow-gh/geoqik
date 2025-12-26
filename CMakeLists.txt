@@ -63,9 +63,20 @@ if (${PROJECT_NAME}_USE_CPPCHECK)
     create_cppcheck_target(${TARGET_NAME})
 endif ()
 
+# Internal libs are static, use a common runtime for all libs when compiling for windows 
+if (MSVC)
+    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+endif()
+
 add_subdirectory(dependencies)
+find_package(glad CONFIG REQUIRED)
+find_package(glfw3 3.3 REQUIRED)
+find_package(glm CONFIG REQUIRED)
+find_package(stduuid CONFIG REQUIRED)
 
 add_subdirectory(src)
+
+add_subdirectory(examples)
 
 if (${PROJECT_NAME}_TESTS)
     include(CTest)

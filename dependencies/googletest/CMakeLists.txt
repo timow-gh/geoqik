@@ -1,9 +1,12 @@
 CPMAddPackage(
         NAME googletest
         GITHUB_REPOSITORY google/googletest
-        GIT_TAG release-1.12.1
+        GIT_TAG v1.17.0
         GIT_SHALLOW TRUE
-        OPTIONS "INSTALL_GTEST OFF"
+        OPTIONS 
+        "BUILD_SHARED_LIBS OFF"
+        "INSTALL_GTEST OFF"
+        EXCLUDE_FROM_ALL YES
 )
 
 if(googletest_ADDED)

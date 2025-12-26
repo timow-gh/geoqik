@@ -1,6 +1,9 @@
 include(FetchContent)
-add_subdirectory(fmt)
 
 if (${PROJECT_NAME}_TESTS)
-    add_subdirectory(googletest)
+  add_subdirectory(googletest)
 endif ()
+
+add_subdirectory(fmt)
+add_subdirectory(geometry)
+add_subdirectory(linal)

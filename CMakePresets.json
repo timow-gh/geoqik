@@ -2,7 +2,7 @@
   "version": 6,
   "cmakeMinimumRequired": {
     "major": 3,
-    "minor": 28,
+    "minor": 30,
     "patch": 0
   },
   "configurePresets": [
@@ -13,10 +13,11 @@
       "binaryDir": "${sourceDir}/out/build/${presetName}",
       "installDir": "${sourceDir}/out/install/${presetName}",
       "cacheVariables": {
-        "CMAKE_CXX_STANDARD": "20",
-        "BUILD_SHARED_LIBS": "OFF",
+        "CMAKE_CXX_STANDARD": "23",
+        "BUILD_SHARED_LIBS": "ON",
         "CMAKE_CXX_EXTENSIONS": "OFF"
-      }
+      },
+      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
     },
     {
       "name": "conf-debug",
@@ -64,6 +65,7 @@
         "strategy": "external"
       },
       "cacheVariables": {
+        "VCPKG_TARGET_TRIPLET": "x64-windows-static",
         "CPACK_GENERATOR": "NSIS"
       }
     },
@@ -227,6 +229,62 @@
       "inherits": "build-release",
       "configurePreset": "conf-unixlike-clang-release",
       "displayName": "clang Release Build"
+    },
+    {
+      "name": "build-unixlike-gcc-run-example-spiral",
+      "inherits": "build-release",
+      "configurePreset": "conf-unixlike-gcc-release",
+      "displayName": "Run Application example-spiral",
+      "targets": ["run-example-spiral"]
+    },
+    {
+      "name": "build-unixlike-gcc-run-example-curve",
+      "inherits": "build-release",
+      "configurePreset": "conf-unixlike-gcc-release",
+      "displayName": "Run Application example-curve",
+      "targets": ["run-example-curve"]
+    },
+    {
+      "name": "build-windows-msvc-run-example-curve",
+      "inherits": "build-release",
+      "configurePreset": "conf-windows-msvc-release",
+      "displayName": "Run Application example-curve (Windows)",
+      "targets": ["run-example-curve"]
+    },
+    {
+      "name": "build-unixlike-clang-run-example-curve",
+      "inherits": "build-release",
+      "configurePreset": "conf-unixlike-clang-release",
+      "displayName": "Run Application example-curve (Clang)",
+      "targets": ["run-example-curve"]
+    },
+    {
+      "name": "build-windows-msvc-run-example-spiral",
+      "inherits": "build-release",
+      "configurePreset": "conf-windows-msvc-release",
+      "displayName": "Run Application example-spiral (Windows)",
+      "targets": ["run-example-spiral"]
+    },
+    {
+      "name": "build-unixlike-clang-run-example-spiral",
+      "inherits": "build-release",
+      "configurePreset": "conf-unixlike-clang-release",
+      "displayName": "Run Application example-spiral (Clang)",
+      "targets": ["run-example-spiral"]
+    },
+    {
+      "name": "build-windows-msvc-run-example-removing-geometry",
+      "inherits": "build-release",
+      "configurePreset": "conf-windows-msvc-release",
+      "displayName": "Run Application example-removing-geometry (MSVC)",
+      "targets": ["run-example-removing-geometry"]
+    },
+    {
+      "name": "build-windows-msvc-run-example-sphere",
+      "inherits": "build-release",
+      "configurePreset": "conf-windows-msvc-release",
+      "displayName": "Run Application example-sphere (MSVC)",
+      "targets": ["run-example-sphere"]
     }
   ],
   "testPresets": [
@@ -572,6 +630,158 @@
         {
           "type": "package",
           "name": "package-windows-msvc-release"
+        }
+      ]
+    },
+    {
+      "name": "workflow-run-example-msvc-curve",
+      "displayName": "Run example-curve (MSVC)",
+      "description": "Configure, build and run example-curve on Windows with MSVC",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "conf-windows-msvc-release"
+        },
+        {
+          "type": "build",
+          "name": "build-windows-msvc-release"
+        },
+        {
+          "type": "build",
+          "name": "build-windows-msvc-run-example-curve"
+        }
+      ]
+    },
+    {
+      "name": "workflow-run-example-gcc-curve",
+      "displayName": "Run example-curve (GCC)",
+      "description": "Configure, build and run example-curve with GCC",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "conf-unixlike-gcc-release"
+        },
+        {
+          "type": "build",
+          "name": "build-unixlike-gcc-release"
+        },
+        {
+          "type": "build",
+          "name": "build-unixlike-gcc-run-example-curve"
+        }
+      ]
+    },
+    {
+      "name": "workflow-run-example-clang-curve",
+      "displayName": "Run example-curve (Clang)",
+      "description": "Configure, build and run example-curve with Clang",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "conf-unixlike-clang-release"
+        },
+        {
+          "type": "build",
+          "name": "build-unixlike-clang-release"
+        },
+        {
+          "type": "build",
+          "name": "build-unixlike-clang-run-example-curve"
+        }
+      ]
+    },
+    {
+      "name": "workflow-run-example-msvc-spiral",
+      "displayName": "Run example-spiral (MSVC)",
+      "description": "Configure, build and run example-spiral on Windows with MSVC",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "conf-windows-msvc-release"
+        },
+        {
+          "type": "build",
+          "name": "build-windows-msvc-release"
+        },
+        {
+          "type": "build",
+          "name": "build-windows-msvc-run-example-spiral"
+        }
+      ]
+    },
+    {
+      "name": "workflow-run-example-gcc-spiral",
+      "displayName": "Run example-spiral (GCC)",
+      "description": "Configure, build and run example-spiral with GCC",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "conf-unixlike-gcc-release"
+        },
+        {
+          "type": "build",
+          "name": "build-unixlike-gcc-release"
+        },
+        {
+          "type": "build",
+          "name": "build-unixlike-gcc-run-example-spiral"
+        }
+      ]
+    },
+    {
+      "name": "workflow-run-example-clang-spiral",
+      "displayName": "Run example-spiral (Clang)",
+      "description": "Configure, build and run example-spiral with Clang",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "conf-unixlike-clang-release"
+        },
+        {
+          "type": "build",
+          "name": "build-unixlike-clang-release"
+        },
+        {
+          "type": "build",
+          "name": "build-unixlike-clang-run-example-spiral"
+        }
+      ]
+    },
+    {
+      "name": "workflow-run-example-msvc-remove-geometry",
+      "displayName": "Run remove-geometry (MSVC)",
+      "description": "Configure, build and run remove-geometry with MSVC",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "conf-windows-msvc-release"
+        },
+        {
+          "type": "build",
+          "name": "build-windows-msvc-release"
+        },
+        {
+          "type": "build",
+          "name": "build-windows-msvc-run-example-removing-geometry"
+        }
+      ]
+    },
+    {
+      "name": "workflow-run-example-msvc-sphere",
+      "displayName": "Run example-sphere (MSVC)",
+      "description": "Configure, build and run example-sphere with MSVC",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "conf-windows-msvc-release"
+        },
+        {
+          "type": "build",
+          "name": "build-windows-msvc-release"
+        },
+        {
+          "type": "build",
+          "name": "build-windows-msvc-run-example-sphere"
         }
       ]
     }

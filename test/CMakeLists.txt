@@ -1,2 +1,3 @@
-add_subdirectory(test_install)
-add_subdirectory(using_google_test)
+add_subdirectory(TestGeoQikInternals)
+add_subdirectory(TestInstall)
+add_subdirectory(TestGeoQikApi)

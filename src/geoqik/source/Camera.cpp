@@ -1,0 +1,75 @@
+#include "Camera.hpp"
+#include <vector>
+
+namespace geoqik
+{
+
+[[maybe_unused]] static bool has_nan_value(const glm::dvec3& vec)
+{
+  return std::isnan(vec.x) || std::isnan(vec.y) || std::isnan(vec.z);
+}
+
+[[maybe_unused]] static bool has_inf_value(const glm::dvec3& vec)
+{
+  return std::isinf(vec.x) || std::isinf(vec.y) || std::isinf(vec.z);
+}
+
+[[maybe_unused]] static bool has_huge_value(const glm::dvec3& vec)
+{
+  constexpr double huge_value = 1e10; // Define a threshold for "huge" values
+  return std::abs(vec.x) > huge_value ||
+         std::abs(vec.y) > huge_value ||
+         std::abs(vec.z) > huge_value;
+}
+
+PickRay Camera::create_perspective_ray(double screenX, double screenY) const {
+  // Remap the pixel coordinates (x, y) from the viewport space to the normalized device
+  // coordinates (NDC) space, which ranges from [-1, +1]
+  const auto [uNDC, vNDC] = screen_to_ndc(screenX, screenY);
+
+  // Compute the tangent of the half field-of-view angle
+  const double tangent = tan(glm::radians(m_perspective.fov) / 2.0);
+
+  glm::dvec3 cameraGaze = gaze();
+  const glm::dvec3 right = glm::normalize(glm::cross(cameraGaze, get_vertical()));
+  const glm::dvec3 upward = glm::normalize(glm::cross(right, cameraGaze));
+
+  // Adjust the ray direction for vertical field of view
+  cameraGaze += right * tangent * uNDC * m_viewport.get_aspect_ratio();
+  cameraGaze += upward * tangent * vNDC;
+
+  cameraGaze = glm::normalize(cameraGaze);
+
+  CORE_ASSERT(!has_nan_value(cameraGaze));
+  CORE_ASSERT(!has_nan_value(get_position()));
+  CORE_ASSERT(!has_inf_value(cameraGaze));
+  CORE_ASSERT(!has_inf_value(get_position()));
+  CORE_ASSERT(!has_huge_value(cameraGaze));
+  CORE_ASSERT(!has_huge_value(get_position()));
+
+  return {to_linal(get_position()), to_linal(cameraGaze)};
+}
+
+PickRay Camera::create_orthographic_ray(double screenX, double screenY) const {
+  // Remap the pixel coordinates (x, y) from the viewport space to the normalized device
+  // coordinates (NDC) space, which ranges from [-1, +1]
+  const auto [uNDC, vNDC] = screen_to_ndc(screenX, screenY);
+
+  const glm::dvec3 cameraGaze = gaze();
+  const glm::dvec3 right = glm::normalize(glm::cross(cameraGaze, get_vertical()));
+  const glm::dvec3 upward = glm::normalize(glm::cross(right, cameraGaze));
+
+  const double halfWidth = m_orthographic.width / 2.0 * m_viewport.get_aspect_ratio();
+  const double halfHeight = m_orthographic.height / 2.0;
+
+  // Adjust the ray origin for the orthogonal projection
+  glm::dvec3 rayOrigin = get_position();
+  rayOrigin += right * uNDC * halfWidth;
+  rayOrigin += upward * vNDC * halfHeight;
+
+  // The direction of the ray in an orthographic projection is the same for all rays,
+  // and it's parallel to the cameraGaze vector. Here, the cameraGaze vector is already normalized.
+  return {to_linal(rayOrigin), to_linal(cameraGaze)};
+}
+
+} // namespace geoqik
