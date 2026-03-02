@@ -156,7 +156,7 @@ static geoqik_result_t run_render_thread(const geoqik::GeoQikSettings& geoqikSet
     initBarrier->arrive_and_wait(); // Synchronize with the calling thread, calls to the GeoQik API aren't allowed before this point.
 
     context->run_event_loop();
-    return GEOQIK_ADDED_MESSAGE;
+    return GEOQIK_SUCCESS;
   }
   catch (const std::bad_alloc&)
   {
@@ -186,7 +186,7 @@ static geoqik_result_t start_geoqik_thread(const geoqik::GeoQikSettings& geoqikS
       renderThread = std::thread(run_render_thread, geoqikSettings, settings, initBarrier);
       initBarrier->arrive_and_wait(); // Ensure the thread is initialized before proceeding
     }
-    return GEOQIK_ADDED_MESSAGE;
+    return GEOQIK_SUCCESS;
   }
   catch (const std::bad_alloc&)
   {
@@ -236,7 +236,7 @@ static geoqik_result_t enqueue(GeoQikMessage&& message)
   try
   {
     get_message_queue().enqueue(std::move(message));
-    return GEOQIK_ADDED_MESSAGE;
+    return GEOQIK_SUCCESS;
   }
   catch (const std::bad_alloc&)
   {
@@ -254,12 +254,11 @@ const char* geoqik_get_error_string(geoqik_result_t result)
 {
   switch (result)
   {
-  case GEOQIK_ADDED_MESSAGE: return "Success";
+  case GEOQIK_SUCCESS: return "Success";
   case GEOQIK_ERROR_NOT_INITIALIZED: return "GeoQik not initialized";
   case GEOQIK_ERROR_ALREADY_INITIALIZED: return "GeoQik already initialized";
   case GEOQIK_ERROR_INVALID_PARAMETER: return "Invalid parameter";
   case GEOQIK_ERROR_MEMORY_ALLOCATION: return "Memory allocation error";
-  case GEOQIK_ERROR_THREAD_ERROR: return "Thread error";
   case GEOQIK_ERROR_UNKNOWN: return "Unknown error";
   default: return "Invalid error code";
   }
@@ -342,7 +341,7 @@ geoqik_result_t geoqik_init()
     {
       init_message_queue(ConcurrentQueue<GeoQikMessage>(defaultGeoQikSettings.maxMessageQueueSize));
       geoqik_internal::start_geoqik_thread(defaultGeoQikSettings, defaultWindowSettings);
-      return GEOQIK_ADDED_MESSAGE;
+      return GEOQIK_SUCCESS;
     }
     catch (...)
     {
@@ -364,7 +363,7 @@ geoqik_result_t geoqik_init_with_settings(const geoqik_settings_t* geoqikSetting
     {
       init_message_queue(ConcurrentQueue<GeoQikMessage>(cppGeoQikSettings.maxMessageQueueSize));
       geoqik_internal::start_geoqik_thread(cppGeoQikSettings, cppWindowSettings);
-      return GEOQIK_ADDED_MESSAGE;
+      return GEOQIK_SUCCESS;
     }
     catch (...)
     {
@@ -384,7 +383,7 @@ geoqik_result_t geoqik_is_api_initialized(bool* isInitialized)
   try
   {
     *isInitialized = geoqik_internal::api_is_initialized() ? true : false;
-    return GEOQIK_ADDED_MESSAGE;
+    return GEOQIK_SUCCESS;
   }
   catch (...)
   {
@@ -407,7 +406,7 @@ geoqik_result_t geoqik_generate_uuid(geoqik_uuid_t* uuid)
     {
       uuid->value[i] = coreUuid[i];
     }
-    return GEOQIK_ADDED_MESSAGE;
+    return GEOQIK_SUCCESS;
   });
 }
 
@@ -616,13 +615,13 @@ geoqik_result_t geoqik_get_point_size(float* result)
     auto enqueueResult = enqueue(GeoQikMessage{.type = GeoQikMessageType::GET_POINT_SIZE,
                                                .data = GeoQikMessageData{},
                                                .callback = [&promise](Context& context) { promise.set_value(context.get_point_size()); }});
-    if (enqueueResult != GEOQIK_ADDED_MESSAGE)
+    if (enqueueResult != GEOQIK_SUCCESS)
     {
       return enqueueResult;
     }
 
     *result = future.get();
-    return GEOQIK_ADDED_MESSAGE;
+    return GEOQIK_SUCCESS;
   });
 }
 
@@ -652,7 +651,7 @@ geoqik_result_t geoqik_get_point_color(float* r, float* g, float* b)
     auto enqueueResult = enqueue(GeoQikMessage{.type = GeoQikMessageType::GET_POINT_COLOR,
                                                .data = GeoQikMessageData{},
                                                .callback = [&promise](Context& context) { promise.set_value(context.get_point_color()); }});
-    if (enqueueResult != GEOQIK_ADDED_MESSAGE)
+    if (enqueueResult != GEOQIK_SUCCESS)
     {
       return enqueueResult;
     }
@@ -661,7 +660,7 @@ geoqik_result_t geoqik_get_point_color(float* r, float* g, float* b)
     *r = color[0];
     *g = color[1];
     *b = color[2];
-    return GEOQIK_ADDED_MESSAGE;
+    return GEOQIK_SUCCESS;
   });
 }
 
@@ -691,13 +690,13 @@ geoqik_result_t geoqik_get_line_width(float* result)
     auto enqueueResult = enqueue(GeoQikMessage{.type = GeoQikMessageType::GET_LINE_WIDTH,
                                                .data = GeoQikMessageData{},
                                                .callback = [&promise](Context& context) { promise.set_value(context.get_line_width()); }});
-    if (enqueueResult != GEOQIK_ADDED_MESSAGE)
+    if (enqueueResult != GEOQIK_SUCCESS)
     {
       return enqueueResult;
     }
 
     *result = future.get();
-    return GEOQIK_ADDED_MESSAGE;
+    return GEOQIK_SUCCESS;
   });
 }
 
@@ -728,7 +727,7 @@ geoqik_result_t geoqik_get_line_color(float* r, float* g, float* b)
     auto enqueueResult = enqueue(GeoQikMessage{.type = GeoQikMessageType::GET_LINE_COLOR,
                                                .data = GeoQikMessageData{},
                                                .callback = [&promise](Context& context) { promise.set_value(context.get_line_color()); }});
-    if (enqueueResult != GEOQIK_ADDED_MESSAGE)
+    if (enqueueResult != GEOQIK_SUCCESS)
     {
       return enqueueResult;
     }
@@ -737,7 +736,7 @@ geoqik_result_t geoqik_get_line_color(float* r, float* g, float* b)
     *r = color[0];
     *g = color[1];
     *b = color[2];
-    return GEOQIK_ADDED_MESSAGE;
+    return GEOQIK_SUCCESS;
   });
 }
 
@@ -751,7 +750,7 @@ geoqik_result_t geoqik_wait_for_exit_and_cleanup()
     }
 
     g_apiIsInitialized.store(false, std::memory_order_release);
-    return GEOQIK_ADDED_MESSAGE;
+    return GEOQIK_SUCCESS;
   });
 }
 
@@ -767,6 +766,6 @@ geoqik_result_t geoqik_cleanup()
     }
 
     g_apiIsInitialized.store(false, std::memory_order_release);
-    return GEOQIK_ADDED_MESSAGE;
+    return GEOQIK_SUCCESS;
   });
 }

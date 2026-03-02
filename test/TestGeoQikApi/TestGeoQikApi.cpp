@@ -30,8 +30,8 @@ TEST_F(GeoQikTestApi, generate_uuid)
   geoqik_uuid_t uuid1;
   geoqik_uuid_t uuid2;
 
-  ASSERT_EQ(geoqik_result_t::GEOQIK_ADDED_MESSAGE, geoqik_generate_uuid(&uuid1));
-  ASSERT_EQ(geoqik_result_t::GEOQIK_ADDED_MESSAGE, geoqik_generate_uuid(&uuid2));
+  ASSERT_EQ(geoqik_result_t::GEOQIK_SUCCESS, geoqik_generate_uuid(&uuid1));
+  ASSERT_EQ(geoqik_result_t::GEOQIK_SUCCESS, geoqik_generate_uuid(&uuid2));
 
   bool areEqual = true;
   for (size_t i = 0; i < 16; ++i)

@@ -65,13 +65,12 @@ GEOQIK_EXPORT void geoqik_init_default_window_settings(geoqik_window_settings_t*
 /* Error codes - using C-style enum to avoid conflicts */
 typedef enum
 {
-  GEOQIK_ADDED_MESSAGE = 0,
+  GEOQIK_SUCCESS = 0,
   GEOQIK_ERROR_NOT_INITIALIZED = 1,
   GEOQIK_ERROR_ALREADY_INITIALIZED = 2,
   GEOQIK_ERROR_INVALID_PARAMETER = 3,
   GEOQIK_ERROR_MEMORY_ALLOCATION = 4,
-  GEOQIK_ERROR_THREAD_ERROR = 5,
-  GEOQIK_ERROR_UNKNOWN = 6
+  GEOQIK_ERROR_UNKNOWN = 5
 } geoqik_result_t;
 
 /* Get error message for result code */
