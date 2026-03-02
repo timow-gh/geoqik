@@ -34,6 +34,7 @@ enum class GeoQikMessageType
   DRAW,
   STOP_DRAW,
   REMOVE_ALL_GEOMETRY,
+  TRANSLATE_GEOMETRY,
   CLEANUP
 };
 
@@ -51,7 +52,8 @@ enum class GeoQikMessageType
          type == GeoQikMessageType::ADD_LINE_COLOR ||
          type == GeoQikMessageType::SET_LINE_WIDTH ||
          type == GeoQikMessageType::SET_LINE_COLOR ||
-         type == GeoQikMessageType::REMOVE_ALL_GEOMETRY;
+         type == GeoQikMessageType::REMOVE_ALL_GEOMETRY ||
+         type == GeoQikMessageType::TRANSLATE_GEOMETRY;
 }
 
 union GeoQikMessageData
@@ -90,6 +92,12 @@ union GeoQikMessageData
   struct RemoveLine
   {
     core::UUID handle;
+  };
+
+  struct TranslateGeometry
+  {
+    core::UUID handle;
+    float dx, dy, dz;
   };
 
   struct ColorPoint
@@ -136,6 +144,8 @@ union GeoQikMessageData
   PointSize pointSize;
   LineWidth lineWidth;
   Color color;
+
+  TranslateGeometry translateGeometry;
 };
 
 struct GeoQikMessage

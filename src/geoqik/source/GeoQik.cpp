@@ -582,6 +582,25 @@ GEOQIK_EXPORT geoqik_result_t geoqik_remove_all_geometry()
   });
 }
 
+GEOQIK_EXPORT geoqik_result_t geoqik_translate_geometry(const geoqik_uuid_t* geometryId, double dx, double dy, double dz)
+{
+  if (!geometryId || !geoqik_internal::validate_finite_coords(dx, dy, dz))
+  {
+    return GEOQIK_ERROR_INVALID_PARAMETER;
+  }
+
+  return geoqik_internal::execute_if_initialized([&]() -> geoqik_result_t {
+    core::UUID handle = convert_to_core_uuid(*geometryId);
+    return enqueue(GeoQikMessage{GeoQikMessageType::TRANSLATE_GEOMETRY,
+                                 GeoQikMessageData{.translateGeometry = GeoQikMessageData::TranslateGeometry{handle,
+                                                                                                               static_cast<float>(dx),
+                                                                                                               static_cast<float>(dy),
+                                                                                                               static_cast<float>(dz)}},
+                                 nullptr});
+  });
+}
+
+
 geoqik_result_t geoqik_draw()
 {
   return geoqik_internal::execute_if_initialized([&]() -> geoqik_result_t {

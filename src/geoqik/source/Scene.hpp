@@ -80,10 +80,7 @@ public:
     m_geoBuffer->add_point(x, y, z, r, g, b, handle);
   }
 
-  void remove_point(core::UUID handle)
-  {
-    m_geoBuffer->remove_point(handle);
-  }
+  void remove_point(core::UUID handle) { m_geoBuffer->remove_point(handle); }
 
   void add_line(float x1, float y1, float z1, float x2, float y2, float z2, const core::UUID* handle = nullptr)
   {
@@ -107,10 +104,9 @@ public:
     m_geoBuffer->add_line(x1, y1, z1, x2, y2, z2, r, g, b, handle);
   }
 
-  void remove_line(core::UUID handle)
-  {
-    m_geoBuffer->remove_line(handle);
-  }
+  void remove_line(core::UUID handle) { m_geoBuffer->remove_line(handle); }
+
+  void translate_geometry(core::UUID handle, float dx, float dy, float dz) { m_geoBuffer->translate_geometry(handle, dx, dy, dz); }
 
   [[nodiscard]] const OpenGLDrawablesManager& get_drawables_manager() const { return m_drawablesManager; }
 
@@ -140,31 +136,38 @@ public:
   std::array<float, 3> get_line_color() const { return m_geoBuffer->get_line_color(); }
   void set_line_color(float r, float g, float b) { m_geoBuffer->set_line_color(r, g, b); }
 
-  void create_drawables()
+  void create_point_drawable()
   {
-    if (!m_geoBuffer->get_points().empty())
+    if (m_geoBuffer->get_points().empty())
     {
-      m_drawablesManager.add_point_drawable(m_geoBuffer->get_points(),
-                                            m_geoBuffer->get_point_dimension(),
-                                            m_geoBuffer->get_point_colors(),
-                                            m_geoBuffer->get_color_dimension(),
-                                            m_geoBuffer->get_point_indices(),
-                                            m_pointSize,
-                                            opengl::BufferAccessPattern::STATIC_DRAW);
+      return;
     }
 
-    if (!m_geoBuffer->get_lines().empty())
+    m_drawablesManager.add_point_drawable(m_geoBuffer->get_points(),
+                                          m_geoBuffer->get_point_dimension(),
+                                          m_geoBuffer->get_point_colors(),
+                                          m_geoBuffer->get_color_dimension(),
+                                          m_geoBuffer->get_point_indices(),
+                                          m_pointSize,
+                                          opengl::BufferAccessPattern::STATIC_DRAW);
+  }
+
+  void create_line_drawable()
+  {
+    if (m_geoBuffer->get_lines().empty())
     {
-      m_drawablesManager.add_line_drawable(m_geoBuffer->get_lines(),
-                                           m_geoBuffer->get_point_dimension(),
-                                           m_geoBuffer->get_line_indices(),
-                                           m_geoBuffer->get_line_colors(),
-                                           m_geoBuffer->get_color_dimension(),
-                                           m_lineType,
-                                           m_lineWidth,
-                                           m_pointSize,
-                                           opengl::BufferAccessPattern::STATIC_DRAW);
+      return;
     }
+
+    m_drawablesManager.add_line_drawable(m_geoBuffer->get_lines(),
+                                         m_geoBuffer->get_point_dimension(),
+                                         m_geoBuffer->get_line_indices(),
+                                         m_geoBuffer->get_line_colors(),
+                                         m_geoBuffer->get_color_dimension(),
+                                         m_lineType,
+                                         m_lineWidth,
+                                         m_pointSize,
+                                         opengl::BufferAccessPattern::STATIC_DRAW);
   }
 
   /** \brief Update the drawable buffers if the geometry buffer has changed
@@ -177,7 +180,7 @@ public:
 
     if (!m_drawablesManager.has_point_drawables() && !m_geoBuffer->get_points().empty())
     {
-      create_drawables();
+      create_point_drawable();
       updateOccurred = true;
     }
     else if (m_geoBuffer->points_have_changed())
@@ -185,14 +188,14 @@ public:
       m_drawablesManager.update_last_point_drawable(m_geoBuffer->get_points(),
                                                     m_geoBuffer->get_point_colors(),
                                                     m_geoBuffer->get_point_indices(),
-                                                    opengl::BufferAccessPattern::STATIC_DRAW);
+                                                    opengl::BufferAccessPattern::DYNAMIC_DRAW);
       m_geoBuffer->reset_points_have_changed();
       updateOccurred = true;
     }
 
     if (!m_drawablesManager.has_line_drawables() && !m_geoBuffer->get_lines().empty())
     {
-      create_drawables();
+      create_line_drawable();
       updateOccurred = true;
     }
     else if (m_geoBuffer->lines_have_changed())
@@ -200,7 +203,7 @@ public:
       m_drawablesManager.update_last_line_drawable(m_geoBuffer->get_lines(),
                                                    m_geoBuffer->get_line_colors(),
                                                    m_geoBuffer->get_line_indices(),
-                                                   opengl::BufferAccessPattern::STATIC_DRAW);
+                                                   opengl::BufferAccessPattern::DYNAMIC_DRAW);
       m_geoBuffer->reset_lines_have_changed();
       updateOccurred = true;
     }
@@ -239,7 +242,8 @@ private:
   {
     clear_drawables();
     m_geoBuffer = GeometryBuffer::create_from(std::move(*m_geoBuffer), m_geomBufferGrowthFactor);
-    create_drawables();
+    create_point_drawable();
+    create_line_drawable();
   }
 
   void calc_max_radius_squared(std::span<const float> points, const linal::float3& center, float& maxRadiusSq) const
@@ -254,7 +258,6 @@ private:
       }
     }
   }
-
 };
 
 } // namespace geoqik

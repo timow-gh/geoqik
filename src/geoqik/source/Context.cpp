@@ -236,6 +236,11 @@ void Context::remove_all_geometry()
   ++m_geometryMessagesProcessedThisFrame;
 }
 
+void Context::translate_geometry(const core::UUID& handle, float dx, float dy, float dz)
+{
+  m_scene.translate_geometry(handle, dx, dy, dz);
+  ++m_geometryMessagesProcessedThisFrame;
+}
 
 const Viewport& Context::get_viewport()
 {
@@ -424,7 +429,6 @@ void Context::initialize_message_handlers()
 
   m_messageHandlers[GeoQikMessageType::STOP_DRAW] = [](Context& ctx, [[maybe_unused]] const GeoQikMessage& msg) { ctx.m_isDrawing = false; };
 
-  // Point messages
   m_messageHandlers[GeoQikMessageType::ADD_POINT] = [](Context& ctx, const GeoQikMessage& msg)
   {
     const auto& point = msg.data.point;
@@ -470,7 +474,6 @@ void Context::initialize_message_handlers()
     msg.callback(ctx);
   };
 
-  // Line messages
   m_messageHandlers[GeoQikMessageType::ADD_LINE] = [](Context& ctx, const GeoQikMessage& msg)
   {
     const auto& line = msg.data.line;
@@ -516,9 +519,16 @@ void Context::initialize_message_handlers()
     msg.callback(ctx);
   };
 
+
   m_messageHandlers[GeoQikMessageType::REMOVE_ALL_GEOMETRY] = [](Context& ctx, [[maybe_unused]] const GeoQikMessage& msg)
   {
     ctx.remove_all_geometry();
+  };
+
+  m_messageHandlers[GeoQikMessageType::TRANSLATE_GEOMETRY] = [](Context& ctx, const GeoQikMessage& msg)
+  {
+    const auto& translateMsg = msg.data.translateGeometry;
+    ctx.translate_geometry(translateMsg.handle, translateMsg.dx, translateMsg.dy, translateMsg.dz);
   };
 }
 

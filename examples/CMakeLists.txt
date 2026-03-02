@@ -4,7 +4,7 @@ macro(create_example_exe name)
     else()
         add_executable(${name} ${name}.cpp)
     endif()
-    target_link_libraries(${name} PRIVATE geoqik::geoqik)
+    target_link_libraries(${name} PRIVATE geoqik::geoqik linal::linal)
     set_target_properties(${name}
             PROPERTIES
             LANGUAGE CXX
@@ -30,6 +30,15 @@ add_custom_target(run-example-spiral
     VERBATIM
 )
 
+create_example_exe(example_transformations)
+add_custom_target(run-example-transformations
+    COMMAND $<TARGET_FILE:example_transformations> ${ARGS}
+    DEPENDS example_transformations
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    COMMENT "Running example_transformations"
+    VERBATIM
+)
+
 create_example_exe(example_grid)
 
 create_example_exe(example_removing_geometry)
@@ -38,7 +47,7 @@ add_custom_target(run-example-removing-geometry
     COMMAND $<TARGET_FILE:example_removing_geometry> ${ARGS}
     DEPENDS example_removing_geometry
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-    COMMENT "Running example_removing-geometry"
+    COMMENT "Running example_removing_geometry"
     VERBATIM
 )
 

@@ -118,6 +118,8 @@ public:
 
   void remove_all_geometry();
 
+  void translate_geometry(const core::UUID& handle, float dx, float dy, float dz);
+
   [[nodiscard]] const Viewport& get_viewport();
 
   void run_event_loop();

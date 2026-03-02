@@ -1,12 +1,8 @@
 #include "Origin.hpp"
+#include "sleep_helper.hpp"
 #include <GeoQik/GeoQik.hpp>
-#include <chrono>
-#include <thread>
 
-void sleep_for_seconds(double seconds)
-{
-  std::this_thread::sleep_for(std::chrono::milliseconds(static_cast<int>(seconds * 1000)));
-}
+using namespace geoqik::examples;
 
 static geoqik_uuid_t add_point_with_delay(double x, double y, double z, double delaySeconds)
 {

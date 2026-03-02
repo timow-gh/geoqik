@@ -16,19 +16,19 @@ namespace geoqik
 {
   
 // Holds the index of a point in the point buffer
-struct PointIndexData
+struct PointGeoBufferIndex
 {
   std::size_t pointIndex;
 
-  [[nodiscard]] std::strong_ordering operator<=>(const PointIndexData& other) const = default;
+  [[nodiscard]] std::strong_ordering operator<=>(const PointGeoBufferIndex& other) const = default;
 };
 
 // Holds the index of a line in the line buffer
-struct LineIndexData
+struct LineGeoBufferIndex
 {
   std::size_t lineIndex;
 
-  [[nodiscard]] std::strong_ordering operator<=>(const LineIndexData& other) const = default;
+  [[nodiscard]] std::strong_ordering operator<=>(const LineGeoBufferIndex& other) const = default;
 };
 
 /** \brief Geometry buffer storing geometry data that can be used for rendering.
@@ -55,8 +55,8 @@ class GeometryBuffer
   bool m_pointsHaveChanged{false};
   bool m_linesHaveChanged{false};
 
-  std::unordered_map<core::UUID, PointIndexData> m_handleToPointIndexMapping;
-  std::unordered_map<core::UUID, LineIndexData> m_handleToLineIndexMapping;
+  std::unordered_map<core::UUID, PointGeoBufferIndex> m_handleToPointIndexMapping;
+  std::unordered_map<core::UUID, LineGeoBufferIndex> m_handleToLineIndexMapping;
 
 public:
   [[nodiscard]] static std::unique_ptr<GeometryBuffer> create()
@@ -181,7 +181,7 @@ public:
 
     if (handle != nullptr && !handle->is_nil())
     {
-      m_handleToPointIndexMapping.emplace(*handle, PointIndexData{pointIndex});
+      m_handleToPointIndexMapping.emplace(*handle, PointGeoBufferIndex{pointIndex});
     } 
 
     m_pointsHaveChanged = true;
@@ -273,7 +273,7 @@ public:
 
     if (handle != nullptr && !handle->is_nil())
     {
-      m_handleToLineIndexMapping.emplace(*handle, LineIndexData{lineIndex});
+      m_handleToLineIndexMapping.emplace(*handle, LineGeoBufferIndex{lineIndex});
     }
 
     m_linesHaveChanged = true;
@@ -321,6 +321,36 @@ public:
   }
 
   void set_line_color(float r, float g, float b) { m_currentLineColor = {r, g, b}; }
+
+  void translate_geometry(core::UUID handle, float dx, float dy, float dz)
+  {
+    auto pointIt = m_handleToPointIndexMapping.find(handle);
+    if (pointIt != m_handleToPointIndexMapping.end())
+    {
+      std::size_t pointIndex = pointIt->second.pointIndex;
+      std::size_t pointStart = pointIndex * m_pointDimension;
+      m_points[pointStart] += dx;
+      m_points[pointStart + 1] += dy;
+      m_points[pointStart + 2] += dz;
+      m_pointsHaveChanged = true;
+      return;
+    }
+
+    auto lineIt = m_handleToLineIndexMapping.find(handle);
+    if (lineIt != m_handleToLineIndexMapping.end())
+    {
+      std::size_t lineIndex = lineIt->second.lineIndex;
+      std::size_t lineStart = lineIndex * 2 * m_pointDimension;
+      for (std::size_t i = 0; i < 2; ++i)
+      {
+        m_lines[lineStart + i * m_pointDimension] += dx;
+        m_lines[lineStart + i * m_pointDimension + 1] += dy;
+        m_lines[lineStart + i * m_pointDimension + 2] += dz;
+      }
+      m_linesHaveChanged = true;
+      return;
+    }
+  }
 
 private:
   GeometryBuffer()

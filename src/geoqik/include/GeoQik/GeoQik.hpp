@@ -165,6 +165,8 @@ GEOQIK_EXPORT geoqik_result_t geoqik_remove_line(const geoqik_uuid_t* geometryId
 
 GEOQIK_EXPORT geoqik_result_t geoqik_remove_all_geometry();
 
+GEOQIK_EXPORT geoqik_result_t geoqik_translate_geometry(const geoqik_uuid_t* geometryId, double dx, double dy, double dz);
+
 /** \brief Starts drawing geometry.
  *
  * Starts the drawing process for all geometry added so far. Geometry added after this call will be drawn as soon as possible.
