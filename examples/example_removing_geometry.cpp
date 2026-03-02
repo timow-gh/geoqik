@@ -54,11 +54,24 @@ int main()
   geoqik_uuid_t lineIdB = add_line_with_delay(5.0, 0.0, 0.0, 0.0, 5.0, 0.0, delaySeconds);
   geoqik_uuid_t lineIdC = add_line_with_delay(0.0, 5.0, 0.0, 5.0, 5.0, 0.0, delaySeconds);
 
-  sleep_for_seconds(1.0);
+  sleep_for_seconds(0.5);
 
   remove_line_with_delay(&lineIdA, delaySeconds);
   remove_line_with_delay(&lineIdB, delaySeconds);
   remove_line_with_delay(&lineIdC, delaySeconds);
+
+  sleep_for_seconds(0.5);
+
+  geoqik_remove_all_geometry();
+
+  // Add 10 points in the x, y, z direction
+  for (int i = 0; i < 10; ++i)
+  {
+    double coord = static_cast<double>(i);
+    geoqik_add_point_with_color(coord, 0.0, 0.0, 1.0f, 0.0f, 0.0f);
+    geoqik_add_point_with_color(0.0, coord, 0.0, 0.0f, 1.0f, 0.0f);
+    geoqik_add_point_with_color(0.0, 0.0, coord, 0.0f, 0.0f, 1.0f);
+  }
 
   geoqik_wait_for_exit_and_cleanup();
 

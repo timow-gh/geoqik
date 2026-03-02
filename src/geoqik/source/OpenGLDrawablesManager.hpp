@@ -81,7 +81,6 @@ public:
   {
     if (m_pointDrawables.empty())
     {
-      CORE_ASSERT(false);
       return;
     }
     m_pointDrawables.back().update_vertex_buffer(vertices, accessPattern);
@@ -96,7 +95,6 @@ public:
   {
     if (m_lineDrawables.empty())
     {
-      CORE_ASSERT(false);
       return;
     }
     m_lineDrawables.back().update_vertex_buffer(vertices, accessPattern);

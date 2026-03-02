@@ -230,6 +230,13 @@ void Context::remove_line(const core::UUID& handle)
   ++m_geometryMessagesProcessedThisFrame;
 }
 
+void Context::remove_all_geometry()
+{
+  m_scene.clear();
+  ++m_geometryMessagesProcessedThisFrame;
+}
+
+
 const Viewport& Context::get_viewport()
 {
   return m_cameraInteractor->get_viewport();
@@ -507,6 +514,11 @@ void Context::initialize_message_handlers()
   {
     CORE_ASSERT(msg.callback);
     msg.callback(ctx);
+  };
+
+  m_messageHandlers[GeoQikMessageType::REMOVE_ALL_GEOMETRY] = [](Context& ctx, [[maybe_unused]] const GeoQikMessage& msg)
+  {
+    ctx.remove_all_geometry();
   };
 }
 

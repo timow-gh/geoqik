@@ -33,10 +33,11 @@ enum class GeoQikMessageType
   SET_LINE_COLOR,
   DRAW,
   STOP_DRAW,
+  REMOVE_ALL_GEOMETRY,
   CLEANUP
 };
 
-[[nodiscard]] inline bool is_geometry_type(GeoQikMessageType type)
+[[nodiscard]] inline bool is_geometry_message(GeoQikMessageType type)
 {
   return type == GeoQikMessageType::ADD_POINT ||
          type == GeoQikMessageType::ADD_POINT_WITH_ID ||
@@ -49,7 +50,8 @@ enum class GeoQikMessageType
          type == GeoQikMessageType::REMOVE_LINE ||
          type == GeoQikMessageType::ADD_LINE_COLOR ||
          type == GeoQikMessageType::SET_LINE_WIDTH ||
-         type == GeoQikMessageType::SET_LINE_COLOR;
+         type == GeoQikMessageType::SET_LINE_COLOR ||
+         type == GeoQikMessageType::REMOVE_ALL_GEOMETRY;
 }
 
 union GeoQikMessageData

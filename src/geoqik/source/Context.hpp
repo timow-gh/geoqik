@@ -116,6 +116,8 @@ public:
   void add_line(float x1, float y1, float z1, float x2, float y2, float z2, float r, float g, float b, const core::UUID* handle = nullptr,  const core::UUID* idempotencyKey = nullptr);
   void remove_line(const core::UUID& handle);
 
+  void remove_all_geometry();
+
   [[nodiscard]] const Viewport& get_viewport();
 
   void run_event_loop();

@@ -575,6 +575,13 @@ geoqik_result_t geoqik_remove_line(const geoqik_uuid_t* geometryId)
   });
 }
 
+GEOQIK_EXPORT geoqik_result_t geoqik_remove_all_geometry()
+{
+  return geoqik_internal::execute_if_initialized([&]() -> geoqik_result_t {
+    return enqueue(GeoQikMessage{GeoQikMessageType::REMOVE_ALL_GEOMETRY, GeoQikMessageData{}, nullptr});
+  });
+}
+
 geoqik_result_t geoqik_draw()
 {
   return geoqik_internal::execute_if_initialized([&]() -> geoqik_result_t {
