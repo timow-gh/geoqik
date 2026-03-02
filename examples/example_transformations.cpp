@@ -50,6 +50,14 @@ int main()
   geoqik_translate_geometry(&lineIdB, 0.0, lineDelta, 0.0);
   geoqik_translate_geometry(&lineIdC, 0.0, 0.0, lineDelta);
 
+  for (int i = 0; i < 25; ++i)
+  {
+    double angle = static_cast<float>(i) * 0.01f;
+    geoqik_rotate_geometry(&lineIdA, 0.5, 0.5, 0.0, 0.0, 0.0, 1.0, angle);
+    geoqik_rotate_geometry(&pointIdA, 0.5, 0.5, 0.0, 0.0, 0.0, -1.0, angle);
+    sleep_for_seconds(0.05);
+  }
+
   geoqik_wait_for_exit_and_cleanup();
 
   return 0;

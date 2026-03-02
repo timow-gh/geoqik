@@ -5,6 +5,7 @@
 #include "Core/Assert.hpp"
 #include "Core/UUID.hpp"
 #include "GeoQikSettings.hpp"
+#include "linal/linal.hpp"
 #include <cassert>
 #include <cstdint>
 #include <memory>
@@ -349,6 +350,56 @@ public:
       }
       m_linesHaveChanged = true;
       return;
+    }
+  }
+
+  void rotate_geometry(core::UUID handle, float centerX, float centerY, float centerZ, float axisX, float axisY, float axisZ, float angle)
+  {
+    auto pointIt = m_handleToPointIndexMapping.find(handle);
+    if (pointIt != m_handleToPointIndexMapping.end())
+    {
+      std::size_t pointIndex = pointIt->second.pointIndex;
+      std::size_t pointStart = pointIndex * m_pointDimension;
+
+      linal::float3 point{m_points[pointStart], m_points[pointStart + 1], m_points[pointStart + 2]};
+      linal::float3 center{centerX, centerY, centerZ};
+      linal::float3 axis{axisX, axisY, axisZ};
+      axis = axis.normalize();
+
+      linal::float33 rotationMatrix;
+      linal::rot_axis(rotationMatrix, axis, angle);
+
+      linal::float3 rotatedPoint = rotationMatrix * (point - center) + center;
+
+      m_points[pointStart] = rotatedPoint[0];
+      m_points[pointStart + 1] = rotatedPoint[1];
+      m_points[pointStart + 2] = rotatedPoint[2];
+      m_pointsHaveChanged = true;
+      return;
+    }
+
+    auto lineIt = m_handleToLineIndexMapping.find(handle);
+    if (lineIt != m_handleToLineIndexMapping.end())
+    {
+      std::size_t lineIndex = lineIt->second.lineIndex;
+      std::size_t lineStart = lineIndex * 2 * m_pointDimension;
+      for (std::size_t i = 0; i < 2; ++i)
+      {
+        linal::float3 point{m_lines[lineStart + i * m_pointDimension], m_lines[lineStart + i * m_pointDimension + 1], m_lines[lineStart + i * m_pointDimension + 2]};
+        linal::float3 center{centerX, centerY, centerZ};
+        linal::float3 axis{axisX, axisY, axisZ};
+        axis = axis.normalize();
+
+        linal::float33 rotationMatrix;
+        linal::rot_axis(rotationMatrix, axis, angle);
+
+        linal::float3 rotatedPoint = rotationMatrix * (point - center) + center;
+
+        m_lines[lineStart + i * m_pointDimension] = rotatedPoint[0];
+        m_lines[lineStart + i * m_pointDimension + 1] = rotatedPoint[1];
+        m_lines[lineStart + i * m_pointDimension + 2] = rotatedPoint[2];
+      }
+      m_linesHaveChanged = true;
     }
   }
 

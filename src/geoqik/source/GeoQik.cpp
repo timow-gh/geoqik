@@ -600,6 +600,36 @@ GEOQIK_EXPORT geoqik_result_t geoqik_translate_geometry(const geoqik_uuid_t* geo
   });
 }
 
+GEOQIK_EXPORT geoqik_result_t geoqik_rotate_geometry(const geoqik_uuid_t* geometryId,
+                                                     double centerX,
+                                                     double centerY,
+                                                     double centerZ,
+                                                     double axisX,
+                                                     double axisY,
+                                                     double axisZ,
+                                                     double angle)
+{
+  if (!geometryId || !geoqik_internal::validate_finite_coords(centerX, centerY, centerZ) ||
+      !geoqik_internal::validate_finite_coords(axisX, axisY, axisZ) || !std::isfinite(angle))
+  {
+    return GEOQIK_ERROR_INVALID_PARAMETER;
+  }
+
+  return geoqik_internal::execute_if_initialized([&]() -> geoqik_result_t {
+    core::UUID handle = convert_to_core_uuid(*geometryId);
+    return enqueue(GeoQikMessage{GeoQikMessageType::ROTATE_GEOMETRY,
+                                 GeoQikMessageData{.rotateGeometry = GeoQikMessageData::RotateGeometry{
+                                                       handle,
+                                                       static_cast<float>(centerX),
+                                                       static_cast<float>(centerY),
+                                                       static_cast<float>(centerZ),
+                                                       static_cast<float>(axisX),
+                                                       static_cast<float>(axisY),
+                                                       static_cast<float>(axisZ),
+                                                       static_cast<float>(angle)}},
+                                 nullptr});
+  });
+}
 
 geoqik_result_t geoqik_draw()
 {

@@ -107,6 +107,10 @@ public:
   void remove_line(core::UUID handle) { m_geoBuffer->remove_line(handle); }
 
   void translate_geometry(core::UUID handle, float dx, float dy, float dz) { m_geoBuffer->translate_geometry(handle, dx, dy, dz); }
+  void rotate_geometry(core::UUID handle, float centerX, float centerY, float centerZ, float axisX, float axisY, float axisZ, float angle)
+  {
+    m_geoBuffer->rotate_geometry(handle, centerX, centerY, centerZ, axisX, axisY, axisZ, angle);
+  }
 
   [[nodiscard]] const OpenGLDrawablesManager& get_drawables_manager() const { return m_drawablesManager; }
 

@@ -242,6 +242,19 @@ void Context::translate_geometry(const core::UUID& handle, float dx, float dy, f
   ++m_geometryMessagesProcessedThisFrame;
 }
 
+void Context::rotate_geometry(const core::UUID& handle,
+                              float centerX,
+                              float centerY,
+                              float centerZ,
+                              float axisX,
+                              float axisY,
+                              float axisZ,
+                              float angle)
+{
+  m_scene.rotate_geometry(handle, centerX, centerY, centerZ, axisX, axisY, axisZ, angle);
+  ++m_geometryMessagesProcessedThisFrame;
+}
+
 const Viewport& Context::get_viewport()
 {
   return m_cameraInteractor->get_viewport();
@@ -529,6 +542,19 @@ void Context::initialize_message_handlers()
   {
     const auto& translateMsg = msg.data.translateGeometry;
     ctx.translate_geometry(translateMsg.handle, translateMsg.dx, translateMsg.dy, translateMsg.dz);
+  };
+
+  m_messageHandlers[GeoQikMessageType::ROTATE_GEOMETRY] = [](Context& ctx, const GeoQikMessage& msg)
+  {
+    const auto& rotateMsg = msg.data.rotateGeometry;
+    ctx.rotate_geometry(rotateMsg.handle,
+                        rotateMsg.centerX,
+                        rotateMsg.centerY,
+                        rotateMsg.centerZ,
+                        rotateMsg.axisX,
+                        rotateMsg.axisY,
+                        rotateMsg.axisZ,
+                        rotateMsg.angle);
   };
 }
 

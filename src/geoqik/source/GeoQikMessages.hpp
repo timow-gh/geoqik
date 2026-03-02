@@ -35,6 +35,7 @@ enum class GeoQikMessageType
   STOP_DRAW,
   REMOVE_ALL_GEOMETRY,
   TRANSLATE_GEOMETRY,
+  ROTATE_GEOMETRY,
   CLEANUP
 };
 
@@ -53,7 +54,8 @@ enum class GeoQikMessageType
          type == GeoQikMessageType::SET_LINE_WIDTH ||
          type == GeoQikMessageType::SET_LINE_COLOR ||
          type == GeoQikMessageType::REMOVE_ALL_GEOMETRY ||
-         type == GeoQikMessageType::TRANSLATE_GEOMETRY;
+         type == GeoQikMessageType::TRANSLATE_GEOMETRY ||
+         type == GeoQikMessageType::ROTATE_GEOMETRY;
 }
 
 union GeoQikMessageData
@@ -99,7 +101,14 @@ union GeoQikMessageData
     core::UUID handle;
     float dx, dy, dz;
   };
-
+  
+   struct RotateGeometry
+  {
+    core::UUID handle;
+    float centerX, centerY, centerZ;
+    float axisX, axisY, axisZ;
+    float angle;
+  };
   struct ColorPoint
   {
     float x, y, z;
@@ -146,6 +155,7 @@ union GeoQikMessageData
   Color color;
 
   TranslateGeometry translateGeometry;
+  RotateGeometry rotateGeometry;
 };
 
 struct GeoQikMessage

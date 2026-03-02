@@ -166,6 +166,15 @@ GEOQIK_EXPORT geoqik_result_t geoqik_remove_line(const geoqik_uuid_t* geometryId
 GEOQIK_EXPORT geoqik_result_t geoqik_remove_all_geometry();
 
 GEOQIK_EXPORT geoqik_result_t geoqik_translate_geometry(const geoqik_uuid_t* geometryId, double dx, double dy, double dz);
+/** \brief Rotates the specified geometry around the given center, axis and angle */
+GEOQIK_EXPORT geoqik_result_t geoqik_rotate_geometry(const geoqik_uuid_t* geometryId,
+                                                     double centerX,
+                                                     double centerY,
+                                                     double centerZ,
+                                                     double axisX,
+                                                     double axisY,
+                                                     double axisZ,
+                                                     double angle);
 
 /** \brief Starts drawing geometry.
  *

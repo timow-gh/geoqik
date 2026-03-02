@@ -119,6 +119,14 @@ public:
   void remove_all_geometry();
 
   void translate_geometry(const core::UUID& handle, float dx, float dy, float dz);
+  void rotate_geometry(const core::UUID& handle,
+                       float centerX,
+                       float centerY,
+                       float centerZ,
+                       float axisX,
+                       float axisY,
+                       float axisZ,
+                       float angle);
 
   [[nodiscard]] const Viewport& get_viewport();
 

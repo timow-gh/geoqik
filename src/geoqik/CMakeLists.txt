@@ -109,5 +109,5 @@ add_library(geoqik_internals INTERFACE)
 # This following include dir paths need to be paths with the project as its root, since the test projects rely on them.
 target_include_directories(geoqik_internals INTERFACE ${CMAKE_SOURCE_DIR}/src/geoqik/source)
 target_link_libraries(geoqik_internals INTERFACE 
-        geoqik::core)
+        geoqik::core linal::linal)
 add_library(geoqik::geoqik_internals ALIAS geoqik_internals)
