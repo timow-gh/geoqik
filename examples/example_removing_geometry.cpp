@@ -7,7 +7,7 @@ using namespace geoqik::examples;
 
 static geoqik_uuid_t add_point_with_delay(double x, double y, double z, double delaySeconds)
 {
-  geoqik_uuid_t pointId = geoqik_add_point_with_id(x, y, z, NULL).geometryId;
+  geoqik_uuid_t pointId = geoqik_add_point(x, y, z).geometryId;
   sleep_for_seconds(delaySeconds);
   return pointId;
 }

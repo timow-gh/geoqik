@@ -160,6 +160,8 @@ extern "C"
   GEOQIK_EXPORT geoqik_result_t geoqik_add_point_opts(double x, double y, double z, geoqik_add_points_options_t* options);
   GEOQIK_EXPORT geoqik_result_t geoqik_add_points_opts(const double* points, size_t count, geoqik_add_points_options_t* options);
 
+  GEOQIK_EXPORT geoqik_error_code_t geoqik_remove_point(const geoqik_uuid_t* geometryId);
+
   GEOQIK_EXPORT geoqik_error_code_t geoqik_add_line(double x1, double y1, double z1, double x2, double y2, double z2);
   GEOQIK_EXPORT geoqik_error_code_t geoqik_add_line_with_color(double x1, double y1, double z1, double x2, double y2, double z2, float r, float g, float b);
 
@@ -176,11 +178,7 @@ extern "C"
     const geoqik_uuid_t* idempotencyKey; /**< Optional idempotency key for the geometry */
   } geoqik_add_options_t;
 
-  GEOQIK_EXPORT geoqik_result_t geoqik_add_point_with_id(double x, double y, double z, const geoqik_add_options_t* options);
-  GEOQIK_EXPORT geoqik_error_code_t geoqik_remove_point(const geoqik_uuid_t* geometryId);
-
-  GEOQIK_EXPORT geoqik_result_t
-  geoqik_add_line_with_id(double x1, double y1, double z1, double x2, double y2, double z2, const geoqik_add_options_t* options);
+  GEOQIK_EXPORT geoqik_result_t geoqik_add_line_with_id(double x1, double y1, double z1, double x2, double y2, double z2, const geoqik_add_options_t* options);
   GEOQIK_EXPORT geoqik_error_code_t geoqik_remove_line(const geoqik_uuid_t* geometryId);
 
   GEOQIK_EXPORT geoqik_error_code_t geoqik_remove_all_geometry();

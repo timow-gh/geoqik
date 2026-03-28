@@ -14,13 +14,13 @@ int main()
   geoqik_draw();
 
   geoqik_set_point_color(1.0f, 0.0f, 0.0f); // Red
-  geoqik_uuid_t pointIdA = geoqik_add_point_with_id(5.0, 5.0, 0.0, NULL).geometryId;
+  geoqik_uuid_t pointIdA = geoqik_add_point(5.0, 5.0, 0.0).geometryId;
   
   geoqik_set_point_color(0.0f, 1.0f, 0.0f); // Green  
-  geoqik_uuid_t pointIdB = geoqik_add_point_with_id(5.0, 0.0, 0.0, NULL).geometryId;
+  geoqik_uuid_t pointIdB = geoqik_add_point(5.0, 0.0, 0.0).geometryId;
   
   geoqik_set_point_color(0.0f, 0.0f, 1.0f); // Blue
-  geoqik_uuid_t pointIdC = geoqik_add_point_with_id(0.0, 5.0, 0.0, NULL).geometryId;
+  geoqik_uuid_t pointIdC = geoqik_add_point(0.0, 5.0, 0.0).geometryId;
 
   sleep_for_seconds(0.5);
 

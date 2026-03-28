@@ -181,33 +181,6 @@ void Context::add_points_with_opts(const float* points, std::size_t count, const
   ++m_geometryMessagesProcessedThisFrame;
 }
 
-void Context::add_point(float x, float y, float z, const core::UUID* handle, const core::UUID* idempotencyKey)
-{
-  if (is_known_idempotency_key(idempotencyKey))
-  {
-    return;
-  }
-  m_scene.add_point(x, y, z, handle);
-  ++m_geometryMessagesProcessedThisFrame;
-}
-
-void Context::add_point(float x,
-                        float y,
-                        float z,
-                        float r,
-                        float g,
-                        float b,
-                        const core::UUID* handle,
-                        const core::UUID* idempotencyKey)
-{
-  if (is_known_idempotency_key(idempotencyKey))
-  {
-    return;
-  }
-  m_scene.add_point(x, y, z, r, g, b, handle);
-  ++m_geometryMessagesProcessedThisFrame;
-}
-
 void Context::remove_point(const core::UUID& handle)
 {
   m_scene.remove_point(handle);
@@ -469,18 +442,6 @@ void Context::initialize_message_handlers()
 
   m_messageHandlers[GeoQikMessageType::STOP_DRAW] = [](Context& ctx, [[maybe_unused]] const GeoQikMessage& msg) { ctx.m_isDrawing = false; };
 
-  m_messageHandlers[GeoQikMessageType::ADD_POINT] = [](Context& ctx, const GeoQikMessage& msg)
-  {
-    const auto& point = msg.data.point;
-    ctx.add_point(point.x, point.y, point.z);
-  };
-
-  m_messageHandlers[GeoQikMessageType::ADD_POINT_WITH_ID] = [](Context& ctx, const GeoQikMessage& msg)
-  {
-    const auto& point = msg.data.pointWithId;
-    ctx.add_point(point.x, point.y, point.z, &point.requestId, &point.idempotencyId);
-  };
-
   m_messageHandlers[GeoQikMessageType::ADD_POINT_WITH_OPTS] = [](Context& ctx, const GeoQikMessage& msg)
   {
     const auto& pointWithOpts = msg.data.pointWithOpts;
@@ -500,12 +461,6 @@ void Context::initialize_message_handlers()
   {
     const auto& removePoint = msg.data.removePoint;
     ctx.remove_point(removePoint.handle);
-  };
-
-  m_messageHandlers[GeoQikMessageType::ADD_POINT_COLOR] = [](Context& ctx, const GeoQikMessage& msg)
-  {
-    const auto& point = msg.data.colorPoint;
-    ctx.add_point(point.x, point.y, point.z, point.r, point.g, point.b);
   };
 
   m_messageHandlers[GeoQikMessageType::SET_POINT_SIZE] = [](Context& ctx, const GeoQikMessage& msg)

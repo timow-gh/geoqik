@@ -15,12 +15,9 @@ class Context;
 
 enum class GeoQikMessageType
 {
-  ADD_POINT = 0,
-  ADD_POINT_WITH_ID,
   ADD_POINT_WITH_OPTS,
   ADD_POINTS_WITH_OPTS,
   REMOVE_POINT,
-  ADD_POINT_COLOR,
   GET_POINT_SIZE,
   SET_POINT_SIZE,
   GET_POINT_COLOR,
@@ -43,12 +40,9 @@ enum class GeoQikMessageType
 
 [[nodiscard]] inline bool is_geometry_message(GeoQikMessageType type)
 {
-  return type == GeoQikMessageType::ADD_POINT ||
-         type == GeoQikMessageType::ADD_POINT_WITH_ID ||
-         type == GeoQikMessageType::ADD_POINT_WITH_OPTS ||
+  return type == GeoQikMessageType::ADD_POINT_WITH_OPTS ||
          type == GeoQikMessageType::ADD_POINTS_WITH_OPTS ||
          type == GeoQikMessageType::REMOVE_POINT ||
-         type == GeoQikMessageType::ADD_POINT_COLOR ||
          type == GeoQikMessageType::SET_POINT_SIZE ||
          type == GeoQikMessageType::SET_POINT_COLOR ||
          type == GeoQikMessageType::ADD_LINE ||
@@ -64,18 +58,6 @@ enum class GeoQikMessageType
 
 union GeoQikMessageData
 {
-  struct Point
-  {
-    float x, y, z;
-  };
-
-  struct PointWithId
-  {
-    float x, y, z;
-    core::UUID requestId;
-    core::UUID idempotencyId;
-  };
-
   struct CommonMessageData
   {
     core::UUID geometryId;
@@ -136,12 +118,6 @@ union GeoQikMessageData
     float axisX, axisY, axisZ;
     float angle;
   };
-  struct ColorPoint
-  {
-    float x, y, z;
-    float r, g, b;
-  };
-
   struct ColorLine
   {
     float x1, y1, z1;
@@ -164,9 +140,6 @@ union GeoQikMessageData
     float r, g, b;
   };
 
-  Point point;
-
-  PointWithId pointWithId;
   PointWitOpts pointWithOpts;
   PointsWithOpts pointsWithOpts;
   RemovePoint removePoint;
@@ -176,7 +149,6 @@ union GeoQikMessageData
   LineWithId lineWithId;
   RemoveLine removeLine;
 
-  ColorPoint colorPoint;
   ColorLine colorLine;
 
   PointSize pointSize;

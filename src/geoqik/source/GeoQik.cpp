@@ -552,34 +552,6 @@ geoqik_result_t geoqik_add_points_opts(const double* points, size_t count, geoqi
       });
 }
 
-geoqik_result_t geoqik_add_point_with_id(double x, double y, double z, const geoqik_add_options_t* options)
-{
-  if (!geoqik_internal::validate_finite_coords(x, y, z))
-  {
-    return geoqik_result_t{GEOQIK_ERROR_INVALID_PARAMETER, {}};
-  }
-
-  return geoqik_internal::execute_if_initialized(
-      [&]() -> geoqik_result_t
-      {
-        core::UUID reqId = core::UUID::generate();
-        core::UUID idemId;
-        if (options && options->idempotencyKey)
-        {
-          idemId = convert_to_core_uuid(*options->idempotencyKey);
-        }
-
-        auto enqueueResult = enqueue(GeoQikMessage{
-            GeoQikMessageType::ADD_POINT_WITH_ID,
-            GeoQikMessageData{
-                .pointWithId =
-                    GeoQikMessageData::PointWithId{static_cast<float>(x), static_cast<float>(y), static_cast<float>(z), reqId, idemId}},
-            nullptr});
-
-        return geoqik_result_t{enqueueResult, convert_to_geoqik_uuid(reqId)};
-      });
-}
-
 geoqik_error_code_t geoqik_remove_point(const geoqik_uuid_t* geometryId)
 {
   if (!geometryId)

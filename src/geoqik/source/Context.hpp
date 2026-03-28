@@ -111,8 +111,6 @@ public:
   void add_point_with_opts(float x, float y, float z, const GeoQikMessageData::CommonMessageData& commonData);
   void add_points_with_opts(const float* points, std::size_t count, const GeoQikMessageData::CommonMessageData& commonData);
 
-  void add_point(float x, float y, float z, const core::UUID* handle = nullptr, const core::UUID* idempotencyKey = nullptr);
-  void add_point(float x, float y, float z, float r, float g, float b, const core::UUID* handle = nullptr, const core::UUID* idempotencyKey = nullptr);
   void remove_point(const core::UUID& handle);
 
   void add_line(float x1, float y1, float z1, float x2, float y2, float z2, const core::UUID* handle = nullptr, const core::UUID* idempotencyKey = nullptr);
