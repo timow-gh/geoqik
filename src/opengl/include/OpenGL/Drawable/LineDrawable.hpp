@@ -66,13 +66,14 @@ public:
     m_colorBuffer.update_buffer(colors, accessPattern);
   }
 
-  void update_line_indices(std::span<const std::uint32_t> indices, BufferAccessPattern accessPattern)
+  void update_indices_buffer(std::span<const std::uint32_t> indices, BufferAccessPattern accessPattern)
   {
     m_lineIndicesBuffer.update_indices_buffer(indices, accessPattern);
   }
 
   void draw(const linal::hmatf& mvp) const
   {
+    CORE_ASSERT(m_program != nullptr);
     auto& prog = *m_program;
     prog.use();
     glUniformMatrix4fv(prog.get_mvp_location().get_value(), 1, GL_FALSE, (const GLfloat*)mvp.data());

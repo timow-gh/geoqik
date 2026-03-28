@@ -4,7 +4,6 @@
 #include "OpenGL/BufferAccessPattern.hpp"
 #include "OpenGL/BufferId.hpp"
 #include "OpenGL/OpenGL.hpp"
-#include "OpenGL/UpdateBuffer.hpp"
 #include "OpenGL/opengl_export.h"
 #include <Core/Warnings.hpp>
 #include <cstdint>
@@ -55,7 +54,10 @@ public:
 
   void update_indices_buffer(std::span<const std::uint32_t> indices, BufferAccessPattern accessPattern)
   {
-    update_buffer(*this, indices, accessPattern);
+    bind();
+    const GLsizeiptr size = static_cast<GLsizeiptr>(indices.size() * sizeof(std::uint32_t));
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, size, NULL, get_enum_value(accessPattern));
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, size, indices.data(), get_enum_value(accessPattern));
     set_index_count(static_cast<GLsizei>(indices.size()));
   }
 };

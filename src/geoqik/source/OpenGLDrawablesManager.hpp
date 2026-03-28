@@ -99,7 +99,7 @@ public:
     }
     m_lineDrawables.back().update_vertex_buffer(vertices, accessPattern);
     m_lineDrawables.back().update_color_buffer(colors, accessPattern);
-    m_lineDrawables.back().update_line_indices(indices, accessPattern);
+    m_lineDrawables.back().update_indices_buffer(indices, accessPattern);
   }
 
   void clear_point_drawables()
