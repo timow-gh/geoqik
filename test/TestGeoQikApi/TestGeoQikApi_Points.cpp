@@ -24,14 +24,9 @@ TEST_F(GeoQikTest_Points, AddPointWithHandle)
 
   geoqik_draw();
 
-  geoqik_uuid_t pointId1;
-  geoqik_add_point_with_id(0.0, 0.0, 0.0, &pointId1, nullptr);
-
-  geoqik_uuid_t pointId2;
-  geoqik_add_point_with_id(1.0, 0.0, 0.0, &pointId2, nullptr);
-
-  geoqik_uuid_t pointId3;
-  geoqik_add_point_with_id(0.0, 1.0, 0.0, &pointId3, nullptr);
+  geoqik_uuid_t pointId1 = geoqik_add_point_with_id(0.0, 0.0, 0.0, nullptr).geometryId;
+  geoqik_uuid_t pointId2 = geoqik_add_point_with_id(1.0, 0.0, 0.0, nullptr).geometryId;
+  geoqik_uuid_t pointId3 = geoqik_add_point_with_id(0.0, 1.0, 0.0, nullptr).geometryId;
 
   // Now remove the second point
   geoqik_remove_point(&pointId2);

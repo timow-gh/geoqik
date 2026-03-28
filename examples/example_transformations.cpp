@@ -14,25 +14,19 @@ int main()
   geoqik_draw();
 
   geoqik_set_point_color(1.0f, 0.0f, 0.0f); // Red
-  geoqik_uuid_t pointIdA;
-  geoqik_add_point_with_id(5.0, 5.0, 0.0, &pointIdA, NULL);
+  geoqik_uuid_t pointIdA = geoqik_add_point_with_id(5.0, 5.0, 0.0, NULL).geometryId;
   
   geoqik_set_point_color(0.0f, 1.0f, 0.0f); // Green  
-  geoqik_uuid_t pointIdB;
-  geoqik_add_point_with_id(5.0, 0.0, 0.0, &pointIdB, NULL);
+  geoqik_uuid_t pointIdB = geoqik_add_point_with_id(5.0, 0.0, 0.0, NULL).geometryId;
   
   geoqik_set_point_color(0.0f, 0.0f, 1.0f); // Blue
-  geoqik_uuid_t pointIdC;
-  geoqik_add_point_with_id(0.0, 5.0, 0.0, &pointIdC, NULL);
+  geoqik_uuid_t pointIdC = geoqik_add_point_with_id(0.0, 5.0, 0.0, NULL).geometryId;
 
   sleep_for_seconds(0.5);
 
-  geoqik_uuid_t lineIdA;
-  geoqik_add_line_with_id(5.0, 5.0, 0.0, 5.0, 0.0, 0.0, &lineIdA, NULL);
-  geoqik_uuid_t lineIdB;
-  geoqik_add_line_with_id(5.0, 0.0, 0.0, 0.0, 5.0, 0.0, &lineIdB, NULL);
-  geoqik_uuid_t lineIdC;
-  geoqik_add_line_with_id(0.0, 5.0, 0.0, 5.0, 5.0, 0.0, &lineIdC, NULL);
+  geoqik_uuid_t lineIdA = geoqik_add_line_with_id(5.0, 5.0, 0.0, 5.0, 0.0, 0.0, NULL).geometryId;
+  geoqik_uuid_t lineIdB = geoqik_add_line_with_id(5.0, 0.0, 0.0, 0.0, 5.0, 0.0, NULL).geometryId;
+  geoqik_uuid_t lineIdC = geoqik_add_line_with_id(0.0, 5.0, 0.0, 5.0, 5.0, 0.0, NULL).geometryId;
 
   sleep_for_seconds(0.5);
 

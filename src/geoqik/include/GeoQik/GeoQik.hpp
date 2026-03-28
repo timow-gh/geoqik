@@ -5,6 +5,44 @@
 #include <stdint.h>
 #include <stddef.h>
 
+/** Description:
+ *
+ * 'A picture is worth a thousand words' - This library aims to provide a simple way to visualize geometry for debugging purposes.
+ *
+ *
+ * Thread Safety:
+ * All functions in the GeoQik C API are thread-safe and can be called concurrently from multiple threads. Except for the geoqik_init()
+ * function which must be called only once before any other GeoQik functions.
+ *
+ * Calls to the GeoQik API use locking internally, keep in mind that this may lead to contention if multiple threads
+ * access the API simultaneously.
+ *
+ *
+ * Usage Example:
+ *
+ * \code
+ * geoqik_result_t result = geoqik_init(); // Initialize the GeoQik library
+ * if (result.err != GEOQIK_SUCCESS) {
+ *     printf("Failed to initialize: %s\n", geoqik_get_error_string(result));
+ *     return -1;
+ * }
+ *
+ * geoqik_set_point_size(5.0f); // Following calls that add points will use this size.
+ * geoqik_set_line_width(2.0f); // Following calls that add lines will use this width.
+ * geoqik_set_point_color(1.0f, 0.0f, 0.0f); // Following calls that add points will use this color.
+ *
+ * // Geometry won't be drawn yet, it will be drawn when geoqik_draw() is called.
+ * geoqik_add_point(1.0, 0.0, 0.0);
+ * geoqik_add_line(0.0, 0.0, 0.0, 1.0, 0.0, 0.0);
+ *
+ * geoqik_draw(); // Draw all added geometry. Geometry added after this call will be drawn as soon as possible.
+ *
+ * geoqik_add_point(0.0, 1.0, 0.0); // This point will be drawn as soon as possible since geoqik_draw() was already called.
+ *
+ * geoqik_wait_for_exit_and_cleanup(); // Blocking, wait for user to close the window and clean up resources.
+ * \endcode
+ */
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -58,11 +96,9 @@ typedef struct {
     int scale_to_monitor;                 /* Whether to scale based on monitor content scale */
 } geoqik_window_settings_t;
 
-/* Initialize default settings structures */
 GEOQIK_EXPORT void geoqik_init_default_settings(geoqik_settings_t* settings);
 GEOQIK_EXPORT void geoqik_init_default_window_settings(geoqik_window_settings_t* settings);
 
-/* Error codes - using C-style enum to avoid conflicts */
 typedef enum
 {
   GEOQIK_SUCCESS = 0,
@@ -70,50 +106,25 @@ typedef enum
   GEOQIK_ERROR_ALREADY_INITIALIZED = 2,
   GEOQIK_ERROR_INVALID_PARAMETER = 3,
   GEOQIK_ERROR_WRONG_COLOR_SIZE = 4,
-  GEOQIK_ERROR_MEMORY_ALLOCATION = 4,
-  GEOQIK_ERROR_UNKNOWN = 5
+  GEOQIK_ERROR_MEMORY_ALLOCATION = 5,
+  GEOQIK_ERROR_UNKNOWN = 6
+} geoqik_error_code_t;
+
+typedef struct
+{
+  uint8_t value[16];
+} geoqik_uuid_t;
+
+typedef struct
+{
+  geoqik_error_code_t err;  /* The result code */
+  geoqik_uuid_t geometryId; /* The geometry ID, if applicable (zeroed otherwise) */
 } geoqik_result_t;
 
 /* Get error message for result code */
 GEOQIK_EXPORT const char* geoqik_get_error_string(geoqik_result_t result);
 
-/** Description:
- *
- * 'A picture is worth a thousand words' - This library aims to provide a simple way to visualize geometry for debugging purposes.
- *
- *
- * Thread Safety:
- * All functions in the GeoQik C API are thread-safe and can be called concurrently from multiple threads. Except for the geoqik_init()
- * function which must be called only once before any other GeoQik functions.
- *
- * Calls to the GeoQik API use locking internally, keep in mind that this may lead to contention if multiple threads
- * access the API simultaneously.
- *
- *
- * Usage Example:
- *
- * \code
- * geoqik_result_t result = geoqik_init(); // Initialize the GeoQik library
- * if (result != GEOQIK_SUCCESS) {
- *     printf("Failed to initialize: %s\n", geoqik_get_error_string(result));
- *     return -1;
- * }
- *
- * geoqik_set_point_size(5.0f); // Following calls that add points will use this size.
- * geoqik_set_line_width(2.0f); // Following calls that add lines will use this width.
- * geoqik_set_point_color(1.0f, 0.0f, 0.0f); // Following calls that add points will use this color.
- *
- * // Geometry won't be drawn yet, it will be drawn when geoqik_draw() is called.
- * geoqik_add_point(1.0, 0.0, 0.0);
- * geoqik_add_line(0.0, 0.0, 0.0, 1.0, 0.0, 0.0);
- *
- * geoqik_draw(); // Draw all added geometry. Geometry added after this call will be drawn as soon as possible.
- *
- * geoqik_add_point(0.0, 1.0, 0.0); // This point will be drawn as soon as possible since geoqik_draw() was already called.
- *
- * geoqik_wait_for_exit_and_cleanup(); // Blocking, wait for user to close the window and clean up resources.
- * \endcode
- */
+GEOQIK_EXPORT geoqik_result_t geoqik_generate_uuid(geoqik_uuid_t* uuid);
 
 /** \brief Initializes the GeoQik library.
  *
@@ -124,27 +135,7 @@ GEOQIK_EXPORT geoqik_result_t geoqik_init();
 GEOQIK_EXPORT geoqik_result_t geoqik_init_with_settings(const geoqik_settings_t* geoqikSettings, const geoqik_window_settings_t* windowSettings);
 GEOQIK_EXPORT geoqik_result_t geoqik_is_api_initialized(bool* isInitialized);
 
-typedef struct
-{
-  uint8_t value[16];
-} geoqik_uuid_t;
 
-GEOQIK_EXPORT geoqik_result_t geoqik_generate_uuid(geoqik_uuid_t* uuid);
-
-GEOQIK_EXPORT geoqik_result_t geoqik_add_point(double x, double y, double z);
-
-typedef struct
-{
-  geoqik_uuid_t geometryId;     /**< Optional id to reference the point in subsequent operations. Ignored if the uuid is null. */
-  geoqik_uuid_t idempotencyKey; /**< Optional idempotency key for the point, ignored if the uuid is null. */
-  const float* color;           /**< Optional color used for the point (RGB), ignored if the pointer is null. */
-  size_t colorCount;            /**< Number of floats in the color array, must be 0, 3 or the same as the number of points */
-} geoqik_add_points_options_t;
-
-GEOQIK_EXPORT geoqik_result_t geoqik_add_point_opts(double x, double y, double z, geoqik_add_points_options_t* options);
-GEOQIK_EXPORT geoqik_result_t geoqik_add_points_opts(const double* points, size_t count, geoqik_add_points_options_t* options);
-
-GEOQIK_EXPORT geoqik_result_t geoqik_add_point_with_color(double x, double y, double z, float r, float g, float b);
 
 /** \brief Sets the size used for all points */
 GEOQIK_EXPORT geoqik_result_t geoqik_set_point_size(float pointSize);
@@ -153,6 +144,21 @@ GEOQIK_EXPORT geoqik_result_t geoqik_get_point_size(float* pointSize);
 /** \brief Sets the color used for all points that don't specify their color. */
 GEOQIK_EXPORT geoqik_result_t geoqik_set_point_color(float r, float g, float b);
 GEOQIK_EXPORT geoqik_result_t geoqik_get_point_color(float* r, float* g, float* b);
+
+GEOQIK_EXPORT geoqik_result_t geoqik_add_point(double x, double y, double z);
+GEOQIK_EXPORT geoqik_result_t geoqik_add_point_with_color(double x, double y, double z, float r, float g, float b);
+
+typedef struct
+{
+  geoqik_uuid_t idempotencyKey; /**< Optional idempotency key for the point, ignored if the uuid is null. */
+  const float* color;           /**< Optional color used for the point (RGB), ignored if the pointer is null. */
+  size_t colorCount;            /**< Number of floats in the color array, must be 0, 3 or the same as the number of points */
+} geoqik_add_points_options_t;
+
+GEOQIK_EXPORT geoqik_result_t geoqik_add_point_opts(double x, double y, double z, geoqik_add_points_options_t* options);
+GEOQIK_EXPORT geoqik_result_t geoqik_add_points_opts(const double* points, size_t count, geoqik_add_points_options_t* options);
+
+
 
 GEOQIK_EXPORT geoqik_result_t geoqik_add_line(double x1, double y1, double z1, double x2, double y2, double z2);
 GEOQIK_EXPORT geoqik_result_t geoqik_add_line_with_color(double x1, double y1, double z1, double x2, double y2, double z2, float r, float g, float b);
@@ -170,10 +176,10 @@ typedef struct
   const geoqik_uuid_t* idempotencyKey; /**< Optional idempotency key for the geometry */
 } geoqik_add_options_t;
 
-GEOQIK_EXPORT geoqik_result_t geoqik_add_point_with_id(double x, double y, double z, geoqik_uuid_t* geometryId, const geoqik_add_options_t* options);
+GEOQIK_EXPORT geoqik_result_t geoqik_add_point_with_id(double x, double y, double z, const geoqik_add_options_t* options);
 GEOQIK_EXPORT geoqik_result_t geoqik_remove_point(const geoqik_uuid_t* geometryId);
 
-GEOQIK_EXPORT geoqik_result_t geoqik_add_line_with_id(double x1, double y1, double z1, double x2, double y2, double z2, geoqik_uuid_t* geometryId, const geoqik_add_options_t* options);
+GEOQIK_EXPORT geoqik_result_t geoqik_add_line_with_id(double x1, double y1, double z1, double x2, double y2, double z2, const geoqik_add_options_t* options);
 GEOQIK_EXPORT geoqik_result_t geoqik_remove_line(const geoqik_uuid_t* geometryId);
 
 GEOQIK_EXPORT geoqik_result_t geoqik_remove_all_geometry();
