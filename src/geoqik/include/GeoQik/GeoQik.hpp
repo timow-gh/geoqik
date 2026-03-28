@@ -69,6 +69,7 @@ typedef enum
   GEOQIK_ERROR_NOT_INITIALIZED = 1,
   GEOQIK_ERROR_ALREADY_INITIALIZED = 2,
   GEOQIK_ERROR_INVALID_PARAMETER = 3,
+  GEOQIK_ERROR_WRONG_COLOR_SIZE = 4,
   GEOQIK_ERROR_MEMORY_ALLOCATION = 4,
   GEOQIK_ERROR_UNKNOWN = 5
 } geoqik_result_t;
@@ -123,7 +124,26 @@ GEOQIK_EXPORT geoqik_result_t geoqik_init();
 GEOQIK_EXPORT geoqik_result_t geoqik_init_with_settings(const geoqik_settings_t* geoqikSettings, const geoqik_window_settings_t* windowSettings);
 GEOQIK_EXPORT geoqik_result_t geoqik_is_api_initialized(bool* isInitialized);
 
+typedef struct
+{
+  uint8_t value[16];
+} geoqik_uuid_t;
+
+GEOQIK_EXPORT geoqik_result_t geoqik_generate_uuid(geoqik_uuid_t* uuid);
+
 GEOQIK_EXPORT geoqik_result_t geoqik_add_point(double x, double y, double z);
+
+typedef struct
+{
+  geoqik_uuid_t geometryId;     /**< Optional id to reference the point in subsequent operations. Ignored if the uuid is null. */
+  geoqik_uuid_t idempotencyKey; /**< Optional idempotency key for the point, ignored if the uuid is null. */
+  const float* color;           /**< Optional color used for the point (RGB), ignored if the pointer is null. */
+  size_t colorCount;            /**< Number of floats in the color array, must be 0, 3 or the same as the number of points */
+} geoqik_add_points_options_t;
+
+GEOQIK_EXPORT geoqik_result_t geoqik_add_point_opts(double x, double y, double z, geoqik_add_points_options_t* options);
+GEOQIK_EXPORT geoqik_result_t geoqik_add_points_opts(const double* points, size_t count, geoqik_add_points_options_t* options);
+
 GEOQIK_EXPORT geoqik_result_t geoqik_add_point_with_color(double x, double y, double z, float r, float g, float b);
 
 /** \brief Sets the size used for all points */
@@ -144,13 +164,6 @@ GEOQIK_EXPORT geoqik_result_t geoqik_get_line_width(float* lineWidth);
 /** \brief Sets the color used for all lines that don't specify their color. */
 GEOQIK_EXPORT geoqik_result_t geoqik_set_line_color(float r, float g, float b);
 GEOQIK_EXPORT geoqik_result_t geoqik_get_line_color(float* r, float* g, float* b);
-
-typedef struct
-{
-  uint8_t value[16];
-} geoqik_uuid_t;
-
-GEOQIK_EXPORT geoqik_result_t geoqik_generate_uuid(geoqik_uuid_t* uuid);
 
 typedef struct
 {

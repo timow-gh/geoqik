@@ -24,6 +24,14 @@ struct PointGeoBufferIndex
   [[nodiscard]] std::strong_ordering operator<=>(const PointGeoBufferIndex& other) const = default;
 };
 
+struct PointsGeoBufferIndex
+{
+  std::size_t pointStartIndex;
+  std::size_t pointEndIndex; // inclusive, this index is part of the range.
+
+  [[nodiscard]] std::strong_ordering operator<=>(const PointsGeoBufferIndex& other) const = default;
+};
+
 // Holds the index of a line in the line buffer
 struct LineGeoBufferIndex
 {
@@ -57,6 +65,7 @@ class GeometryBuffer
   bool m_linesHaveChanged{false};
 
   std::unordered_map<core::UUID, PointGeoBufferIndex> m_handleToPointIndexMapping;
+  std::unordered_map<core::UUID, PointsGeoBufferIndex> m_handleToPointsIndexMapping;
   std::unordered_map<core::UUID, LineGeoBufferIndex> m_handleToLineIndexMapping;
 
 public:
@@ -131,6 +140,7 @@ public:
     m_lineColors.reset();
     m_lineIndices.reset();
     m_handleToPointIndexMapping.clear();
+    m_handleToPointsIndexMapping.clear();
     m_handleToLineIndexMapping.clear();
     m_pointsHaveChanged = true;
   }
@@ -151,6 +161,12 @@ public:
   [[nodiscard]] std::span<const std::uint32_t> get_line_indices() const { return m_lineIndices.get_as_span(); }
   // clang-format on
 
+  [[nodiscard]] std::size_t get_point_capacity() const { return m_points.capacity() / m_pointDimension; }
+  [[nodiscard]] std::size_t get_line_capacity() const { return m_lines.capacity() / m_pointDimension; }
+
+  [[nodiscard]] std::size_t get_free_point_capacity() const { return m_points.free_capacity() / m_pointDimension; }
+  [[nodiscard]] std::size_t get_free_line_capacity() const { return m_lines.free_capacity() / m_pointDimension; }
+
   bool has_space_for_points(std::size_t count) const
   {
     return m_points.free_capacity() >= count * m_pointDimension;
@@ -163,12 +179,16 @@ public:
 
   void add_point(float x, float y, float z, float r, float g, float b, const core::UUID* handle = nullptr)
   {
+    if (handle && handle->is_nil())
+    {
+      throw std::runtime_error("GeometryBuffer: Attempting to add a point with a nil handle");
+    }
     if (has_space_for_points(1) == false)
     {
       throw std::runtime_error("GeometryBuffer: Not enough space for points");
     }
 
-    std::size_t pointIndex = m_points.size() / m_pointDimension;
+    std::size_t currentPointIndex = m_points.size() / m_pointDimension;
 
     m_points.push_back(x);
     m_points.push_back(y);
@@ -178,11 +198,12 @@ public:
     m_pointColors.push_back(g);
     m_pointColors.push_back(b);
 
-    m_pointIndices.push_back(static_cast<std::uint32_t>(m_points.size() / m_pointDimension - 1));
+    CORE_ASSERT(currentPointIndex <= static_cast<std::size_t>(std::numeric_limits<std::uint32_t>::max()));
+    m_pointIndices.push_back(static_cast<std::uint32_t>(currentPointIndex));
 
     if (handle != nullptr && !handle->is_nil())
     {
-      m_handleToPointIndexMapping.emplace(*handle, PointGeoBufferIndex{pointIndex});
+      m_handleToPointIndexMapping.emplace(*handle, PointGeoBufferIndex{currentPointIndex});
     } 
 
     m_pointsHaveChanged = true;
@@ -227,6 +248,116 @@ public:
     }
     m_pointIndices.remove(pointIndex, 1);
     m_handleToPointIndexMapping.erase(handle);
+
+    m_pointsHaveChanged = true;
+  }
+
+  void add_points(std::span<const float> points, std::span<const float> colors, const core::UUID* handle = nullptr)
+  {
+    if (points.empty() && colors.empty())
+    {
+      return;
+    }
+    if (handle && handle->is_nil())
+    {
+      throw std::runtime_error("GeometryBuffer: Attempting to add points with a nil handle");
+    }
+    if (points.size() % m_pointDimension != 0)
+    {
+      throw std::runtime_error("GeometryBuffer: The size of the points span must be a multiple of the point dimension.");
+    }
+    std::size_t pointCount = points.size() / m_pointDimension;
+    if (has_space_for_points(pointCount) == false)
+    {
+      throw std::runtime_error("GeometryBuffer: Not enough space for points");
+    }
+
+    std::size_t currentPointIndex = m_points.size() / m_pointDimension;
+
+    if (colors.size() == 0)
+    {
+      for (std::size_t i = 0; i < points.size(); ++i)
+      {
+        m_points.push_back(points[i]);
+        m_pointColors.push_back(m_currentPointColor[i % m_colorDimension]);
+      }
+    }
+    else if (colors.size() == 3 && colors[0] >= 0.0f && colors[1] >= 0.0f && colors[2] >= 0.0f)
+    {
+      for (std::size_t i = 0; i < points.size(); ++i)
+      {
+        m_points.push_back(points[i]);
+        m_pointColors.push_back(colors[i % m_colorDimension]);
+      }
+    } else if (colors.size() == points.size())
+    {
+      for (std::size_t i = 0; i < points.size(); ++i)
+      {
+        m_points.push_back(points[i]);
+        m_pointColors.push_back(colors[i]);
+      }
+    }
+    else
+    {
+      throw std::runtime_error("GeometryBuffer: Invalid colors span. It must be either empty, have a size of 3 with valid RGB values, or match the size of the points span.");
+    }
+
+    for (std::uint32_t i = static_cast<std::uint32_t>(currentPointIndex); i < static_cast<std::uint32_t>(currentPointIndex + pointCount); ++i)
+    {
+      m_pointIndices.push_back(i);
+    }
+
+    if (handle)
+    {
+      m_handleToPointsIndexMapping.emplace(*handle, PointsGeoBufferIndex{currentPointIndex, currentPointIndex + pointCount - 1});
+    }
+
+    m_pointsHaveChanged = true;
+  }
+
+  void remove_points(core::UUID handle)
+  {
+    if (handle.is_nil())
+    {
+      throw std::runtime_error("GeometryBuffer: Attempting to remove points with a nil handle");
+    }
+
+    auto it = m_handleToPointsIndexMapping.find(handle);
+    if (it == m_handleToPointsIndexMapping.end())
+    {
+      return;
+    }
+
+    std::size_t pointStartIndex = it->second.pointStartIndex;
+    std::size_t pointEndIndex = it->second.pointEndIndex;
+
+    std::size_t numberOfPointsToRemove = pointEndIndex - pointStartIndex + 1;
+    std::size_t pointStart = pointStartIndex * m_pointDimension;
+    m_points.remove(pointStart, numberOfPointsToRemove * m_pointDimension);
+    m_pointColors.remove(pointStart, numberOfPointsToRemove * m_colorDimension);
+
+    // Fix the indices in the index buffer and remove the indices of the removed points.
+    // The indices after the removed points need to be decremented by the number of removed points.
+    for (std::size_t i = 0; i < m_pointIndices.size(); ++i)
+    {
+      if (m_pointIndices[i] > pointEndIndex)
+      {
+        m_pointIndices[i] -= static_cast<std::uint32_t>(numberOfPointsToRemove);
+      }
+    }
+    m_pointIndices.remove(pointStartIndex, numberOfPointsToRemove);
+
+    // Iterate existing indices in the handle to points mapping and decrement those greater than the removed points.
+    // Assume the ranges of points do not overlap. This is ensured by the GeometryBuffer.
+    for (auto& pairIter : m_handleToPointsIndexMapping)
+    {
+      if (pointEndIndex < pairIter.second.pointStartIndex)
+      {
+        pairIter.second.pointStartIndex -= numberOfPointsToRemove;
+        pairIter.second.pointEndIndex -= numberOfPointsToRemove;
+      }
+    }
+    m_handleToPointsIndexMapping.erase(handle);
 
     m_pointsHaveChanged = true;
   }

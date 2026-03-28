@@ -17,6 +17,8 @@ enum class GeoQikMessageType
 {
   ADD_POINT = 0,
   ADD_POINT_WITH_ID,
+  ADD_POINT_WITH_OPTS,
+  ADD_POINTS_WITH_OPTS,
   REMOVE_POINT,
   ADD_POINT_COLOR,
   GET_POINT_SIZE,
@@ -43,6 +45,8 @@ enum class GeoQikMessageType
 {
   return type == GeoQikMessageType::ADD_POINT ||
          type == GeoQikMessageType::ADD_POINT_WITH_ID ||
+         type == GeoQikMessageType::ADD_POINT_WITH_OPTS ||
+         type == GeoQikMessageType::ADD_POINTS_WITH_OPTS ||
          type == GeoQikMessageType::REMOVE_POINT ||
          type == GeoQikMessageType::ADD_POINT_COLOR ||
          type == GeoQikMessageType::SET_POINT_SIZE ||
@@ -70,6 +74,29 @@ union GeoQikMessageData
     float x, y, z;
     core::UUID requestId;
     core::UUID idempotencyId;
+  };
+
+  struct CommonMessageData
+  {
+    core::UUID geometryId;
+    core::UUID idempotencyId;
+    // If the values for color are negative, they are not set by the caller and should be ignored.
+    float* rgb = nullptr;
+    std::size_t rgbCount = 0;
+  };  
+
+  struct PointWitOpts
+  {
+    float x, y, z;
+    CommonMessageData commonData;
+  };
+
+  struct PointsWithOpts
+  {
+    // PointsWithOps has ownerswip of the memory pointed to by `points`
+    float* points;
+    size_t count;
+    CommonMessageData commonData;
   };
 
   struct RemovePoint
@@ -140,6 +167,8 @@ union GeoQikMessageData
   Point point;
 
   PointWithId pointWithId;
+  PointWitOpts pointWithOpts;
+  PointsWithOpts pointsWithOpts;
   RemovePoint removePoint;
 
   Line line;

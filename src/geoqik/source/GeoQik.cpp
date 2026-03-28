@@ -226,11 +226,6 @@ static geoqik_uuid_t convert_to_geoqik_uuid(const core::UUID& uuid)
   return gUuid;
 }
 
-static geoqik_uuid_t convert_to_geoqik_message_id(const core::UUID& uuid)
-{
-  return convert_to_geoqik_uuid(uuid);
-}
-
 static geoqik_result_t enqueue(GeoQikMessage&& message)
 {
   try
@@ -424,6 +419,117 @@ geoqik_result_t geoqik_add_point(double x, double y, double z)
   });
 }
 
+GEOQIK_EXPORT geoqik_result_t geoqik_add_point_opts(double x, double y, double z, geoqik_add_points_options_t* options)
+{
+  if (!geoqik_internal::validate_finite_coords(x, y, z))
+  {
+    return GEOQIK_ERROR_INVALID_PARAMETER;
+  }
+
+  std::unique_ptr<float[]> colorsCopy;
+
+  if (options)
+  {
+    if (options->colorCount > 0)
+    {
+      colorsCopy = std::make_unique<float[]>(options->colorCount);
+      std::copy(options->color, options->color + options->colorCount, colorsCopy.get());
+    }
+  }
+
+  return geoqik_internal::execute_if_initialized(
+      [&]() -> geoqik_result_t
+      {
+        GeoQikMessageData messageData{
+          .pointWithOpts = {
+            .x = static_cast<float>(x),
+            .y = static_cast<float>(y),
+            .z = static_cast<float>(z)
+          }
+        };
+
+        if (options)
+        {
+          geoqik_generate_uuid(&options->geometryId);
+          messageData.pointWithOpts.commonData.geometryId = convert_to_core_uuid(options->geometryId);
+
+          if (core::UUID idem = convert_to_core_uuid(options->idempotencyKey); !idem.is_nil())
+          {
+            messageData.pointWithOpts.commonData.idempotencyId = idem;
+          }
+
+          if (colorsCopy)
+          {
+            messageData.pointWithOpts.commonData.rgb = colorsCopy.release();
+            messageData.pointWithOpts.commonData.rgbCount = options->colorCount;
+          }
+        }
+
+        return enqueue(GeoQikMessage(GeoQikMessageType::ADD_POINT_WITH_OPTS, messageData, nullptr));
+      });
+}
+
+GEOQIK_EXPORT geoqik_result_t geoqik_add_points_opts(const double* points, size_t count, geoqik_add_points_options_t* options)
+{
+  if (!points || count == 0)
+  {
+    return GEOQIK_ERROR_INVALID_PARAMETER;
+  }
+
+  std::unique_ptr<float[]> pointsCopy = std::make_unique<float[]>(count);
+  std::unique_ptr<float[]> colorsCopy;
+
+  for (size_t i = 0; i < count; i += 3)
+  {
+    auto& x = points[i];
+    auto& y = points[i + 1];
+    auto& z = points[i + 2];
+    if (!geoqik_internal::validate_finite_coords(x, y, z))
+    {
+      return GEOQIK_ERROR_INVALID_PARAMETER;
+    }
+    pointsCopy[i] = static_cast<float>(x);
+    pointsCopy[i + 1] = static_cast<float>(y);
+    pointsCopy[i + 2] = static_cast<float>(z);
+  }
+
+  if (options && options->color && options->colorCount > 0)
+  {
+    colorsCopy = std::make_unique<float[]>(options->colorCount);
+    std::copy(options->color, options->color + options->colorCount, colorsCopy.get());
+  }
+
+  return geoqik_internal::execute_if_initialized(
+      [&]() -> geoqik_result_t
+      {
+        GeoQikMessageData messageData{
+          .pointsWithOpts = {
+            .points = pointsCopy.release(),
+            .count = count
+          }
+        };
+
+        if (options)
+        {
+          geoqik_generate_uuid(&options->geometryId);
+          messageData.pointsWithOpts.commonData.geometryId = convert_to_core_uuid(options->geometryId);
+
+          if (core::UUID idem = convert_to_core_uuid(options->idempotencyKey); !idem.is_nil())
+          {
+            messageData.pointsWithOpts.commonData.idempotencyId = idem;
+          }
+
+          if (colorsCopy)
+          {
+            messageData.pointsWithOpts.commonData.rgb = colorsCopy.release();
+            messageData.pointsWithOpts.commonData.rgbCount = options->colorCount;
+          }
+        }
+
+        return enqueue(GeoQikMessage(GeoQikMessageType::ADD_POINTS_WITH_OPTS, messageData, nullptr));
+      });
+}
+
 geoqik_result_t geoqik_add_point_with_color(double x, double y, double z, float r, float g, float b)
 {
   if (!geoqik_internal::validate_finite_coords(x, y, z) || !geoqik_internal::validate_color(r, g, b))
@@ -463,7 +569,7 @@ geoqik_add_point_with_id(double x, double y, double z, geoqik_uuid_t* geometryId
                 GeoQikMessageData::PointWithId{static_cast<float>(x), static_cast<float>(y), static_cast<float>(z), reqId, idemId}},
         nullptr});
 
-    *geometryId = convert_to_geoqik_message_id(reqId);
+    *geometryId = convert_to_geoqik_uuid(reqId);
     return result;
   });
 }
@@ -557,7 +663,7 @@ geoqik_result_t geoqik_add_line_with_id(double x1,
                                                                                                       idemId}},
                                         nullptr});
 
-    *geometryId = convert_to_geoqik_message_id(reqId);
+    *geometryId = convert_to_geoqik_uuid(reqId);
     return result;
   });
 }

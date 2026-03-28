@@ -154,6 +154,33 @@ void Context::set_line_color(std::array<float, 3> color)
   ++m_geometryMessagesProcessedThisFrame;
 }
 
+void Context::add_point_with_opts(float x, float y, float z, const GeoQikMessageData::CommonMessageData& commonData)
+{
+  if (is_known_idempotency_key(&commonData.idempotencyId))
+  {
+    return;
+  }
+  if (commonData.rgb && commonData.rgbCount >= 3)
+  {
+    m_scene.add_point(x, y, z, commonData.rgb[0], commonData.rgb[1], commonData.rgb[2], &commonData.geometryId);
+  }
+  else
+  {
+    m_scene.add_point(x, y, z, &commonData.geometryId);
+  }
+  ++m_geometryMessagesProcessedThisFrame;
+}
+
+void Context::add_points_with_opts(const float* points, std::size_t count, const GeoQikMessageData::CommonMessageData& commonData)
+{
+  if (is_known_idempotency_key(&commonData.idempotencyId))
+  {
+    return;
+  }
+  m_scene.add_points(std::span<const float>(points, count), std::span<const float>(commonData.rgb, commonData.rgbCount), &commonData.geometryId);
+  ++m_geometryMessagesProcessedThisFrame;
+}
+
 void Context::add_point(float x, float y, float z, const core::UUID* handle, const core::UUID* idempotencyKey)
 {
   if (is_known_idempotency_key(idempotencyKey))
@@ -452,6 +479,21 @@ void Context::initialize_message_handlers()
   {
     const auto& point = msg.data.pointWithId;
     ctx.add_point(point.x, point.y, point.z, &point.requestId, &point.idempotencyId);
+  };
+
+  m_messageHandlers[GeoQikMessageType::ADD_POINT_WITH_OPTS] = [](Context& ctx, const GeoQikMessage& msg)
+  {
+    const auto& pointWithOpts = msg.data.pointWithOpts;
+    ctx.add_point_with_opts(pointWithOpts.x, pointWithOpts.y, pointWithOpts.z, pointWithOpts.commonData);
+    delete[] pointWithOpts.commonData.rgb;
+  };
+
+  m_messageHandlers[GeoQikMessageType::ADD_POINTS_WITH_OPTS] = [](Context& ctx, const GeoQikMessage& msg)
+  {
+    const auto& pointsWithOpts = msg.data.pointsWithOpts;
+    ctx.add_points_with_opts(pointsWithOpts.points, pointsWithOpts.count, pointsWithOpts.commonData);
+    delete[] pointsWithOpts.points;
+    delete[] pointsWithOpts.commonData.rgb;
   };
 
   m_messageHandlers[GeoQikMessageType::REMOVE_POINT] = [](Context& ctx, const GeoQikMessage& msg)

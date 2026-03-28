@@ -80,6 +80,17 @@ public:
     m_geoBuffer->add_point(x, y, z, r, g, b, handle);
   }
 
+  void add_points(std::span<const float> points, std::span<const float> colors, const core::UUID* handle = nullptr)
+  {
+    if (m_geoBuffer->has_space_for_points(points.size() / 3) == false)
+    {
+      recreated_drawables(points.size() / 3);
+      m_geoBuffer->add_points(points, colors, handle);
+      return;
+    }
+    m_geoBuffer->add_points(points, colors, handle);
+  }
+
   void remove_point(core::UUID handle) { m_geoBuffer->remove_point(handle); }
 
   void add_line(float x1, float y1, float z1, float x2, float y2, float z2, const core::UUID* handle = nullptr)
@@ -192,7 +203,7 @@ public:
       m_drawablesManager.update_last_point_drawable(m_geoBuffer->get_points(),
                                                     m_geoBuffer->get_point_colors(),
                                                     m_geoBuffer->get_point_indices(),
-                                                    opengl::BufferAccessPattern::DYNAMIC_DRAW);
+                                                    opengl::BufferAccessPattern::STATIC_DRAW);
       m_geoBuffer->reset_points_have_changed();
       updateOccurred = true;
     }
@@ -207,7 +218,7 @@ public:
       m_drawablesManager.update_last_line_drawable(m_geoBuffer->get_lines(),
                                                    m_geoBuffer->get_line_colors(),
                                                    m_geoBuffer->get_line_indices(),
-                                                   opengl::BufferAccessPattern::DYNAMIC_DRAW);
+                                                   opengl::BufferAccessPattern::STATIC_DRAW);
       m_geoBuffer->reset_lines_have_changed();
       updateOccurred = true;
     }
@@ -242,10 +253,27 @@ private:
   {
   }
 
-  void recreated_drawables()
+  void recreated_drawables(std::size_t numberOfNewElements = 0)
   {
     clear_drawables();
-    m_geoBuffer = GeometryBuffer::create_from(std::move(*m_geoBuffer), m_geomBufferGrowthFactor);
+
+    if (numberOfNewElements > 0)
+    {
+      // Calc the new growth factor based on the current capacity and the missing capacity
+      std::size_t freePointCapacity = m_geoBuffer->get_free_point_capacity();
+      std::size_t freeLineCapacity = m_geoBuffer->get_free_line_capacity();
+      std::size_t minNewPointCapacity = numberOfNewElements - freePointCapacity;
+      std::size_t minNewLineCapacity = numberOfNewElements - freeLineCapacity;
+      std::size_t newPointCapacity = m_geomBufferGrowthFactor * m_geoBuffer->get_point_capacity() + minNewPointCapacity;
+      std::size_t newLineCapacity = m_geomBufferGrowthFactor * m_geoBuffer->get_line_capacity() + minNewLineCapacity;
+      std::size_t growthFactor = std::max(newPointCapacity / m_geoBuffer->get_point_capacity(), newLineCapacity / m_geoBuffer->get_line_capacity());
+      m_geoBuffer = GeometryBuffer::create_from(std::move(*m_geoBuffer), growthFactor);
+    }
+    else
+    {
+      m_geoBuffer = GeometryBuffer::create_from(std::move(*m_geoBuffer), m_geomBufferGrowthFactor);
+    }
+
     create_point_drawable();
     create_line_drawable();
   }

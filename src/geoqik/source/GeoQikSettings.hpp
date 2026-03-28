@@ -20,9 +20,9 @@ struct GEOQIK_EXPORT GeoQikSettings
   std::int64_t maxMessageQueueSize{1000000}; // Maximum size of the message queue. Each call to the GeoQik API will enqueue a message, so
                                              // this should be large enough to handle the expected number of messages.
 
-  std::size_t initialPointCapacity{100000};  // Initial capacity for the point buffer used to store all points added using the GeoQik API.
-  std::size_t initialLineCapacity{100000};   // Initial capacity for the line buffer used to store all lines added using the GeoQik API.
-  std::size_t capacityGrowthFactor{2};       // Growth factor for the geometry buffers when they run out of capacity.
+  std::size_t initialPointCapacity{100000};  // Initial number of points that can be stored in the point buffer. Exceeding this number will require to create a larger buffer and copy the existing data to it.
+  std::size_t initialLineCapacity{100000};   // Initial number of lines that can be stored in the line buffer. Exceeding this number will require to create a larger buffer and copy the existing data to it. 
+  std::size_t capacityGrowthFactor{2};       // Growth factor for the geometry buffers. Then new buffer will have a capacity of current_capacity * growth_factor.
 
   float defaultPointSize{4.0f};              // Default size for points. If not other size is set using the GeoQik API, this size will be used.
   float defaultLineWidth{2.0f};              // Default width for lines. If not other width is set using the GeoQik API, this width will be used.

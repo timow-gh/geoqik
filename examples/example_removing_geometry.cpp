@@ -1,6 +1,7 @@
 #include "Origin.hpp"
 #include "sleep_helper.hpp"
 #include <GeoQik/GeoQik.hpp>
+#include <array>
 
 using namespace geoqik::examples;
 
@@ -39,10 +40,10 @@ int main()
 
   geoqik_set_point_color(1.0f, 0.0f, 0.0f); // Red
   geoqik_uuid_t pointIdA = add_point_with_delay(5.0, 5.0, 0.0, delaySeconds);
-  
-  geoqik_set_point_color(0.0f, 1.0f, 0.0f); // Green  
+
+  geoqik_set_point_color(0.0f, 1.0f, 0.0f); // Green
   geoqik_uuid_t pointIdB = add_point_with_delay(5.0, 0.0, 0.0, delaySeconds);
-  
+
   geoqik_set_point_color(0.0f, 0.0f, 1.0f); // Blue
   geoqik_uuid_t pointIdC = add_point_with_delay(0.0, 5.0, 0.0, delaySeconds);
 
@@ -60,14 +61,56 @@ int main()
 
   geoqik_remove_all_geometry();
 
-  // Add 10 points in the x, y, z direction
+  std::array<double, 60> xyPoints;
+  std::array<float, 60> xyColors;
+  std::array<double, 30> zPoints;
+  std::array<float, 30> zColors;
   for (int i = 0; i < 10; ++i)
   {
     double coord = static_cast<double>(i);
-    geoqik_add_point_with_color(coord, 0.0, 0.0, 1.0f, 0.0f, 0.0f);
-    geoqik_add_point_with_color(0.0, coord, 0.0, 0.0f, 1.0f, 0.0f);
-    geoqik_add_point_with_color(0.0, 0.0, coord, 0.0f, 0.0f, 1.0f);
+
+    // x points
+    xyPoints[i * 3] = coord;
+    xyPoints[i * 3 + 1] = 0.0;
+    xyPoints[i * 3 + 2] = 0.0;
+
+    // x colors (red)
+    xyColors[i * 3] = 1.0f;
+    xyColors[i * 3 + 1] = 0.0f;
+    xyColors[i * 3 + 2] = 0.0f;
+
+    // y points
+    xyPoints[30 + i * 3] = 0.0;
+    xyPoints[30 + i * 3 + 1] = coord;
+    xyPoints[30 + i * 3 + 2] = 0.0;
+
+    // y colors (green)
+    xyColors[30 + i * 3] = 0.0f;
+    xyColors[30 + i * 3 + 1] = 1.0f;
+    xyColors[30 + i * 3 + 2] = 0.0f;
+
+    // z points
+    zPoints[i * 3] = 0.0;
+    zPoints[i * 3 + 1] = 0.0;
+    zPoints[i * 3 + 2] = coord;
+
+    // z colors (blue)
+    zColors[i * 3] = 0.0f;
+    zColors[i * 3 + 1] = 0.0f;
+    zColors[i * 3 + 2] = 1.0f;
   }
+
+  geoqik_add_points_options_t xyOptions{};
+  xyOptions.color = xyColors.data();
+  xyOptions.colorCount = xyColors.size();
+  geoqik_add_points_opts(xyPoints.data(), xyPoints.size(), &xyOptions);
+
+  sleep_for_seconds(0.5);
+
+  geoqik_add_points_options_t zOptions{};
+  zOptions.color = zColors.data();
+  zOptions.colorCount = zColors.size();
+  geoqik_add_points_opts(zPoints.data(), zPoints.size(), &zOptions);
 
   geoqik_wait_for_exit_and_cleanup();
 

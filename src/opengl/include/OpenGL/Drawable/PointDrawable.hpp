@@ -3,7 +3,6 @@
 
 #include "OpenGL/BufferAccessPattern.hpp"
 #include "OpenGL/IndexBuffer.hpp"
-#include "OpenGL/Programs/LineProgram.hpp"
 #include "OpenGL/Programs/PointProgram.hpp"
 #include "OpenGL/UpdateBuffer.hpp"
 #include "OpenGL/VertexArray.hpp"
@@ -46,17 +45,17 @@ public:
 
   void update_vertex_buffer(std::span<const float> vertices, BufferAccessPattern accessPattern)
   {
-    update_buffer(m_vertexBuffer, vertices, accessPattern);
+    m_vertexBuffer.update_buffer(vertices, accessPattern);
   }
 
   void update_color_buffer(std::span<const float> colors, BufferAccessPattern accessPattern)
   {
-    update_buffer(m_colorBuffer, colors, accessPattern);
+    m_colorBuffer.update_buffer(colors, accessPattern);
   }
 
   void update_indices_buffer(std::span<const std::uint32_t> indices, BufferAccessPattern accessPattern)
   {
-    update_buffer(m_pointIndicesBuffer, indices, accessPattern);
+    m_pointIndicesBuffer.update_indices_buffer(indices, accessPattern);
   }
 
   void draw(const linal::hmatf& mvp) const
