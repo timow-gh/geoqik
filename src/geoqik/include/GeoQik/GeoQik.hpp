@@ -147,8 +147,8 @@ extern "C"
   GEOQIK_EXPORT geoqik_error_code_t geoqik_set_point_color(float r, float g, float b);
   GEOQIK_EXPORT geoqik_error_code_t geoqik_get_point_color(float* r, float* g, float* b);
 
-  GEOQIK_EXPORT geoqik_error_code_t geoqik_add_point(double x, double y, double z);
-  GEOQIK_EXPORT geoqik_error_code_t geoqik_add_point_with_color(double x, double y, double z, float r, float g, float b);
+  GEOQIK_EXPORT geoqik_result_t geoqik_add_point(double x, double y, double z);
+  GEOQIK_EXPORT geoqik_result_t geoqik_add_point_with_color(double x, double y, double z, float r, float g, float b);
 
   typedef struct
   {
@@ -161,8 +161,7 @@ extern "C"
   GEOQIK_EXPORT geoqik_result_t geoqik_add_points_opts(const double* points, size_t count, geoqik_add_points_options_t* options);
 
   GEOQIK_EXPORT geoqik_error_code_t geoqik_add_line(double x1, double y1, double z1, double x2, double y2, double z2);
-  GEOQIK_EXPORT geoqik_error_code_t
-  geoqik_add_line_with_color(double x1, double y1, double z1, double x2, double y2, double z2, float r, float g, float b);
+  GEOQIK_EXPORT geoqik_error_code_t geoqik_add_line_with_color(double x1, double y1, double z1, double x2, double y2, double z2, float r, float g, float b);
 
   /** \brief Sets the width used for all lines. */
   GEOQIK_EXPORT geoqik_error_code_t geoqik_set_line_width(float lineWidth);

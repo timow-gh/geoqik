@@ -1,5 +1,6 @@
 #include <GeoQik/GeoQik.hpp>
 #include <cmath>
+#include <cstring>
 #include <gtest/gtest.h>
 
 class GeoQikTest_Points : public ::testing::Test
@@ -10,9 +11,18 @@ TEST_F(GeoQikTest_Points, AddPoint)
 {
   geoqik_init();
 
-  geoqik_add_point(0.0, 0.0, 0.0);
-  geoqik_add_point(1.0, 0.0, 0.0);
-  geoqik_add_point(0.0, 1.0, 0.0);
+  geoqik_result_t result1 = geoqik_add_point(0.0, 0.0, 0.0);
+  geoqik_result_t result2 = geoqik_add_point(1.0, 0.0, 0.0);
+  geoqik_result_t result3 = geoqik_add_point(0.0, 1.0, 0.0);
+
+  EXPECT_EQ(result1.err, GEOQIK_SUCCESS);
+  EXPECT_EQ(result2.err, GEOQIK_SUCCESS);
+  EXPECT_EQ(result3.err, GEOQIK_SUCCESS);
+
+  const geoqik_uuid_t nilUuid{};
+  EXPECT_NE(0, memcmp(result1.geometryId.value, nilUuid.value, sizeof(nilUuid.value)));
+  EXPECT_NE(0, memcmp(result2.geometryId.value, nilUuid.value, sizeof(nilUuid.value)));
+  EXPECT_NE(0, memcmp(result3.geometryId.value, nilUuid.value, sizeof(nilUuid.value)));
 
   geoqik_draw();
   geoqik_cleanup();
@@ -99,8 +109,15 @@ TEST_F(GeoQikTest_Points, AddPointWithColor)
 
   const float r = 0.5f, g = 0.6f, b = 0.7f;
 
-  geoqik_add_point_with_color(0.0, 0.0, 0.0, r, g, b);
-  geoqik_add_point_with_color(1.0, 1.0, 1.0, r, g, b);
+  geoqik_result_t result1 = geoqik_add_point_with_color(0.0, 0.0, 0.0, r, g, b);
+  geoqik_result_t result2 = geoqik_add_point_with_color(1.0, 1.0, 1.0, r, g, b);
+
+  EXPECT_EQ(result1.err, GEOQIK_SUCCESS);
+  EXPECT_EQ(result2.err, GEOQIK_SUCCESS);
+
+  const geoqik_uuid_t nilUuid{};
+  EXPECT_NE(0, memcmp(result1.geometryId.value, nilUuid.value, sizeof(nilUuid.value)));
+  EXPECT_NE(0, memcmp(result2.geometryId.value, nilUuid.value, sizeof(nilUuid.value)));
 
   geoqik_draw();
   geoqik_cleanup();

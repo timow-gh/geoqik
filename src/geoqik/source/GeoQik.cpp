@@ -432,39 +432,23 @@ geoqik_error_code_t geoqik_is_api_initialized(bool* isInitialized)
   }
 }
 
-geoqik_error_code_t geoqik_add_point(double x, double y, double z)
+geoqik_result_t geoqik_add_point(double x, double y, double z)
 {
-  if (!geoqik_internal::validate_finite_coords(x, y, z))
-  {
-    return GEOQIK_ERROR_INVALID_PARAMETER;
-  }
-
-  return geoqik_internal::execute_if_initialized(
-      [&]() -> geoqik_error_code_t
-      {
-        return enqueue(
-            GeoQikMessage(GeoQikMessageType::ADD_POINT,
-                          GeoQikMessageData{GeoQikMessageData::Point{static_cast<float>(x), static_cast<float>(y), static_cast<float>(z)}},
-                          nullptr));
-      });
+  return geoqik_add_point_opts(x, y, z, nullptr);
 }
 
-geoqik_error_code_t geoqik_add_point_with_color(double x, double y, double z, float r, float g, float b)
+geoqik_result_t geoqik_add_point_with_color(double x, double y, double z, float r, float g, float b)
 {
-  if (!geoqik_internal::validate_finite_coords(x, y, z) || !geoqik_internal::validate_color(r, g, b))
+  if (!geoqik_internal::validate_color(r, g, b))
   {
-    return GEOQIK_ERROR_INVALID_PARAMETER;
+    return geoqik_result_t{GEOQIK_ERROR_INVALID_PARAMETER, {}};
   }
 
-  return geoqik_internal::execute_if_initialized(
-      [&]() -> geoqik_error_code_t
-      {
-        return enqueue(GeoQikMessage{
-            GeoQikMessageType::ADD_POINT_COLOR,
-            GeoQikMessageData{
-                .colorPoint = GeoQikMessageData::ColorPoint{static_cast<float>(x), static_cast<float>(y), static_cast<float>(z), r, g, b}},
-            nullptr});
-      });
+  const float color[3] = {r, g, b};
+  geoqik_add_points_options_t opts{};
+  opts.color = color;
+  opts.colorCount = 3;
+  return geoqik_add_point_opts(x, y, z, &opts);
 }
 
 geoqik_result_t geoqik_add_point_opts(double x, double y, double z, geoqik_add_points_options_t* options)
