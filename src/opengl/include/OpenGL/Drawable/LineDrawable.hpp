@@ -30,7 +30,6 @@ class OPENGL_EXPORT LineDrawable
   float m_pointSize{1.0F};
 
 public:
-  LineDrawable() = default;
   LineDrawable(LineProgram& program,
                VertexArray vertexArray,
                VertexBuffer vertexBuffer,
@@ -40,15 +39,45 @@ public:
                float pointSize = 1.0F,
                LineType lineType = LineType::lines())
       : m_program(&program)
-      , m_vertexArray(vertexArray)
-      , m_vertexBuffer(vertexBuffer)
-      , m_colorBuffer(colorBuffer)
-      , m_lineIndicesBuffer(lineIndicesBuffer)
+      , m_vertexArray(std::move(vertexArray))
+      , m_vertexBuffer(std::move(vertexBuffer))
+      , m_colorBuffer(std::move(colorBuffer))
+      , m_lineIndicesBuffer(std::move(lineIndicesBuffer))
       , m_lineThickness(lineThickness)
       , m_lineType(lineType)
       , m_pointSize(pointSize)
   {
   }
+
+  LineDrawable(const LineDrawable&) = delete;
+  LineDrawable& operator=(const LineDrawable&) = delete;
+  LineDrawable(LineDrawable&& other) noexcept
+  : m_program(std::exchange(other.m_program, nullptr))
+      , m_vertexArray(std::move(other.m_vertexArray))
+      , m_vertexBuffer(std::move(other.m_vertexBuffer))
+      , m_colorBuffer(std::move(other.m_colorBuffer))
+      , m_lineIndicesBuffer(std::move(other.m_lineIndicesBuffer))
+      , m_lineThickness(other.m_lineThickness)
+      , m_lineType(other.m_lineType)
+      , m_pointSize(other.m_pointSize)
+  {
+  }
+  LineDrawable& operator=(LineDrawable&& other) noexcept 
+  {
+    if (this != &other)
+    {
+      m_program = std::exchange(other.m_program, nullptr);
+      m_vertexArray = std::move(other.m_vertexArray);
+      m_vertexBuffer = std::move(other.m_vertexBuffer);
+      m_colorBuffer = std::move(other.m_colorBuffer);
+      m_lineIndicesBuffer = std::move(other.m_lineIndicesBuffer);
+      m_lineThickness = other.m_lineThickness;
+      m_lineType = other.m_lineType;
+      m_pointSize = other.m_pointSize;
+    }
+    return *this;
+  }
+  ~LineDrawable() = default;
 
   [[nodiscard]] float get_line_thickness() const { return m_lineThickness; }
   void set_line_thickness(float lineThickness) { m_lineThickness = lineThickness; }
@@ -71,6 +100,16 @@ public:
     m_lineIndicesBuffer.update_indices_buffer(indices, accessPattern);
   }
 
+  void update_line_drawable(std::span<const float> vertices,
+                            std::span<const float> colors,
+                            std::span<const std::uint32_t> indices,
+                            BufferAccessPattern accessPattern)
+  {
+    update_vertex_buffer(vertices, accessPattern);
+    update_color_buffer(colors, accessPattern);
+    update_indices_buffer(indices, accessPattern);
+  }
+
   void draw(const linal::hmatf& mvp) const
   {
     CORE_ASSERT(m_program != nullptr);
@@ -87,26 +126,18 @@ public:
       glDrawElements(GL_POINTS, m_lineIndicesBuffer.get_index_count(), GL_UNSIGNED_INT, nullptr);
     }
   }
-
-  void destroy() const
-  {
-    m_vertexArray.destroy();
-    m_vertexBuffer.destroy();
-    m_colorBuffer.destroy();
-    m_lineIndicesBuffer.destroy();
-  }
 };
 
-OPENGL_EXPORT LineDrawable make_line_drawable(LineProgram& program,
-                                          std::span<const float> lineVertices,
-                                          std::int32_t lineVertexDimension,
-                                          std::span<const std::uint32_t> lineIndices,
-                                          std::span<const float> lineColors,
-                                          std::int32_t lineColorDimension,
-                                          LineType lineType,
-                                          float lineThickness,
-                                          float pointThickness,
-                                          opengl::BufferAccessPattern accessPattern);
+OPENGL_EXPORT std::optional<LineDrawable> make_line_drawable(LineProgram& program,
+                                                             std::span<const float> lineVertices,
+                                                             std::int32_t lineVertexDimension,
+                                                             std::span<const std::uint32_t> lineIndices,
+                                                             std::span<const float> lineColors,
+                                                             std::int32_t lineColorDimension,
+                                                             LineType lineType,
+                                                             float lineThickness,
+                                                             float pointThickness,
+                                                             opengl::BufferAccessPattern accessPattern);
 
 } // namespace opengl
 

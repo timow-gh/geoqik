@@ -17,38 +17,54 @@ namespace opengl
 {
 
 /** @brief An opengl buffer object. */
-class OPENGL_EXPORT VertexBuffer {
-  BufferId m_bufferId;
-  GLsizei m_stride{};
+class OPENGL_EXPORT VertexBuffer
+{
+  std::optional<BufferId> m_bufferId;
+  GLsizei m_stride;
   Location m_bufferLocation;
 
 public:
-  constexpr VertexBuffer() = default;
-  constexpr VertexBuffer(BufferId bufferId, GLsizei stride, Location bufferLocation)
-      : m_bufferId{bufferId}
-      , m_stride{stride}
-      , m_bufferLocation{bufferLocation} {}
+  VertexBuffer(const VertexBuffer&) = delete;
+  VertexBuffer& operator=(const VertexBuffer&) = delete;
+  VertexBuffer(VertexBuffer&& other) noexcept
+      : m_bufferId{std::exchange(other.m_bufferId, std::nullopt)}
+      , m_stride{other.m_stride}
+      , m_bufferLocation{other.m_bufferLocation}
+  {
+  }
+  VertexBuffer& operator=(VertexBuffer&& other) noexcept
+  {
+    if (this != &other)
+    {
+      m_bufferId = std::exchange(other.m_bufferId, std::nullopt);
+      m_stride = other.m_stride;
+      m_bufferLocation = other.m_bufferLocation;
+    }
+    return *this;
+  }
+  ~VertexBuffer()
+  {
+    if (m_bufferId.has_value())
+    {
+      const auto id = m_bufferId->get_value();
+      glDeleteBuffers(1, &id);
+    }
+  }
 
-  [[nodiscard]] BufferId get_buffer_id() const { return m_bufferId; }
-
-  static VertexBuffer create(std::span<const float> vectors,
-                             GLsizei vectorDimension,
-                             Location bufferLocation,
-                             BufferAccessPattern accessPattern) {
+  static std::optional<VertexBuffer>
+  create(std::span<const float> vectors, GLsizei vectorDimension, Location bufferLocation, BufferAccessPattern accessPattern)
+  {
     GLuint bufferId;
     glGenBuffers(1, &bufferId);
     if (bufferId == 0)
     {
       CORE_ASSERT(false);
       glDeleteBuffers(1, &bufferId);
-      return {};
+      return std::nullopt;
     }
     glBindBuffer(GL_ARRAY_BUFFER, bufferId);
     const auto size = vectors.size() * sizeof(float);
-    glBufferData(GL_ARRAY_BUFFER,
-                 static_cast<GLsizei>(size),
-                 vectors.data(),
-                 get_enum_value(accessPattern));
+    glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizei>(size), vectors.data(), get_enum_value(accessPattern));
     glEnableVertexAttribArray(bufferLocation.get_as_unsigned());
     const GLsizei stride = vectorDimension * static_cast<GLsizei>(sizeof(float));
     glVertexAttribPointer(bufferLocation.get_as_unsigned(),
@@ -68,8 +84,16 @@ public:
     return VertexBuffer{BufferId{bufferId}, stride, bufferLocation};
   }
 
-  void bind() const {
-    glBindBuffer(GL_ARRAY_BUFFER, m_bufferId.get_value());
+  [[nodiscard]] const BufferId& get_buffer_id() const
+  {
+    CORE_ASSERT(m_bufferId.has_value());
+    return m_bufferId.value();
+  }
+
+  void bind() const
+  {
+    CORE_ASSERT(m_bufferId.has_value());
+    glBindBuffer(GL_ARRAY_BUFFER, m_bufferId.value().get_value());
     glEnableVertexAttribArray(m_bufferLocation.get_as_unsigned());
     glVertexAttribPointer(m_bufferLocation.get_as_unsigned(),
                           m_stride,
@@ -81,13 +105,17 @@ public:
 
   void unbind() const { glBindBuffer(GL_ARRAY_BUFFER, 0); }
 
-  void destroy() const {
-    const auto id = m_bufferId.get_value();
-    glDeleteBuffers(1, &id);
+  void update_buffer(std::span<const float> vertices, BufferAccessPattern accessPattern)
+  {
+    ::opengl::update_buffer(*this, vertices, accessPattern);
   }
 
-  void update_buffer(std::span<const float> vertices, BufferAccessPattern accessPattern) {
-    ::opengl::update_buffer(*this, vertices, accessPattern);
+private:
+  constexpr VertexBuffer(BufferId bufferId, GLsizei stride, Location bufferLocation)
+      : m_bufferId{bufferId}
+      , m_stride{stride}
+      , m_bufferLocation{bufferLocation}
+  {
   }
 };
 

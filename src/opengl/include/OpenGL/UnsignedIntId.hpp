@@ -17,6 +17,11 @@ public:
       : m_id{id} {
     CORE_ASSERT(id != 0);
   }
+  UnsignedIntId(const UnsignedIntId&) = default;
+  UnsignedIntId& operator=(const UnsignedIntId&) = default;
+  UnsignedIntId(UnsignedIntId&&) noexcept = default;
+  UnsignedIntId& operator=(UnsignedIntId&&) noexcept = default;
+  ~UnsignedIntId() = default;
 
   // Some OpenGL functions require a lvalue reference to GLuint
   [[nodiscard]] constexpr const GLuint& get_value() const noexcept { return m_id; }

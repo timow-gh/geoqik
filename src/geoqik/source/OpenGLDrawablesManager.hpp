@@ -4,8 +4,8 @@
 #include <OpenGL/Drawable/LineDrawable.hpp>
 #include <OpenGL/Drawable/MeshDrawable.hpp>
 #include <OpenGL/Drawable/PointDrawable.hpp>
-#include <vector>
 #include <linal/hmat.hpp>
+#include <vector>
 
 namespace geoqik
 {
@@ -14,7 +14,7 @@ class OpenGLDrawablesManager
 {
   opengl::PointProgram* m_pointProgram{nullptr};
   opengl::LineProgram* m_lineProgram{nullptr};
-  
+
   std::vector<opengl::PointDrawable> m_pointDrawables;
   std::vector<opengl::LineDrawable> m_lineDrawables;
   std::vector<opengl::MeshDrawable> m_meshDrawables;
@@ -27,18 +27,15 @@ public:
   {
   }
 
-  [[nodiscard]] bool has_drawables() const
-  {
-    return !m_pointDrawables.empty() || !m_lineDrawables.empty() || !m_meshDrawables.empty();
-  }
+  [[nodiscard]] bool has_drawables() const { return !m_pointDrawables.empty() || !m_lineDrawables.empty() || !m_meshDrawables.empty(); }
 
   [[nodiscard]] bool has_point_drawables() const { return !m_pointDrawables.empty(); }
   [[nodiscard]] bool has_line_drawables() const { return !m_lineDrawables.empty(); }
   [[nodiscard]] bool has_mesh_drawables() const { return !m_meshDrawables.empty(); }
 
-  void add_point_drawable(const opengl::PointDrawable& drawable) { m_pointDrawables.push_back(drawable); }
-  void add_line_drawable(const opengl::LineDrawable& drawable) { m_lineDrawables.push_back(drawable); }
-  void add_mesh_drawable(const opengl::MeshDrawable& drawable) { m_meshDrawables.push_back(drawable); }
+  void add_point_drawable(opengl::PointDrawable drawable) { m_pointDrawables.emplace_back(std::move(drawable)); }
+  void add_line_drawable(opengl::LineDrawable drawable) { m_lineDrawables.emplace_back(std::move(drawable)); }
+  void add_mesh_drawable(opengl::MeshDrawable drawable) { m_meshDrawables.emplace_back(std::move(drawable)); }
 
   void add_point_drawable(std::span<const float> vertices,
                           std::int32_t vertexDimension,
@@ -48,8 +45,14 @@ public:
                           float pointSize,
                           opengl::BufferAccessPattern accessPattern)
   {
-    m_pointDrawables.push_back(
-        opengl::make_point_drawable(*m_pointProgram, vertices, vertexDimension, colors, colorDimension, indices, pointSize, accessPattern));
+    auto drawable =
+        opengl::make_point_drawable(*m_pointProgram, vertices, vertexDimension, colors, colorDimension, indices, pointSize, accessPattern);
+    if (!drawable.has_value())
+    {
+      throw std::runtime_error("Failed to create point drawable");
+    }
+
+    add_point_drawable(std::move(drawable.value()));
   }
 
   void add_line_drawable(std::span<const float> lineVertices,
@@ -62,16 +65,22 @@ public:
                          float pointSize,
                          opengl::BufferAccessPattern accessPattern)
   {
-    m_lineDrawables.push_back(opengl::make_line_drawable(*m_lineProgram,
-                                                         lineVertices,
-                                                         lineVertexDimension,
-                                                         lineIndices,
-                                                         lineColors,
-                                                         colorDimension,
-                                                         lineType,
-                                                         lineWidth,
-                                                         pointSize,
-                                                         accessPattern));
+    auto drawable = opengl::make_line_drawable(*m_lineProgram,
+                                               lineVertices,
+                                               lineVertexDimension,
+                                               lineIndices,
+                                               lineColors,
+                                               colorDimension,
+                                               lineType,
+                                               lineWidth,
+                                               pointSize,
+                                               accessPattern);
+    if (!drawable.has_value())
+    {
+      throw std::runtime_error("Failed to create line drawable");
+    }
+
+    add_line_drawable(std::move(drawable.value()));
   }
 
   void update_last_point_drawable(std::span<const float> vertices,
@@ -102,32 +111,11 @@ public:
     m_lineDrawables.back().update_indices_buffer(indices, accessPattern);
   }
 
-  void clear_point_drawables()
-  {
-    for (auto& drawable: m_pointDrawables)
-    {
-      drawable.destroy();
-    }
-    m_pointDrawables.clear();
-  }
+  void clear_point_drawables() { m_pointDrawables.clear(); }
 
-  void clear_line_drawables()
-  {
-    for (auto& drawable: m_lineDrawables)
-    {
-      drawable.destroy();
-    }
-    m_lineDrawables.clear();
-  }
+  void clear_line_drawables() { m_lineDrawables.clear(); }
 
-  void clear_mesh_drawables()
-  {
-    for (auto& drawable: m_meshDrawables)
-    {
-      drawable.destroy();
-    }
-    m_meshDrawables.clear();
-  }
+  void clear_mesh_drawables() { m_meshDrawables.clear(); }
 
   void clear_drawables()
   {
