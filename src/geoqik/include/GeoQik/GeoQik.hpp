@@ -99,9 +99,6 @@ extern "C"
     int scale_to_monitor;        /* Whether to scale based on monitor content scale */
   } geoqik_window_settings_t;
 
-  GEOQIK_EXPORT void geoqik_init_default_settings(geoqik_settings_t* settings);
-  GEOQIK_EXPORT void geoqik_init_default_window_settings(geoqik_window_settings_t* settings);
-
   typedef enum
   {
     GEOQIK_SUCCESS = 0,
@@ -124,19 +121,22 @@ extern "C"
     geoqik_uuid_t geometryId; /* The geometry ID, if applicable (zeroed otherwise) */
   } geoqik_result_t;
 
-  /* Get error message for result code */
-  GEOQIK_EXPORT const char* geoqik_get_error_string(geoqik_error_code_t result);
-
-  GEOQIK_EXPORT geoqik_error_code_t geoqik_generate_uuid(geoqik_uuid_t* uuid);
-
   /** \brief Initializes the GeoQik library.
    *
    * This function initializes the GeoQik library.
    * \attention Must be called before any other GeoQik functions.
    */
   GEOQIK_EXPORT geoqik_error_code_t geoqik_init();
+
+  GEOQIK_EXPORT void geoqik_init_default_settings(geoqik_settings_t* settings);
+  GEOQIK_EXPORT void geoqik_init_default_window_settings(geoqik_window_settings_t* settings);
   GEOQIK_EXPORT geoqik_error_code_t geoqik_init_with_settings(const geoqik_settings_t* geoqikSettings, const geoqik_window_settings_t* windowSettings);
   GEOQIK_EXPORT geoqik_error_code_t geoqik_is_api_initialized(bool* isInitialized);
+
+  /* Get error message for result code */
+  GEOQIK_EXPORT const char* geoqik_get_error_string(geoqik_error_code_t result);
+
+  GEOQIK_EXPORT geoqik_error_code_t geoqik_generate_uuid(geoqik_uuid_t* uuid);
 
   /** \brief Sets the size used for all points */
   GEOQIK_EXPORT geoqik_error_code_t geoqik_set_point_size(float pointSize);

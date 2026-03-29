@@ -265,39 +265,27 @@ static geoqik_error_code_t enqueue(GeoQikMessage&& message)
 
 } // anonymous namespace
 
-const char* geoqik_get_error_string(geoqik_error_code_t result)
+geoqik_error_code_t geoqik_init()
 {
-  switch (result)
-  {
-  case GEOQIK_SUCCESS: return "Success";
-  case GEOQIK_ERROR_NOT_INITIALIZED: return "GeoQik not initialized";
-  case GEOQIK_ERROR_ALREADY_INITIALIZED: return "GeoQik already initialized";
-  case GEOQIK_ERROR_INVALID_PARAMETER: return "Invalid parameter";
-  case GEOQIK_ERROR_WRONG_COLOR_SIZE: return "Wrong color size";
-  case GEOQIK_ERROR_MEMORY_ALLOCATION: return "Memory allocation error";
-  case GEOQIK_ERROR_UNKNOWN: return "Unknown error";
-  default: return "Invalid error code";
-  }
-}
-
-geoqik_error_code_t geoqik_generate_uuid(geoqik_uuid_t* uuid)
-{
-  if (!uuid)
-  {
-    return GEOQIK_ERROR_INVALID_PARAMETER;
-  }
-
-  return geoqik_internal::execute_with_error_handling(
+  return geoqik_internal::execute_if_not_initialized(
       [&]() -> geoqik_error_code_t
       {
-        auto coreUuid = core::UUID::generate().to_array();
+        // Use default settings
+        geoqik::GeoQikSettings defaultGeoQikSettings;
+        geoqik::WindowSettings defaultWindowSettings;
 
-        assert(coreUuid.size() == 16);
-        for (std::size_t i = 0; i < 16; ++i)
+        g_apiIsInitialized.store(true, std::memory_order_release);
+        try
         {
-          uuid->value[i] = coreUuid[i];
+          init_message_queue(ConcurrentQueue<GeoQikMessage>(defaultGeoQikSettings.maxMessageQueueSize));
+          geoqik_internal::start_geoqik_thread(defaultGeoQikSettings, defaultWindowSettings);
+          return GEOQIK_SUCCESS;
         }
-        return GEOQIK_SUCCESS;
+        catch (...)
+        {
+          g_apiIsInitialized.store(false, std::memory_order_release);
+          throw;
+        }
       });
 }
 
@@ -366,30 +354,6 @@ void geoqik_init_default_window_settings(geoqik_window_settings_t* settings)
   settings->scale_to_monitor = 1;
 }
 
-geoqik_error_code_t geoqik_init()
-{
-  return geoqik_internal::execute_if_not_initialized(
-      [&]() -> geoqik_error_code_t
-      {
-        // Use default settings
-        geoqik::GeoQikSettings defaultGeoQikSettings;
-        geoqik::WindowSettings defaultWindowSettings;
-
-        g_apiIsInitialized.store(true, std::memory_order_release);
-        try
-        {
-          init_message_queue(ConcurrentQueue<GeoQikMessage>(defaultGeoQikSettings.maxMessageQueueSize));
-          geoqik_internal::start_geoqik_thread(defaultGeoQikSettings, defaultWindowSettings);
-          return GEOQIK_SUCCESS;
-        }
-        catch (...)
-        {
-          g_apiIsInitialized.store(false, std::memory_order_release);
-          throw;
-        }
-      });
-}
-
 geoqik_error_code_t geoqik_init_with_settings(const geoqik_settings_t* geoqikSettings, const geoqik_window_settings_t* windowSettings)
 {
   return geoqik_internal::execute_if_not_initialized(
@@ -430,6 +394,42 @@ geoqik_error_code_t geoqik_is_api_initialized(bool* isInitialized)
   {
     return GEOQIK_ERROR_UNKNOWN;
   }
+}
+
+const char* geoqik_get_error_string(geoqik_error_code_t result)
+{
+  switch (result)
+  {
+  case GEOQIK_SUCCESS: return "Success";
+  case GEOQIK_ERROR_NOT_INITIALIZED: return "GeoQik not initialized";
+  case GEOQIK_ERROR_ALREADY_INITIALIZED: return "GeoQik already initialized";
+  case GEOQIK_ERROR_INVALID_PARAMETER: return "Invalid parameter";
+  case GEOQIK_ERROR_WRONG_COLOR_SIZE: return "Wrong color size";
+  case GEOQIK_ERROR_MEMORY_ALLOCATION: return "Memory allocation error";
+  case GEOQIK_ERROR_UNKNOWN: return "Unknown error";
+  default: return "Invalid error code";
+  }
+}
+
+geoqik_error_code_t geoqik_generate_uuid(geoqik_uuid_t* uuid)
+{
+  if (!uuid)
+  {
+    return GEOQIK_ERROR_INVALID_PARAMETER;
+  }
+
+  return geoqik_internal::execute_with_error_handling(
+      [&]() -> geoqik_error_code_t
+      {
+        auto coreUuid = core::UUID::generate().to_array();
+
+        assert(coreUuid.size() == 16);
+        for (std::size_t i = 0; i < 16; ++i)
+        {
+          uuid->value[i] = coreUuid[i];
+        }
+        return GEOQIK_SUCCESS;
+      });
 }
 
 geoqik_result_t geoqik_add_point(double x, double y, double z)
