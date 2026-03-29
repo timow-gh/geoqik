@@ -40,6 +40,14 @@ struct LineGeoBufferIndex
   [[nodiscard]] std::strong_ordering operator<=>(const LineGeoBufferIndex& other) const = default;
 };
 
+struct LinesGeoBufferIndex
+{
+  std::size_t lineStartIndex;
+  std::size_t lineEndIndex; // inclusive, this index is part of the range.
+
+  [[nodiscard]] std::strong_ordering operator<=>(const LinesGeoBufferIndex& other) const = default;
+};
+
 /** \brief Geometry buffer storing geometry data that can be used for rendering.
  *
  * This class manages the storage of points and lines, including their colors and indices to render them.
@@ -67,6 +75,7 @@ class GeometryBuffer
   std::unordered_map<core::UUID, PointGeoBufferIndex> m_handleToPointIndexMapping;
   std::unordered_map<core::UUID, PointsGeoBufferIndex> m_handleToPointsIndexMapping;
   std::unordered_map<core::UUID, LineGeoBufferIndex> m_handleToLineIndexMapping;
+  std::unordered_map<core::UUID, LinesGeoBufferIndex> m_handleToLinesIndexMapping;
 
 public:
   [[nodiscard]] static std::unique_ptr<GeometryBuffer> create() { return std::unique_ptr<GeometryBuffer>(new GeometryBuffer()); }
@@ -98,6 +107,7 @@ public:
       newBuffer->m_lineColors = Buffer<float>::create_from(other.m_lineColors, other.m_lineColors.capacity() * growthFactor);
       newBuffer->m_lineIndices = Buffer<std::uint32_t>::create_from(other.m_lineIndices, other.m_lineIndices.capacity() * growthFactor);
       newBuffer->m_handleToLineIndexMapping = std::move(other.m_handleToLineIndexMapping);
+      newBuffer->m_handleToLinesIndexMapping = std::move(other.m_handleToLinesIndexMapping);
       newBuffer->m_linesHaveChanged = true;
     }
 
@@ -136,6 +146,7 @@ public:
     m_handleToPointIndexMapping.clear();
     m_handleToPointsIndexMapping.clear();
     m_handleToLineIndexMapping.clear();
+    m_handleToLinesIndexMapping.clear();
     m_pointsHaveChanged = true;
   }
 
@@ -288,6 +299,97 @@ public:
   void set_point_color(float r, float g, float b) { m_currentPointColor = {r, g, b}; }
 
   bool has_space_for_lines(std::size_t count) const { return m_lines.free_capacity() >= count * 2 * m_pointDimension; }
+
+  void add_lines(std::span<const float> lines, std::span<const float> colors, const core::UUID* handle = nullptr)
+  {
+    if (lines.empty() && colors.empty())
+    {
+      return;
+    }
+    if (handle && handle->is_nil())
+    {
+      throw std::runtime_error("GeometryBuffer: Attempting to add lines with a nil handle");
+    }
+    if (lines.size() % (2 * m_pointDimension) != 0)
+    {
+      throw std::runtime_error("GeometryBuffer: The size of the lines span must be a multiple of 6 (2 * pointDimension).");
+    }
+    std::size_t lineCount = lines.size() / (2 * m_pointDimension);
+    if (has_space_for_lines(lineCount) == false)
+    {
+      throw std::runtime_error("GeometryBuffer: Not enough space for lines");
+    }
+
+    std::size_t firstLineIndex = m_lines.size() / (2 * m_pointDimension);
+    std::uint32_t firstVertexIndex = static_cast<std::uint32_t>(m_lines.size() / m_pointDimension);
+
+    if (colors.empty())
+    {
+      for (std::size_t i = 0; i < lines.size(); ++i)
+        m_lines.push_back(lines[i]);
+      for (std::size_t i = 0; i < lineCount; ++i)
+      {
+        m_lineColors.push_back(m_currentLineColor[0]);
+        m_lineColors.push_back(m_currentLineColor[1]);
+        m_lineColors.push_back(m_currentLineColor[2]);
+        m_lineColors.push_back(m_currentLineColor[0]);
+        m_lineColors.push_back(m_currentLineColor[1]);
+        m_lineColors.push_back(m_currentLineColor[2]);
+      }
+    }
+    else if (colors.size() == 3)
+    {
+      for (std::size_t i = 0; i < lines.size(); ++i)
+        m_lines.push_back(lines[i]);
+      for (std::size_t i = 0; i < lineCount; ++i)
+      {
+        m_lineColors.push_back(colors[0]);
+        m_lineColors.push_back(colors[1]);
+        m_lineColors.push_back(colors[2]);
+        m_lineColors.push_back(colors[0]);
+        m_lineColors.push_back(colors[1]);
+        m_lineColors.push_back(colors[2]);
+      }
+    }
+    else if (colors.size() * 2 == lines.size()) // one color (3 floats) per line
+    {
+      for (std::size_t i = 0; i < lineCount; ++i)
+      {
+        const std::size_t lineBase = i * 2 * m_pointDimension;
+        const std::size_t colorBase = i * m_colorDimension;
+        m_lines.push_back(lines[lineBase]);
+        m_lines.push_back(lines[lineBase + 1]);
+        m_lines.push_back(lines[lineBase + 2]);
+        m_lines.push_back(lines[lineBase + 3]);
+        m_lines.push_back(lines[lineBase + 4]);
+        m_lines.push_back(lines[lineBase + 5]);
+        m_lineColors.push_back(colors[colorBase]);
+        m_lineColors.push_back(colors[colorBase + 1]);
+        m_lineColors.push_back(colors[colorBase + 2]);
+        m_lineColors.push_back(colors[colorBase]);
+        m_lineColors.push_back(colors[colorBase + 1]);
+        m_lineColors.push_back(colors[colorBase + 2]);
+      }
+    }
+    else
+    {
+      throw std::runtime_error(
+          "GeometryBuffer: Invalid colors span for add_lines. It must be empty, have a size of 3, or match lineCount * 3.");
+    }
+
+    for (std::uint32_t i = 0; i < static_cast<std::uint32_t>(lineCount); ++i)
+    {
+      m_lineIndices.push_back(firstVertexIndex + i * 2);
+      m_lineIndices.push_back(firstVertexIndex + i * 2 + 1);
+    }
+
+    if (handle && !handle->is_nil())
+    {
+      m_handleToLinesIndexMapping.emplace(*handle, LinesGeoBufferIndex{firstLineIndex, firstLineIndex + lineCount - 1});
+    }
+
+    m_linesHaveChanged = true;
+  }
 
   void add_line(float x1, float y1, float z1, float x2, float y2, float z2, const core::UUID* handle = nullptr)
   {

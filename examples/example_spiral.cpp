@@ -35,7 +35,7 @@ int main()
   geoqik_add_line_with_color(0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0f, 0.0f, 1.0f);
 
   auto grid = geoqik::examples::create_grid(500.0, 10.0);
-  geoqik::examples::draw_grid(grid);
+  geoqik::examples::add_grid(grid);
 
   // Use multiple threads to provoke contention
   std::array<std::thread, 5> threads;

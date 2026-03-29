@@ -46,7 +46,13 @@ Grid create_grid(double size, double step)
   return grid;
 }
 
-void draw_grid(const Grid& grid, float lineWidth = 1.0f, float pointSize = 5.0f)
+struct GridGeometryIds
+{
+  geoqik_uuid_t pointsId;
+  geoqik_uuid_t lineIds;
+};
+
+GridGeometryIds add_grid(const Grid& grid, float lineWidth = 1.0f, float pointSize = 5.0f)
 {
   assert(lineWidth > 0.0f);
   assert(pointSize > 0.0f);
@@ -55,27 +61,42 @@ void draw_grid(const Grid& grid, float lineWidth = 1.0f, float pointSize = 5.0f)
   geoqik_is_api_initialized(&initialized);
   assert(initialized);
 
-  geoqik_set_line_width(lineWidth);
-  geoqik_set_point_size(pointSize);
-  geoqik_set_line_color(0.5f, 0.5f, 0.5f);
+
   assert(!grid.lines.empty());
+
+  std::vector<double> lineCoords;
+  lineCoords.reserve(grid.lines.size() * 6);
   for (const auto& line : grid.lines)
   {
-    geoqik_add_line(line.x1, line.y1, line.z1, line.x2, line.y2, line.z2);
+    lineCoords.insert(lineCoords.end(), {line.x1, line.y1, line.z1, line.x2, line.y2, line.z2});
   }
 
+  geoqik_set_line_width(lineWidth);
+  geoqik_set_line_color(0.5f, 0.5f, 0.5f);
+  geoqik_result_t lineRes = geoqik_add_lines_opts(lineCoords.data(), lineCoords.size(), NULL);
+  assert(lineRes.err == GEOQIK_SUCCESS);
+
   geoqik_set_point_color(0.5f, 0.5f, 0.5f);
+  geoqik_set_point_size(pointSize);
+  std::vector<double> pointCoords;
+  pointCoords.reserve(grid.points.size() * 3);
   assert(!grid.points.empty());
   for (const auto& point : grid.points)
   {
-    geoqik_add_point(point.x, point.y, point.z);
+    // geoqik_add_point(point.x, point.y, point.z);
+    pointCoords.insert(pointCoords.end(), {point.x, point.y, point.z});
   }
+
+  geoqik_result_t pointRes = geoqik_add_points_opts(pointCoords.data(), pointCoords.size(), NULL);
+  assert(pointRes.err == GEOQIK_SUCCESS);
+
+  return GridGeometryIds{pointRes.geometryId, lineRes.geometryId};
 }
 
-void draw_grid(double size, double step)
+GridGeometryIds add_grid(double size, double step)
 {
   auto grid = create_grid(size, step);
-  draw_grid(grid);
+  return add_grid(grid);
 }
 
 } // namespace geoqik::examples

@@ -65,7 +65,7 @@ int main()
   geoqik_init();
 
   geoqik::examples::draw_origin(1.0);
-  geoqik::examples::draw_grid(10.0, 1.0);
+  geoqik::examples::add_grid(10.0, 1.0);
 
   geoqik_draw();
 

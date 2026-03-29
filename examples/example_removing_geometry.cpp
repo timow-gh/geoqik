@@ -14,7 +14,7 @@ static geoqik_uuid_t add_point_with_delay(double x, double y, double z, double d
 
 static geoqik_uuid_t add_line_with_delay(double x1, double y1, double z1, double x2, double y2, double z2, double delaySeconds)
 {
-  geoqik_uuid_t lineId = geoqik_add_line_with_id(x1, y1, z1, x2, y2, z2, NULL).geometryId;
+  geoqik_uuid_t lineId = geoqik_add_line_opts(x1, y1, z1, x2, y2, z2, NULL).geometryId;
   sleep_for_seconds(delaySeconds);
   return lineId;
 }

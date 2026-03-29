@@ -24,9 +24,9 @@ int main()
 
   sleep_for_seconds(0.5);
 
-  geoqik_uuid_t lineIdA = geoqik_add_line_with_id(5.0, 5.0, 0.0, 5.0, 0.0, 0.0, NULL).geometryId;
-  geoqik_uuid_t lineIdB = geoqik_add_line_with_id(5.0, 0.0, 0.0, 0.0, 5.0, 0.0, NULL).geometryId;
-  geoqik_uuid_t lineIdC = geoqik_add_line_with_id(0.0, 5.0, 0.0, 5.0, 5.0, 0.0, NULL).geometryId;
+  geoqik_uuid_t lineIdA = geoqik_add_line_opts(5.0, 5.0, 0.0, 5.0, 0.0, 0.0, NULL).geometryId;
+  geoqik_uuid_t lineIdB = geoqik_add_line_opts(5.0, 0.0, 0.0, 0.0, 5.0, 0.0, NULL).geometryId;
+  geoqik_uuid_t lineIdC = geoqik_add_line_opts(0.0, 5.0, 0.0, 5.0, 5.0, 0.0, NULL).geometryId;
 
   sleep_for_seconds(0.5);
 

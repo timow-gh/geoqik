@@ -10,7 +10,7 @@ int main()
 
   geoqik_draw();
 
-  geoqik::examples::draw_grid(500.0, 10.0);
+  geoqik::examples::add_grid(500.0, 10.0);
 
   geoqik_wait_for_exit_and_cleanup();
 

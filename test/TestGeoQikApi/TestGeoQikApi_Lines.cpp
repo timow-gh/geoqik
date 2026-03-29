@@ -93,3 +93,67 @@ TEST_F(GeoQikTest_Lines, AddLineWithColor)
   geoqik_draw();
   geoqik_cleanup();
 }
+
+TEST_F(GeoQikTest_Lines, AddLineWithIdempotency)
+{
+  geoqik_init();
+
+  geoqik_uuid_t key;
+  geoqik_generate_uuid(&key);
+
+  geoqik_add_line_opts_t opts{};
+  opts.idempotencyKey = key;
+
+  geoqik_result_t first = geoqik_add_line_opts(0.0, 0.0, 0.0, 1.0, 0.0, 0.0, &opts);
+  EXPECT_EQ(first.err, GEOQIK_SUCCESS);
+
+  geoqik_result_t second = geoqik_add_line_opts(0.0, 0.0, 0.0, 1.0, 0.0, 0.0, &opts);
+  EXPECT_EQ(second.err, GEOQIK_SUCCESS);
+
+  geoqik_draw();
+  geoqik_cleanup();
+}
+
+TEST_F(GeoQikTest_Lines, AddLineWithColorOpts)
+{
+  geoqik_init();
+
+  const float color[3] = {0.0f, 0.0f, 1.0f}; // Blue
+  geoqik_add_line_opts_t opts{};
+  opts.color = color;
+  opts.colorCount = 3;
+
+  geoqik_result_t result = geoqik_add_line_opts(0.0, 0.0, 0.0, 1.0, 1.0, 1.0, &opts);
+  EXPECT_EQ(result.err, GEOQIK_SUCCESS);
+
+  geoqik_draw();
+  geoqik_cleanup();
+}
+
+TEST_F(GeoQikTest_Lines, AddLinesWithOpts)
+{
+  geoqik_init();
+
+  // Three lines, each with 6 doubles (x1,y1,z1, x2,y2,z2)
+  const double lines[] = {
+      0.0, 0.0, 0.0,  1.0, 0.0, 0.0,
+      0.0, 0.0, 0.0,  0.0, 1.0, 0.0,
+      0.0, 0.0, 0.0,  0.0, 0.0, 1.0,
+  };
+  // One color per line (RGB * 3 lines = 9 floats)
+  const float colors[] = {
+      1.0f, 0.0f, 0.0f,
+      0.0f, 1.0f, 0.0f,
+      0.0f, 0.0f, 1.0f,
+  };
+
+  geoqik_add_line_opts_t opts{};
+  opts.color = colors;
+  opts.colorCount = 9;
+
+  geoqik_result_t result = geoqik_add_lines_opts(lines, 3, &opts);
+  EXPECT_EQ(result.err, GEOQIK_SUCCESS);
+
+  geoqik_draw();
+  geoqik_cleanup();
+}

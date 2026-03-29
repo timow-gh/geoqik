@@ -115,6 +115,17 @@ public:
     m_geoBuffer->add_line(x1, y1, z1, x2, y2, z2, r, g, b, handle);
   }
 
+  void add_lines(std::span<const float> lines, std::span<const float> colors, const core::UUID* handle = nullptr)
+  {
+    if (m_geoBuffer->has_space_for_lines(lines.size() / 6) == false)
+    {
+      recreated_drawables(lines.size() / 6);
+      m_geoBuffer->add_lines(lines, colors, handle);
+      return;
+    }
+    m_geoBuffer->add_lines(lines, colors, handle);
+  }
+
   void remove_line(core::UUID handle) { m_geoBuffer->remove_line(handle); }
 
   void translate_geometry(core::UUID handle, float dx, float dy, float dz) { m_geoBuffer->translate_geometry(handle, dx, dy, dz); }

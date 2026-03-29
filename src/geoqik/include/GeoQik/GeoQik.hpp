@@ -157,7 +157,7 @@ extern "C"
   } geoqik_add_points_options_t;
 
   GEOQIK_EXPORT geoqik_result_t geoqik_add_point_opts(double x, double y, double z, geoqik_add_points_options_t* options);
-  GEOQIK_EXPORT geoqik_result_t geoqik_add_points_opts(const double* points, size_t count, geoqik_add_points_options_t* options);
+  GEOQIK_EXPORT geoqik_result_t geoqik_add_points_opts(const double* points, size_t size, geoqik_add_points_options_t* options);
 
   GEOQIK_EXPORT geoqik_error_code_t geoqik_remove_point(const geoqik_uuid_t* geometryId);
 
@@ -174,10 +174,14 @@ extern "C"
 
   typedef struct
   {
-    const geoqik_uuid_t* idempotencyKey; /**< Optional idempotency key for the geometry */
-  } geoqik_add_options_t;
+    geoqik_uuid_t idempotencyKey; /**< Optional idempotency key for the line, ignored if the uuid is zeroed. */
+    const float* color;           /**< Optional color used for the line (RGB), ignored if the pointer is null. */
+    size_t colorCount;            /**< Number of floats in the color array, must be 0, 3 or the same as the number of lines * 3 */
+  } geoqik_add_line_opts_t;
 
-  GEOQIK_EXPORT geoqik_result_t geoqik_add_line_with_id(double x1, double y1, double z1, double x2, double y2, double z2, const geoqik_add_options_t* options);
+  GEOQIK_EXPORT geoqik_result_t geoqik_add_line_opts(double x1, double y1, double z1, double x2, double y2, double z2, geoqik_add_line_opts_t* options);
+  GEOQIK_EXPORT geoqik_result_t geoqik_add_lines_opts(const double* lines, size_t size, geoqik_add_line_opts_t* options);
+
   GEOQIK_EXPORT geoqik_error_code_t geoqik_remove_line(const geoqik_uuid_t* geometryId);
 
   GEOQIK_EXPORT geoqik_error_code_t geoqik_remove_all_geometry();

@@ -22,10 +22,9 @@ enum class GeoQikMessageType
   SET_POINT_SIZE,
   GET_POINT_COLOR,
   SET_POINT_COLOR,
-  ADD_LINE,
-  ADD_LINE_WITH_ID,
+  ADD_LINE_WITH_OPTS,
+  ADD_LINES_WITH_OPTS,
   REMOVE_LINE,
-  ADD_LINE_COLOR,
   GET_LINE_WIDTH,
   SET_LINE_WIDTH,
   GET_LINE_COLOR,
@@ -45,10 +44,9 @@ enum class GeoQikMessageType
          type == GeoQikMessageType::REMOVE_POINT ||
          type == GeoQikMessageType::SET_POINT_SIZE ||
          type == GeoQikMessageType::SET_POINT_COLOR ||
-         type == GeoQikMessageType::ADD_LINE ||
-         type == GeoQikMessageType::ADD_LINE_WITH_ID ||
+         type == GeoQikMessageType::ADD_LINE_WITH_OPTS ||
+         type == GeoQikMessageType::ADD_LINES_WITH_OPTS ||
          type == GeoQikMessageType::REMOVE_LINE ||
-         type == GeoQikMessageType::ADD_LINE_COLOR ||
          type == GeoQikMessageType::SET_LINE_WIDTH ||
          type == GeoQikMessageType::SET_LINE_COLOR ||
          type == GeoQikMessageType::REMOVE_ALL_GEOMETRY ||
@@ -77,7 +75,7 @@ union GeoQikMessageData
   {
     // PointsWithOps has ownerswip of the memory pointed to by `points`
     float* points;
-    size_t count;
+    size_t size;
     CommonMessageData commonData;
   };
 
@@ -86,18 +84,19 @@ union GeoQikMessageData
     core::UUID handle;
   };
 
-  struct Line
+  struct LineWithOpts
   {
     float x1, y1, z1;
     float x2, y2, z2;
+    CommonMessageData commonData;
   };
 
-  struct LineWithId
+  struct LinesWithOpts
   {
-    float x1, y1, z1;
-    float x2, y2, z2;
-    core::UUID requestId;
-    core::UUID idempotencyId;
+    // LinesWithOpts has ownership of the memory pointed to by `lines`
+    float* lines;
+    size_t size;
+    CommonMessageData commonData;
   };
 
   struct RemoveLine
@@ -117,12 +116,6 @@ union GeoQikMessageData
     float centerX, centerY, centerZ;
     float axisX, axisY, axisZ;
     float angle;
-  };
-  struct ColorLine
-  {
-    float x1, y1, z1;
-    float x2, y2, z2;
-    float r, g, b;
   };
 
   struct PointSize
@@ -144,12 +137,9 @@ union GeoQikMessageData
   PointsWithOpts pointsWithOpts;
   RemovePoint removePoint;
 
-  Line line;
-
-  LineWithId lineWithId;
+  LineWithOpts lineWithOpts;
+  LinesWithOpts linesWithOpts;
   RemoveLine removeLine;
-
-  ColorLine colorLine;
 
   PointSize pointSize;
   LineWidth lineWidth;
