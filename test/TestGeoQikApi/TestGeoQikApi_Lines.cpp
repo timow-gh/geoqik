@@ -151,7 +151,7 @@ TEST_F(GeoQikTest_Lines, AddLinesWithOpts)
   opts.color = colors;
   opts.colorCount = 9;
 
-  geoqik_result_t result = geoqik_add_lines_opts(lines, 3, &opts);
+  geoqik_result_t result = geoqik_add_lines_opts(lines, sizeof(lines) / sizeof(lines[0]), &opts);
   EXPECT_EQ(result.err, GEOQIK_SUCCESS);
 
   geoqik_draw();
