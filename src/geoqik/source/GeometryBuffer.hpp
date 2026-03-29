@@ -15,7 +15,7 @@
 
 namespace geoqik
 {
-  
+
 // Holds the index of a point in the point buffer
 struct PointGeoBufferIndex
 {
@@ -69,10 +69,7 @@ class GeometryBuffer
   std::unordered_map<core::UUID, LineGeoBufferIndex> m_handleToLineIndexMapping;
 
 public:
-  [[nodiscard]] static std::unique_ptr<GeometryBuffer> create()
-  {
-    return std::unique_ptr<GeometryBuffer>(new GeometryBuffer());
-  }
+  [[nodiscard]] static std::unique_ptr<GeometryBuffer> create() { return std::unique_ptr<GeometryBuffer>(new GeometryBuffer()); }
 
   [[nodiscard]] static std::unique_ptr<GeometryBuffer> create(const GeoQikSettings& settings)
   {
@@ -126,10 +123,7 @@ public:
   [[nodiscard]] bool lines_have_changed() const { return m_linesHaveChanged; }
   void reset_lines_have_changed() { m_linesHaveChanged = false; }
 
-  [[nodiscard]] bool empty() const
-  {
-    return m_points.is_empty() && m_lines.is_empty();
-  }
+  [[nodiscard]] bool empty() const { return m_points.is_empty() && m_lines.is_empty(); }
 
   void clear()
   {
@@ -167,10 +161,7 @@ public:
   [[nodiscard]] std::size_t get_free_point_capacity() const { return m_points.free_capacity() / m_pointDimension; }
   [[nodiscard]] std::size_t get_free_line_capacity() const { return m_lines.free_capacity() / m_pointDimension; }
 
-  bool has_space_for_points(std::size_t count) const
-  {
-    return m_points.free_capacity() >= count * m_pointDimension;
-  }
+  bool has_space_for_points(std::size_t count) const { return m_points.free_capacity() >= count * m_pointDimension; }
 
   void add_point(float x, float y, float z, const core::UUID* handle = nullptr)
   {
@@ -204,7 +195,7 @@ public:
     if (handle != nullptr && !handle->is_nil())
     {
       m_handleToPointIndexMapping.emplace(*handle, PointGeoBufferIndex{currentPointIndex});
-    } 
+    }
 
     m_pointsHaveChanged = true;
   }
@@ -216,40 +207,15 @@ public:
       throw std::runtime_error("GeometryBuffer: Attempting to remove a point with a nil handle");
     }
 
-    auto it = m_handleToPointIndexMapping.find(handle);
-    if (it == m_handleToPointIndexMapping.end())
+    if (remove_single_point(handle))
     {
       return;
     }
 
-    // Iterate the existing indices and decrement those greater than the removed point index.
-    // Otherwise they would point to the wrong data after removal of the current point.
-    std::size_t pointIndex = it->second.pointIndex;
-    for (auto& pairIter : m_handleToPointIndexMapping)
+    if (remove_points(handle))
     {
-      if (pointIndex < pairIter.second.pointIndex)
-      {
-        pairIter.second.pointIndex--;
-      }
+      return;
     }
-
-    std::size_t pointStart = pointIndex * m_pointDimension;
-    m_points.remove(pointStart, m_pointDimension);
-    m_pointColors.remove(pointStart, m_pointDimension);
-
-    // Fix the indices in the index buffer and remove the index of the removed point.
-    // The indices after the removed point need to be decremented by one.
-    for (std::size_t i = 0; i < m_pointIndices.size(); ++i)
-    {
-      if (m_pointIndices[i] > pointIndex)
-      {
-        m_pointIndices[i]--;
-      }
-    }
-    m_pointIndices.remove(pointIndex, 1);
-    m_handleToPointIndexMapping.erase(handle);
-
-    m_pointsHaveChanged = true;
   }
 
   void add_points(std::span<const float> points, std::span<const float> colors, const core::UUID* handle = nullptr)
@@ -289,7 +255,8 @@ public:
         m_points.push_back(points[i]);
         m_pointColors.push_back(colors[i % m_colorDimension]);
       }
-    } else if (colors.size() == points.size())
+    }
+    else if (colors.size() == points.size())
     {
       for (std::size_t i = 0; i < points.size(); ++i)
       {
@@ -299,10 +266,13 @@ public:
     }
     else
     {
-      throw std::runtime_error("GeometryBuffer: Invalid colors span. It must be either empty, have a size of 3 with valid RGB values, or match the size of the points span.");
+      throw std::runtime_error(
+          "GeometryBuffer: Invalid colors span. It must be either empty, have a size of 3 with valid RGB values, or match the size of the "
+          "points span.");
     }
 
-    for (std::uint32_t i = static_cast<std::uint32_t>(currentPointIndex); i < static_cast<std::uint32_t>(currentPointIndex + pointCount); ++i)
+    for (std::uint32_t i = static_cast<std::uint32_t>(currentPointIndex); i < static_cast<std::uint32_t>(currentPointIndex + pointCount);
+         ++i)
     {
       m_pointIndices.push_back(i);
     }
@@ -315,59 +285,9 @@ public:
     m_pointsHaveChanged = true;
   }
 
-  void remove_points(core::UUID handle)
-  {
-    if (handle.is_nil())
-    {
-      throw std::runtime_error("GeometryBuffer: Attempting to remove points with a nil handle");
-    }
-
-    auto it = m_handleToPointsIndexMapping.find(handle);
-    if (it == m_handleToPointsIndexMapping.end())
-    {
-      return;
-    }
-
-    std::size_t pointStartIndex = it->second.pointStartIndex;
-    std::size_t pointEndIndex = it->second.pointEndIndex;
-
-    std::size_t numberOfPointsToRemove = pointEndIndex - pointStartIndex + 1;
-    std::size_t pointStart = pointStartIndex * m_pointDimension;
-    m_points.remove(pointStart, numberOfPointsToRemove * m_pointDimension);
-    m_pointColors.remove(pointStart, numberOfPointsToRemove * m_colorDimension);
-
-    // Fix the indices in the index buffer and remove the indices of the removed points.
-    // The indices after the removed points need to be decremented by the number of removed points.
-    for (std::size_t i = 0; i < m_pointIndices.size(); ++i)
-    {
-      if (m_pointIndices[i] > pointEndIndex)
-      {
-        m_pointIndices[i] -= static_cast<std::uint32_t>(numberOfPointsToRemove);
-      }
-    }
-    m_pointIndices.remove(pointStartIndex, numberOfPointsToRemove);
-
-    // Iterate existing indices in the handle to points mapping and decrement those greater than the removed points.
-    // Assume the ranges of points do not overlap. This is ensured by the GeometryBuffer.
-    for (auto& pairIter : m_handleToPointsIndexMapping)
-    {
-      if (pointEndIndex < pairIter.second.pointStartIndex)
-      {
-        pairIter.second.pointStartIndex -= numberOfPointsToRemove;
-        pairIter.second.pointEndIndex -= numberOfPointsToRemove;
-      }
-    }
-    m_handleToPointsIndexMapping.erase(handle);
-
-    m_pointsHaveChanged = true;
-  }
-
   void set_point_color(float r, float g, float b) { m_currentPointColor = {r, g, b}; }
 
-  bool has_space_for_lines(std::size_t count) const
-  {
-    return m_lines.free_capacity() >= count * 2 * m_pointDimension;
-  }
+  bool has_space_for_lines(std::size_t count) const { return m_lines.free_capacity() >= count * 2 * m_pointDimension; }
 
   void add_line(float x1, float y1, float z1, float x2, float y2, float z2, const core::UUID* handle = nullptr)
   {
@@ -399,7 +319,7 @@ public:
 
     std::uint32_t firstVertexIndex = static_cast<std::uint32_t>(m_lines.size() / m_pointDimension) - 2;
     std::uint32_t secondVertexIndex = firstVertexIndex + 1;
-    
+
     m_lineIndices.push_back(firstVertexIndex);
     m_lineIndices.push_back(secondVertexIndex);
 
@@ -424,7 +344,7 @@ public:
     // Iterate the existing indices and decrement those greater than the removed line index.
     // Otherwise they would point to the wrong data after removal of the current line.
     std::size_t lineIndex = it->second.lineIndex;
-    for (auto& pairIter : m_handleToLineIndexMapping)
+    for (auto& pairIter: m_handleToLineIndexMapping)
     {
       if (lineIndex < pairIter.second.lineIndex)
       {
@@ -516,7 +436,9 @@ public:
       std::size_t lineStart = lineIndex * 2 * m_pointDimension;
       for (std::size_t i = 0; i < 2; ++i)
       {
-        linal::float3 point{m_lines[lineStart + i * m_pointDimension], m_lines[lineStart + i * m_pointDimension + 1], m_lines[lineStart + i * m_pointDimension + 2]};
+        linal::float3 point{m_lines[lineStart + i * m_pointDimension],
+                            m_lines[lineStart + i * m_pointDimension + 1],
+                            m_lines[lineStart + i * m_pointDimension + 2]};
         linal::float3 center{centerX, centerY, centerZ};
         linal::float3 axis{axisX, axisY, axisZ};
         axis = axis.normalize();
@@ -557,6 +479,97 @@ private:
     assert(m_lineColors.capacity() % (2 * m_pointDimension) == 0);
     assert(m_lineIndices.capacity() == settings.initialLineCapacity * 2);
   }
+
+
+  bool remove_single_point(core::UUID handle)
+  {
+    auto it = m_handleToPointIndexMapping.find(handle);
+    if (it == m_handleToPointIndexMapping.end())
+    {
+      return false;
+    }
+
+    // Iterate the existing indices and decrement those greater than the removed point index.
+    // Otherwise they would point to the wrong data after removal of the current point.
+    std::size_t pointIndex = it->second.pointIndex;
+    for (auto& pairIter: m_handleToPointIndexMapping)
+    {
+      if (pointIndex < pairIter.second.pointIndex)
+      {
+        pairIter.second.pointIndex--;
+      }
+    }
+
+    std::size_t pointStart = pointIndex * m_pointDimension;
+    m_points.remove(pointStart, m_pointDimension);
+    m_pointColors.remove(pointStart, m_pointDimension);
+
+    // Fix the indices in the index buffer and remove the index of the removed point.
+    // The indices after the removed point need to be decremented by one.
+    for (std::size_t i = 0; i < m_pointIndices.size(); ++i)
+    {
+      if (m_pointIndices[i] > pointIndex)
+      {
+        m_pointIndices[i]--;
+      }
+    }
+    m_pointIndices.remove(pointIndex, 1);
+    m_handleToPointIndexMapping.erase(handle);
+
+    m_pointsHaveChanged = true;
+
+    return true;
+  }
+
+  bool remove_points(core::UUID handle)
+  {
+    if (handle.is_nil())
+    {
+      throw std::runtime_error("GeometryBuffer: Attempting to remove points with a nil handle");
+    }
+
+    auto it = m_handleToPointsIndexMapping.find(handle);
+    if (it == m_handleToPointsIndexMapping.end())
+    {
+      return false;
+    }
+
+    std::size_t pointStartIndex = it->second.pointStartIndex;
+    std::size_t pointEndIndex = it->second.pointEndIndex;
+
+    std::size_t numberOfPointsToRemove = pointEndIndex - pointStartIndex + 1;
+    std::size_t pointStart = pointStartIndex * m_pointDimension;
+    m_points.remove(pointStart, numberOfPointsToRemove * m_pointDimension);
+    m_pointColors.remove(pointStart, numberOfPointsToRemove * m_colorDimension);
+
+    // Fix the indices in the index buffer and remove the indices of the removed points.
+    // The indices after the removed points need to be decremented by the number of removed points.
+    for (std::size_t i = 0; i < m_pointIndices.size(); ++i)
+    {
+      if (m_pointIndices[i] > pointEndIndex)
+      {
+        m_pointIndices[i] -= static_cast<std::uint32_t>(numberOfPointsToRemove);
+      }
+    }
+    m_pointIndices.remove(pointStartIndex, numberOfPointsToRemove);
+
+    // Iterate existing indices in the handle to points mapping and decrement those greater than the removed points.
+    // Assume the ranges of points do not overlap. This is ensured by the GeometryBuffer.
+    for (auto& pairIter: m_handleToPointsIndexMapping)
+    {
+      if (pointEndIndex < pairIter.second.pointStartIndex)
+      {
+        pairIter.second.pointStartIndex -= numberOfPointsToRemove;
+        pairIter.second.pointEndIndex -= numberOfPointsToRemove;
+      }
+    }
+    m_handleToPointsIndexMapping.erase(handle);
+
+    m_pointsHaveChanged = true;
+
+    return true;
+  }
+
 };
 
 } // namespace geoqik

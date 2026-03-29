@@ -135,8 +135,7 @@ extern "C"
    * \attention Must be called before any other GeoQik functions.
    */
   GEOQIK_EXPORT geoqik_error_code_t geoqik_init();
-  GEOQIK_EXPORT geoqik_error_code_t geoqik_init_with_settings(const geoqik_settings_t* geoqikSettings,
-                                                              const geoqik_window_settings_t* windowSettings);
+  GEOQIK_EXPORT geoqik_error_code_t geoqik_init_with_settings(const geoqik_settings_t* geoqikSettings, const geoqik_window_settings_t* windowSettings);
   GEOQIK_EXPORT geoqik_error_code_t geoqik_is_api_initialized(bool* isInitialized);
 
   /** \brief Sets the size used for all points */

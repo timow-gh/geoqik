@@ -175,7 +175,7 @@ TEST_F(GeometryBufferTest, RemovePoints_NilHandle)
   ASSERT_TRUE(buffer != nullptr);
 
   core::UUID invalidHandle = core::UUID::nil();
-  EXPECT_THROW(buffer->remove_points(invalidHandle), std::runtime_error);
+  EXPECT_THROW(buffer->remove_point(invalidHandle), std::runtime_error);
 }
 
 TEST_F(GeometryBufferTest, RemovePoints_Empty)
@@ -184,7 +184,7 @@ TEST_F(GeometryBufferTest, RemovePoints_Empty)
   ASSERT_TRUE(buffer != nullptr);
 
   core::UUID pointsHandle = core::UUID::generate();
-  buffer->remove_points(pointsHandle);
+  buffer->remove_point(pointsHandle);
   EXPECT_EQ(buffer->get_points().size(), 0);
 }
 
@@ -199,7 +199,7 @@ TEST_F(GeometryBufferTest, RemovePoints_One)
   buffer->add_points(points, colors, &pointsHandle);
   EXPECT_EQ(buffer->get_points().size(), 6);
 
-  buffer->remove_points(pointsHandle);
+  buffer->remove_point(pointsHandle);
   EXPECT_EQ(buffer->get_points().size(), 0);
 }
 
@@ -225,7 +225,7 @@ TEST_F(GeometryBufferTest, RemovePoints_Multiple)
   }
 
   EXPECT_EQ(buffer->get_points().size(), 18);
-  buffer->remove_points(handles[1]);
+  buffer->remove_point(handles[1]);
   EXPECT_TRUE(buffer->has_changed());
   buffer->reset_changed_flag();
   EXPECT_EQ(buffer->get_points().size(), 12);
@@ -257,7 +257,7 @@ TEST_F(GeometryBufferTest, RemovePoints_Multiple)
   EXPECT_EQ(newColors[10], 18.0f);
   EXPECT_EQ(newColors[11], 19.0f);
 
-  buffer->remove_points(handles[0]);
+  buffer->remove_point(handles[0]);
   EXPECT_TRUE(buffer->has_changed());
   EXPECT_EQ(buffer->get_points().size(), 6);
   newPoints = buffer->get_points(); 
@@ -276,7 +276,7 @@ TEST_F(GeometryBufferTest, RemovePoints_Multiple)
   EXPECT_EQ(newColors[4], 18.0f);
   EXPECT_EQ(newColors[5], 19.0f);
 
-  buffer->remove_points(handles[2]);
+  buffer->remove_point(handles[2]);
   EXPECT_EQ(buffer->get_points().size(), 0);
   EXPECT_EQ(buffer->get_point_colors().size(), 0);
 }

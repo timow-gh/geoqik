@@ -108,7 +108,11 @@ int main()
   geoqik_add_points_options_t zOptions{};
   zOptions.color = zColors.data();
   zOptions.colorCount = zColors.size();
-  geoqik_add_points_opts(zPoints.data(), zPoints.size(), &zOptions);
+  geoqik_result_t zPointsRes = geoqik_add_points_opts(zPoints.data(), zPoints.size(), &zOptions);
+
+  sleep_for_seconds(0.5);
+
+  geoqik_remove_point(&zPointsRes.geometryId);
 
   geoqik_wait_for_exit_and_cleanup();
 
