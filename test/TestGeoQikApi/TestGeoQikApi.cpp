@@ -17,7 +17,7 @@ TEST_F(GeoQikTestApi, CustomWindowSettings)
   settings.visible = 0; // Make window invisible for testing
 
   geoqik_settings_t geoSettings;
-  geoqik_init_default_settings(&geoSettings);
+  geoqik_create_default_settings(&geoSettings);
 
   geoqik_init_with_settings(&geoSettings, &settings);
   // Can't easily verify the settings took effect without accessing internals

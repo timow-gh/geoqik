@@ -184,6 +184,8 @@ static geoqik_error_code_t run_render_thread(const geoqik::GeoQikSettings& geoqi
   }
   catch (...)
   {
+    get_message_queue().clear();
+    g_apiIsInitialized.store(false, std::memory_order_release);
     return GEOQIK_ERROR_UNKNOWN;
   }
 }
@@ -214,7 +216,7 @@ static geoqik_error_code_t start_geoqik_thread(const geoqik::GeoQikSettings& geo
   }
   catch (...)
   {
-    return GEOQIK_ERROR_UNKNOWN;
+    throw;
   }
 }
 
@@ -289,7 +291,7 @@ geoqik_error_code_t geoqik_init()
       });
 }
 
-void geoqik_init_default_settings(geoqik_settings_t* settings)
+void geoqik_create_default_settings(geoqik_settings_t* settings)
 {
   if (!settings)
     return;

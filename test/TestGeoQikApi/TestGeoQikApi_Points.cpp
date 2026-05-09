@@ -3,11 +3,11 @@
 #include <cstring>
 #include <gtest/gtest.h>
 
-class GeoQikTest_Points : public ::testing::Test
+class TestGeoQikApi_Points : public ::testing::Test
 {
 };
 
-TEST_F(GeoQikTest_Points, AddPoint)
+TEST_F(TestGeoQikApi_Points, AddPoint)
 {
   geoqik_init();
 
@@ -28,7 +28,7 @@ TEST_F(GeoQikTest_Points, AddPoint)
   geoqik_cleanup();
 }
 
-TEST_F(GeoQikTest_Points, AddPointWithHandle)
+TEST_F(TestGeoQikApi_Points, AddPointWithHandle)
 {
   geoqik_init();
 
@@ -45,10 +45,10 @@ TEST_F(GeoQikTest_Points, AddPointWithHandle)
   geoqik_cleanup();
 }
 
-TEST_F(GeoQikTest_Points, CheckMaximumPointsCapacity)
+TEST_F(TestGeoQikApi_Points, CheckMaximumPointsCapacity)
 {
   geoqik_settings_t settings;
-  geoqik_init_default_settings(&settings);
+  geoqik_create_default_settings(&settings);
   settings.initialPointCapacity = 3;
 
   geoqik_init_with_settings(&settings, nullptr);
@@ -63,7 +63,7 @@ TEST_F(GeoQikTest_Points, CheckMaximumPointsCapacity)
 }
 
 
-TEST_F(GeoQikTest_Points, PointSizeGetSet)
+TEST_F(TestGeoQikApi_Points, PointSizeGetSet)
 {
   geoqik_init();
 
@@ -80,7 +80,7 @@ TEST_F(GeoQikTest_Points, PointSizeGetSet)
   geoqik_cleanup();
 }
 
-TEST_F(GeoQikTest_Points, PointColorGetSet)
+TEST_F(TestGeoQikApi_Points, PointColorGetSet)
 {
   geoqik_init();
 
@@ -103,7 +103,7 @@ TEST_F(GeoQikTest_Points, PointColorGetSet)
   geoqik_cleanup();
 }
 
-TEST_F(GeoQikTest_Points, AddPointWithColor)
+TEST_F(TestGeoQikApi_Points, AddPointWithColor)
 {
   geoqik_init();
 

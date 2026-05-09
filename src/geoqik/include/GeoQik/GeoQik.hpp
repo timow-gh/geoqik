@@ -128,7 +128,7 @@ extern "C"
    */
   GEOQIK_EXPORT geoqik_error_code_t geoqik_init();
 
-  GEOQIK_EXPORT void geoqik_init_default_settings(geoqik_settings_t* settings);
+  GEOQIK_EXPORT void geoqik_create_default_settings(geoqik_settings_t* settings);
   GEOQIK_EXPORT void geoqik_init_default_window_settings(geoqik_window_settings_t* settings);
   GEOQIK_EXPORT geoqik_error_code_t geoqik_init_with_settings(const geoqik_settings_t* geoqikSettings, const geoqik_window_settings_t* windowSettings);
   GEOQIK_EXPORT geoqik_error_code_t geoqik_is_api_initialized(bool* isInitialized);

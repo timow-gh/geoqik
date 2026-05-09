@@ -60,6 +60,12 @@ public:
   }
   ~ConcurrentQueue() = default;
 
+  std::size_t size() const
+  {
+    std::scoped_lock lock(m_mutex);
+    return m_queue.size();
+  }
+
   bool empty() const
   {
     std::scoped_lock lock(m_mutex);
@@ -107,10 +113,19 @@ public:
     return &m_queue.front();
   }
 
-  std::size_t size() const
+  void clear()
   {
     std::scoped_lock lock(m_mutex);
-    return m_queue.size();
+    while (!m_queue.empty())
+    {
+      m_queue.pop();
+      m_slotsFree.release();
+    }
+    // Set used slots to 0
+    while (m_slotsUsed.try_acquire())
+    {
+      // No need to do anything here, just acquire all used slots to set the count to 0.
+    } 
   }
 
 };

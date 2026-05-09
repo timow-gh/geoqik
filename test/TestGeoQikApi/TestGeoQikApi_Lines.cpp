@@ -22,7 +22,7 @@ TEST_F(GeoQikTest_Lines, AddLine)
 TEST_F(GeoQikTest_Lines, CheckMaximumLinesCapacity)
 {
   geoqik_settings_t settings;
-  geoqik_init_default_settings(&settings);
+  geoqik_create_default_settings(&settings);
   settings.initialLineCapacity = 3;
 
   geoqik_init_with_settings(&settings, nullptr);

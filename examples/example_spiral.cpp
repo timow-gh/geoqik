@@ -14,7 +14,7 @@ int main()
   // with multiple threads adding lines and points concurrently.
 
   geoqik_settings_t settings;
-  geoqik_init_default_settings(&settings);
+  geoqik_create_default_settings(&settings);
   settings.initialPointCapacity = 10000;
   settings.initialLineCapacity = 10000;
 
