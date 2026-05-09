@@ -13,7 +13,8 @@ namespace geoqik
 
 class Scene
 {
-  std::unique_ptr<GeometryBuffer> m_geoBuffer;
+  std::unique_ptr<PointBuffer> m_pointBuffer;
+  std::unique_ptr<LineBuffer> m_lineBuffer;
   std::size_t m_geomBufferGrowthFactor{3};
   OpenGLDrawablesManager m_drawablesManager;
   float m_pointSize{3.0f};
@@ -28,18 +29,21 @@ public:
   Scene(const Scene&) = delete;
   Scene& operator=(const Scene&) = delete;
   Scene(Scene&& other) noexcept
-      : m_geoBuffer(std::move(other.m_geoBuffer))
+      : m_pointBuffer(std::move(other.m_pointBuffer))
+      , m_lineBuffer(std::move(other.m_lineBuffer))
       , m_drawablesManager(std::move(other.m_drawablesManager))
       , m_lineType(other.m_lineType)
       , m_accessPattern(other.m_accessPattern)
   {
     m_pointSize = other.m_pointSize;
     m_lineWidth = other.m_lineWidth;
-    other.m_geoBuffer = nullptr;
+    other.m_lineBuffer = nullptr;
+    other.m_pointBuffer = nullptr;
   }
   Scene& operator=(Scene&& other) noexcept
   {
-    m_geoBuffer = std::move(other.m_geoBuffer);
+    m_lineBuffer = std::move(other.m_lineBuffer);
+    m_pointBuffer = std::move(other.m_pointBuffer);
     m_drawablesManager = std::move(other.m_drawablesManager);
     m_pointSize = other.m_pointSize;
     m_lineWidth = other.m_lineWidth;
@@ -52,95 +56,96 @@ public:
   static Scene create(const GeoQikSettings& geoqikSettings, opengl::PointProgram* pointProgram, opengl::LineProgram* lineProgram)
   {
     Scene scene(pointProgram, lineProgram);
-    scene.m_geoBuffer = GeometryBuffer::create(geoqikSettings);
+    scene.m_pointBuffer = PointBuffer::create(geoqikSettings);
     scene.m_pointSize = geoqikSettings.defaultPointSize;
+    scene.m_lineBuffer = LineBuffer::create(geoqikSettings);
     scene.m_lineWidth = geoqikSettings.defaultLineWidth;
     return scene;
   }
 
   void add_point(float x, float y, float z, const core::UUID* handle = nullptr)
   {
-    if (m_geoBuffer->has_space_for_points(1) == false)
+    if (m_pointBuffer->has_space_for_points(1) == false)
     {
       recreated_drawables();
-      m_geoBuffer->add_point(x, y, z, handle);
+      m_pointBuffer->add_point(x, y, z, handle);
       return;
     }
-    m_geoBuffer->add_point(x, y, z, handle);
+    m_pointBuffer->add_point(x, y, z, handle);
   }
 
   void add_point(float x, float y, float z, float r, float g, float b, const core::UUID* handle = nullptr)
   {
-    if (m_geoBuffer->has_space_for_points(1) == false)
+    if (m_pointBuffer->has_space_for_points(1) == false)
     {
       recreated_drawables();
-      m_geoBuffer->add_point(x, y, z, r, g, b, handle);
+      m_pointBuffer->add_point(x, y, z, r, g, b, handle);
       return;
     }
-    m_geoBuffer->add_point(x, y, z, r, g, b, handle);
+    m_pointBuffer->add_point(x, y, z, r, g, b, handle);
   }
 
   void add_points(std::span<const float> points, std::span<const float> colors, const core::UUID* handle = nullptr)
   {
-    if (m_geoBuffer->has_space_for_points(points.size() / 3) == false)
+    if (m_pointBuffer->has_space_for_points(points.size() / 3) == false)
     {
       recreated_drawables(points.size() / 3);
-      m_geoBuffer->add_points(points, colors, handle);
+      m_pointBuffer->add_points(points, colors, handle);
       return;
     }
-    m_geoBuffer->add_points(points, colors, handle);
+    m_pointBuffer->add_points(points, colors, handle);
   }
 
-  void remove_point(core::UUID handle) { m_geoBuffer->remove_point(handle); }
+  void remove_point(core::UUID handle) { m_pointBuffer->remove_point(handle); }
 
   void add_line(float x1, float y1, float z1, float x2, float y2, float z2, const core::UUID* handle = nullptr)
   {
-    if (m_geoBuffer->has_space_for_lines(1) == false)
+    if (m_lineBuffer->has_space_for_lines(1) == false)
     {
       recreated_drawables();
-      m_geoBuffer->add_line(x1, y1, z1, x2, y2, z2, handle);
+      m_lineBuffer->add_line(x1, y1, z1, x2, y2, z2, handle);
       return;
     }
-    m_geoBuffer->add_line(x1, y1, z1, x2, y2, z2, handle);
+    m_lineBuffer->add_line(x1, y1, z1, x2, y2, z2, handle);
   }
 
   void add_line(float x1, float y1, float z1, float x2, float y2, float z2, float r, float g, float b, const core::UUID* handle = nullptr)
   {
-    if (m_geoBuffer->has_space_for_lines(1) == false)
+    if (m_lineBuffer->has_space_for_lines(1) == false)
     {
       recreated_drawables();
-      m_geoBuffer->add_line(x1, y1, z1, x2, y2, z2, r, g, b, handle);
+      m_lineBuffer->add_line(x1, y1, z1, x2, y2, z2, r, g, b, handle);
       return;
     }
-    m_geoBuffer->add_line(x1, y1, z1, x2, y2, z2, r, g, b, handle);
+    m_lineBuffer->add_line(x1, y1, z1, x2, y2, z2, r, g, b, handle);
   }
 
   void add_lines(std::span<const float> lines, std::span<const float> colors, const core::UUID* handle = nullptr)
   {
-    if (m_geoBuffer->has_space_for_lines(lines.size() / 6) == false)
+    if (m_lineBuffer->has_space_for_lines(lines.size() / 6) == false)
     {
       recreated_drawables(lines.size() / 6);
-      m_geoBuffer->add_lines(lines, colors, handle);
+      m_lineBuffer->add_lines(lines, colors, handle);
       return;
     }
-    m_geoBuffer->add_lines(lines, colors, handle);
+    m_lineBuffer->add_lines(lines, colors, handle);
   }
 
-  void remove_line(core::UUID handle) { m_geoBuffer->remove_line(handle); }
+  void remove_line(core::UUID handle) { m_lineBuffer->remove_line(handle); }
 
-  void translate_geometry(core::UUID handle, float dx, float dy, float dz) { m_geoBuffer->translate_geometry(handle, dx, dy, dz); }
+  void translate_geometry(core::UUID handle, float dx, float dy, float dz) { m_lineBuffer->translate_geometry(handle, dx, dy, dz); }
   void rotate_geometry(core::UUID handle, float centerX, float centerY, float centerZ, float axisX, float axisY, float axisZ, float angle)
   {
-    m_geoBuffer->rotate_geometry(handle, centerX, centerY, centerZ, axisX, axisY, axisZ, angle);
+    m_lineBuffer->rotate_geometry(handle, centerX, centerY, centerZ, axisX, axisY, axisZ, angle);
   }
 
   [[nodiscard]] const OpenGLDrawablesManager& get_drawables_manager() const { return m_drawablesManager; }
 
-  [[nodiscard]] const GeometryBuffer& get_geometry_buffer() const { return *m_geoBuffer; }
+  [[nodiscard]] const LineBuffer& get_geometry_buffer() const { return *m_lineBuffer; }
 
   void clear()
   {
-    m_geoBuffer->clear();
+    m_lineBuffer->clear();
     m_drawablesManager.clear_drawables();
   }
 
@@ -153,43 +158,43 @@ public:
   float get_point_size() const { return m_pointSize; }
   void set_point_size(float pointSize) { m_pointSize = pointSize; }
 
-  std::array<float, 3> get_point_color() const { return m_geoBuffer->get_point_color(); }
-  void set_point_color(float r, float g, float b) { m_geoBuffer->set_point_color(r, g, b); }
+  std::array<float, 3> get_point_color() const { return m_pointBuffer->get_point_color(); }
+  void set_point_color(float r, float g, float b) { m_pointBuffer->set_point_color(r, g, b); }
 
   float get_line_width() const { return m_lineWidth; }
   void set_line_width(float lineWidth) { m_lineWidth = lineWidth; }
 
-  std::array<float, 3> get_line_color() const { return m_geoBuffer->get_line_color(); }
-  void set_line_color(float r, float g, float b) { m_geoBuffer->set_line_color(r, g, b); }
+  std::array<float, 3> get_line_color() const { return m_lineBuffer->get_line_color(); }
+  void set_line_color(float r, float g, float b) { m_lineBuffer->set_line_color(r, g, b); }
 
   void create_point_drawable()
   {
-    if (m_geoBuffer->get_points().empty())
+    if (m_pointBuffer->get_points().empty())
     {
       return;
     }
 
-    m_drawablesManager.add_point_drawable(m_geoBuffer->get_points(),
-                                          m_geoBuffer->get_point_dimension(),
-                                          m_geoBuffer->get_point_colors(),
-                                          m_geoBuffer->get_color_dimension(),
-                                          m_geoBuffer->get_point_indices(),
+    m_drawablesManager.add_point_drawable(m_pointBuffer->get_points(),
+                                          m_pointBuffer->get_point_dimension(),
+                                          m_pointBuffer->get_point_colors(),
+                                          m_pointBuffer->get_color_dimension(),
+                                          m_pointBuffer->get_point_indices(),
                                           m_pointSize,
                                           opengl::BufferAccessPattern::STATIC_DRAW);
   }
 
   void create_line_drawable()
   {
-    if (m_geoBuffer->get_lines().empty())
+    if (m_lineBuffer->get_lines().empty())
     {
       return;
     }
 
-    m_drawablesManager.add_line_drawable(m_geoBuffer->get_lines(),
-                                         m_geoBuffer->get_point_dimension(),
-                                         m_geoBuffer->get_line_indices(),
-                                         m_geoBuffer->get_line_colors(),
-                                         m_geoBuffer->get_color_dimension(),
+    m_drawablesManager.add_line_drawable(m_lineBuffer->get_lines(),
+                                         m_lineBuffer->get_point_dimension(),
+                                         m_lineBuffer->get_line_indices(),
+                                         m_lineBuffer->get_line_colors(),
+                                         m_lineBuffer->get_color_dimension(),
                                          m_lineType,
                                          m_lineWidth,
                                          m_pointSize,
@@ -204,33 +209,33 @@ public:
   {
     bool updateOccurred = false;
 
-    if (!m_drawablesManager.has_point_drawables() && !m_geoBuffer->get_points().empty())
+    if (!m_drawablesManager.has_point_drawables() && !m_pointBuffer->get_points().empty())
     {
       create_point_drawable();
       updateOccurred = true;
     }
-    else if (m_geoBuffer->points_have_changed())
+    else if (m_pointBuffer->points_have_changed())
     {
-      m_drawablesManager.update_last_point_drawable(m_geoBuffer->get_points(),
-                                                    m_geoBuffer->get_point_colors(),
-                                                    m_geoBuffer->get_point_indices(),
+      m_drawablesManager.update_last_point_drawable(m_pointBuffer->get_points(),
+                                                    m_pointBuffer->get_point_colors(),
+                                                    m_pointBuffer->get_point_indices(),
                                                     opengl::BufferAccessPattern::STATIC_DRAW);
-      m_geoBuffer->reset_points_have_changed();
+      m_pointBuffer->reset_points_have_changed();
       updateOccurred = true;
     }
 
-    if (!m_drawablesManager.has_line_drawables() && !m_geoBuffer->get_lines().empty())
+    if (!m_drawablesManager.has_line_drawables() && !m_lineBuffer->get_lines().empty())
     {
       create_line_drawable();
       updateOccurred = true;
     }
-    else if (m_geoBuffer->lines_have_changed())
+    else if (m_lineBuffer->lines_have_changed())
     {
-      m_drawablesManager.update_last_line_drawable(m_geoBuffer->get_lines(),
-                                                   m_geoBuffer->get_line_colors(),
-                                                   m_geoBuffer->get_line_indices(),
+      m_drawablesManager.update_last_line_drawable(m_lineBuffer->get_lines(),
+                                                   m_lineBuffer->get_line_colors(),
+                                                   m_lineBuffer->get_line_indices(),
                                                    opengl::BufferAccessPattern::STATIC_DRAW);
-      m_geoBuffer->reset_lines_have_changed();
+      m_lineBuffer->reset_lines_have_changed();
       updateOccurred = true;
     }
 
@@ -243,13 +248,13 @@ public:
   {
     float maxRadiusSq = 0.0f;
 
-    std::span<const float> points = m_geoBuffer->get_points();
+    std::span<const float> points = m_pointBuffer->get_points();
     if (!points.empty())
     {
       calc_max_radius_squared(points, center, maxRadiusSq);
     }
 
-    std::span<const float> lines = m_geoBuffer->get_lines();
+    std::span<const float> lines = m_lineBuffer->get_lines();
     if (!lines.empty())
     {
       calc_max_radius_squared(lines, center, maxRadiusSq);
@@ -271,18 +276,18 @@ private:
     if (numberOfNewElements > 0)
     {
       // Calc the new growth factor based on the current capacity and the missing capacity
-      std::size_t freePointCapacity = m_geoBuffer->get_free_point_capacity();
-      std::size_t freeLineCapacity = m_geoBuffer->get_free_line_capacity();
+      std::size_t freePointCapacity = m_pointBuffer->get_free_point_capacity();
+      std::size_t freeLineCapacity = m_lineBuffer->get_free_line_capacity();
       std::size_t minNewPointCapacity = numberOfNewElements - freePointCapacity;
       std::size_t minNewLineCapacity = numberOfNewElements - freeLineCapacity;
-      std::size_t newPointCapacity = m_geomBufferGrowthFactor * m_geoBuffer->get_point_capacity() + minNewPointCapacity;
-      std::size_t newLineCapacity = m_geomBufferGrowthFactor * m_geoBuffer->get_line_capacity() + minNewLineCapacity;
-      std::size_t growthFactor = std::max(newPointCapacity / m_geoBuffer->get_point_capacity(), newLineCapacity / m_geoBuffer->get_line_capacity());
-      m_geoBuffer = GeometryBuffer::create_from(std::move(*m_geoBuffer), growthFactor);
+      std::size_t newPointCapacity = m_geomBufferGrowthFactor * m_pointBuffer->get_point_capacity() + minNewPointCapacity;
+      std::size_t newLineCapacity = m_geomBufferGrowthFactor * m_lineBuffer->get_line_capacity() + minNewLineCapacity;
+      std::size_t growthFactor = std::max(newPointCapacity / m_pointBuffer->get_point_capacity(), newLineCapacity / m_lineBuffer->get_line_capacity());
+      m_lineBuffer = LineBuffer::create_from(std::move(*m_lineBuffer), growthFactor);
     }
     else
     {
-      m_geoBuffer = GeometryBuffer::create_from(std::move(*m_geoBuffer), m_geomBufferGrowthFactor);
+      m_lineBuffer = LineBuffer::create_from(std::move(*m_lineBuffer), m_geomBufferGrowthFactor);
     }
 
     create_point_drawable();

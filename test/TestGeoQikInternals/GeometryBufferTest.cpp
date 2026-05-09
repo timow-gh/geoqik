@@ -15,23 +15,31 @@ class GeometryBufferTest : public ::testing::Test
   geoqik::GeoQikSettings m_settings;
 };
 
-TEST_F(GeometryBufferTest, CreateBuffer)
+TEST_F(GeometryBufferTest, CreatePointBuffer)
 {
   m_settings.initialPointCapacity = 1000;
   m_settings.initialLineCapacity = 500;
 
-  auto buffer = geoqik::GeometryBuffer::create(m_settings);
+  auto buffer = geoqik::PointBuffer::create(m_settings);
   ASSERT_TRUE(buffer != nullptr);
   EXPECT_EQ(buffer->get_points().size(), 0);
+}
+
+TEST_F(GeometryBufferTest, CreateLineBuffer)
+{
+  m_settings.initialPointCapacity = 1000;
+  m_settings.initialLineCapacity = 500;
+
+  auto buffer = geoqik::LineBuffer::create(m_settings);
+  ASSERT_TRUE(buffer != nullptr);
   EXPECT_EQ(buffer->get_lines().size(), 0);
 }
 
 TEST_F(GeometryBufferTest, AddPoint)
 {
-  auto buffer = geoqik::GeometryBuffer::create(m_settings);
+  auto buffer = geoqik::PointBuffer::create(m_settings);
   ASSERT_TRUE(buffer != nullptr);
   EXPECT_EQ(buffer->get_points().size(), 0);
-  EXPECT_EQ(buffer->get_lines().size(), 0);
 
   buffer->add_point(1.0f, 2.0f, 3.0f);
   auto points = buffer->get_points();
@@ -51,7 +59,7 @@ TEST_F(GeometryBufferTest, AddPoint)
 
 TEST_F(GeometryBufferTest, RemovePoint)
 {
-  auto buffer = geoqik::GeometryBuffer::create(m_settings);
+  auto buffer = geoqik::PointBuffer::create(m_settings);
   ASSERT_TRUE(buffer != nullptr);
 
   core::UUID pointHandle = core::UUID::generate();
@@ -71,10 +79,9 @@ TEST_F(GeometryBufferTest, RemovePoint)
 
 TEST_F(GeometryBufferTest, AddPoints_Empty)
 {
-  auto buffer = geoqik::GeometryBuffer::create(m_settings);
+  auto buffer = geoqik::PointBuffer::create(m_settings);
   ASSERT_TRUE(buffer != nullptr);
   EXPECT_EQ(buffer->get_points().size(), 0);
-  EXPECT_EQ(buffer->get_lines().size(), 0);
 
   std::vector<float> emptyPoints;
   std::vector<float> emptyColors;
@@ -86,10 +93,9 @@ TEST_F(GeometryBufferTest, AddPoints_Empty)
 
 TEST_F(GeometryBufferTest, AddPoints_One)
 {
-  auto buffer = geoqik::GeometryBuffer::create(m_settings);
+  auto buffer = geoqik::PointBuffer::create(m_settings);
   ASSERT_TRUE(buffer != nullptr);
   EXPECT_EQ(buffer->get_points().size(), 0);
-  EXPECT_EQ(buffer->get_lines().size(), 0);
 
   std::vector<float> points = {1.0f, 2.0f, 3.0f};
   std::vector<float> colors = {2.0f, 3.0f, 4.0f};
@@ -111,10 +117,9 @@ TEST_F(GeometryBufferTest, AddPoints_One)
 TEST_F(GeometryBufferTest, AddPoints_Multiple)
 {
   m_settings.initialPointCapacity = 5;
-  auto buffer = geoqik::GeometryBuffer::create(m_settings);
+  auto buffer = geoqik::PointBuffer::create(m_settings);
   ASSERT_TRUE(buffer != nullptr);
   EXPECT_EQ(buffer->get_points().size(), 0);
-  EXPECT_EQ(buffer->get_lines().size(), 0);
 
   std::vector<float> points = {1.0f, 2.0f, 3.0f, 4.0f, 5.0f};
   std::vector<float> color = {2.0f, 3.0f, 4.0f, 5.0f, 6.0f};
@@ -122,13 +127,11 @@ TEST_F(GeometryBufferTest, AddPoints_Multiple)
   EXPECT_THROW(buffer->add_points(points, color), std::runtime_error);
   EXPECT_FALSE(buffer->has_changed());
   EXPECT_EQ(buffer->get_points().size(), 0);
-  EXPECT_EQ(buffer->get_lines().size(), 0);
   points.push_back(6.0f);
   // Colors with wrong size.
   EXPECT_THROW(buffer->add_points(points, color), std::runtime_error);
   EXPECT_FALSE(buffer->has_changed());
   EXPECT_EQ(buffer->get_points().size(), 0);
-  EXPECT_EQ(buffer->get_lines().size(), 0);
   color.push_back(7.0f);
 
   buffer->add_points(points, color);
@@ -171,7 +174,7 @@ TEST_F(GeometryBufferTest, AddPoints_Multiple)
 
 TEST_F(GeometryBufferTest, RemovePoints_NilHandle)
 {
-  auto buffer = geoqik::GeometryBuffer::create(m_settings);
+  auto buffer = geoqik::PointBuffer::create(m_settings);
   ASSERT_TRUE(buffer != nullptr);
 
   core::UUID invalidHandle = core::UUID::nil();
@@ -180,7 +183,7 @@ TEST_F(GeometryBufferTest, RemovePoints_NilHandle)
 
 TEST_F(GeometryBufferTest, RemovePoints_Empty)
 {
-  auto buffer = geoqik::GeometryBuffer::create(m_settings);
+  auto buffer = geoqik::PointBuffer::create(m_settings);
   ASSERT_TRUE(buffer != nullptr);
 
   core::UUID pointsHandle = core::UUID::generate();
@@ -190,7 +193,7 @@ TEST_F(GeometryBufferTest, RemovePoints_Empty)
 
 TEST_F(GeometryBufferTest, RemovePoints_One)
 {
-  auto buffer = geoqik::GeometryBuffer::create(m_settings);
+  auto buffer = geoqik::PointBuffer::create(m_settings);
   ASSERT_TRUE(buffer != nullptr);
 
   core::UUID pointsHandle = core::UUID::generate();
@@ -206,7 +209,7 @@ TEST_F(GeometryBufferTest, RemovePoints_One)
 TEST_F(GeometryBufferTest, RemovePoints_Multiple)
 {
   m_settings.initialPointCapacity = 6;
-  auto buffer = geoqik::GeometryBuffer::create(m_settings);
+  auto buffer = geoqik::PointBuffer::create(m_settings);
   ASSERT_TRUE(buffer != nullptr);
 
   std::vector<float> points = {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f};
@@ -283,9 +286,8 @@ TEST_F(GeometryBufferTest, RemovePoints_Multiple)
 
 TEST_F(GeometryBufferTest, AddLine)
 {
-  auto buffer = geoqik::GeometryBuffer::create(geoqik::GeoQikSettings{});
+  auto buffer = geoqik::LineBuffer::create(geoqik::GeoQikSettings{});
   ASSERT_TRUE(buffer != nullptr);
-  EXPECT_EQ(buffer->get_points().size(), 0);
   EXPECT_EQ(buffer->get_lines().size(), 0);
 
   buffer->add_line(1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f);
@@ -311,44 +313,61 @@ TEST_F(GeometryBufferTest, AddLine)
   EXPECT_EQ(colors[5], 1.0f);
 }
 
-TEST_F(GeometryBufferTest, IncreaseBufferSize)
+TEST_F(GeometryBufferTest, IncreasePointBufferSize)
 {
   geoqik::GeoQikSettings settings;
   settings.initialPointCapacity = 1;
-  settings.initialLineCapacity = 1;
-  auto buffer = geoqik::GeometryBuffer::create(settings);
+  auto buffer = geoqik::PointBuffer::create(settings);
   ASSERT_TRUE(buffer != nullptr);
 
-  // Add initial point and line
+  // Add initial point
   buffer->add_point(1.0f, 2.0f, 3.0f);
-  buffer->add_line(1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f);
   EXPECT_EQ(buffer->get_points().size(), 3);
-  EXPECT_EQ(buffer->get_lines().size(), 6); 
   EXPECT_EQ(buffer->get_point_colors().size(), 3);
-  EXPECT_EQ(buffer->get_line_colors().size(), 6); 
-  EXPECT_EQ(buffer->get_line_indices().size(), 2); // Two indices for one line
   EXPECT_EQ(buffer->get_point_indices().size(), 1); // One index for one point
   EXPECT_TRUE(buffer->has_changed());
 
   // Create a new buffer with additional space
-  auto newBuffer = geoqik::GeometryBuffer::create_from(std::move(*buffer), 10);
+  auto newBuffer = geoqik::PointBuffer::create_from(std::move(*buffer), 10);
   ASSERT_TRUE(newBuffer != nullptr);
   EXPECT_EQ(newBuffer->get_points().size(), 3);
-  EXPECT_EQ(newBuffer->get_lines().size(), 6);
   EXPECT_EQ(newBuffer->get_point_colors().size(), 3);
-  EXPECT_EQ(newBuffer->get_line_colors().size(), 6);
-  EXPECT_EQ(newBuffer->get_line_indices().size(), 2);
   EXPECT_EQ(newBuffer->get_point_indices().size(), 1);
   EXPECT_TRUE(newBuffer->has_changed());
 
   newBuffer->add_point(7.0f, 8.0f, 9.0f);
-  newBuffer->add_line(7.0f, 8.0f, 9.0f, 10.0f, 11.0f, 12.0f);
   EXPECT_EQ(newBuffer->get_points().size(), 6);
-  EXPECT_EQ(newBuffer->get_lines().size(), 12); // Two lines now
   EXPECT_EQ(newBuffer->get_point_colors().size(), 6);
+  EXPECT_EQ(newBuffer->get_point_indices().size(), 2);
+  EXPECT_TRUE(newBuffer->has_changed());
+}
+
+TEST_F(GeometryBufferTest, IncreaseLineBufferSize)
+{
+  geoqik::GeoQikSettings settings;
+  settings.initialLineCapacity = 1;
+  auto buffer = geoqik::LineBuffer::create(settings);
+  ASSERT_TRUE(buffer != nullptr);
+
+  // Add initial line
+  buffer->add_line(1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f);
+  EXPECT_EQ(buffer->get_lines().size(), 6); 
+  EXPECT_EQ(buffer->get_line_colors().size(), 6); 
+  EXPECT_EQ(buffer->get_line_indices().size(), 2); // Two indices for one line
+  EXPECT_TRUE(buffer->has_changed());
+
+  // Create a new buffer with additional space
+  auto newBuffer = geoqik::LineBuffer::create_from(std::move(*buffer), 10);
+  ASSERT_TRUE(newBuffer != nullptr);
+  EXPECT_EQ(newBuffer->get_lines().size(), 6);
+  EXPECT_EQ(newBuffer->get_line_colors().size(), 6);
+  EXPECT_EQ(newBuffer->get_line_indices().size(), 2);
+  EXPECT_TRUE(newBuffer->has_changed());
+
+  newBuffer->add_line(7.0f, 8.0f, 9.0f, 10.0f, 11.0f, 12.0f);
+  EXPECT_EQ(newBuffer->get_lines().size(), 12); // Two lines now
   EXPECT_EQ(newBuffer->get_line_colors().size(), 12); // Two colors for two lines
   EXPECT_EQ(newBuffer->get_line_indices().size(), 4); // Four indices for two lines
-  EXPECT_EQ(newBuffer->get_point_indices().size(), 2);
   EXPECT_TRUE(newBuffer->has_changed());
 }
 
@@ -358,7 +377,7 @@ TEST_F(GeometryBufferTest, IncreaseBufferSize)
 
 TEST_F(GeometryBufferTest, AddLine_NilHandle)
 {
-  auto buffer = geoqik::GeometryBuffer::create(m_settings);
+  auto buffer = geoqik::LineBuffer::create(m_settings);
   ASSERT_TRUE(buffer != nullptr);
 
   core::UUID nilHandle = core::UUID::nil();
@@ -368,7 +387,7 @@ TEST_F(GeometryBufferTest, AddLine_NilHandle)
 
 TEST_F(GeometryBufferTest, AddLine_WithHandle)
 {
-  auto buffer = geoqik::GeometryBuffer::create(m_settings);
+  auto buffer = geoqik::LineBuffer::create(m_settings);
   ASSERT_TRUE(buffer != nullptr);
 
   core::UUID lineHandle = core::UUID::generate();
@@ -394,7 +413,7 @@ TEST_F(GeometryBufferTest, AddLine_WithHandle)
 
 TEST_F(GeometryBufferTest, AddLine_WithCustomColor)
 {
-  auto buffer = geoqik::GeometryBuffer::create(m_settings);
+  auto buffer = geoqik::LineBuffer::create(m_settings);
   ASSERT_TRUE(buffer != nullptr);
 
   buffer->add_line(1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 0.5f, 0.6f, 0.7f);
@@ -412,7 +431,7 @@ TEST_F(GeometryBufferTest, AddLine_WithCustomColor)
 TEST_F(GeometryBufferTest, AddLine_NotEnoughSpace)
 {
   m_settings.initialLineCapacity = 1;
-  auto buffer = geoqik::GeometryBuffer::create(m_settings);
+  auto buffer = geoqik::LineBuffer::create(m_settings);
   ASSERT_TRUE(buffer != nullptr);
 
   buffer->add_line(1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f);
@@ -428,7 +447,7 @@ TEST_F(GeometryBufferTest, AddLine_NotEnoughSpace)
 
 TEST_F(GeometryBufferTest, AddLines_Empty)
 {
-  auto buffer = geoqik::GeometryBuffer::create(m_settings);
+  auto buffer = geoqik::LineBuffer::create(m_settings);
   ASSERT_TRUE(buffer != nullptr);
 
   std::vector<float> emptyLines;
@@ -443,7 +462,7 @@ TEST_F(GeometryBufferTest, AddLines_Empty)
 
 TEST_F(GeometryBufferTest, AddLines_One)
 {
-  auto buffer = geoqik::GeometryBuffer::create(m_settings);
+  auto buffer = geoqik::LineBuffer::create(m_settings);
   ASSERT_TRUE(buffer != nullptr);
 
   std::vector<float> lines = {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f};
@@ -478,7 +497,7 @@ TEST_F(GeometryBufferTest, AddLines_One)
 
 TEST_F(GeometryBufferTest, AddLines_WithSingleColor)
 {
-  auto buffer = geoqik::GeometryBuffer::create(m_settings);
+  auto buffer = geoqik::LineBuffer::create(m_settings);
   ASSERT_TRUE(buffer != nullptr);
 
   std::vector<float> lines = {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f};
@@ -497,7 +516,7 @@ TEST_F(GeometryBufferTest, AddLines_WithSingleColor)
 
 TEST_F(GeometryBufferTest, AddLines_WithPerLineColor)
 {
-  auto buffer = geoqik::GeometryBuffer::create(m_settings);
+  auto buffer = geoqik::LineBuffer::create(m_settings);
   ASSERT_TRUE(buffer != nullptr);
 
   // 2 lines (12 floats), 2 RGB triples (6 floats): colors.size() * 2 == lines.size()
@@ -528,7 +547,7 @@ TEST_F(GeometryBufferTest, AddLines_WithPerLineColor)
 
 TEST_F(GeometryBufferTest, AddLines_Multiple)
 {
-  auto buffer = geoqik::GeometryBuffer::create(m_settings);
+  auto buffer = geoqik::LineBuffer::create(m_settings);
   ASSERT_TRUE(buffer != nullptr);
 
   std::vector<float> lines1 = {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f};
@@ -564,7 +583,7 @@ TEST_F(GeometryBufferTest, AddLines_Multiple)
 
 TEST_F(GeometryBufferTest, AddLines_NilHandle)
 {
-  auto buffer = geoqik::GeometryBuffer::create(m_settings);
+  auto buffer = geoqik::LineBuffer::create(m_settings);
   ASSERT_TRUE(buffer != nullptr);
 
   std::vector<float> lines = {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f};
@@ -576,7 +595,7 @@ TEST_F(GeometryBufferTest, AddLines_NilHandle)
 
 TEST_F(GeometryBufferTest, AddLines_InvalidSize)
 {
-  auto buffer = geoqik::GeometryBuffer::create(m_settings);
+  auto buffer = geoqik::LineBuffer::create(m_settings);
   ASSERT_TRUE(buffer != nullptr);
 
   // 5 floats is not a multiple of 6 (2 * pointDimension)
@@ -590,7 +609,7 @@ TEST_F(GeometryBufferTest, AddLines_InvalidSize)
 TEST_F(GeometryBufferTest, AddLines_NotEnoughSpace)
 {
   m_settings.initialLineCapacity = 1;
-  auto buffer = geoqik::GeometryBuffer::create(m_settings);
+  auto buffer = geoqik::LineBuffer::create(m_settings);
   ASSERT_TRUE(buffer != nullptr);
 
   // 2 lines require capacity for 2, but only 1 is available
@@ -603,7 +622,7 @@ TEST_F(GeometryBufferTest, AddLines_NotEnoughSpace)
 
 TEST_F(GeometryBufferTest, AddLines_WithHandle)
 {
-  auto buffer = geoqik::GeometryBuffer::create(m_settings);
+  auto buffer = geoqik::LineBuffer::create(m_settings);
   ASSERT_TRUE(buffer != nullptr);
 
   core::UUID linesHandle = core::UUID::generate();
@@ -632,7 +651,7 @@ TEST_F(GeometryBufferTest, AddLines_WithHandle)
 
 TEST_F(GeometryBufferTest, AddLines_InvalidColors)
 {
-  auto buffer = geoqik::GeometryBuffer::create(m_settings);
+  auto buffer = geoqik::LineBuffer::create(m_settings);
   ASSERT_TRUE(buffer != nullptr);
 
   // 2 lines = 12 floats; colors size 4 is non-empty, not 3, and 4 * 2 != 12
@@ -651,7 +670,7 @@ TEST_F(GeometryBufferTest, AddLines_InvalidColors)
 
 TEST_F(GeometryBufferTest, RemoveLine_NilHandle)
 {
-  auto buffer = geoqik::GeometryBuffer::create(m_settings);
+  auto buffer = geoqik::LineBuffer::create(m_settings);
   ASSERT_TRUE(buffer != nullptr);
 
   core::UUID nilHandle = core::UUID::nil();
@@ -660,7 +679,7 @@ TEST_F(GeometryBufferTest, RemoveLine_NilHandle)
 
 TEST_F(GeometryBufferTest, RemoveLine_Empty)
 {
-  auto buffer = geoqik::GeometryBuffer::create(m_settings);
+  auto buffer = geoqik::LineBuffer::create(m_settings);
   ASSERT_TRUE(buffer != nullptr);
 
   core::UUID lineHandle = core::UUID::generate();
@@ -672,7 +691,7 @@ TEST_F(GeometryBufferTest, RemoveLine_Empty)
 
 TEST_F(GeometryBufferTest, RemoveLine_One)
 {
-  auto buffer = geoqik::GeometryBuffer::create(m_settings);
+  auto buffer = geoqik::LineBuffer::create(m_settings);
   ASSERT_TRUE(buffer != nullptr);
 
   core::UUID lineHandle = core::UUID::generate();
@@ -689,7 +708,7 @@ TEST_F(GeometryBufferTest, RemoveLine_One)
 TEST_F(GeometryBufferTest, RemoveLine_Multiple)
 {
   m_settings.initialLineCapacity = 3;
-  auto buffer = geoqik::GeometryBuffer::create(m_settings);
+  auto buffer = geoqik::LineBuffer::create(m_settings);
   ASSERT_TRUE(buffer != nullptr);
 
   std::array<core::UUID, 3> handles;
