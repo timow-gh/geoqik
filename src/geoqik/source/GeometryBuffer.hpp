@@ -398,6 +398,10 @@ public:
 
   void add_line(float x1, float y1, float z1, float x2, float y2, float z2, float r, float g, float b, const core::UUID* handle = nullptr)
   {
+    if (handle && handle->is_nil())
+    {
+      throw std::runtime_error("GeometryBuffer: Attempting to add a line with a nil handle");
+    }
     if (has_space_for_lines(1) == false)
     {
       throw std::runtime_error("GeometryBuffer: Not enough space for lines.");
@@ -435,7 +439,10 @@ public:
 
   void remove_line(core::UUID handle)
   {
-    CORE_ASSERT(!handle.is_nil());
+    if (handle.is_nil())
+    {
+      throw std::runtime_error("GeometryBuffer: Attempting to remove a line with a nil handle");
+    }
 
     auto it = m_handleToLineIndexMapping.find(handle);
     if (it == m_handleToLineIndexMapping.end())
