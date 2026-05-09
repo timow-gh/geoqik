@@ -11,7 +11,8 @@ set(geoqik_SOURCE_FILES
         source/CameraProjectionType.hpp
         source/Context.hpp
         source/Context.cpp
-        source/GeometryBuffer.hpp
+        source/GeometryBuffers/LineBuffer.hpp
+        source/GeometryBuffers/PointBuffer.hpp
         source/GeoQik_Glfw.hpp
         source/GeoQik.cpp
         source/GeoQikMessages.hpp

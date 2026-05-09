@@ -1,7 +1,8 @@
 #ifndef GEOQIK_SOURCE_SCENE_HPP
 #define GEOQIK_SOURCE_SCENE_HPP
 
-#include "GeometryBuffer.hpp"
+#include "GeometryBuffers/LineBuffer.hpp"
+#include "GeometryBuffers/PointBuffer.hpp"
 #include "OpenGL/BufferAccessPattern.hpp"
 #include "OpenGLDrawablesManager.hpp"
 #include <Geometry/ExtremePointsInDirection.hpp>
