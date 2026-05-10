@@ -10,13 +10,13 @@ std::string line_vertex_shader_source() {
 uniform mat4 u_MVP;
 
 in vec3 a_vertex;
-in vec3 a_color;
+in vec4 a_color;
 
 out vec4 v_color;
 
 void main() {
     gl_Position = u_MVP * vec4(a_vertex, 1.0);
-    v_color = vec4(a_color, 1.0);
+    v_color = a_color;
 })";
 }
 
@@ -48,7 +48,7 @@ out vec4 v_color;
 void main() {
     gl_Position = u_MVP * vec4(a_vertex, 1.0);
     gl_PointSize = u_pointSize;
-    v_color = vec4(a_color.rgb, 1.0);
+    v_color = a_color;
 })";
 }
 std::string point_color_fragment_shader_source() {
@@ -83,7 +83,7 @@ std::string mesh_vertex_shader_source() {
 
     void main() {
         gl_Position = u_projection * u_view * u_model * vec4(a_vertex, 1.0);
-        v_color = vec4(a_color.rgb, 1.0);
+        v_color = a_color;
         v_normal = mat3(u_normalMatrix) * a_normal;
         v_position = vec3(u_model * vec4(a_vertex, 1.0));
     })";
@@ -127,7 +127,7 @@ std::string mesh_fragment_shader_source() {
 
         // Combine results
         vec3 result = ambient + diffuse + specular;
-        FragColor = vec4(result, 1.0);
+        FragColor = vec4(result, v_color.a);
     })";
 }
 

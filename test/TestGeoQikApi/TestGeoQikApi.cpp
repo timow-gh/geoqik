@@ -52,13 +52,13 @@ TEST_F(GeoQikTestApi, CombinedOperations)
   geoqik_init();
 
   geoqik_set_point_size(4.0f);
-  geoqik_set_point_color(1.0f, 0.0f, 0.0f); // Red
+  geoqik_set_point_color(1.0f, 0.0f, 0.0f, 1.0f); // Red
 
   geoqik_add_point(-1.0, -1.0, -1.0);
   geoqik_add_point(-1.0, 1.0, 1.0);
 
   geoqik_set_line_width(2.0f);
-  geoqik_set_line_color(0.0f, 0.0f, 1.0f); // Blue
+  geoqik_set_line_color(0.0f, 0.0f, 1.0f, 1.0f); // Blue
 
   geoqik_add_line(-1.0, -1.0, -1.0, 1.0, 1.0, 1.0);
   geoqik_add_line(1.0, -1.0, -1.0, -1.0, 1.0, 1.0);
@@ -71,10 +71,12 @@ TEST_F(GeoQikTestApi, CombinedOperations)
   float pointR;
   float pointG;
   float pointB;
-  geoqik_get_point_color(&pointR, &pointG, &pointB);
+  float pointA;
+  geoqik_get_point_color(&pointR, &pointG, &pointB, &pointA);
   EXPECT_FLOAT_EQ(pointR, 1.0f);
   EXPECT_FLOAT_EQ(pointG, 0.0f);
   EXPECT_FLOAT_EQ(pointB, 0.0f);
+  EXPECT_FLOAT_EQ(pointA, 1.0f);
 
   float lineWidth;
   geoqik_get_line_width(&lineWidth);
@@ -83,10 +85,12 @@ TEST_F(GeoQikTestApi, CombinedOperations)
   float lineR;
   float lineG;
   float lineB;
-  geoqik_get_line_color(&lineR, &lineG, &lineB);
+  float lineA;
+  geoqik_get_line_color(&lineR, &lineG, &lineB, &lineA);
   EXPECT_FLOAT_EQ(lineR, 0.0f);
   EXPECT_FLOAT_EQ(lineG, 0.0f);
   EXPECT_FLOAT_EQ(lineB, 1.0f);
+  EXPECT_FLOAT_EQ(lineA, 1.0f);
 
   geoqik_draw();
   geoqik_cleanup();

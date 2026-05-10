@@ -20,7 +20,8 @@ namespace opengl
 class OPENGL_EXPORT VertexBuffer
 {
   std::optional<BufferId> m_bufferId;
-  GLsizei m_stride;
+  GLsizei m_vectorDimension{0};
+  GLsizei m_stride{0};
   Location m_bufferLocation;
 
 public:
@@ -28,6 +29,7 @@ public:
   VertexBuffer& operator=(const VertexBuffer&) = delete;
   VertexBuffer(VertexBuffer&& other) noexcept
       : m_bufferId{std::exchange(other.m_bufferId, std::nullopt)}
+      , m_vectorDimension{other.m_vectorDimension}
       , m_stride{other.m_stride}
       , m_bufferLocation{other.m_bufferLocation}
   {
@@ -37,6 +39,7 @@ public:
     if (this != &other)
     {
       m_bufferId = std::exchange(other.m_bufferId, std::nullopt);
+      m_vectorDimension = other.m_vectorDimension;
       m_stride = other.m_stride;
       m_bufferLocation = other.m_bufferLocation;
     }
@@ -81,7 +84,7 @@ public:
      * 3 * sizeof(float) is the stride (byte offset between consecutive vertex attributes)
      * (void*)0 is the offset of the first component
      */
-    return VertexBuffer{BufferId{bufferId}, stride, bufferLocation};
+    return VertexBuffer{BufferId{bufferId}, vectorDimension, stride, bufferLocation};
   }
 
   [[nodiscard]] const BufferId& get_buffer_id() const
@@ -96,7 +99,7 @@ public:
     glBindBuffer(GL_ARRAY_BUFFER, m_bufferId.value().get_value());
     glEnableVertexAttribArray(m_bufferLocation.get_as_unsigned());
     glVertexAttribPointer(m_bufferLocation.get_as_unsigned(),
-                          m_stride,
+                          m_vectorDimension,
                           GL_FLOAT,
                           GL_FALSE,
                           static_cast<GLsizei>(m_stride),
@@ -111,8 +114,9 @@ public:
   }
 
 private:
-  constexpr VertexBuffer(BufferId bufferId, GLsizei stride, Location bufferLocation)
+  constexpr VertexBuffer(BufferId bufferId, GLsizei vectorDimension, GLsizei stride, Location bufferLocation)
       : m_bufferId{bufferId}
+      , m_vectorDimension{vectorDimension}
       , m_stride{stride}
       , m_bufferLocation{bufferLocation}
   {

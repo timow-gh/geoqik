@@ -29,7 +29,7 @@
  *
  * geoqik_set_point_size(5.0f); // Following calls that add points will use this size.
  * geoqik_set_line_width(2.0f); // Following calls that add lines will use this width.
- * geoqik_set_point_color(1.0f, 0.0f, 0.0f); // Following calls that add points will use this color.
+ * geoqik_set_point_color(1.0f, 0.0f, 0.0f, 1.0f); // Following calls that add points will use this color.
  *
  * // Geometry won't be drawn yet, it will be drawn when geoqik_draw() is called.
  * geoqik_add_point(1.0, 0.0, 0.0);
@@ -56,9 +56,9 @@ extern "C"
     size_t capacityGrowthFactor;         /* Growth factor for the geometry buffers */
     float defaultPointSize;              /* Default size for points */
     float defaultLineWidth;              /* Default width for lines */
-    float defaultPointColor[3];          /* Default color for points (RGB) */
-    float defaultLineColor[3];           /* Default color for lines (RGB) */
-    float backgroundColor[3];            /* Background color for the window (RGB) */
+    float defaultPointColor[4];          /* Default color for points (RGBA) */
+    float defaultLineColor[4];           /* Default color for lines (RGBA) */
+    float backgroundColor[4];            /* Background color for the window (RGBA) */
     double cameraFarPlaneMultiplier;     /* Far plane multiplier for camera */
     int64_t minGeometryProcessingTimeMs; /* Minimum time for geometry processing per frame (ms) */
     int64_t maxFrameProcessingTimeMs;    /* Maximum time for frame processing (ms) */
@@ -143,17 +143,17 @@ extern "C"
   GEOQIK_EXPORT geoqik_error_code_t geoqik_get_point_size(float* pointSize);
 
   /** \brief Sets the color used for all points that don't specify their color. */
-  GEOQIK_EXPORT geoqik_error_code_t geoqik_set_point_color(float r, float g, float b);
-  GEOQIK_EXPORT geoqik_error_code_t geoqik_get_point_color(float* r, float* g, float* b);
+  GEOQIK_EXPORT geoqik_error_code_t geoqik_set_point_color(float r, float g, float b, float a);
+  GEOQIK_EXPORT geoqik_error_code_t geoqik_get_point_color(float* r, float* g, float* b, float* a);
 
   GEOQIK_EXPORT geoqik_result_t geoqik_add_point(double x, double y, double z);
-  GEOQIK_EXPORT geoqik_result_t geoqik_add_point_with_color(double x, double y, double z, float r, float g, float b);
+  GEOQIK_EXPORT geoqik_result_t geoqik_add_point_with_color(double x, double y, double z, float r, float g, float b, float a);
 
   typedef struct
   {
     geoqik_uuid_t idempotencyKey; /**< Optional idempotency key for the point, ignored if the uuid is null. */
-    const float* color;           /**< Optional color used for the point (RGB), ignored if the pointer is null. */
-    size_t colorCount;            /**< Number of floats in the color array, must be 0, 3 or the same as the number of points */
+    const float* color;           /**< Optional color used for the point (RGBA), ignored if the pointer is null. */
+    size_t colorCount;            /**< Number of floats in the color array, must be 0, 4, or number of points * 4 */
   } geoqik_add_points_options_t;
 
   GEOQIK_EXPORT geoqik_result_t geoqik_add_point_opts(double x, double y, double z, geoqik_add_points_options_t* options);
@@ -162,21 +162,21 @@ extern "C"
   GEOQIK_EXPORT geoqik_error_code_t geoqik_remove_point(const geoqik_uuid_t* geometryId);
 
   GEOQIK_EXPORT geoqik_error_code_t geoqik_add_line(double x1, double y1, double z1, double x2, double y2, double z2);
-  GEOQIK_EXPORT geoqik_error_code_t geoqik_add_line_with_color(double x1, double y1, double z1, double x2, double y2, double z2, float r, float g, float b);
+  GEOQIK_EXPORT geoqik_error_code_t geoqik_add_line_with_color(double x1, double y1, double z1, double x2, double y2, double z2, float r, float g, float b, float a);
 
   /** \brief Sets the width used for all lines. */
   GEOQIK_EXPORT geoqik_error_code_t geoqik_set_line_width(float lineWidth);
   GEOQIK_EXPORT geoqik_error_code_t geoqik_get_line_width(float* lineWidth);
 
   /** \brief Sets the color used for all lines that don't specify their color. */
-  GEOQIK_EXPORT geoqik_error_code_t geoqik_set_line_color(float r, float g, float b);
-  GEOQIK_EXPORT geoqik_error_code_t geoqik_get_line_color(float* r, float* g, float* b);
+  GEOQIK_EXPORT geoqik_error_code_t geoqik_set_line_color(float r, float g, float b, float a);
+  GEOQIK_EXPORT geoqik_error_code_t geoqik_get_line_color(float* r, float* g, float* b, float* a);
 
   typedef struct
   {
     geoqik_uuid_t idempotencyKey; /**< Optional idempotency key for the line, ignored if the uuid is zeroed. */
-    const float* color;           /**< Optional color used for the line (RGB), ignored if the pointer is null. */
-    size_t colorCount;            /**< Number of floats in the color array, must be 0, 3 or the same as the number of lines * 3 */
+    const float* color;           /**< Optional color used for the line (RGBA), ignored if the pointer is null. */
+    size_t colorCount;            /**< Number of floats in the color array, must be 0, 4, or number of lines * 4 */
   } geoqik_add_line_opts_t;
 
   GEOQIK_EXPORT geoqik_result_t geoqik_add_line_opts(double x1, double y1, double z1, double x2, double y2, double z2, geoqik_add_line_opts_t* options);

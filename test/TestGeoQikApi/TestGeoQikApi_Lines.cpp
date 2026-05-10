@@ -65,21 +65,25 @@ TEST_F(GeoQikTest_Lines, LineColorGetSet)
   float initialR;
   float initialG;
   float initialB;
-  geoqik_get_line_color(&initialR, &initialG, &initialB);
+  float initialA;
+  geoqik_get_line_color(&initialR, &initialG, &initialB, &initialA);
 
   const float newR = 0.2f;
   const float newG = 0.3f;
   const float newB = 0.4f;
-  geoqik_set_line_color(newR, newG, newB);
+  const float newA = 0.5f;
+  geoqik_set_line_color(newR, newG, newB, newA);
 
   float retrievedR;
   float retrievedG;
   float retrievedB;
-  geoqik_get_line_color(&retrievedR, &retrievedG, &retrievedB);
+  float retrievedA;
+  geoqik_get_line_color(&retrievedR, &retrievedG, &retrievedB, &retrievedA);
 
   EXPECT_FLOAT_EQ(newR, retrievedR);
   EXPECT_FLOAT_EQ(newG, retrievedG);
   EXPECT_FLOAT_EQ(newB, retrievedB);
+  EXPECT_FLOAT_EQ(newA, retrievedA);
   geoqik_cleanup();
 }
 
@@ -87,8 +91,8 @@ TEST_F(GeoQikTest_Lines, AddLineWithColor)
 {
   geoqik_init();
 
-  geoqik_add_line_with_color(0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0f, 0.0f, 0.0f); // Red line
-  geoqik_add_line_with_color(1.0, 1.0, 1.0, 2.0, 1.0, 1.0, 0.0f, 1.0f, 0.0f); // Green line
+  geoqik_add_line_with_color(0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0f, 0.0f, 0.0f, 1.0f); // Red line
+  geoqik_add_line_with_color(1.0, 1.0, 1.0, 2.0, 1.0, 1.0, 0.0f, 1.0f, 0.0f, 1.0f); // Green line
 
   geoqik_draw();
   geoqik_cleanup();
@@ -118,10 +122,10 @@ TEST_F(GeoQikTest_Lines, AddLineWithColorOpts)
 {
   geoqik_init();
 
-  const float color[3] = {0.0f, 0.0f, 1.0f}; // Blue
+  const float color[4] = {0.0f, 0.0f, 1.0f, 1.0f}; // Blue
   geoqik_add_line_opts_t opts{};
   opts.color = color;
-  opts.colorCount = 3;
+  opts.colorCount = 4;
 
   geoqik_result_t result = geoqik_add_line_opts(0.0, 0.0, 0.0, 1.0, 1.0, 1.0, &opts);
   EXPECT_EQ(result.err, GEOQIK_SUCCESS);
@@ -140,16 +144,16 @@ TEST_F(GeoQikTest_Lines, AddLinesWithOpts)
       0.0, 0.0, 0.0,  0.0, 1.0, 0.0,
       0.0, 0.0, 0.0,  0.0, 0.0, 1.0,
   };
-  // One color per line (RGB * 3 lines = 9 floats)
+  // One color per line (RGBA * 3 lines = 12 floats)
   const float colors[] = {
-      1.0f, 0.0f, 0.0f,
-      0.0f, 1.0f, 0.0f,
-      0.0f, 0.0f, 1.0f,
+      1.0f, 0.0f, 0.0f, 1.0f,
+      0.0f, 1.0f, 0.0f, 1.0f,
+      0.0f, 0.0f, 1.0f, 1.0f,
   };
 
   geoqik_add_line_opts_t opts{};
   opts.color = colors;
-  opts.colorCount = 9;
+  opts.colorCount = 12;
 
   geoqik_result_t result = geoqik_add_lines_opts(lines, sizeof(lines) / sizeof(lines[0]), &opts);
   EXPECT_EQ(result.err, GEOQIK_SUCCESS);

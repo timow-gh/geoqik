@@ -37,9 +37,9 @@ struct LinesGeoBufferIndex
 class LineBuffer
 {
   static constexpr std::int32_t m_pointDimension = 3; // x, y, z
-  static constexpr std::int32_t m_colorDimension = 3; // r, g, b
+  static constexpr std::int32_t m_colorDimension = static_cast<std::int32_t>(ColorChannelCount); // r, g, b, a
 
-  std::array<float, 3> m_currentLineColor{1.0f, 1.0f, 1.0f};
+  Color m_currentLineColor{1.0f, 1.0f, 1.0f, 1.0f};
   Buffer<float> m_lines;
   Buffer<float> m_lineColors;
   Buffer<std::uint32_t> m_lineIndices;
@@ -112,8 +112,8 @@ public:
   [[nodiscard]] std::size_t get_line_capacity() const { return m_lines.capacity() / (2 * m_pointDimension); }
   [[nodiscard]] std::size_t get_free_line_capacity() const { return m_lines.free_capacity() / (2 * m_pointDimension); }
 
-  [[nodiscard]] std::array<float, 3> get_default_color() const { return m_currentLineColor; }
-  void set_default_color(float r, float g, float b) { m_currentLineColor = {r, g, b}; }
+  [[nodiscard]] Color get_default_color() const { return m_currentLineColor; }
+  void set_default_color(float r, float g, float b, float a) { m_currentLineColor = {r, g, b, a}; }
 
   bool has_space_for_lines(std::size_t count) const { return m_lines.free_capacity() >= count * 2 * m_pointDimension; }
 
@@ -146,29 +146,31 @@ public:
         m_lines.push_back(lines[i]);
       for (std::size_t i = 0; i < lineCount; ++i)
       {
-        m_lineColors.push_back(m_currentLineColor[0]);
-        m_lineColors.push_back(m_currentLineColor[1]);
-        m_lineColors.push_back(m_currentLineColor[2]);
-        m_lineColors.push_back(m_currentLineColor[0]);
-        m_lineColors.push_back(m_currentLineColor[1]);
-        m_lineColors.push_back(m_currentLineColor[2]);
+        for (std::size_t vertex = 0; vertex < 2; ++vertex)
+        {
+          for (float channel: m_currentLineColor)
+          {
+            m_lineColors.push_back(channel);
+          }
+        }
       }
     }
-    else if (colors.size() == 3)
+    else if (colors.size() == ColorChannelCount)
     {
       for (std::size_t i = 0; i < lines.size(); ++i)
         m_lines.push_back(lines[i]);
       for (std::size_t i = 0; i < lineCount; ++i)
       {
-        m_lineColors.push_back(colors[0]);
-        m_lineColors.push_back(colors[1]);
-        m_lineColors.push_back(colors[2]);
-        m_lineColors.push_back(colors[0]);
-        m_lineColors.push_back(colors[1]);
-        m_lineColors.push_back(colors[2]);
+        for (std::size_t vertex = 0; vertex < 2; ++vertex)
+        {
+          for (std::size_t colorIndex = 0; colorIndex < ColorChannelCount; ++colorIndex)
+          {
+            m_lineColors.push_back(colors[colorIndex]);
+          }
+        }
       }
     }
-    else if (colors.size() * 2 == lines.size()) // one color (3 floats) per line
+    else if (colors.size() == lineCount * ColorChannelCount) // one color (4 floats) per line
     {
       for (std::size_t i = 0; i < lineCount; ++i)
       {
@@ -180,18 +182,19 @@ public:
         m_lines.push_back(lines[lineBase + 3]);
         m_lines.push_back(lines[lineBase + 4]);
         m_lines.push_back(lines[lineBase + 5]);
-        m_lineColors.push_back(colors[colorBase]);
-        m_lineColors.push_back(colors[colorBase + 1]);
-        m_lineColors.push_back(colors[colorBase + 2]);
-        m_lineColors.push_back(colors[colorBase]);
-        m_lineColors.push_back(colors[colorBase + 1]);
-        m_lineColors.push_back(colors[colorBase + 2]);
+        for (std::size_t vertex = 0; vertex < 2; ++vertex)
+        {
+          for (std::size_t colorIndex = 0; colorIndex < ColorChannelCount; ++colorIndex)
+          {
+            m_lineColors.push_back(colors[colorBase + colorIndex]);
+          }
+        }
       }
     }
     else
     {
       throw std::runtime_error(
-          "GeometryBuffer: Invalid colors span for add_lines. It must be empty, have a size of 3, or match lineCount * 3.");
+          "GeometryBuffer: Invalid colors span for add_lines. It must be empty, have a size of 4, or match lineCount * 4.");
     }
 
     for (std::uint32_t i = 0; i < static_cast<std::uint32_t>(lineCount); ++i)
@@ -210,10 +213,10 @@ public:
 
   void add_line(float x1, float y1, float z1, float x2, float y2, float z2, const core::UUID* handle = nullptr)
   {
-    add_line(x1, y1, z1, x2, y2, z2, m_currentLineColor[0], m_currentLineColor[1], m_currentLineColor[2], handle);
+    add_line(x1, y1, z1, x2, y2, z2, m_currentLineColor[0], m_currentLineColor[1], m_currentLineColor[2], m_currentLineColor[3], handle);
   }
 
-  void add_line(float x1, float y1, float z1, float x2, float y2, float z2, float r, float g, float b, const core::UUID* handle = nullptr)
+  void add_line(float x1, float y1, float z1, float x2, float y2, float z2, float r, float g, float b, float a, const core::UUID* handle = nullptr)
   {
     if (handle && handle->is_nil())
     {
@@ -236,9 +239,11 @@ public:
     m_lineColors.push_back(r);
     m_lineColors.push_back(g);
     m_lineColors.push_back(b);
+    m_lineColors.push_back(a);
     m_lineColors.push_back(r);
     m_lineColors.push_back(g);
     m_lineColors.push_back(b);
+    m_lineColors.push_back(a);
 
     std::uint32_t firstVertexIndex = static_cast<std::uint32_t>(m_lines.size() / m_pointDimension) - 2;
     std::uint32_t secondVertexIndex = firstVertexIndex + 1;
@@ -279,8 +284,9 @@ public:
     }
 
     std::size_t lineStart = lineIndex * 2 * m_pointDimension;
+    std::size_t colorStart = lineIndex * 2 * m_colorDimension;
     m_lines.remove(lineStart, 2 * m_pointDimension);
-    m_lineColors.remove(lineStart, 2 * m_pointDimension);
+    m_lineColors.remove(colorStart, 2 * m_colorDimension);
 
     // Fix the indices in the index buffer and remove the indices of the removed line.
     // The indices after the removed line need to be decremented by two (since each line has 2 vertices).
@@ -354,11 +360,11 @@ private:
   LineBuffer(const GeoQikSettings& settings)
       : m_currentLineColor(settings.defaultLineColor)
       , m_lines(settings.initialLineCapacity * 2 * m_pointDimension)
-      , m_lineColors(settings.initialLineCapacity * 2 * m_pointDimension)
+      , m_lineColors(settings.initialLineCapacity * 2 * m_colorDimension)
       , m_lineIndices(settings.initialLineCapacity * 2)
   {
     assert(m_lines.capacity() % (2 * m_pointDimension) == 0);
-    assert(m_lineColors.capacity() % (2 * m_pointDimension) == 0);
+    assert(m_lineColors.capacity() % (2 * m_colorDimension) == 0);
     assert(m_lineIndices.capacity() == settings.initialLineCapacity * 2);
   }
 };

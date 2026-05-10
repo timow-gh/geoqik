@@ -87,19 +87,22 @@ TEST_F(TestGeoQikApi_Points, PointColorGetSet)
   float initialR;
   float initialG;
   float initialB;
-  geoqik_get_point_color(&initialR, &initialG, &initialB);
+  float initialA;
+  geoqik_get_point_color(&initialR, &initialG, &initialB, &initialA);
 
   const float newR = 0.7f;
   const float newG = 0.8f;
   const float newB = 0.9f;
-  geoqik_set_point_color(newR, newG, newB);
+  const float newA = 0.6f;
+  geoqik_set_point_color(newR, newG, newB, newA);
 
-  float retrievedR, retrievedG, retrievedB;
-  geoqik_get_point_color(&retrievedR, &retrievedG, &retrievedB);
+  float retrievedR, retrievedG, retrievedB, retrievedA;
+  geoqik_get_point_color(&retrievedR, &retrievedG, &retrievedB, &retrievedA);
 
   EXPECT_FLOAT_EQ(newR, retrievedR);
   EXPECT_FLOAT_EQ(newG, retrievedG);
   EXPECT_FLOAT_EQ(newB, retrievedB);
+  EXPECT_FLOAT_EQ(newA, retrievedA);
   geoqik_cleanup();
 }
 
@@ -107,10 +110,10 @@ TEST_F(TestGeoQikApi_Points, AddPointWithColor)
 {
   geoqik_init();
 
-  const float r = 0.5f, g = 0.6f, b = 0.7f;
+  const float r = 0.5f, g = 0.6f, b = 0.7f, a = 0.8f;
 
-  geoqik_result_t result1 = geoqik_add_point_with_color(0.0, 0.0, 0.0, r, g, b);
-  geoqik_result_t result2 = geoqik_add_point_with_color(1.0, 1.0, 1.0, r, g, b);
+  geoqik_result_t result1 = geoqik_add_point_with_color(0.0, 0.0, 0.0, r, g, b, a);
+  geoqik_result_t result2 = geoqik_add_point_with_color(1.0, 1.0, 1.0, r, g, b, a);
 
   EXPECT_EQ(result1.err, GEOQIK_SUCCESS);
   EXPECT_EQ(result2.err, GEOQIK_SUCCESS);

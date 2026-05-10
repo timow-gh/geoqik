@@ -8,12 +8,12 @@
 
 void add_float3_with_color(const linal::float3& point)
 {
-  geoqik_add_point_with_color(point[0], point[1], point[2], 0.0f, 1.0f, 0.0f);
+  geoqik_add_point_with_color(point[0], point[1], point[2], 0.0f, 1.0f, 0.0f, 1.0f);
 }
 
 void add_line_with_color(const linal::float3& start, const linal::float3& end)
 {
-  geoqik_add_line_with_color(start[0], start[1], start[2], end[0], end[1], end[2], 0.0f, 1.0f, 0.0f);
+    geoqik_add_line_with_color(start[0], start[1], start[2], end[0], end[1], end[2], 0.0f, 1.0f, 0.0f, 1.0f);
 }
 
 void draw_curve_points(const std::array<linal::float3, 4>& startPoints, std::size_t approxSteps)

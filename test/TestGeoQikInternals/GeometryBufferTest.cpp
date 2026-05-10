@@ -46,7 +46,7 @@ TEST_F(GeometryBufferTest, AddPoint)
   auto points = buffer->get_points();
 
   EXPECT_EQ(points.size(), 3);
-  EXPECT_EQ(buffer->get_point_colors().size(), 3);
+  EXPECT_EQ(buffer->get_point_colors().size(), 4);
 
   EXPECT_EQ(points[0], 1.0f);
   EXPECT_EQ(points[1], 2.0f);
@@ -56,6 +56,7 @@ TEST_F(GeometryBufferTest, AddPoint)
   EXPECT_EQ(colors[0], 1.0f);
   EXPECT_EQ(colors[1], 1.0f);
   EXPECT_EQ(colors[2], 1.0f);
+  EXPECT_EQ(colors[3], 1.0f);
 }
 
 TEST_F(GeometryBufferTest, RemovePoint)
@@ -99,7 +100,7 @@ TEST_F(GeometryBufferTest, AddPoints_One)
   EXPECT_EQ(buffer->get_points().size(), 0);
 
   std::vector<float> points = {1.0f, 2.0f, 3.0f};
-  std::vector<float> colors = {2.0f, 3.0f, 4.0f};
+  std::vector<float> colors = {2.0f, 3.0f, 4.0f, 5.0f};
   buffer->add_points(points, colors);
 
   auto pointsSpan = buffer->get_points();
@@ -109,10 +110,11 @@ TEST_F(GeometryBufferTest, AddPoints_One)
   EXPECT_EQ(pointsSpan[2], 3.0f);
 
   auto colorsSpan = buffer->get_point_colors();
-  EXPECT_EQ(colorsSpan.size(), 3);
+  EXPECT_EQ(colorsSpan.size(), 4);
   EXPECT_EQ(colorsSpan[0], 2.0f);
   EXPECT_EQ(colorsSpan[1], 3.0f);
   EXPECT_EQ(colorsSpan[2], 4.0f);
+  EXPECT_EQ(colorsSpan[3], 5.0f);
 }
 
 TEST_F(GeometryBufferTest, AddPoints_Multiple)
@@ -134,6 +136,8 @@ TEST_F(GeometryBufferTest, AddPoints_Multiple)
   EXPECT_FALSE(buffer->has_changed());
   EXPECT_EQ(buffer->get_points().size(), 0);
   color.push_back(7.0f);
+  color.push_back(8.0f);
+  color.push_back(9.0f);
 
   buffer->add_points(points, color);
 
@@ -147,13 +151,15 @@ TEST_F(GeometryBufferTest, AddPoints_Multiple)
   EXPECT_EQ(pointsSpan[5], 6.0f);
 
   auto colors = buffer->get_point_colors();
-  EXPECT_EQ(colors.size(), 6);
+  EXPECT_EQ(colors.size(), 8);
   EXPECT_EQ(colors[0], 2.0f);
   EXPECT_EQ(colors[1], 3.0f);
   EXPECT_EQ(colors[2], 4.0f);
   EXPECT_EQ(colors[3], 5.0f);
   EXPECT_EQ(colors[4], 6.0f);
   EXPECT_EQ(colors[5], 7.0f);
+  EXPECT_EQ(colors[6], 8.0f);
+  EXPECT_EQ(colors[7], 9.0f);
 
   EXPECT_TRUE(buffer->points_have_changed());
   buffer->reset_changed_flag();
@@ -161,15 +167,17 @@ TEST_F(GeometryBufferTest, AddPoints_Multiple)
 
   // Add 3 more points to fill the buffer.
   std::vector<float> morePoints = {7.0f, 8.0f, 9.0f, 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f};
-  std::vector<float> moreColors = {8.0f, 9.0f, 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f, 16.0f};
+  std::vector<float> moreColors = {8.0f,  9.0f,  10.0f, 11.0f,
+                                   12.0f, 13.0f, 14.0f, 15.0f,
+                                   16.0f, 17.0f, 18.0f, 19.0f};
   buffer->add_points(morePoints, moreColors);
   EXPECT_EQ(buffer->get_points().size(), 15);
-  EXPECT_EQ(buffer->get_point_colors().size(), 15);
+  EXPECT_EQ(buffer->get_point_colors().size(), 20);
   EXPECT_TRUE(buffer->points_have_changed());
 
   // Add more points to trigger buffer growth
   morePoints = {7.0f, 8.0f, 9.0f};
-  moreColors = {8.0f, 9.0f, 10.0f};
+  moreColors = {8.0f, 9.0f, 10.0f, 11.0f};
   EXPECT_THROW(buffer->add_points(morePoints, moreColors), std::runtime_error);
 }
 
@@ -199,7 +207,7 @@ TEST_F(GeometryBufferTest, RemovePoints_One)
 
   core::UUID pointsHandle = core::UUID::generate();
   std::vector<float> points = {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f};
-  std::vector<float> colors = {2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f};
+  std::vector<float> colors = {2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f};
   buffer->add_points(points, colors, &pointsHandle);
   EXPECT_EQ(buffer->get_points().size(), 6);
 
@@ -214,7 +222,7 @@ TEST_F(GeometryBufferTest, RemovePoints_Multiple)
   ASSERT_TRUE(buffer != nullptr);
 
   std::vector<float> points = {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f};
-  std::vector<float> colors = {2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f};
+  std::vector<float> colors = {2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f};
 
   std::array<core::UUID, 3> handles;
   for (int i = 0; i < 3; ++i)
@@ -254,12 +262,16 @@ TEST_F(GeometryBufferTest, RemovePoints_Multiple)
   EXPECT_EQ(newColors[3], 5.0f);
   EXPECT_EQ(newColors[4], 6.0f);
   EXPECT_EQ(newColors[5], 7.0f);
-  EXPECT_EQ(newColors[6], 14.0f);
-  EXPECT_EQ(newColors[7], 15.0f);
-  EXPECT_EQ(newColors[8], 16.0f);
-  EXPECT_EQ(newColors[9], 17.0f);
-  EXPECT_EQ(newColors[10], 18.0f);
-  EXPECT_EQ(newColors[11], 19.0f);
+  EXPECT_EQ(newColors[6], 8.0f);
+  EXPECT_EQ(newColors[7], 9.0f);
+  EXPECT_EQ(newColors[8], 14.0f);
+  EXPECT_EQ(newColors[9], 15.0f);
+  EXPECT_EQ(newColors[10], 16.0f);
+  EXPECT_EQ(newColors[11], 17.0f);
+  EXPECT_EQ(newColors[12], 18.0f);
+  EXPECT_EQ(newColors[13], 19.0f);
+  EXPECT_EQ(newColors[14], 20.0f);
+  EXPECT_EQ(newColors[15], 21.0f);
 
   buffer->remove_point(handles[0]);
   EXPECT_TRUE(buffer->has_changed());
@@ -279,6 +291,8 @@ TEST_F(GeometryBufferTest, RemovePoints_Multiple)
   EXPECT_EQ(newColors[3], 17.0f);
   EXPECT_EQ(newColors[4], 18.0f);
   EXPECT_EQ(newColors[5], 19.0f);
+  EXPECT_EQ(newColors[6], 20.0f);
+  EXPECT_EQ(newColors[7], 21.0f);
 
   buffer->remove_point(handles[2]);
   EXPECT_EQ(buffer->get_points().size(), 0);
@@ -293,7 +307,7 @@ TEST_F(GeometryBufferTest, AddLine)
 
   buffer->add_line(1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f);
   EXPECT_EQ(buffer->get_lines().size(), 6); // One line added
-  EXPECT_EQ(buffer->get_line_colors().size(), 6); // Two colors for one line
+  EXPECT_EQ(buffer->get_line_colors().size(), 8); // Two colors for one line
   auto lines = buffer->get_lines();
   
   EXPECT_EQ(lines[0], 1.0f);
@@ -308,10 +322,11 @@ TEST_F(GeometryBufferTest, AddLine)
   EXPECT_EQ(colors[0], 1.0f);
   EXPECT_EQ(colors[1], 1.0f);
   EXPECT_EQ(colors[2], 1.0f);
-  
   EXPECT_EQ(colors[3], 1.0f);
   EXPECT_EQ(colors[4], 1.0f);
   EXPECT_EQ(colors[5], 1.0f);
+  EXPECT_EQ(colors[6], 1.0f);
+  EXPECT_EQ(colors[7], 1.0f);
 }
 
 TEST_F(GeometryBufferTest, IncreasePointBufferSize)
@@ -324,7 +339,7 @@ TEST_F(GeometryBufferTest, IncreasePointBufferSize)
   // Add initial point
   buffer->add_point(1.0f, 2.0f, 3.0f);
   EXPECT_EQ(buffer->get_points().size(), 3);
-  EXPECT_EQ(buffer->get_point_colors().size(), 3);
+  EXPECT_EQ(buffer->get_point_colors().size(), 4);
   EXPECT_EQ(buffer->get_point_indices().size(), 1); // One index for one point
   EXPECT_TRUE(buffer->has_changed());
 
@@ -332,13 +347,13 @@ TEST_F(GeometryBufferTest, IncreasePointBufferSize)
   auto newBuffer = geoqik::PointBuffer::create_from(std::move(*buffer), 10);
   ASSERT_TRUE(newBuffer != nullptr);
   EXPECT_EQ(newBuffer->get_points().size(), 3);
-  EXPECT_EQ(newBuffer->get_point_colors().size(), 3);
+  EXPECT_EQ(newBuffer->get_point_colors().size(), 4);
   EXPECT_EQ(newBuffer->get_point_indices().size(), 1);
   EXPECT_TRUE(newBuffer->has_changed());
 
   newBuffer->add_point(7.0f, 8.0f, 9.0f);
   EXPECT_EQ(newBuffer->get_points().size(), 6);
-  EXPECT_EQ(newBuffer->get_point_colors().size(), 6);
+  EXPECT_EQ(newBuffer->get_point_colors().size(), 8);
   EXPECT_EQ(newBuffer->get_point_indices().size(), 2);
   EXPECT_TRUE(newBuffer->has_changed());
 }
@@ -353,7 +368,7 @@ TEST_F(GeometryBufferTest, IncreaseLineBufferSize)
   // Add initial line
   buffer->add_line(1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f);
   EXPECT_EQ(buffer->get_lines().size(), 6); 
-  EXPECT_EQ(buffer->get_line_colors().size(), 6); 
+  EXPECT_EQ(buffer->get_line_colors().size(), 8);
   EXPECT_EQ(buffer->get_line_indices().size(), 2); // Two indices for one line
   EXPECT_TRUE(buffer->has_changed());
 
@@ -361,13 +376,13 @@ TEST_F(GeometryBufferTest, IncreaseLineBufferSize)
   auto newBuffer = geoqik::LineBuffer::create_from(std::move(*buffer), 10);
   ASSERT_TRUE(newBuffer != nullptr);
   EXPECT_EQ(newBuffer->get_lines().size(), 6);
-  EXPECT_EQ(newBuffer->get_line_colors().size(), 6);
+  EXPECT_EQ(newBuffer->get_line_colors().size(), 8);
   EXPECT_EQ(newBuffer->get_line_indices().size(), 2);
   EXPECT_TRUE(newBuffer->has_changed());
 
   newBuffer->add_line(7.0f, 8.0f, 9.0f, 10.0f, 11.0f, 12.0f);
   EXPECT_EQ(newBuffer->get_lines().size(), 12); // Two lines now
-  EXPECT_EQ(newBuffer->get_line_colors().size(), 12); // Two colors for two lines
+  EXPECT_EQ(newBuffer->get_line_colors().size(), 16); // Two colors for two lines
   EXPECT_EQ(newBuffer->get_line_indices().size(), 4); // Four indices for two lines
   EXPECT_TRUE(newBuffer->has_changed());
 }
@@ -395,7 +410,7 @@ TEST_F(GeometryBufferTest, AddLine_WithHandle)
   buffer->add_line(1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, &lineHandle);
 
   EXPECT_EQ(buffer->get_lines().size(), 6);
-  EXPECT_EQ(buffer->get_line_colors().size(), 6);
+  EXPECT_EQ(buffer->get_line_colors().size(), 8);
   EXPECT_EQ(buffer->get_line_indices().size(), 2);
   EXPECT_TRUE(buffer->lines_have_changed());
 
@@ -417,16 +432,18 @@ TEST_F(GeometryBufferTest, AddLine_WithCustomColor)
   auto buffer = geoqik::LineBuffer::create(m_settings);
   ASSERT_TRUE(buffer != nullptr);
 
-  buffer->add_line(1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 0.5f, 0.6f, 0.7f);
+  buffer->add_line(1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 0.5f, 0.6f, 0.7f, 0.8f);
 
   auto colors = buffer->get_line_colors();
-  EXPECT_EQ(colors.size(), 6);
+  EXPECT_EQ(colors.size(), 8);
   EXPECT_EQ(colors[0], 0.5f);
   EXPECT_EQ(colors[1], 0.6f);
   EXPECT_EQ(colors[2], 0.7f);
-  EXPECT_EQ(colors[3], 0.5f);
-  EXPECT_EQ(colors[4], 0.6f);
-  EXPECT_EQ(colors[5], 0.7f);
+  EXPECT_EQ(colors[3], 0.8f);
+  EXPECT_EQ(colors[4], 0.5f);
+  EXPECT_EQ(colors[5], 0.6f);
+  EXPECT_EQ(colors[6], 0.7f);
+  EXPECT_EQ(colors[7], 0.8f);
 }
 
 TEST_F(GeometryBufferTest, AddLine_NotEnoughSpace)
@@ -480,13 +497,15 @@ TEST_F(GeometryBufferTest, AddLines_One)
   EXPECT_EQ(linesSpan[5], 6.0f);
 
   auto colorsSpan = buffer->get_line_colors();
-  EXPECT_EQ(colorsSpan.size(), 6);
+  EXPECT_EQ(colorsSpan.size(), 8);
   EXPECT_EQ(colorsSpan[0], 1.0f); // default white
   EXPECT_EQ(colorsSpan[1], 1.0f);
   EXPECT_EQ(colorsSpan[2], 1.0f);
   EXPECT_EQ(colorsSpan[3], 1.0f);
   EXPECT_EQ(colorsSpan[4], 1.0f);
   EXPECT_EQ(colorsSpan[5], 1.0f);
+  EXPECT_EQ(colorsSpan[6], 1.0f);
+  EXPECT_EQ(colorsSpan[7], 1.0f);
 
   auto indicesSpan = buffer->get_line_indices();
   EXPECT_EQ(indicesSpan.size(), 2);
@@ -502,17 +521,19 @@ TEST_F(GeometryBufferTest, AddLines_WithSingleColor)
   ASSERT_TRUE(buffer != nullptr);
 
   std::vector<float> lines = {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f};
-  std::vector<float> colors = {0.5f, 0.6f, 0.7f};
+  std::vector<float> colors = {0.5f, 0.6f, 0.7f, 0.8f};
   buffer->add_lines(lines, colors);
 
   auto colorsSpan = buffer->get_line_colors();
-  EXPECT_EQ(colorsSpan.size(), 6);
+  EXPECT_EQ(colorsSpan.size(), 8);
   EXPECT_EQ(colorsSpan[0], 0.5f);
   EXPECT_EQ(colorsSpan[1], 0.6f);
   EXPECT_EQ(colorsSpan[2], 0.7f);
-  EXPECT_EQ(colorsSpan[3], 0.5f);
-  EXPECT_EQ(colorsSpan[4], 0.6f);
-  EXPECT_EQ(colorsSpan[5], 0.7f);
+  EXPECT_EQ(colorsSpan[3], 0.8f);
+  EXPECT_EQ(colorsSpan[4], 0.5f);
+  EXPECT_EQ(colorsSpan[5], 0.6f);
+  EXPECT_EQ(colorsSpan[6], 0.7f);
+  EXPECT_EQ(colorsSpan[7], 0.8f);
 }
 
 TEST_F(GeometryBufferTest, AddLines_WithPerLineColor)
@@ -520,30 +541,34 @@ TEST_F(GeometryBufferTest, AddLines_WithPerLineColor)
   auto buffer = geoqik::LineBuffer::create(m_settings);
   ASSERT_TRUE(buffer != nullptr);
 
-  // 2 lines (12 floats), 2 RGB triples (6 floats): colors.size() * 2 == lines.size()
+  // 2 lines (12 floats), 2 RGBA colors (8 floats)
   std::vector<float> lines = {
       1.0f,  2.0f,  3.0f,  4.0f,  5.0f,  6.0f,  // line 0
       7.0f,  8.0f,  9.0f, 10.0f, 11.0f, 12.0f   // line 1
   };
-  std::vector<float> colors = {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f};
+  std::vector<float> colors = {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f};
   buffer->add_lines(lines, colors);
 
   auto colorsSpan = buffer->get_line_colors();
-  EXPECT_EQ(colorsSpan.size(), 12);
-  // Line 0: both vertices get {0.1, 0.2, 0.3}
+  EXPECT_EQ(colorsSpan.size(), 16);
+  // Line 0: both vertices get {0.1, 0.2, 0.3, 0.4}
   EXPECT_EQ(colorsSpan[0], 0.1f);
   EXPECT_EQ(colorsSpan[1], 0.2f);
   EXPECT_EQ(colorsSpan[2], 0.3f);
-  EXPECT_EQ(colorsSpan[3], 0.1f);
-  EXPECT_EQ(colorsSpan[4], 0.2f);
-  EXPECT_EQ(colorsSpan[5], 0.3f);
-  // Line 1: both vertices get {0.4, 0.5, 0.6}
-  EXPECT_EQ(colorsSpan[6], 0.4f);
-  EXPECT_EQ(colorsSpan[7], 0.5f);
-  EXPECT_EQ(colorsSpan[8], 0.6f);
-  EXPECT_EQ(colorsSpan[9], 0.4f);
-  EXPECT_EQ(colorsSpan[10], 0.5f);
-  EXPECT_EQ(colorsSpan[11], 0.6f);
+  EXPECT_EQ(colorsSpan[3], 0.4f);
+  EXPECT_EQ(colorsSpan[4], 0.1f);
+  EXPECT_EQ(colorsSpan[5], 0.2f);
+  EXPECT_EQ(colorsSpan[6], 0.3f);
+  EXPECT_EQ(colorsSpan[7], 0.4f);
+  // Line 1: both vertices get {0.5, 0.6, 0.7, 0.8}
+  EXPECT_EQ(colorsSpan[8], 0.5f);
+  EXPECT_EQ(colorsSpan[9], 0.6f);
+  EXPECT_EQ(colorsSpan[10], 0.7f);
+  EXPECT_EQ(colorsSpan[11], 0.8f);
+  EXPECT_EQ(colorsSpan[12], 0.5f);
+  EXPECT_EQ(colorsSpan[13], 0.6f);
+  EXPECT_EQ(colorsSpan[14], 0.7f);
+  EXPECT_EQ(colorsSpan[15], 0.8f);
 }
 
 TEST_F(GeometryBufferTest, AddLines_Multiple)
@@ -552,7 +577,7 @@ TEST_F(GeometryBufferTest, AddLines_Multiple)
   ASSERT_TRUE(buffer != nullptr);
 
   std::vector<float> lines1 = {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f};
-  std::vector<float> colors1 = {0.5f, 0.6f, 0.7f};
+  std::vector<float> colors1 = {0.5f, 0.6f, 0.7f, 0.8f};
   buffer->add_lines(lines1, colors1);
   EXPECT_EQ(buffer->get_lines().size(), 6);
   EXPECT_EQ(buffer->get_line_indices().size(), 2);
@@ -562,10 +587,10 @@ TEST_F(GeometryBufferTest, AddLines_Multiple)
   EXPECT_FALSE(buffer->lines_have_changed());
 
   std::vector<float> lines2 = {7.0f, 8.0f, 9.0f, 10.0f, 11.0f, 12.0f};
-  std::vector<float> colors2 = {0.1f, 0.2f, 0.3f};
+  std::vector<float> colors2 = {0.1f, 0.2f, 0.3f, 0.4f};
   buffer->add_lines(lines2, colors2);
   EXPECT_EQ(buffer->get_lines().size(), 12);
-  EXPECT_EQ(buffer->get_line_colors().size(), 12);
+  EXPECT_EQ(buffer->get_line_colors().size(), 16);
   EXPECT_EQ(buffer->get_line_indices().size(), 4);
   EXPECT_TRUE(buffer->lines_have_changed());
 
@@ -629,11 +654,11 @@ TEST_F(GeometryBufferTest, AddLines_WithHandle)
   core::UUID linesHandle = core::UUID::generate();
   std::vector<float> lines = {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f,
                                7.0f, 8.0f, 9.0f, 10.0f, 11.0f, 12.0f};
-  std::vector<float> colors = {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f};
+  std::vector<float> colors = {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f};
   buffer->add_lines(lines, colors, &linesHandle);
 
   EXPECT_EQ(buffer->get_lines().size(), 12);
-  EXPECT_EQ(buffer->get_line_colors().size(), 12);
+  EXPECT_EQ(buffer->get_line_colors().size(), 16);
   EXPECT_EQ(buffer->get_line_indices().size(), 4);
   EXPECT_TRUE(buffer->lines_have_changed());
 
@@ -655,10 +680,10 @@ TEST_F(GeometryBufferTest, AddLines_InvalidColors)
   auto buffer = geoqik::LineBuffer::create(m_settings);
   ASSERT_TRUE(buffer != nullptr);
 
-  // 2 lines = 12 floats; colors size 4 is non-empty, not 3, and 4 * 2 != 12
+  // 2 lines = 12 floats; colors size 5 is non-empty, not 4, and not lineCount * 4
   std::vector<float> lines = {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f,
                                7.0f, 8.0f, 9.0f, 10.0f, 11.0f, 12.0f};
-  std::vector<float> invalidColors = {0.1f, 0.2f, 0.3f, 0.4f};
+  std::vector<float> invalidColors = {0.1f, 0.2f, 0.3f, 0.4f, 0.5f};
   EXPECT_THROW(buffer->add_lines(lines, invalidColors), std::runtime_error);
   EXPECT_FALSE(buffer->has_changed());
   EXPECT_EQ(buffer->get_lines().size(), 0);
@@ -714,14 +739,14 @@ TEST_F(GeometryBufferTest, RemoveLine_Multiple)
 
   std::array<core::UUID, 3> handles;
   handles[0] = core::UUID::generate();
-  buffer->add_line(1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 1.0f, 0.0f, 0.0f, &handles[0]);
+  buffer->add_line(1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 1.0f, 0.0f, 0.0f, 1.0f, &handles[0]);
   handles[1] = core::UUID::generate();
-  buffer->add_line(7.0f, 8.0f, 9.0f, 10.0f, 11.0f, 12.0f, 0.0f, 1.0f, 0.0f, &handles[1]);
+  buffer->add_line(7.0f, 8.0f, 9.0f, 10.0f, 11.0f, 12.0f, 0.0f, 1.0f, 0.0f, 1.0f, &handles[1]);
   handles[2] = core::UUID::generate();
-  buffer->add_line(13.0f, 14.0f, 15.0f, 16.0f, 17.0f, 18.0f, 0.0f, 0.0f, 1.0f, &handles[2]);
+  buffer->add_line(13.0f, 14.0f, 15.0f, 16.0f, 17.0f, 18.0f, 0.0f, 0.0f, 1.0f, 1.0f, &handles[2]);
 
   EXPECT_EQ(buffer->get_lines().size(), 18);
-  EXPECT_EQ(buffer->get_line_colors().size(), 18);
+  EXPECT_EQ(buffer->get_line_colors().size(), 24);
   EXPECT_EQ(buffer->get_line_indices().size(), 6);
 
   // Remove middle line (green)
@@ -746,21 +771,25 @@ TEST_F(GeometryBufferTest, RemoveLine_Multiple)
   EXPECT_EQ(newLines[11], 18.0f);
 
   auto newColors = buffer->get_line_colors();
-  EXPECT_EQ(newColors.size(), 12);
+  EXPECT_EQ(newColors.size(), 16);
   // Line 0 (red): both vertices
   EXPECT_EQ(newColors[0], 1.0f);
   EXPECT_EQ(newColors[1], 0.0f);
   EXPECT_EQ(newColors[2], 0.0f);
   EXPECT_EQ(newColors[3], 1.0f);
-  EXPECT_EQ(newColors[4], 0.0f);
+  EXPECT_EQ(newColors[4], 1.0f);
   EXPECT_EQ(newColors[5], 0.0f);
-  // Line 2 (blue), now compacted to position 1: both vertices
   EXPECT_EQ(newColors[6], 0.0f);
-  EXPECT_EQ(newColors[7], 0.0f);
-  EXPECT_EQ(newColors[8], 1.0f);
+  EXPECT_EQ(newColors[7], 1.0f);
+  // Line 2 (blue), now compacted to position 1: both vertices
+  EXPECT_EQ(newColors[8], 0.0f);
   EXPECT_EQ(newColors[9], 0.0f);
-  EXPECT_EQ(newColors[10], 0.0f);
+  EXPECT_EQ(newColors[10], 1.0f);
   EXPECT_EQ(newColors[11], 1.0f);
+  EXPECT_EQ(newColors[12], 0.0f);
+  EXPECT_EQ(newColors[13], 0.0f);
+  EXPECT_EQ(newColors[14], 1.0f);
+  EXPECT_EQ(newColors[15], 1.0f);
 
   auto newIndices = buffer->get_line_indices();
   EXPECT_EQ(newIndices.size(), 4);
@@ -782,13 +811,15 @@ TEST_F(GeometryBufferTest, RemoveLine_Multiple)
   EXPECT_EQ(newLines[5], 18.0f);
 
   newColors = buffer->get_line_colors();
-  EXPECT_EQ(newColors.size(), 6);
+  EXPECT_EQ(newColors.size(), 8);
   EXPECT_EQ(newColors[0], 0.0f);
   EXPECT_EQ(newColors[1], 0.0f);
   EXPECT_EQ(newColors[2], 1.0f);
-  EXPECT_EQ(newColors[3], 0.0f);
+  EXPECT_EQ(newColors[3], 1.0f);
   EXPECT_EQ(newColors[4], 0.0f);
-  EXPECT_EQ(newColors[5], 1.0f);
+  EXPECT_EQ(newColors[5], 0.0f);
+  EXPECT_EQ(newColors[6], 1.0f);
+  EXPECT_EQ(newColors[7], 1.0f);
 
   // Remove last remaining line (blue)
   buffer->remove_line(handles[2]);

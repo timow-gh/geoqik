@@ -22,7 +22,7 @@ int main()
 
   geoqik_draw();
   geoqik::examples::draw_origin(1.0);
-  geoqik_set_point_color(0.0f, 0.7f, 1.0f); // Cyan
+  geoqik_set_point_color(0.0f, 0.7f, 1.0f, 1.0f); // Cyan
 
   constexpr double radius = 15.0;
   constexpr int latitudeDivisions = 10;  // Number of horizontal rings

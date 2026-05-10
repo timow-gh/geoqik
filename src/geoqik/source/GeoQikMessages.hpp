@@ -1,6 +1,7 @@
 #ifndef GEOQIKMESSAGES_HPP
 #define GEOQIKMESSAGES_HPP
 
+#include "Color.hpp"
 #include "Core/UUID.hpp"
 
 #include <array>
@@ -60,9 +61,8 @@ union GeoQikMessageData
   {
     core::UUID geometryId;
     core::UUID idempotencyId;
-    // If the values for color are negative, they are not set by the caller and should be ignored.
-    float* rgb = nullptr;
-    std::size_t rgbCount = 0;
+    float* rgba = nullptr;
+    std::size_t rgbaCount = 0;
   };  
 
   struct PointWitOpts
@@ -128,11 +128,6 @@ union GeoQikMessageData
     float width;
   };
 
-  struct Color
-  {
-    float r, g, b;
-  };
-
   PointWitOpts pointWithOpts;
   PointsWithOpts pointsWithOpts;
   RemovePoint removePoint;
@@ -143,7 +138,7 @@ union GeoQikMessageData
 
   PointSize pointSize;
   LineWidth lineWidth;
-  Color color;
+  geoqik::Color color;
 
   TranslateGeometry translateGeometry;
   RotateGeometry rotateGeometry;

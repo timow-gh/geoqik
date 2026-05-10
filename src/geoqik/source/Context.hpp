@@ -69,7 +69,7 @@ class Context
 
   std::unique_ptr<CameraInteractor> m_cameraInteractor;
 
-  std::array<float, 4> m_backgroundColor{0.1f, 0.1f, 0.1f, 1.0f}; // Default background color
+  Color m_backgroundColor{0.1f, 0.1f, 0.1f, 1.0f}; // Default background color
 
   std::unordered_set<IdempotencyData, IdempotencyData::Hash> m_idempotencySet;
 
@@ -99,14 +99,14 @@ public:
   float get_point_size();
   void set_point_size(float pointSize);
 
-  std::array<float, 3> get_point_color();
-  void set_default_point_color(std::array<float, 3> color);
+  Color get_point_color();
+  void set_default_point_color(Color color);
 
   float get_line_width();
   void set_line_width(float lineWidth);
 
-  std::array<float, 3> get_line_color();
-  void set_line_color(std::array<float, 3> color);
+  Color get_line_color();
+  void set_line_color(Color color);
 
   void add_point_with_opts(float x, float y, float z, const GeoQikMessageData::CommonMessageData& commonData);
   void add_points_with_opts(const float* points, std::size_t count, const GeoQikMessageData::CommonMessageData& commonData);
@@ -114,7 +114,7 @@ public:
   void remove_point(const core::UUID& handle);
 
   void add_line(float x1, float y1, float z1, float x2, float y2, float z2, const core::UUID* handle = nullptr, const core::UUID* idempotencyKey = nullptr);
-  void add_line(float x1, float y1, float z1, float x2, float y2, float z2, float r, float g, float b, const core::UUID* handle = nullptr,  const core::UUID* idempotencyKey = nullptr);
+  void add_line(float x1, float y1, float z1, float x2, float y2, float z2, float r, float g, float b, float a, const core::UUID* handle = nullptr,  const core::UUID* idempotencyKey = nullptr);
   void add_line_with_opts(float x1, float y1, float z1, float x2, float y2, float z2, const GeoQikMessageData::CommonMessageData& commonData);
   void add_lines_with_opts(const float* lines, std::size_t count, const GeoQikMessageData::CommonMessageData& commonData);
   void remove_line(const core::UUID& handle);

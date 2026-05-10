@@ -80,7 +80,7 @@ bool Context::init_window(const GeoQikSettings& geoqikSettings, const WindowSett
   m_backgroundColor[0] = m_geoqikSettings.backgroundColor[0];
   m_backgroundColor[1] = m_geoqikSettings.backgroundColor[1];
   m_backgroundColor[2] = m_geoqikSettings.backgroundColor[2];
-  m_backgroundColor[3] = 1.0f;
+  m_backgroundColor[3] = m_geoqikSettings.backgroundColor[3];
 
   m_programManager.compile();
 
@@ -121,14 +121,14 @@ void Context::set_point_size(float pointSize)
   ++m_geometryMessagesProcessedThisFrame;
 }
 
-std::array<float, 3> Context::get_point_color()
+Color Context::get_point_color()
 {
   return m_scene.get_default_point_color();
 }
 
-void Context::set_default_point_color(std::array<float, 3> color)
+void Context::set_default_point_color(Color color)
 {
-  m_scene.set_default_point_color(color[0], color[1], color[2]);
+  m_scene.set_default_point_color(color[0], color[1], color[2], color[3]);
   ++m_geometryMessagesProcessedThisFrame;
 }
 
@@ -143,14 +143,14 @@ void Context::set_line_width(float lineWidth)
   ++m_geometryMessagesProcessedThisFrame;
 }
 
-std::array<float, 3> Context::get_line_color()
+Color Context::get_line_color()
 {
   return m_scene.get_default_line_color();
 }
 
-void Context::set_line_color(std::array<float, 3> color)
+void Context::set_line_color(Color color)
 {
-  m_scene.set_default_line_color(color[0], color[1], color[2]);
+  m_scene.set_default_line_color(color[0], color[1], color[2], color[3]);
   ++m_geometryMessagesProcessedThisFrame;
 }
 
@@ -160,9 +160,9 @@ void Context::add_point_with_opts(float x, float y, float z, const GeoQikMessage
   {
     return;
   }
-  if (commonData.rgb && commonData.rgbCount >= 3)
+  if (commonData.rgba && commonData.rgbaCount >= ColorChannelCount)
   {
-    m_scene.add_point(x, y, z, commonData.rgb[0], commonData.rgb[1], commonData.rgb[2], &commonData.geometryId);
+    m_scene.add_point(x, y, z, commonData.rgba[0], commonData.rgba[1], commonData.rgba[2], commonData.rgba[3], &commonData.geometryId);
   }
   else
   {
@@ -177,7 +177,7 @@ void Context::add_points_with_opts(const float* points, std::size_t count, const
   {
     return;
   }
-  m_scene.add_points(std::span<const float>(points, count), std::span<const float>(commonData.rgb, commonData.rgbCount), &commonData.geometryId);
+  m_scene.add_points(std::span<const float>(points, count), std::span<const float>(commonData.rgba, commonData.rgbaCount), &commonData.geometryId);
   ++m_geometryMessagesProcessedThisFrame;
 }
 
@@ -213,6 +213,7 @@ void Context::add_line(float x1,
                        float r,
                        float g,
                        float b,
+                       float a,
                        const core::UUID* handle,
                        const core::UUID* idempotencyKey)
 {
@@ -220,7 +221,7 @@ void Context::add_line(float x1,
   {
     return;
   }
-  m_scene.add_line(x1, y1, z1, x2, y2, z2, r, g, b, handle);
+  m_scene.add_line(x1, y1, z1, x2, y2, z2, r, g, b, a, handle);
   ++m_geometryMessagesProcessedThisFrame;
 }
 
@@ -230,9 +231,9 @@ void Context::add_line_with_opts(float x1, float y1, float z1, float x2, float y
   {
     return;
   }
-  if (commonData.rgb && commonData.rgbCount >= 3)
+  if (commonData.rgba && commonData.rgbaCount >= ColorChannelCount)
   {
-    m_scene.add_line(x1, y1, z1, x2, y2, z2, commonData.rgb[0], commonData.rgb[1], commonData.rgb[2], &commonData.geometryId);
+    m_scene.add_line(x1, y1, z1, x2, y2, z2, commonData.rgba[0], commonData.rgba[1], commonData.rgba[2], commonData.rgba[3], &commonData.geometryId);
   }
   else
   {
@@ -248,7 +249,7 @@ void Context::add_lines_with_opts(const float* lines, std::size_t count, const G
     return;
   }
   m_scene.add_lines(std::span<const float>(lines, count),
-                    std::span<const float>(commonData.rgb, commonData.rgbCount),
+                    std::span<const float>(commonData.rgba, commonData.rgbaCount),
                     &commonData.geometryId);
   ++m_geometryMessagesProcessedThisFrame;
 }
@@ -327,6 +328,8 @@ void Context::run_event_loop()
     glEnable(GL_CULL_FACE);
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LESS);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glEnable(GL_MULTISAMPLE);
 
     const auto& viewport = m_cameraInteractor->get_viewport();
@@ -475,7 +478,7 @@ void Context::initialize_message_handlers()
   {
     const auto& pointWithOpts = msg.data.pointWithOpts;
     ctx.add_point_with_opts(pointWithOpts.x, pointWithOpts.y, pointWithOpts.z, pointWithOpts.commonData);
-    delete[] pointWithOpts.commonData.rgb;
+    delete[] pointWithOpts.commonData.rgba;
   };
 
   m_messageHandlers[GeoQikMessageType::ADD_POINTS_WITH_OPTS] = [](Context& ctx, const GeoQikMessage& msg)
@@ -483,7 +486,7 @@ void Context::initialize_message_handlers()
     const auto& pointsWithOpts = msg.data.pointsWithOpts;
     ctx.add_points_with_opts(pointsWithOpts.points, pointsWithOpts.size, pointsWithOpts.commonData);
     delete[] pointsWithOpts.points;
-    delete[] pointsWithOpts.commonData.rgb;
+    delete[] pointsWithOpts.commonData.rgba;
   };
 
   m_messageHandlers[GeoQikMessageType::REMOVE_POINT] = [](Context& ctx, const GeoQikMessage& msg)
@@ -503,8 +506,7 @@ void Context::initialize_message_handlers()
 
   m_messageHandlers[GeoQikMessageType::SET_POINT_COLOR] = [](Context& ctx, const GeoQikMessage& msg)
   {
-    const auto& color = msg.data.color;
-    ctx.set_default_point_color(std::array<float, 3>{color.r, color.g, color.b});
+    ctx.set_default_point_color(msg.data.color);
   };
 
   m_messageHandlers[GeoQikMessageType::GET_POINT_COLOR] = [](Context& ctx, const GeoQikMessage& msg)
@@ -519,7 +521,7 @@ void Context::initialize_message_handlers()
     ctx.add_line_with_opts(lineWithOpts.x1, lineWithOpts.y1, lineWithOpts.z1,
                            lineWithOpts.x2, lineWithOpts.y2, lineWithOpts.z2,
                            lineWithOpts.commonData);
-    delete[] lineWithOpts.commonData.rgb;
+    delete[] lineWithOpts.commonData.rgba;
   };
 
   m_messageHandlers[GeoQikMessageType::ADD_LINES_WITH_OPTS] = [](Context& ctx, const GeoQikMessage& msg)
@@ -527,7 +529,7 @@ void Context::initialize_message_handlers()
     const auto& linesWithOpts = msg.data.linesWithOpts;
     ctx.add_lines_with_opts(linesWithOpts.lines, linesWithOpts.size, linesWithOpts.commonData);
     delete[] linesWithOpts.lines;
-    delete[] linesWithOpts.commonData.rgb;
+    delete[] linesWithOpts.commonData.rgba;
   };
 
   m_messageHandlers[GeoQikMessageType::REMOVE_LINE] = [](Context& ctx, const GeoQikMessage& msg)
@@ -547,8 +549,7 @@ void Context::initialize_message_handlers()
 
   m_messageHandlers[GeoQikMessageType::SET_LINE_COLOR] = [](Context& ctx, const GeoQikMessage& msg)
   {
-    const auto& color = msg.data.color;
-    ctx.set_line_color(std::array<float, 3>{color.r, color.g, color.b});
+    ctx.set_line_color(msg.data.color);
   };
 
   m_messageHandlers[GeoQikMessageType::GET_LINE_COLOR] = [](Context& ctx, const GeoQikMessage& msg)

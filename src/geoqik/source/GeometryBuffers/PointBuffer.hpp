@@ -36,9 +36,9 @@ struct PointsGeoBufferIndex
 class PointBuffer
 {
   static constexpr std::int32_t m_pointDimension = 3; // x, y, z
-  static constexpr std::int32_t m_colorDimension = 3; // r, g, b
+  static constexpr std::int32_t m_colorDimension = static_cast<std::int32_t>(ColorChannelCount); // r, g, b, a
 
-  std::array<float, 3> m_currentPointColor{1.0f, 1.0f, 1.0f};
+  Color m_currentPointColor{1.0f, 1.0f, 1.0f, 1.0f};
   Buffer<float> m_points;
   Buffer<float> m_pointColors;
   Buffer<std::uint32_t> m_pointIndices;
@@ -100,7 +100,7 @@ public:
   [[nodiscard]] static constexpr std::int32_t get_point_dimension() { return m_pointDimension; }
   [[nodiscard]] static constexpr std::int32_t get_color_dimension() { return m_colorDimension; }
 
-  [[nodiscard]] std::array<float, 3> get_default_point_color() const { return m_currentPointColor; }
+  [[nodiscard]] Color get_default_point_color() const { return m_currentPointColor; }
 
   // clang-format off
   [[nodiscard]] std::span<const float> get_points() const { return m_points.get_as_span(); }
@@ -115,10 +115,10 @@ public:
 
   void add_point(float x, float y, float z, const core::UUID* handle = nullptr)
   {
-    add_point(x, y, z, m_currentPointColor[0], m_currentPointColor[1], m_currentPointColor[2], handle);
+    add_point(x, y, z, m_currentPointColor[0], m_currentPointColor[1], m_currentPointColor[2], m_currentPointColor[3], handle);
   }
 
-  void add_point(float x, float y, float z, float r, float g, float b, const core::UUID* handle = nullptr)
+  void add_point(float x, float y, float z, float r, float g, float b, float a, const core::UUID* handle = nullptr)
   {
     if (handle && handle->is_nil())
     {
@@ -138,6 +138,7 @@ public:
     m_pointColors.push_back(r);
     m_pointColors.push_back(g);
     m_pointColors.push_back(b);
+    m_pointColors.push_back(a);
 
     CORE_ASSERT(currentPointIndex <= static_cast<std::size_t>(std::numeric_limits<std::uint32_t>::max()));
     m_pointIndices.push_back(static_cast<std::uint32_t>(currentPointIndex));
@@ -192,33 +193,55 @@ public:
 
     if (colors.size() == 0)
     {
-      for (std::size_t i = 0; i < points.size(); ++i)
+      for (std::size_t i = 0; i < pointCount; ++i)
       {
-        m_points.push_back(points[i]);
-        m_pointColors.push_back(m_currentPointColor[i % m_colorDimension]);
+        const std::size_t pointBase = i * m_pointDimension;
+        m_points.push_back(points[pointBase]);
+        m_points.push_back(points[pointBase + 1]);
+        m_points.push_back(points[pointBase + 2]);
+        for (float channel: m_currentPointColor)
+        {
+          m_pointColors.push_back(channel);
+        }
       }
     }
-    else if (colors.size() == 3 && colors[0] >= 0.0f && colors[1] >= 0.0f && colors[2] >= 0.0f)
+    else if (colors.size() == ColorChannelCount &&
+             colors[0] >= 0.0f &&
+             colors[1] >= 0.0f &&
+             colors[2] >= 0.0f &&
+             colors[3] >= 0.0f)
     {
-      for (std::size_t i = 0; i < points.size(); ++i)
+      for (std::size_t i = 0; i < pointCount; ++i)
       {
-        m_points.push_back(points[i]);
-        m_pointColors.push_back(colors[i % m_colorDimension]);
+        const std::size_t pointBase = i * m_pointDimension;
+        m_points.push_back(points[pointBase]);
+        m_points.push_back(points[pointBase + 1]);
+        m_points.push_back(points[pointBase + 2]);
+        for (std::size_t colorIndex = 0; colorIndex < ColorChannelCount; ++colorIndex)
+        {
+          m_pointColors.push_back(colors[colorIndex]);
+        }
       }
     }
-    else if (colors.size() == points.size())
+    else if (colors.size() == pointCount * ColorChannelCount)
     {
-      for (std::size_t i = 0; i < points.size(); ++i)
+      for (std::size_t i = 0; i < pointCount; ++i)
       {
-        m_points.push_back(points[i]);
-        m_pointColors.push_back(colors[i]);
+        const std::size_t pointBase = i * m_pointDimension;
+        const std::size_t colorBase = i * ColorChannelCount;
+        m_points.push_back(points[pointBase]);
+        m_points.push_back(points[pointBase + 1]);
+        m_points.push_back(points[pointBase + 2]);
+        for (std::size_t colorIndex = 0; colorIndex < ColorChannelCount; ++colorIndex)
+        {
+          m_pointColors.push_back(colors[colorBase + colorIndex]);
+        }
       }
     }
     else
     {
       throw std::runtime_error(
-          "GeometryBuffer: Invalid colors span. It must be either empty, have a size of 3 with valid RGB values, or match the size of the "
-          "points span.");
+          "GeometryBuffer: Invalid colors span. It must be either empty, have a size of 4 with valid RGBA values, or match pointCount * 4.");
     }
 
     for (std::uint32_t i = static_cast<std::uint32_t>(currentPointIndex); i < static_cast<std::uint32_t>(currentPointIndex + pointCount);
@@ -235,7 +258,7 @@ public:
     m_pointsHaveChanged = true;
   }
 
-  void set_default_point_color(float r, float g, float b) { m_currentPointColor = {r, g, b}; }
+  void set_default_point_color(float r, float g, float b, float a) { m_currentPointColor = {r, g, b, a}; }
 
   void translate_geometry(core::UUID handle, float dx, float dy, float dz)
   {
@@ -287,11 +310,11 @@ private:
   PointBuffer(const GeoQikSettings& settings)
       : m_currentPointColor(settings.defaultPointColor)
       , m_points(settings.initialPointCapacity * m_pointDimension)
-      , m_pointColors(settings.initialPointCapacity * m_pointDimension)
+      , m_pointColors(settings.initialPointCapacity * m_colorDimension)
       , m_pointIndices(settings.initialPointCapacity)
   {
     assert(m_points.capacity() % m_pointDimension == 0);
-    assert(m_pointColors.capacity() % m_pointDimension == 0);
+    assert(m_pointColors.capacity() % m_colorDimension == 0);
     assert(m_pointIndices.capacity() == settings.initialPointCapacity);
   }
 
@@ -315,8 +338,9 @@ private:
     }
 
     std::size_t pointStart = pointIndex * m_pointDimension;
+    std::size_t colorStart = pointIndex * m_colorDimension;
     m_points.remove(pointStart, m_pointDimension);
-    m_pointColors.remove(pointStart, m_pointDimension);
+    m_pointColors.remove(colorStart, m_colorDimension);
 
     // Fix the indices in the index buffer and remove the index of the removed point.
     // The indices after the removed point need to be decremented by one.
@@ -353,8 +377,9 @@ private:
 
     std::size_t numberOfPointsToRemove = pointEndIndex - pointStartIndex + 1;
     std::size_t pointStart = pointStartIndex * m_pointDimension;
+    std::size_t colorStart = pointStartIndex * m_colorDimension;
     m_points.remove(pointStart, numberOfPointsToRemove * m_pointDimension);
-    m_pointColors.remove(pointStart, numberOfPointsToRemove * m_colorDimension);
+    m_pointColors.remove(colorStart, numberOfPointsToRemove * m_colorDimension);
 
     // Fix the indices in the index buffer and remove the indices of the removed points.
     // The indices after the removed points need to be decremented by the number of removed points.

@@ -9,6 +9,7 @@ set(geoqik_SOURCE_FILES
         source/Camera.hpp
         source/CameraInteractor.hpp
         source/CameraProjectionType.hpp
+        source/Color.hpp
         source/Context.hpp
         source/Context.cpp
         source/GeometryHelpers.hpp

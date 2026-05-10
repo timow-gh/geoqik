@@ -72,11 +72,11 @@ GridGeometryIds add_grid(const Grid& grid, float lineWidth = 1.0f, float pointSi
   }
 
   geoqik_set_line_width(lineWidth);
-  geoqik_set_line_color(0.5f, 0.5f, 0.5f);
+  geoqik_set_line_color(0.5f, 0.5f, 0.5f, 1.0f);
   geoqik_result_t lineRes = geoqik_add_lines_opts(lineCoords.data(), lineCoords.size(), NULL);
   assert(lineRes.err == GEOQIK_SUCCESS);
 
-  geoqik_set_point_color(0.5f, 0.5f, 0.5f);
+  geoqik_set_point_color(0.5f, 0.5f, 0.5f, 1.0f);
   geoqik_set_point_size(pointSize);
   std::vector<double> pointCoords;
   pointCoords.reserve(grid.points.size() * 3);

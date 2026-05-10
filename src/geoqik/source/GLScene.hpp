@@ -76,15 +76,15 @@ public:
     m_pointBuffer->add_point(x, y, z, handle);
   }
 
-  void add_point(float x, float y, float z, float r, float g, float b, const core::UUID* handle = nullptr)
+  void add_point(float x, float y, float z, float r, float g, float b, float a, const core::UUID* handle = nullptr)
   {
     if (m_pointBuffer->has_space_for_points(1) == false)
     {
       recreated_drawables();
-      m_pointBuffer->add_point(x, y, z, r, g, b, handle);
+      m_pointBuffer->add_point(x, y, z, r, g, b, a, handle);
       return;
     }
-    m_pointBuffer->add_point(x, y, z, r, g, b, handle);
+    m_pointBuffer->add_point(x, y, z, r, g, b, a, handle);
   }
 
   void add_points(std::span<const float> points, std::span<const float> colors, const core::UUID* handle = nullptr)
@@ -111,15 +111,15 @@ public:
     m_lineBuffer->add_line(x1, y1, z1, x2, y2, z2, handle);
   }
 
-  void add_line(float x1, float y1, float z1, float x2, float y2, float z2, float r, float g, float b, const core::UUID* handle = nullptr)
+  void add_line(float x1, float y1, float z1, float x2, float y2, float z2, float r, float g, float b, float a, const core::UUID* handle = nullptr)
   {
     if (m_lineBuffer->has_space_for_lines(1) == false)
     {
       recreated_drawables();
-      m_lineBuffer->add_line(x1, y1, z1, x2, y2, z2, r, g, b, handle);
+      m_lineBuffer->add_line(x1, y1, z1, x2, y2, z2, r, g, b, a, handle);
       return;
     }
-    m_lineBuffer->add_line(x1, y1, z1, x2, y2, z2, r, g, b, handle);
+    m_lineBuffer->add_line(x1, y1, z1, x2, y2, z2, r, g, b, a, handle);
   }
 
   void add_lines(std::span<const float> lines, std::span<const float> colors, const core::UUID* handle = nullptr)
@@ -160,14 +160,14 @@ public:
   float get_point_size() const { return m_pointSize; }
   void set_point_size(float pointSize) { m_pointSize = pointSize; }
 
-  std::array<float, 3> get_default_point_color() const { return m_pointBuffer->get_default_point_color(); }
-  void set_default_point_color(float r, float g, float b) { m_pointBuffer->set_default_point_color(r, g, b); }
+  Color get_default_point_color() const { return m_pointBuffer->get_default_point_color(); }
+  void set_default_point_color(float r, float g, float b, float a) { m_pointBuffer->set_default_point_color(r, g, b, a); }
 
   float get_line_width() const { return m_lineWidth; }
   void set_line_width(float lineWidth) { m_lineWidth = lineWidth; }
 
-  std::array<float, 3> get_default_line_color() const { return m_lineBuffer->get_default_color(); }
-  void set_default_line_color(float r, float g, float b) { m_lineBuffer->set_default_color(r, g, b); }
+  Color get_default_line_color() const { return m_lineBuffer->get_default_color(); }
+  void set_default_line_color(float r, float g, float b, float a) { m_lineBuffer->set_default_color(r, g, b, a); }
 
   void create_point_drawable()
   {

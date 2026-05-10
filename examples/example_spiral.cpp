@@ -25,14 +25,14 @@ int main()
 
   geoqik_draw();
 
-  geoqik_add_point_with_color(0.0, 0.0, 0.0, 1.0f, 0.0f, 0.0f);
-  geoqik_add_point_with_color(1.0, 0.0, 0.0, 0.0f, 1.0f, 0.0f);
-  geoqik_add_point_with_color(0.0, 1.0, 0.0, 0.0f, 0.0f, 1.0f);
-  geoqik_add_point_with_color(0.0, 0.0, 1.0, 0.0f, 0.0f, 0.0f);
+  geoqik_add_point_with_color(0.0, 0.0, 0.0, 1.0f, 0.0f, 0.0f, 1.0f);
+  geoqik_add_point_with_color(1.0, 0.0, 0.0, 0.0f, 1.0f, 0.0f, 1.0f);
+  geoqik_add_point_with_color(0.0, 1.0, 0.0, 0.0f, 0.0f, 1.0f, 1.0f);
+  geoqik_add_point_with_color(0.0, 0.0, 1.0, 0.0f, 0.0f, 0.0f, 1.0f);
 
-  geoqik_add_line_with_color(0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0f, 0.0f, 0.0f);
-  geoqik_add_line_with_color(0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0f, 1.0f, 0.0f);
-  geoqik_add_line_with_color(0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0f, 0.0f, 1.0f);
+  geoqik_add_line_with_color(0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0f, 0.0f, 0.0f, 1.0f);
+  geoqik_add_line_with_color(0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0f, 1.0f, 0.0f, 1.0f);
+  geoqik_add_line_with_color(0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0f, 0.0f, 1.0f, 1.0f);
 
   auto grid = geoqik::examples::create_grid(500.0, 10.0);
   geoqik::examples::add_grid(grid);
@@ -104,7 +104,8 @@ int main()
       // Color based on position along the spiral
       geoqik_set_line_color(0.5f + std::sin(static_cast<float>(theta)) * 0.5f,
                              0.5f + std::cos(static_cast<float>(theta)) * 0.5f,
-                             0.5f + std::sin(static_cast<float>(theta) + 3.14f) * 0.5f);
+                             0.5f + std::sin(static_cast<float>(theta) + 3.14f) * 0.5f,
+                             1.0f);
 
       // Draw the discretized spiral by connecting consecutive points
       if (!firstPoint)

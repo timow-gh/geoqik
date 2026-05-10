@@ -1,8 +1,8 @@
 #ifndef GEOQIKSETTINGS_HPP
 #define GEOQIKSETTINGS_HPP
 
+#include "Color.hpp"
 #include <GeoQik/geoqik_export.h>
-#include <array>
 #include <cstdint>
 #include <chrono>
 
@@ -26,9 +26,9 @@ struct GEOQIK_EXPORT GeoQikSettings
 
   float defaultPointSize{4.0f};              // Default size for points. If not other size is set using the GeoQik API, this size will be used.
   float defaultLineWidth{2.0f};              // Default width for lines. If not other width is set using the GeoQik API, this width will be used.
-  std::array<float, 3> defaultPointColor{1.0f, 1.0f, 1.0f}; // Default color for points. If not other color is set using the GeoQik API, this color will be used.
-  std::array<float, 3> defaultLineColor{1.0f, 1.0f, 1.0f};  // Default color for lines. If not other color is set using the GeoQik API, this color will be used.
-  std::array<float, 3> backgroundColor{0.1f, 0.1f, 0.1f};   // Default background color for the window.
+  Color defaultPointColor{1.0f, 1.0f, 1.0f, 1.0f}; // Default color for points. If no other color is set using the GeoQik API, this color will be used.
+  Color defaultLineColor{1.0f, 1.0f, 1.0f, 1.0f};  // Default color for lines. If no other color is set using the GeoQik API, this color will be used.
+  Color backgroundColor{0.1f, 0.1f, 0.1f, 1.0f};   // Default background color for the window.
 
   double cameraFarPlaneMultiplier{3.0}; // The far plane of the camera is set to the radius of the bounding sphere multiplied by this factor.
 
