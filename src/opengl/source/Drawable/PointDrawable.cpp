@@ -26,8 +26,24 @@ std::optional<PointDrawable> make_point_drawable(PointProgram& program,
     CORE_ASSERT(false);
     return {};
   }
-  auto indexBuffer =  opengl::IndexBuffer::create(indices.data(), static_cast<GLsizei>(indices.size()), accessPattern);
-  if (!indexBuffer.has_value())
+  auto vertexPositions = make_vertex_sort_positions(vertices, vertexDimension);
+  auto vertexTranslucency = make_vertex_translucency_flags(colors, colorDimension);
+  auto pointIndices = std::vector<std::uint32_t>(indices.begin(), indices.end());
+  auto split = split_point_indices_by_transparency(pointIndices, vertexPositions, vertexTranslucency);
+  std::vector<std::uint32_t> translucentIndices;
+  translucentIndices.reserve(split.translucentIndices.size());
+  for (const SortablePointIndex& pointIndex: split.translucentIndices)
+  {
+    translucentIndices.push_back(pointIndex.index);
+  }
+  auto opaqueIndexBuffer = opengl::IndexBuffer::create(split.opaqueIndices, accessPattern);
+  if (!opaqueIndexBuffer.has_value())
+  {
+    CORE_ASSERT(false);
+    return {};
+  }
+  auto translucentIndexBuffer = opengl::IndexBuffer::create(translucentIndices, accessPattern);
+  if (!translucentIndexBuffer.has_value())
   {
     CORE_ASSERT(false);
     return {};
@@ -37,9 +53,16 @@ std::optional<PointDrawable> make_point_drawable(PointProgram& program,
                        std::move(vertexArray),
                        std::move(vertexBuffer.value()),
                        std::move(colorBuffer.value()),
-                       std::move(indexBuffer.value()),
+                       std::move(opaqueIndexBuffer.value()),
+                       std::move(translucentIndexBuffer.value()),
                        pointSize,
-                       make_drawable_transparency_info(vertices, vertexDimension, colors, colorDimension)};
+                       make_drawable_transparency_info(vertices, vertexDimension, colors, colorDimension),
+                       vertexDimension,
+                       colorDimension,
+                       std::move(vertexPositions),
+                       std::move(vertexTranslucency),
+                       std::move(pointIndices),
+                       std::move(split.translucentIndices)};
 }
 
 } // namespace opengl

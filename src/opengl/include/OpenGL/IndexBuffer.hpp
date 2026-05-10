@@ -67,6 +67,11 @@ public:
     return buffer;
   }
 
+  static std::optional<IndexBuffer> create(std::span<const std::uint32_t> indices, BufferAccessPattern accessPattern)
+  {
+    return create(indices.data(), static_cast<GLsizei>(indices.size()), accessPattern);
+  }
+
   [[nodiscard]] const BufferId& get_buffer_id() const
   {
     CORE_ASSERT(m_id.has_value());

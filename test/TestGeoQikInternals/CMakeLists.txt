@@ -1,8 +1,9 @@
 function(create_geoqik_internal_test testName)
     add_executable(${testName} ${testName}.cpp)
-    target_link_libraries(${testName} PRIVATE gtest gtest_main geoqik::geoqik geoqik::geoqik_internals)
+    target_link_libraries(${testName} PRIVATE gtest gtest_main geoqik::geoqik geoqik::geoqik_internals geoqik::opengl)
     add_test(NAME geoqik.${testName} COMMAND ${testName})
 endfunction()
 
 create_geoqik_internal_test(BufferTest)
 create_geoqik_internal_test(GeometryBufferTest)
+create_geoqik_internal_test(TransparencySortingTest)

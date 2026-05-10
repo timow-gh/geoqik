@@ -8,6 +8,7 @@
 #include "OpenGL/VertexBuffer.hpp"
 #include "OpenGL/opengl_export.h"
 #include <Core/Warnings.hpp>
+#include <cstdint>
 #include <linal/hmat.hpp>
 #include <span>
 DISABLE_ALL_WARNINGS
@@ -23,6 +24,8 @@ class OPENGL_EXPORT MeshDrawable
   VertexBuffer m_vertexNormalsBuffer;
   VertexBuffer m_colorBuffer;
   IndexBuffer m_triangleIndicesBuffer;
+  std::int32_t m_vertexDimension{0};
+  std::int32_t m_colorDimension{0};
   DrawableTransparencyInfo m_transparencyInfo;
 
 public:
@@ -32,13 +35,17 @@ public:
                VertexBuffer vertexNormalsBuffer,
                VertexBuffer colorBuffer,
                IndexBuffer triangleIndicesBuffer,
-               DrawableTransparencyInfo transparencyInfo = {})
+               DrawableTransparencyInfo transparencyInfo = {},
+               std::int32_t vertexDimension = 3,
+               std::int32_t colorDimension = 4)
       : m_program(&program)
       , m_vertexArray(std::move(vertexArray))
       , m_vertexBuffer(std::move(vertexBuffer))
       , m_vertexNormalsBuffer(std::move(vertexNormalsBuffer))
       , m_colorBuffer(std::move(colorBuffer))
       , m_triangleIndicesBuffer(std::move(triangleIndicesBuffer))
+      , m_vertexDimension(vertexDimension)
+      , m_colorDimension(colorDimension)
       , m_transparencyInfo(transparencyInfo)
   {
   }
@@ -52,6 +59,8 @@ public:
       , m_vertexNormalsBuffer(std::move(other.m_vertexNormalsBuffer))
       , m_colorBuffer(std::move(other.m_colorBuffer))
       , m_triangleIndicesBuffer(std::move(other.m_triangleIndicesBuffer))
+      , m_vertexDimension(other.m_vertexDimension)
+      , m_colorDimension(other.m_colorDimension)
       , m_transparencyInfo(other.m_transparencyInfo)
   {
   }
@@ -65,74 +74,76 @@ public:
       m_vertexNormalsBuffer = std::move(other.m_vertexNormalsBuffer);
       m_colorBuffer = std::move(other.m_colorBuffer);
       m_triangleIndicesBuffer = std::move(other.m_triangleIndicesBuffer);
+      m_vertexDimension = other.m_vertexDimension;
+      m_colorDimension = other.m_colorDimension;
       m_transparencyInfo = other.m_transparencyInfo;
     }
     return *this;
   }
   ~MeshDrawable() = default;
 
-    void update_color_buffer(std::span<const float> colors, BufferAccessPattern accessPattern)
-    {
-      glBindBuffer(GL_ARRAY_BUFFER, m_colorBuffer.get_buffer_id().get_value());
-      const auto size = static_cast<std::uint64_t>(colors.size()) * sizeof(float);
-      glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizei>(size), colors.data(), get_enum_value(accessPattern));
-      m_transparencyInfo.isTranslucent = contains_translucent_alpha(colors, 4);
-    }
+  void update_color_buffer(std::span<const float> colors, BufferAccessPattern accessPattern)
+  {
+    glBindBuffer(GL_ARRAY_BUFFER, m_colorBuffer.get_buffer_id().get_value());
+    const auto size = static_cast<std::uint64_t>(colors.size()) * sizeof(float);
+    glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizei>(size), colors.data(), get_enum_value(accessPattern));
+    m_transparencyInfo.isTranslucent = contains_translucent_alpha(colors, m_colorDimension);
+  }
 
-    /** Draw the mesh Drawable.
-     * @param mvp Model-View-Projection matrix.
-     * @param viewPos View position (camera position) in world space.
-     */
-    void draw(const linal::hmatf& modelMatrix,
-              const linal::hmatf& viewMatrix,
-              const linal::hmatf& projectionMatrix,
-              const linal::hmatf& normalMatrix,
-              const linal::float3& lightPosition,
-              const linal::float3& viewPos,
-              const linal::float3& lightColor,
-              const linal::float3& ambientColor,
-              float shininess) const
-    {
-      const auto& prog = *m_program;
-      prog.use();
+  /** Draw the mesh Drawable.
+   * @param mvp Model-View-Projection matrix.
+   * @param viewPos View position (camera position) in world space.
+   */
+  void draw(const linal::hmatf& modelMatrix,
+            const linal::hmatf& viewMatrix,
+            const linal::hmatf& projectionMatrix,
+            const linal::hmatf& normalMatrix,
+            const linal::float3& lightPosition,
+            const linal::float3& viewPos,
+            const linal::float3& lightColor,
+            const linal::float3& ambientColor,
+            float shininess) const
+  {
+    const auto& prog = *m_program;
+    prog.use();
 
-      // Vertex shader uniforms
-      glUniformMatrix4fv(prog.get_model_matrix_location().get_value(), 1, GL_FALSE, (const GLfloat*)modelMatrix.data());
-      glUniformMatrix4fv(prog.get_view_matrix_location().get_value(), 1, GL_FALSE, (const GLfloat*)viewMatrix.data());
-      glUniformMatrix4fv(prog.get_projection_matrix_location().get_value(), 1, GL_FALSE, (const GLfloat*)projectionMatrix.data());
-      glUniformMatrix4fv(prog.get_normal_matrix_location().get_value(), 1, GL_FALSE, (const GLfloat*)normalMatrix.data());
+    // Vertex shader uniforms
+    glUniformMatrix4fv(prog.get_model_matrix_location().get_value(), 1, GL_FALSE, (const GLfloat*)modelMatrix.data());
+    glUniformMatrix4fv(prog.get_view_matrix_location().get_value(), 1, GL_FALSE, (const GLfloat*)viewMatrix.data());
+    glUniformMatrix4fv(prog.get_projection_matrix_location().get_value(), 1, GL_FALSE, (const GLfloat*)projectionMatrix.data());
+    glUniformMatrix4fv(prog.get_normal_matrix_location().get_value(), 1, GL_FALSE, (const GLfloat*)normalMatrix.data());
 
-      // Fragment shader uniforms
-      glUniform3fv(prog.get_light_pos_location().get_value(), 1, lightPosition.data());
-      glUniform3fv(prog.get_view_pos_location().get_value(), 1, viewPos.data());
-      glUniform3fv(prog.get_light_color_location().get_value(), 1, lightColor.data());
-      glUniform3fv(prog.get_ambient_color_location().get_value(), 1, ambientColor.data());
-      glUniform1f(prog.get_shininess_location().get_value(), shininess);
+    // Fragment shader uniforms
+    glUniform3fv(prog.get_light_pos_location().get_value(), 1, lightPosition.data());
+    glUniform3fv(prog.get_view_pos_location().get_value(), 1, viewPos.data());
+    glUniform3fv(prog.get_light_color_location().get_value(), 1, lightColor.data());
+    glUniform3fv(prog.get_ambient_color_location().get_value(), 1, ambientColor.data());
+    glUniform1f(prog.get_shininess_location().get_value(), shininess);
 
-      m_vertexArray.bind();
-      m_triangleIndicesBuffer.bind();
+    m_vertexArray.bind();
+    m_triangleIndicesBuffer.bind();
 
-      glDrawElements(GL_TRIANGLES, m_triangleIndicesBuffer.get_index_count(), GL_UNSIGNED_INT, nullptr);
-    }
+    glDrawElements(GL_TRIANGLES, m_triangleIndicesBuffer.get_index_count(), GL_UNSIGNED_INT, nullptr);
+  }
 
-    [[nodiscard]] bool is_translucent() const noexcept { return m_transparencyInfo.isTranslucent; }
+  [[nodiscard]] bool is_translucent() const noexcept { return m_transparencyInfo.isTranslucent; }
 
-    [[nodiscard]] double distance_squared_to(const linal::double3& viewPosition) const noexcept
-    {
-      return m_transparencyInfo.distance_squared_to(viewPosition);
-    }
-  };
+  [[nodiscard]] double distance_squared_to(const linal::double3& viewPosition) const noexcept
+  {
+    return m_transparencyInfo.distance_squared_to(viewPosition);
+  }
+};
 
-  OPENGL_EXPORT std::optional<MeshDrawable> make_mesh_soup(MeshProgram& program,
-                                                           std::span<const float> vertices,
-                                                           std::int32_t vertexDimension,
-                                                           std::span<const float> normals,
-                                                           std::span<const float> colors,
-                                                           std::int32_t colorDimension,
-                                                           std::span<const std::uint32_t> triangleIndices,
-                                                           BufferAccessPattern accessPattern);
+OPENGL_EXPORT std::optional<MeshDrawable> make_mesh_soup(MeshProgram& program,
+                                                         std::span<const float> vertices,
+                                                         std::int32_t vertexDimension,
+                                                         std::span<const float> normals,
+                                                         std::span<const float> colors,
+                                                         std::int32_t colorDimension,
+                                                         std::span<const std::uint32_t> triangleIndices,
+                                                         BufferAccessPattern accessPattern);
 
-  ENABLE_ALL_WARNINGS
+ENABLE_ALL_WARNINGS
 
 } // namespace opengl
 

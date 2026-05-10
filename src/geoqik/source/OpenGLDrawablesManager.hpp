@@ -16,6 +16,42 @@ namespace geoqik
 
 class OpenGLDrawablesManager
 {
+  struct ScopedDepthMask
+  {
+    GLboolean previousValue{GL_TRUE};
+
+    explicit ScopedDepthMask(GLboolean value)
+    {
+      glGetBooleanv(GL_DEPTH_WRITEMASK, &previousValue);
+      glDepthMask(value);
+    }
+
+    ~ScopedDepthMask() { glDepthMask(previousValue); }
+  };
+
+  struct ScopedCullFaceDisabled
+  {
+    GLboolean wasEnabled{GL_FALSE};
+
+    ScopedCullFaceDisabled()
+        : wasEnabled(glIsEnabled(GL_CULL_FACE))
+    {
+      glDisable(GL_CULL_FACE);
+    }
+
+    ~ScopedCullFaceDisabled()
+    {
+      if (wasEnabled == GL_TRUE)
+      {
+        glEnable(GL_CULL_FACE);
+      }
+      else
+      {
+        glDisable(GL_CULL_FACE);
+      }
+    }
+  };
+
   opengl::PointProgram* m_pointProgram{nullptr};
   opengl::LineProgram* m_lineProgram{nullptr};
 
@@ -144,9 +180,9 @@ public:
     }
   }
 
-  void draw_lines_and_points(const linal::hmatf& mvp, const linal::double3& viewPosition) const
+  void draw_lines_and_points(const linal::hmatf& mvp, const linal::double3& viewPosition)
   {
-    struct TransparentDrawable
+    struct RenderCommand
     {
       enum class Type
       {
@@ -156,61 +192,85 @@ public:
 
       Type type{};
       std::size_t index{};
+    };
+
+    struct TransparentRenderCommand
+    {
+      RenderCommand::Type type{};
+      std::size_t index{};
       double distanceSquared{};
     };
 
-    std::vector<TransparentDrawable> transparentDrawables;
-    transparentDrawables.reserve(m_lineDrawables.size() + m_pointDrawables.size());
+    struct RenderQueue
+    {
+      std::vector<RenderCommand> opaqueCommands;
+      std::vector<TransparentRenderCommand> transparentCommands;
+    };
+
+    RenderQueue renderQueue;
+    renderQueue.opaqueCommands.reserve(m_lineDrawables.size() + m_pointDrawables.size());
+    renderQueue.transparentCommands.reserve(m_lineDrawables.size() + m_pointDrawables.size());
 
     for (std::size_t i = 0; i < m_lineDrawables.size(); ++i)
     {
       const auto& drawable = m_lineDrawables[i];
-      if (drawable.is_translucent())
+      if (drawable.has_opaque_primitives())
       {
-        transparentDrawables.push_back({TransparentDrawable::Type::line, i, drawable.distance_squared_to(viewPosition)});
+        renderQueue.opaqueCommands.push_back({RenderCommand::Type::line, i});
       }
-      else
+      if (drawable.has_translucent_primitives())
       {
-        drawable.draw(mvp);
+        renderQueue.transparentCommands.push_back({RenderCommand::Type::line, i, drawable.distance_squared_to(viewPosition)});
       }
     }
 
     for (std::size_t i = 0; i < m_pointDrawables.size(); ++i)
     {
       const auto& drawable = m_pointDrawables[i];
-      if (drawable.is_translucent())
+      if (drawable.has_opaque_primitives())
       {
-        transparentDrawables.push_back({TransparentDrawable::Type::point, i, drawable.distance_squared_to(viewPosition)});
+        renderQueue.opaqueCommands.push_back({RenderCommand::Type::point, i});
       }
-      else
+      if (drawable.has_translucent_primitives())
       {
-        drawable.draw(mvp);
+        renderQueue.transparentCommands.push_back({RenderCommand::Type::point, i, drawable.distance_squared_to(viewPosition)});
       }
     }
 
-    std::sort(transparentDrawables.begin(),
-              transparentDrawables.end(),
-              [](const TransparentDrawable& lhs, const TransparentDrawable& rhs)
+    for (const auto& opaqueCommand: renderQueue.opaqueCommands)
+    {
+      if (opaqueCommand.type == RenderCommand::Type::line)
+      {
+        m_lineDrawables[opaqueCommand.index].draw_opaque(mvp);
+      }
+      else
+      {
+        m_pointDrawables[opaqueCommand.index].draw_opaque(mvp);
+      }
+    }
+
+    std::sort(renderQueue.transparentCommands.begin(),
+              renderQueue.transparentCommands.end(),
+              [](const TransparentRenderCommand& lhs, const TransparentRenderCommand& rhs)
               { return lhs.distanceSquared > rhs.distanceSquared; });
 
-    if (transparentDrawables.empty())
+    if (renderQueue.transparentCommands.empty())
     {
       return;
     }
 
-    glDepthMask(GL_FALSE);
-    for (const auto& transparentDrawable: transparentDrawables)
+    const ScopedDepthMask depthMask(GL_FALSE);
+    for (const auto& transparentCommand: renderQueue.transparentCommands)
     {
-      if (transparentDrawable.type == TransparentDrawable::Type::line)
+      if (transparentCommand.type == RenderCommand::Type::line)
       {
-        m_lineDrawables[transparentDrawable.index].draw(mvp);
+        m_lineDrawables[transparentCommand.index].draw_translucent(mvp, viewPosition);
       }
       else
       {
-        m_pointDrawables[transparentDrawable.index].draw(mvp);
+        m_pointDrawables[transparentCommand.index].draw_translucent(mvp, viewPosition);
       }
     }
-    glDepthMask(GL_TRUE);
   }
 
   void draw_meshes(const linal::hmatf& modelMatrix,
@@ -255,18 +315,12 @@ public:
       return;
     }
 
-    const GLboolean cullFaceWasEnabled = glIsEnabled(GL_CULL_FACE);
-    glDepthMask(GL_FALSE);
-    glDisable(GL_CULL_FACE);
+    const ScopedDepthMask depthMask(GL_FALSE);
+    const ScopedCullFaceDisabled cullFace;
     for (const auto& transparentMesh: transparentMeshes)
     {
       m_meshDrawables[transparentMesh.index].draw(modelMatrix, viewMatrix, projectionMatrix, normalMatrix, lightPosition, viewPos, lightColor, ambientColor, shininess);
     }
-    if (cullFaceWasEnabled == GL_TRUE)
-    {
-      glEnable(GL_CULL_FACE);
-    }
-    glDepthMask(GL_TRUE);
   }
 };
 

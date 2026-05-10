@@ -151,7 +151,7 @@ public:
     m_drawablesManager.clear_drawables();
   }
 
-  void draw(const linal::hmatf& mvp, const linal::double3& viewPosition) const
+  void draw(const linal::hmatf& mvp, const linal::double3& viewPosition)
   {
     m_drawablesManager.draw_lines_and_points(mvp, viewPosition);
   }
