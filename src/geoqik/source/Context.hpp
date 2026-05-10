@@ -4,10 +4,11 @@
 #include "Camera.hpp"
 #include "CameraInteractor.hpp"
 #include "ConcurrentQueue/ConcurrentQueue.hpp"
+#include "GLScene.hpp"
 #include "GeoQikMessages.hpp"
 #include "GeoQikSettings.hpp"
 #include "GeoQik_Glfw.hpp"
-#include "GLScene.hpp"
+#include "IdempotencyData.hpp"
 #include "WindowSettings.hpp"
 #include <Core/UUID.hpp>
 #include <OpenGL/Programs/ProgramManager.hpp>
@@ -28,34 +29,7 @@ void init_message_queue(ConcurrentQueue<GeoQikMessage>&& messageQueue);
 
 // Holds idempotency key for messages.
 // If a message with the same key has already been processed, it will be ignored.
-struct IdempotencyData
-{
-  core::UUID key;
-  std::chrono::high_resolution_clock::time_point timestamp;
 
-  [[nodiscard]] bool operator==(const IdempotencyData& other) const noexcept
-  {
-    return key == other.key;
-  }
-  [[nodiscard]] bool operator!=(const IdempotencyData& other) const noexcept
-  {
-    return key != other.key;
-  }
-
-  [[nodiscard]] auto operator<(const IdempotencyData& other) const noexcept
-  {
-    return key < other.key;
-  }
-  
-  // Add hash function as a member
-  struct Hash
-  {
-    std::size_t operator()(const IdempotencyData& data) const noexcept
-    {
-      return std::hash<core::UUID>{}(data.key);
-    }
-  };
-};
 
 class Context
 {

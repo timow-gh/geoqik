@@ -20,6 +20,7 @@ set(geoqik_SOURCE_FILES
         source/GeoQikMessages.hpp
         source/GeoQikSettings.hpp
         source/GLScene.hpp
+        source/IdempotencyData.hpp
         source/InputState.hpp
         source/InputState.cpp
         source/MathConstants.hpp
