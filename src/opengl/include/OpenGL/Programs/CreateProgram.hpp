@@ -7,7 +7,7 @@
 namespace opengl
 {
 
-OPENGL_EXPORT ProgramId create_program(const char* vertexShaderSource, const char* fragmentShaderSource);
+OPENGL_EXPORT ProgramHandle create_program(const char* vertexShaderSource, const char* fragmentShaderSource);
 
 } // namespace opengl
 

@@ -1,13 +1,38 @@
 #include "OpenGL/Programs/MeshProgram.hpp"
 #include "OpenGL/Programs/CreateProgram.hpp"
 #include "OpenGL/ShaderSources.hpp"
+#include <Core/Assert.hpp>
+#include <utility>
 
 namespace opengl
 {
 
+MeshProgram::MeshProgram(ProgramHandle program, const MeshProgramInput& input) noexcept
+    : m_program{std::move(program)}
+    , m_input{input}
+{
+  CORE_ASSERT(m_program.is_valid());
+  assert_mesh_program_input(input);
+}
+
+ProgramId MeshProgram::get_id() const
+{
+  return m_program.get_id();
+}
+
+void MeshProgram::use() const
+{
+  glUseProgram(m_program.get_value());
+}
+
 MeshProgram make_mesh_program() {
-  ProgramId id{
-      create_program(mesh_vertex_shader_source().data(), mesh_fragment_shader_source().data())};
+  ProgramHandle program = create_program(mesh_vertex_shader_source().data(), mesh_fragment_shader_source().data());
+  if (!program.is_valid())
+  {
+    CORE_ASSERT(false);
+    return {};
+  }
+  ProgramId id = program.get_id();
   CORE_ASSERT(id.get_value() != 0);
 
   MeshProgramInput input = {.m_modelMatrix = make_uniform("u_model", id),
@@ -23,7 +48,7 @@ MeshProgram make_mesh_program() {
                             .ambientColor = make_uniform("u_ambientColor", id),
                             .shininess = make_uniform("u_shininess", id)};
 
-  return MeshProgram{id, input};
+  return MeshProgram{std::move(program), input};
 }
 
 } // namespace opengl

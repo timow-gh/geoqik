@@ -451,6 +451,9 @@ bool Context::cleanup()
 
   glfwMakeContextCurrent(m_glfwWindow);
 
+  m_scene.clear_drawables();
+  m_programManager.reset();
+
   clear_callbacks(m_glfwWindow);
 
   glfwDestroyWindow(m_glfwWindow);

@@ -46,20 +46,21 @@ constexpr void assert_mesh_program_input([[maybe_unused]] const MeshProgramInput
 
 class OPENGL_EXPORT MeshProgram
 {
-  ProgramId m_id;
+  ProgramHandle m_program;
 
   MeshProgramInput m_input;
 
 public:
-  constexpr MeshProgram() noexcept = default;
-  constexpr MeshProgram(const ProgramId& id, const MeshProgramInput& input) noexcept
-      : m_id{id}
-      , m_input{input}
-  {
-    assert_mesh_program_input(input);
-  }
+  MeshProgram() noexcept = default;
+  MeshProgram(ProgramHandle program, const MeshProgramInput& input) noexcept;
 
-  [[nodiscard]] constexpr ProgramId get_id() const noexcept { return m_id; }
+  MeshProgram(const MeshProgram&) = delete;
+  MeshProgram& operator=(const MeshProgram&) = delete;
+  MeshProgram(MeshProgram&&) noexcept = default;
+  MeshProgram& operator=(MeshProgram&&) noexcept = default;
+  ~MeshProgram() = default;
+
+  [[nodiscard]] ProgramId get_id() const;
 
   [[nodiscard]] constexpr Location get_model_matrix_location() const noexcept { return m_input.m_modelMatrix.get_location(); }
   [[nodiscard]] constexpr Location get_view_matrix_location() const noexcept { return m_input.m_viewMatrix.get_location(); }
@@ -75,7 +76,7 @@ public:
   [[nodiscard]] constexpr Location get_ambient_color_location() const noexcept { return m_input.ambientColor.get_location(); }
   [[nodiscard]] constexpr Location get_shininess_location() const noexcept { return m_input.shininess.get_location(); }
 
-  void use() const { glUseProgram(m_id.get_value()); }
+  void use() const;
 };
 
 OPENGL_EXPORT MeshProgram make_mesh_program();

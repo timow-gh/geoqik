@@ -2,8 +2,9 @@
 #define OPENGL_UPDATEBUFFER_HPP
 
 #include "OpenGL/BufferAccessPattern.hpp"
-#include <span>
+#include <Core/Assert.hpp>
 #include <limits>
+#include <span>
 
 namespace opengl
 {

@@ -13,54 +13,20 @@ class OPENGL_EXPORT VertexArray
   std::optional<GLuint> m_id;
 
 public:
-  VertexArray(GLuint id)
-      : m_id(id)
-  {
-  }
+  explicit VertexArray(GLuint id);
   VertexArray(const VertexArray&) = delete;
   VertexArray& operator=(const VertexArray&) = delete;
-  VertexArray(VertexArray&& other) noexcept
-      : m_id(std::exchange(other.m_id, std::nullopt))
-  {
-  }
-  VertexArray& operator=(VertexArray&& other) noexcept
-  {
-    if (this == &other)
-    {
-      return *this;
-    }
+  VertexArray(VertexArray&& other) noexcept;
+  VertexArray& operator=(VertexArray&& other) noexcept;
 
-    m_id = std::exchange(other.m_id, std::nullopt);
-    return *this;
-  }
+  ~VertexArray();
 
-  ~VertexArray()
-  {
-    if (m_id.has_value())
-    {
-      glDeleteVertexArrays(1, &m_id.value());
-    }
-  }
+  void reset() noexcept;
 
-  static VertexArray create()
-  {
-    GLuint id;
-    glGenVertexArrays(1, &id);
-    VertexArray array{id};
-    array.bind();
-    return array;
-  }
+  [[nodiscard]] static std::optional<VertexArray> create();
 
-  void bind() const
-  {
-    CORE_ASSERT(m_id.has_value());
-    glBindVertexArray(m_id.value());
-  }
-  void unbind() const
-  {
-    CORE_ASSERT(m_id.has_value());
-    glBindVertexArray(0);
-  }
+  void bind() const;
+  void unbind() const;
 };
 
 } // namespace opengl

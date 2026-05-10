@@ -17,7 +17,15 @@ class OPENGL_EXPORT ProgramManager {
   MeshProgram m_meshProgram;
 
 public:
+  ProgramManager() = default;
+  ProgramManager(const ProgramManager&) = delete;
+  ProgramManager& operator=(const ProgramManager&) = delete;
+  ProgramManager(ProgramManager&&) noexcept = default;
+  ProgramManager& operator=(ProgramManager&&) noexcept = default;
+  ~ProgramManager() = default;
+
   void compile();
+  void reset() noexcept;
 
   [[nodiscard]] LineProgram& get_line_program() { return m_lineProgram; }
   [[nodiscard]] PointProgram& get_point_program() { return m_pointProgram; }

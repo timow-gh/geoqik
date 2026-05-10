@@ -1,11 +1,12 @@
 #include "OpenGL/Programs/CreateProgram.hpp"
 #include "Core/ScopedAction.hpp"
 #include "OpenGL/FmtIncludeHelper.hpp"
+#include <Core/Assert.hpp>
 
 namespace opengl
 {
 
-ProgramId create_program(const char* vertexShaderSource, const char* fragmentShaderSource)
+ProgramHandle create_program(const char* vertexShaderSource, const char* fragmentShaderSource)
 {
   // compile vertex shader
   unsigned int vertexShader = glCreateShader(GL_VERTEX_SHADER);
@@ -22,7 +23,7 @@ ProgramId create_program(const char* vertexShaderSource, const char* fragmentSha
     glGetShaderInfoLog(vertexShader, 512, NULL, infoLog);
     fmt::print("Vertex shader compilation failed:\n{}\n", infoLog);
     CORE_ASSERT(success == GL_TRUE);
-    return {};
+    return ProgramHandle{};
   }
 
   // compile fragment shader
@@ -38,7 +39,7 @@ ProgramId create_program(const char* vertexShaderSource, const char* fragmentSha
     glGetShaderInfoLog(fragmentShader, 512, NULL, infoLog);
     fmt::print("Fragment shader compilation failed:\n{}\n", infoLog);
     CORE_ASSERT(success == GL_TRUE);
-    return {};
+    return ProgramHandle{};
   }
 
   GLuint programId = glCreateProgram();
@@ -51,13 +52,13 @@ ProgramId create_program(const char* vertexShaderSource, const char* fragmentSha
   glGetProgramiv(programId, GL_LINK_STATUS, &success);
   if (!success)
   {
-    glDeleteProgram(programId);
     glGetProgramInfoLog(programId, 512, NULL, infoLog);
+    glDeleteProgram(programId);
     fmt::print("Shader program link failed:\n{}\n", infoLog);
     CORE_ASSERT(success == GL_TRUE);
-    return {};
+    return ProgramHandle{};
   }
 
-  return ProgramId{programId};
+  return ProgramHandle{ProgramId{programId}};
 }
 } // namespace opengl

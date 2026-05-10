@@ -37,58 +37,15 @@ public:
                IndexBuffer triangleIndicesBuffer,
                DrawableTransparencyInfo transparencyInfo = {},
                std::int32_t vertexDimension = 3,
-               std::int32_t colorDimension = 4)
-      : m_program(&program)
-      , m_vertexArray(std::move(vertexArray))
-      , m_vertexBuffer(std::move(vertexBuffer))
-      , m_vertexNormalsBuffer(std::move(vertexNormalsBuffer))
-      , m_colorBuffer(std::move(colorBuffer))
-      , m_triangleIndicesBuffer(std::move(triangleIndicesBuffer))
-      , m_vertexDimension(vertexDimension)
-      , m_colorDimension(colorDimension)
-      , m_transparencyInfo(transparencyInfo)
-  {
-  }
+               std::int32_t colorDimension = 4);
 
   MeshDrawable(const MeshDrawable&) = delete;
   MeshDrawable& operator=(const MeshDrawable&) = delete;
-  MeshDrawable(MeshDrawable&& other) noexcept
-      : m_program(std::exchange(other.m_program, nullptr))
-      , m_vertexArray(std::move(other.m_vertexArray))
-      , m_vertexBuffer(std::move(other.m_vertexBuffer))
-      , m_vertexNormalsBuffer(std::move(other.m_vertexNormalsBuffer))
-      , m_colorBuffer(std::move(other.m_colorBuffer))
-      , m_triangleIndicesBuffer(std::move(other.m_triangleIndicesBuffer))
-      , m_vertexDimension(other.m_vertexDimension)
-      , m_colorDimension(other.m_colorDimension)
-      , m_transparencyInfo(other.m_transparencyInfo)
-  {
-  }
-  MeshDrawable& operator=(MeshDrawable&& other) noexcept
-  {
-    if (this != &other)
-    {
-      m_program = std::exchange(other.m_program, nullptr);
-      m_vertexArray = std::move(other.m_vertexArray);
-      m_vertexBuffer = std::move(other.m_vertexBuffer);
-      m_vertexNormalsBuffer = std::move(other.m_vertexNormalsBuffer);
-      m_colorBuffer = std::move(other.m_colorBuffer);
-      m_triangleIndicesBuffer = std::move(other.m_triangleIndicesBuffer);
-      m_vertexDimension = other.m_vertexDimension;
-      m_colorDimension = other.m_colorDimension;
-      m_transparencyInfo = other.m_transparencyInfo;
-    }
-    return *this;
-  }
+  MeshDrawable(MeshDrawable&& other) noexcept;
+  MeshDrawable& operator=(MeshDrawable&& other) noexcept;
   ~MeshDrawable() = default;
 
-  void update_color_buffer(std::span<const float> colors, BufferAccessPattern accessPattern)
-  {
-    glBindBuffer(GL_ARRAY_BUFFER, m_colorBuffer.get_buffer_id().get_value());
-    const auto size = static_cast<std::uint64_t>(colors.size()) * sizeof(float);
-    glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizei>(size), colors.data(), get_enum_value(accessPattern));
-    m_transparencyInfo.isTranslucent = contains_translucent_alpha(colors, m_colorDimension);
-  }
+  void update_color_buffer(std::span<const float> colors, BufferAccessPattern accessPattern);
 
   /** Draw the mesh Drawable.
    * @param mvp Model-View-Projection matrix.
@@ -102,29 +59,7 @@ public:
             const linal::float3& viewPos,
             const linal::float3& lightColor,
             const linal::float3& ambientColor,
-            float shininess) const
-  {
-    const auto& prog = *m_program;
-    prog.use();
-
-    // Vertex shader uniforms
-    glUniformMatrix4fv(prog.get_model_matrix_location().get_value(), 1, GL_FALSE, (const GLfloat*)modelMatrix.data());
-    glUniformMatrix4fv(prog.get_view_matrix_location().get_value(), 1, GL_FALSE, (const GLfloat*)viewMatrix.data());
-    glUniformMatrix4fv(prog.get_projection_matrix_location().get_value(), 1, GL_FALSE, (const GLfloat*)projectionMatrix.data());
-    glUniformMatrix4fv(prog.get_normal_matrix_location().get_value(), 1, GL_FALSE, (const GLfloat*)normalMatrix.data());
-
-    // Fragment shader uniforms
-    glUniform3fv(prog.get_light_pos_location().get_value(), 1, lightPosition.data());
-    glUniform3fv(prog.get_view_pos_location().get_value(), 1, viewPos.data());
-    glUniform3fv(prog.get_light_color_location().get_value(), 1, lightColor.data());
-    glUniform3fv(prog.get_ambient_color_location().get_value(), 1, ambientColor.data());
-    glUniform1f(prog.get_shininess_location().get_value(), shininess);
-
-    m_vertexArray.bind();
-    m_triangleIndicesBuffer.bind();
-
-    glDrawElements(GL_TRIANGLES, m_triangleIndicesBuffer.get_index_count(), GL_UNSIGNED_INT, nullptr);
-  }
+            float shininess) const;
 
   [[nodiscard]] bool is_translucent() const noexcept { return m_transparencyInfo.isTranslucent; }
 

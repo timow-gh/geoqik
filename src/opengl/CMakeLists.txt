@@ -27,11 +27,15 @@ set(opengl_HEADER_FILES
 )
 
 set(opengl_SOURCE_FILES
+        source/IndexBuffer.cpp
         source/Programs/CreateProgram.cpp
         source/Programs/LineProgram.cpp
         source/Programs/MeshProgram.cpp
         source/Programs/PointProgram.cpp
+        source/Programs/ProgramId.cpp
         source/Programs/ProgramManager.cpp
+        source/VertexArray.cpp
+        source/VertexBuffer.cpp
         source/Drawable/LineDrawable.cpp
         source/Drawable/MeshDrawable.cpp
         source/Drawable/PointDrawable.cpp

@@ -27,78 +27,28 @@ class OPENGL_EXPORT IndexBuffer
 public:
   IndexBuffer(const IndexBuffer&) = delete;
   IndexBuffer& operator=(const IndexBuffer&) = delete;
-  IndexBuffer(IndexBuffer&& other) noexcept 
-      : m_id(std::exchange(other.m_id, std::nullopt))
-      , m_indexCount(std::exchange(other.m_indexCount, 0))
-  {
-  }
-  IndexBuffer& operator=(IndexBuffer&& other) noexcept
-  {
-    if (this != &other)
-    {
-      m_id = std::exchange(other.m_id, std::nullopt);
-      m_indexCount = std::exchange(other.m_indexCount, 0);
-    }
-    return *this;
-  }
-  ~IndexBuffer() 
-  {
-    if (m_id.has_value())
-    {
-      glDeleteBuffers(1, &m_id.value().get_value());
-    }
-  }
+  IndexBuffer(IndexBuffer&& other) noexcept;
+  IndexBuffer& operator=(IndexBuffer&& other) noexcept;
+  ~IndexBuffer();
 
-  static std::optional<IndexBuffer> create(const unsigned int indices[], GLsizei indexCount, BufferAccessPattern accessPattern)
-  {
-    BufferId id;
-    glGenBuffers(1, &id.get_value());
-    if (id.get_value() == 0)
-    {
-      glDeleteBuffers(1, &id.get_value());
-      return std::nullopt;
-    }
+  void reset() noexcept;
 
-    IndexBuffer buffer{std::move(id), indexCount};
-    buffer.bind();
-    const auto size = static_cast<std::uint64_t>(indexCount) * sizeof(unsigned int);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, static_cast<GLsizei>(size), indices, get_enum_value(accessPattern));
+  static std::optional<IndexBuffer> create(const unsigned int indices[], GLsizei indexCount, BufferAccessPattern accessPattern);
 
-    return buffer;
-  }
+  static std::optional<IndexBuffer> create(std::span<const std::uint32_t> indices, BufferAccessPattern accessPattern);
 
-  static std::optional<IndexBuffer> create(std::span<const std::uint32_t> indices, BufferAccessPattern accessPattern)
-  {
-    return create(indices.data(), static_cast<GLsizei>(indices.size()), accessPattern);
-  }
-
-  [[nodiscard]] const BufferId& get_buffer_id() const
-  {
-    CORE_ASSERT(m_id.has_value());
-    return m_id.value();
-  }
+  [[nodiscard]] const BufferId& get_buffer_id() const;
 
   [[nodiscard]] GLsizei get_index_count() const { return m_indexCount; }
   void set_index_count(GLsizei indexCount) { m_indexCount = indexCount; }
 
-  void bind() const { glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_id.value().get_value()); }
-  void unbind() const { glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0); }
+  void bind() const;
+  void unbind() const;
 
-  void update_indices_buffer(std::span<const std::uint32_t> indices, BufferAccessPattern accessPattern)
-  {
-    bind();
-    const GLsizeiptr size = static_cast<GLsizeiptr>(indices.size() * sizeof(std::uint32_t));
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, size, NULL, get_enum_value(accessPattern));
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, size, indices.data(), get_enum_value(accessPattern));
-    set_index_count(static_cast<GLsizei>(indices.size()));
-  }
+  void update_indices_buffer(std::span<const std::uint32_t> indices, BufferAccessPattern accessPattern);
 
   private:
-    IndexBuffer(BufferId id, GLsizei indexCount)
-        : m_id(std::move(id))
-        , m_indexCount(indexCount)
-    {
-    }
+    IndexBuffer(BufferId id, GLsizei indexCount);
 };
 
 } // namespace opengl

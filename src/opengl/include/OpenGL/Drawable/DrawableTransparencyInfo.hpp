@@ -243,6 +243,29 @@ struct LineTransparencyIndexSplit
   return dx * dx + dy * dy + dz * dz;
 }
 
+[[nodiscard]] inline std::vector<std::uint32_t> flatten_translucent_point_indices(std::span<const SortablePointIndex> indices)
+{
+  std::vector<std::uint32_t> flattened;
+  flattened.reserve(indices.size());
+  for (const SortablePointIndex& index: indices)
+  {
+    flattened.push_back(index.index);
+  }
+  return flattened;
+}
+
+[[nodiscard]] inline std::vector<std::uint32_t> flatten_translucent_line_indices(std::span<const SortableLineSegment> segments)
+{
+  std::vector<std::uint32_t> flattened;
+  flattened.reserve(segments.size() * 2U);
+  for (const SortableLineSegment& segment: segments)
+  {
+    flattened.push_back(segment.firstIndex);
+    flattened.push_back(segment.secondIndex);
+  }
+  return flattened;
+}
+
 [[nodiscard]] inline std::vector<std::uint32_t> sort_translucent_point_indices_back_to_front(std::span<const SortablePointIndex> points,
                                                                                              const linal::double3& viewPosition)
 {
