@@ -37,7 +37,8 @@ std::optional<LineDrawable> make_line_drawable(LineProgram& program,
                       std::move(lineIndicesBuffer.value()),
                       lineThickness,
                       pointThickness,
-                      lineType};
+                      lineType,
+                      make_drawable_transparency_info(lineVertices, lineVertexDimension, lineColors, lineColorDimension)};
 }
 
 } // namespace opengl

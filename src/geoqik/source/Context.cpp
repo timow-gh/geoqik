@@ -367,7 +367,7 @@ void Context::run_event_loop()
     }
 
     mvp = m_cameraInteractor->get_current_MVP();
-    m_scene.draw(mvp);
+    m_scene.draw(mvp, m_cameraInteractor->get_position());
     glfwSwapBuffers(m_glfwWindow);
 
     ////////////-------------------------------------

@@ -1,6 +1,7 @@
 #ifndef OPENGL_MESHSOUP_HPP
 #define OPENGL_MESHSOUP_HPP
 
+#include "OpenGL/Drawable/DrawableTransparencyInfo.hpp"
 #include "OpenGL/IndexBuffer.hpp"
 #include "OpenGL/Programs/MeshProgram.hpp"
 #include "OpenGL/VertexArray.hpp"
@@ -8,6 +9,7 @@
 #include "OpenGL/opengl_export.h"
 #include <Core/Warnings.hpp>
 #include <linal/hmat.hpp>
+#include <span>
 DISABLE_ALL_WARNINGS
 
 namespace opengl
@@ -21,6 +23,7 @@ class OPENGL_EXPORT MeshDrawable
   VertexBuffer m_vertexNormalsBuffer;
   VertexBuffer m_colorBuffer;
   IndexBuffer m_triangleIndicesBuffer;
+  DrawableTransparencyInfo m_transparencyInfo;
 
 public:
   MeshDrawable(MeshProgram& program,
@@ -28,13 +31,15 @@ public:
                VertexBuffer vertexBuffer,
                VertexBuffer vertexNormalsBuffer,
                VertexBuffer colorBuffer,
-               IndexBuffer triangleIndicesBuffer)
+               IndexBuffer triangleIndicesBuffer,
+               DrawableTransparencyInfo transparencyInfo = {})
       : m_program(&program)
       , m_vertexArray(std::move(vertexArray))
       , m_vertexBuffer(std::move(vertexBuffer))
       , m_vertexNormalsBuffer(std::move(vertexNormalsBuffer))
       , m_colorBuffer(std::move(colorBuffer))
       , m_triangleIndicesBuffer(std::move(triangleIndicesBuffer))
+      , m_transparencyInfo(transparencyInfo)
   {
   }
 
@@ -47,6 +52,7 @@ public:
       , m_vertexNormalsBuffer(std::move(other.m_vertexNormalsBuffer))
       , m_colorBuffer(std::move(other.m_colorBuffer))
       , m_triangleIndicesBuffer(std::move(other.m_triangleIndicesBuffer))
+      , m_transparencyInfo(other.m_transparencyInfo)
   {
   }
   MeshDrawable& operator=(MeshDrawable&& other) noexcept
@@ -59,6 +65,7 @@ public:
       m_vertexNormalsBuffer = std::move(other.m_vertexNormalsBuffer);
       m_colorBuffer = std::move(other.m_colorBuffer);
       m_triangleIndicesBuffer = std::move(other.m_triangleIndicesBuffer);
+      m_transparencyInfo = other.m_transparencyInfo;
     }
     return *this;
   }
@@ -69,6 +76,7 @@ public:
       glBindBuffer(GL_ARRAY_BUFFER, m_colorBuffer.get_buffer_id().get_value());
       const auto size = static_cast<std::uint64_t>(colors.size()) * sizeof(float);
       glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizei>(size), colors.data(), get_enum_value(accessPattern));
+      m_transparencyInfo.isTranslucent = contains_translucent_alpha(colors, 4);
     }
 
     /** Draw the mesh Drawable.
@@ -105,6 +113,13 @@ public:
       m_triangleIndicesBuffer.bind();
 
       glDrawElements(GL_TRIANGLES, m_triangleIndicesBuffer.get_index_count(), GL_UNSIGNED_INT, nullptr);
+    }
+
+    [[nodiscard]] bool is_translucent() const noexcept { return m_transparencyInfo.isTranslucent; }
+
+    [[nodiscard]] double distance_squared_to(const linal::double3& viewPosition) const noexcept
+    {
+      return m_transparencyInfo.distance_squared_to(viewPosition);
     }
   };
 

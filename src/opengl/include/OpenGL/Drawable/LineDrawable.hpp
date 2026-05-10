@@ -2,6 +2,7 @@
 #define OPENGL_LINESOUP_HPP
 
 #include "OpenGL/BufferAccessPattern.hpp"
+#include "OpenGL/Drawable/DrawableTransparencyInfo.hpp"
 #include "OpenGL/IndexBuffer.hpp"
 #include "OpenGL/LineType.hpp"
 #include "OpenGL/Programs/LineProgram.hpp"
@@ -28,6 +29,7 @@ class OPENGL_EXPORT LineDrawable
   float m_lineThickness{1.0F};
   LineType m_lineType{};
   float m_pointSize{1.0F};
+  DrawableTransparencyInfo m_transparencyInfo;
 
 public:
   LineDrawable(LineProgram& program,
@@ -37,7 +39,8 @@ public:
                IndexBuffer lineIndicesBuffer,
                float lineThickness,
                float pointSize = 1.0F,
-               LineType lineType = LineType::lines())
+               LineType lineType = LineType::lines(),
+               DrawableTransparencyInfo transparencyInfo = {})
       : m_program(&program)
       , m_vertexArray(std::move(vertexArray))
       , m_vertexBuffer(std::move(vertexBuffer))
@@ -46,6 +49,7 @@ public:
       , m_lineThickness(lineThickness)
       , m_lineType(lineType)
       , m_pointSize(pointSize)
+      , m_transparencyInfo(transparencyInfo)
   {
   }
 
@@ -60,6 +64,7 @@ public:
       , m_lineThickness(other.m_lineThickness)
       , m_lineType(other.m_lineType)
       , m_pointSize(other.m_pointSize)
+      , m_transparencyInfo(other.m_transparencyInfo)
   {
   }
   LineDrawable& operator=(LineDrawable&& other) noexcept 
@@ -74,6 +79,7 @@ public:
       m_lineThickness = other.m_lineThickness;
       m_lineType = other.m_lineType;
       m_pointSize = other.m_pointSize;
+      m_transparencyInfo = other.m_transparencyInfo;
     }
     return *this;
   }
@@ -88,11 +94,13 @@ public:
   void update_vertex_buffer(std::span<const float> vertices, BufferAccessPattern accessPattern)
   {
     m_vertexBuffer.update_buffer(vertices, accessPattern);
+    m_transparencyInfo.sortCenter = calc_sort_center(vertices, 3);
   }
 
   void update_color_buffer(std::span<const float> colors, BufferAccessPattern accessPattern)
   {
     m_colorBuffer.update_buffer(colors, accessPattern);
+    m_transparencyInfo.isTranslucent = contains_translucent_alpha(colors, 4);
   }
 
   void update_indices_buffer(std::span<const std::uint32_t> indices, BufferAccessPattern accessPattern)
@@ -125,6 +133,13 @@ public:
       glPointSize(m_pointSize);
       glDrawElements(GL_POINTS, m_lineIndicesBuffer.get_index_count(), GL_UNSIGNED_INT, nullptr);
     }
+  }
+
+  [[nodiscard]] bool is_translucent() const noexcept { return m_transparencyInfo.isTranslucent; }
+
+  [[nodiscard]] double distance_squared_to(const linal::double3& viewPosition) const noexcept
+  {
+    return m_transparencyInfo.distance_squared_to(viewPosition);
   }
 };
 

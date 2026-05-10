@@ -151,10 +151,9 @@ public:
     m_drawablesManager.clear_drawables();
   }
 
-  void draw(const linal::hmatf& mvp) const
+  void draw(const linal::hmatf& mvp, const linal::double3& viewPosition) const
   {
-    m_drawablesManager.draw_lines(mvp);
-    m_drawablesManager.draw_points(mvp);
+    m_drawablesManager.draw_lines_and_points(mvp, viewPosition);
   }
 
   float get_point_size() const { return m_pointSize; }

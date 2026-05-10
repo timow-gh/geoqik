@@ -8,6 +8,7 @@ set(opengl_HEADER_FILES
         include/OpenGL/Drawable/LineDrawable.hpp
         include/OpenGL/Drawable/MeshDrawable.hpp
         include/OpenGL/Drawable/PointDrawable.hpp
+        include/OpenGL/Drawable/DrawableTransparencyInfo.hpp
         include/OpenGL/VertexBuffer.hpp
         include/OpenGL/BufferId.hpp
         include/OpenGL/FmtIncludeHelper.hpp

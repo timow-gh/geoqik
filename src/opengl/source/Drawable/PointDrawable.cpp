@@ -38,7 +38,8 @@ std::optional<PointDrawable> make_point_drawable(PointProgram& program,
                        std::move(vertexBuffer.value()),
                        std::move(colorBuffer.value()),
                        std::move(indexBuffer.value()),
-                       pointSize};
+                       pointSize,
+                       make_drawable_transparency_info(vertices, vertexDimension, colors, colorDimension)};
 }
 
 } // namespace opengl

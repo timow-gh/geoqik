@@ -43,7 +43,8 @@ std::optional<MeshDrawable> make_mesh_soup(MeshProgram& program,
                       std::move(vertexBuffer.value()),
                       std::move(vertexNormalsBuffer.value()),
                       std::move(colorBuffer.value()),
-                      std::move(triangleIndicesBuffer.value())};
+                      std::move(triangleIndicesBuffer.value()),
+                      make_drawable_transparency_info(vertices, vertexDimension, colors, colorDimension)};
 }
 
 } // namespace opengl

@@ -4,7 +4,11 @@
 #include <OpenGL/Drawable/LineDrawable.hpp>
 #include <OpenGL/Drawable/MeshDrawable.hpp>
 #include <OpenGL/Drawable/PointDrawable.hpp>
+#include <OpenGL/OpenGL.hpp>
 #include <linal/hmat.hpp>
+#include <linal/vec.hpp>
+#include <algorithm>
+#include <cstddef>
 #include <vector>
 
 namespace geoqik
@@ -140,6 +144,75 @@ public:
     }
   }
 
+  void draw_lines_and_points(const linal::hmatf& mvp, const linal::double3& viewPosition) const
+  {
+    struct TransparentDrawable
+    {
+      enum class Type
+      {
+        line,
+        point
+      };
+
+      Type type{};
+      std::size_t index{};
+      double distanceSquared{};
+    };
+
+    std::vector<TransparentDrawable> transparentDrawables;
+    transparentDrawables.reserve(m_lineDrawables.size() + m_pointDrawables.size());
+
+    for (std::size_t i = 0; i < m_lineDrawables.size(); ++i)
+    {
+      const auto& drawable = m_lineDrawables[i];
+      if (drawable.is_translucent())
+      {
+        transparentDrawables.push_back({TransparentDrawable::Type::line, i, drawable.distance_squared_to(viewPosition)});
+      }
+      else
+      {
+        drawable.draw(mvp);
+      }
+    }
+
+    for (std::size_t i = 0; i < m_pointDrawables.size(); ++i)
+    {
+      const auto& drawable = m_pointDrawables[i];
+      if (drawable.is_translucent())
+      {
+        transparentDrawables.push_back({TransparentDrawable::Type::point, i, drawable.distance_squared_to(viewPosition)});
+      }
+      else
+      {
+        drawable.draw(mvp);
+      }
+    }
+
+    std::sort(transparentDrawables.begin(),
+              transparentDrawables.end(),
+              [](const TransparentDrawable& lhs, const TransparentDrawable& rhs)
+              { return lhs.distanceSquared > rhs.distanceSquared; });
+
+    if (transparentDrawables.empty())
+    {
+      return;
+    }
+
+    glDepthMask(GL_FALSE);
+    for (const auto& transparentDrawable: transparentDrawables)
+    {
+      if (transparentDrawable.type == TransparentDrawable::Type::line)
+      {
+        m_lineDrawables[transparentDrawable.index].draw(mvp);
+      }
+      else
+      {
+        m_pointDrawables[transparentDrawable.index].draw(mvp);
+      }
+    }
+    glDepthMask(GL_TRUE);
+  }
+
   void draw_meshes(const linal::hmatf& modelMatrix,
                    const linal::hmatf& viewMatrix,
                    const linal::hmatf& projectionMatrix,
@@ -150,10 +223,50 @@ public:
                    const linal::float3& ambientColor,
                    float shininess) const
   {
-    for (const auto& drawable: m_meshDrawables)
+    struct TransparentMesh
     {
-      drawable.draw(modelMatrix, viewMatrix, projectionMatrix, normalMatrix, lightPosition, viewPos, lightColor, ambientColor, shininess);
+      std::size_t index{};
+      double distanceSquared{};
+    };
+
+    const linal::double3 viewPositionDouble{static_cast<double>(viewPos[0]), static_cast<double>(viewPos[1]), static_cast<double>(viewPos[2])};
+    std::vector<TransparentMesh> transparentMeshes;
+    transparentMeshes.reserve(m_meshDrawables.size());
+
+    for (std::size_t i = 0; i < m_meshDrawables.size(); ++i)
+    {
+      const auto& drawable = m_meshDrawables[i];
+      if (drawable.is_translucent())
+      {
+        transparentMeshes.push_back({i, drawable.distance_squared_to(viewPositionDouble)});
+      }
+      else
+      {
+        drawable.draw(modelMatrix, viewMatrix, projectionMatrix, normalMatrix, lightPosition, viewPos, lightColor, ambientColor, shininess);
+      }
     }
+
+    std::sort(transparentMeshes.begin(),
+              transparentMeshes.end(),
+              [](const TransparentMesh& lhs, const TransparentMesh& rhs) { return lhs.distanceSquared > rhs.distanceSquared; });
+
+    if (transparentMeshes.empty())
+    {
+      return;
+    }
+
+    const GLboolean cullFaceWasEnabled = glIsEnabled(GL_CULL_FACE);
+    glDepthMask(GL_FALSE);
+    glDisable(GL_CULL_FACE);
+    for (const auto& transparentMesh: transparentMeshes)
+    {
+      m_meshDrawables[transparentMesh.index].draw(modelMatrix, viewMatrix, projectionMatrix, normalMatrix, lightPosition, viewPos, lightColor, ambientColor, shininess);
+    }
+    if (cullFaceWasEnabled == GL_TRUE)
+    {
+      glEnable(GL_CULL_FACE);
+    }
+    glDepthMask(GL_TRUE);
   }
 };
 
