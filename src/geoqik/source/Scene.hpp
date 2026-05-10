@@ -165,8 +165,8 @@ public:
   float get_line_width() const { return m_lineWidth; }
   void set_line_width(float lineWidth) { m_lineWidth = lineWidth; }
 
-  std::array<float, 3> get_line_color() const { return m_lineBuffer->get_line_color(); }
-  void set_line_color(float r, float g, float b) { m_lineBuffer->set_line_color(r, g, b); }
+  std::array<float, 3> get_default_line_color() const { return m_lineBuffer->get_default_color(); }
+  void set_default_line_color(float r, float g, float b) { m_lineBuffer->set_default_color(r, g, b); }
 
   void create_point_drawable()
   {

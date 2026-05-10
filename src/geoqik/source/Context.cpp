@@ -145,12 +145,12 @@ void Context::set_line_width(float lineWidth)
 
 std::array<float, 3> Context::get_line_color()
 {
-  return m_scene.get_line_color();
+  return m_scene.get_default_line_color();
 }
 
 void Context::set_line_color(std::array<float, 3> color)
 {
-  m_scene.set_line_color(color[0], color[1], color[2]);
+  m_scene.set_default_line_color(color[0], color[1], color[2]);
   ++m_geometryMessagesProcessedThisFrame;
 }
 

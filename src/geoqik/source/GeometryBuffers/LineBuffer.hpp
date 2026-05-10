@@ -5,6 +5,7 @@
 #include "Core/Assert.hpp"
 #include "Core/UUID.hpp"
 #include "GeoQikSettings.hpp"
+#include "GeometryBuffers/GeometryBufferConcept.hpp"
 #include "linal/linal.hpp"
 #include <cassert>
 #include <cstdint>
@@ -102,8 +103,6 @@ public:
   [[nodiscard]] static constexpr std::int32_t get_point_dimension() { return m_pointDimension; }
   [[nodiscard]] static constexpr std::int32_t get_color_dimension() { return m_colorDimension; }
 
-  [[nodiscard]] std::array<float, 3> get_line_color() const { return m_currentLineColor; }
-
   // clang-format off
   [[nodiscard]] std::span<const float> get_lines() const { return m_lines.get_as_span(); }
   [[nodiscard]] std::span<const float> get_line_colors() const { return m_lineColors.get_as_span(); }
@@ -112,6 +111,9 @@ public:
 
   [[nodiscard]] std::size_t get_line_capacity() const { return m_lines.capacity() / (2 * m_pointDimension); }
   [[nodiscard]] std::size_t get_free_line_capacity() const { return m_lines.free_capacity() / (2 * m_pointDimension); }
+
+  [[nodiscard]] std::array<float, 3> get_default_color() const { return m_currentLineColor; }
+  void set_default_color(float r, float g, float b) { m_currentLineColor = {r, g, b}; }
 
   bool has_space_for_lines(std::size_t count) const { return m_lines.free_capacity() >= count * 2 * m_pointDimension; }
 
@@ -296,8 +298,6 @@ public:
     m_linesHaveChanged = true;
   }
 
-  void set_line_color(float r, float g, float b) { m_currentLineColor = {r, g, b}; }
-
   void translate_geometry(core::UUID handle, float dx, float dy, float dz)
   {
     auto lineIt = m_handleToLineIndexMapping.find(handle);
@@ -362,6 +362,8 @@ private:
     assert(m_lineIndices.capacity() == settings.initialLineCapacity * 2);
   }
 };
+
+static_assert(GeometryBuffer<LineBuffer>);
 
 }
 
