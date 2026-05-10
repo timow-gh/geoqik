@@ -73,7 +73,7 @@ class Context
 
   std::unordered_set<IdempotencyData, IdempotencyData::Hash> m_idempotencySet;
 
-  Scene m_scene;
+  GLScene m_scene;
   bool m_isDrawing{false};
   std::size_t m_frameCount{0};
   std::size_t m_drawAtEveryNGeometryChanges{10};

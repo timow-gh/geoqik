@@ -34,7 +34,7 @@ bool Context::init_window(const GeoQikSettings& geoqikSettings, const WindowSett
   m_geoqikSettings = geoqikSettings;
   m_windowSettings = std::make_unique<WindowSettings>(settings);
 
-  m_scene = Scene::create(geoqikSettings, &m_programManager.get_point_program(), &m_programManager.get_line_program());
+  m_scene = GLScene::create(geoqikSettings, &m_programManager.get_point_program(), &m_programManager.get_line_program());
 
   if (glfwInit() == 0)
   {

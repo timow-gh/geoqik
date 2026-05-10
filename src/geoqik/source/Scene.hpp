@@ -12,7 +12,7 @@
 namespace geoqik
 {
 
-class Scene
+class GLScene
 {
   std::unique_ptr<PointBuffer> m_pointBuffer;
   std::unique_ptr<LineBuffer> m_lineBuffer;
@@ -26,10 +26,10 @@ class Scene
   opengl::BufferAccessPattern m_accessPattern{opengl::BufferAccessPattern::STREAM_DRAW};
 
 public:
-  Scene() = default;
-  Scene(const Scene&) = delete;
-  Scene& operator=(const Scene&) = delete;
-  Scene(Scene&& other) noexcept
+  GLScene() = default;
+  GLScene(const GLScene&) = delete;
+  GLScene& operator=(const GLScene&) = delete;
+  GLScene(GLScene&& other) noexcept
       : m_pointBuffer(std::move(other.m_pointBuffer))
       , m_lineBuffer(std::move(other.m_lineBuffer))
       , m_drawablesManager(std::move(other.m_drawablesManager))
@@ -41,7 +41,7 @@ public:
     other.m_lineBuffer = nullptr;
     other.m_pointBuffer = nullptr;
   }
-  Scene& operator=(Scene&& other) noexcept
+  GLScene& operator=(GLScene&& other) noexcept
   {
     m_lineBuffer = std::move(other.m_lineBuffer);
     m_pointBuffer = std::move(other.m_pointBuffer);
@@ -52,11 +52,11 @@ public:
     m_accessPattern = other.m_accessPattern;
     return *this;
   }
-  ~Scene() = default;
+  ~GLScene() = default;
 
-  static Scene create(const GeoQikSettings& geoqikSettings, opengl::PointProgram* pointProgram, opengl::LineProgram* lineProgram)
+  static GLScene create(const GeoQikSettings& geoqikSettings, opengl::PointProgram* pointProgram, opengl::LineProgram* lineProgram)
   {
-    Scene scene(pointProgram, lineProgram);
+    GLScene scene(pointProgram, lineProgram);
     scene.m_pointBuffer = PointBuffer::create(geoqikSettings);
     scene.m_pointSize = geoqikSettings.defaultPointSize;
     scene.m_lineBuffer = LineBuffer::create(geoqikSettings);
@@ -265,7 +265,7 @@ public:
   }
 
 private:
-  Scene(opengl::PointProgram* pointProgram, opengl::LineProgram* lineProgram)
+  GLScene(opengl::PointProgram* pointProgram, opengl::LineProgram* lineProgram)
       : m_drawablesManager(pointProgram, lineProgram)
   {
   }
