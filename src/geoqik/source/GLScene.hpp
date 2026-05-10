@@ -160,8 +160,8 @@ public:
   float get_point_size() const { return m_pointSize; }
   void set_point_size(float pointSize) { m_pointSize = pointSize; }
 
-  std::array<float, 3> get_point_color() const { return m_pointBuffer->get_point_color(); }
-  void set_point_color(float r, float g, float b) { m_pointBuffer->set_point_color(r, g, b); }
+  std::array<float, 3> get_default_point_color() const { return m_pointBuffer->get_default_point_color(); }
+  void set_default_point_color(float r, float g, float b) { m_pointBuffer->set_default_point_color(r, g, b); }
 
   float get_line_width() const { return m_lineWidth; }
   void set_line_width(float lineWidth) { m_lineWidth = lineWidth; }

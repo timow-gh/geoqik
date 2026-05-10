@@ -100,7 +100,7 @@ public:
   [[nodiscard]] static constexpr std::int32_t get_point_dimension() { return m_pointDimension; }
   [[nodiscard]] static constexpr std::int32_t get_color_dimension() { return m_colorDimension; }
 
-  [[nodiscard]] std::array<float, 3> get_point_color() const { return m_currentPointColor; }
+  [[nodiscard]] std::array<float, 3> get_default_point_color() const { return m_currentPointColor; }
 
   // clang-format off
   [[nodiscard]] std::span<const float> get_points() const { return m_points.get_as_span(); }
@@ -235,7 +235,7 @@ public:
     m_pointsHaveChanged = true;
   }
 
-  void set_point_color(float r, float g, float b) { m_currentPointColor = {r, g, b}; }
+  void set_default_point_color(float r, float g, float b) { m_currentPointColor = {r, g, b}; }
 
   void translate_geometry(core::UUID handle, float dx, float dy, float dz)
   {

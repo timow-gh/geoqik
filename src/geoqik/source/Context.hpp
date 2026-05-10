@@ -100,7 +100,7 @@ public:
   void set_point_size(float pointSize);
 
   std::array<float, 3> get_point_color();
-  void set_point_color(std::array<float, 3> color);
+  void set_default_point_color(std::array<float, 3> color);
 
   float get_line_width();
   void set_line_width(float lineWidth);

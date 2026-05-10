@@ -123,12 +123,12 @@ void Context::set_point_size(float pointSize)
 
 std::array<float, 3> Context::get_point_color()
 {
-  return m_scene.get_point_color();
+  return m_scene.get_default_point_color();
 }
 
-void Context::set_point_color(std::array<float, 3> color)
+void Context::set_default_point_color(std::array<float, 3> color)
 {
-  m_scene.set_point_color(color[0], color[1], color[2]);
+  m_scene.set_default_point_color(color[0], color[1], color[2]);
   ++m_geometryMessagesProcessedThisFrame;
 }
 
@@ -504,7 +504,7 @@ void Context::initialize_message_handlers()
   m_messageHandlers[GeoQikMessageType::SET_POINT_COLOR] = [](Context& ctx, const GeoQikMessage& msg)
   {
     const auto& color = msg.data.color;
-    ctx.set_point_color(std::array<float, 3>{color.r, color.g, color.b});
+    ctx.set_default_point_color(std::array<float, 3>{color.r, color.g, color.b});
   };
 
   m_messageHandlers[GeoQikMessageType::GET_POINT_COLOR] = [](Context& ctx, const GeoQikMessage& msg)
