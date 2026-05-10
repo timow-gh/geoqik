@@ -11,19 +11,20 @@ set(geoqik_SOURCE_FILES
         source/CameraProjectionType.hpp
         source/Context.hpp
         source/Context.cpp
+        source/GeometryHelpers.hpp
         source/GeometryBuffers/LineBuffer.hpp
         source/GeometryBuffers/PointBuffer.hpp
         source/GeoQik_Glfw.hpp
         source/GeoQik.cpp
         source/GeoQikMessages.hpp
         source/GeoQikSettings.hpp
+        source/GLScene.hpp
         source/InputState.hpp
         source/InputState.cpp
         source/MathConstants.hpp
         source/OpenGLDrawablesManager.hpp
         source/PickRay.hpp
         source/RayPlaneIntersection.hpp
-        source/Scene.hpp
         source/Viewport.hpp
         source/WindowSettings.hpp
 )

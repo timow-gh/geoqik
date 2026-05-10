@@ -7,7 +7,7 @@
 #include "GeoQikMessages.hpp"
 #include "GeoQikSettings.hpp"
 #include "GeoQik_Glfw.hpp"
-#include "Scene.hpp"
+#include "GLScene.hpp"
 #include "WindowSettings.hpp"
 #include <Core/UUID.hpp>
 #include <OpenGL/Programs/ProgramManager.hpp>
