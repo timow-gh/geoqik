@@ -69,7 +69,7 @@ public:
   {
     if (m_pointBuffer->has_space_for_points(1) == false)
     {
-      recreated_drawables();
+      recreate_point_drawables();
       m_pointBuffer->add_point(x, y, z, handle);
       return;
     }
@@ -80,7 +80,7 @@ public:
   {
     if (m_pointBuffer->has_space_for_points(1) == false)
     {
-      recreated_drawables();
+      recreate_point_drawables();
       m_pointBuffer->add_point(x, y, z, r, g, b, a, handle);
       return;
     }
@@ -91,7 +91,7 @@ public:
   {
     if (m_pointBuffer->has_space_for_points(points.size() / 3) == false)
     {
-      recreated_drawables(points.size() / 3);
+      recreate_point_drawables(points.size() / 3);
       m_pointBuffer->add_points(points, colors, handle);
       return;
     }
@@ -104,7 +104,7 @@ public:
   {
     if (m_lineBuffer->has_space_for_lines(1) == false)
     {
-      recreated_drawables();
+      recreated_line_drawables();
       m_lineBuffer->add_line(x1, y1, z1, x2, y2, z2, handle);
       return;
     }
@@ -115,7 +115,7 @@ public:
   {
     if (m_lineBuffer->has_space_for_lines(1) == false)
     {
-      recreated_drawables();
+      recreated_line_drawables();
       m_lineBuffer->add_line(x1, y1, z1, x2, y2, z2, r, g, b, a, handle);
       return;
     }
@@ -126,7 +126,7 @@ public:
   {
     if (m_lineBuffer->has_space_for_lines(lines.size() / 6) == false)
     {
-      recreated_drawables(lines.size() / 6);
+      recreated_line_drawables(lines.size() / 6);
       m_lineBuffer->add_lines(lines, colors, handle);
       return;
     }
@@ -270,20 +270,17 @@ private:
   {
   }
 
-  void recreated_drawables(std::size_t numberOfNewElements = 0)
+  void recreated_line_drawables(std::size_t numberOfNewElements = 0)
   {
     clear_drawables();
 
     if (numberOfNewElements > 0)
     {
       // Calc the new growth factor based on the current capacity and the missing capacity
-      std::size_t freePointCapacity = m_pointBuffer->get_free_point_capacity();
       std::size_t freeLineCapacity = m_lineBuffer->get_free_line_capacity();
-      std::size_t minNewPointCapacity = numberOfNewElements - freePointCapacity;
       std::size_t minNewLineCapacity = numberOfNewElements - freeLineCapacity;
-      std::size_t newPointCapacity = m_geomBufferGrowthFactor * m_pointBuffer->get_point_capacity() + minNewPointCapacity;
       std::size_t newLineCapacity = m_geomBufferGrowthFactor * m_lineBuffer->get_line_capacity() + minNewLineCapacity;
-      std::size_t growthFactor = std::max(newPointCapacity / m_pointBuffer->get_point_capacity(), newLineCapacity / m_lineBuffer->get_line_capacity());
+      std::size_t growthFactor = newLineCapacity / m_lineBuffer->get_line_capacity();
       m_lineBuffer = LineBuffer::create_from(std::move(*m_lineBuffer), growthFactor);
     }
     else
@@ -293,6 +290,26 @@ private:
 
     create_point_drawable();
     create_line_drawable();
+  }
+
+  void recreate_point_drawables(std::size_t numberOfNewElements = 0)
+  {
+    clear_drawables();
+
+    if (numberOfNewElements > 0)
+    {
+      std::size_t freePointCapacity = m_pointBuffer->get_free_point_capacity();
+      std::size_t minNewPointCapacity = numberOfNewElements - freePointCapacity;
+      std::size_t newPointCapacity = m_geomBufferGrowthFactor * m_pointBuffer->get_point_capacity() + minNewPointCapacity;
+      std::size_t growthFactor = newPointCapacity / m_pointBuffer->get_point_capacity();
+      m_pointBuffer = PointBuffer::create_from(std::move(*m_pointBuffer), growthFactor);
+    }
+    else
+    {
+      m_pointBuffer = PointBuffer::create_from(std::move(*m_pointBuffer), m_geomBufferGrowthFactor);
+    }
+
+    create_point_drawable();
   }
 
 };

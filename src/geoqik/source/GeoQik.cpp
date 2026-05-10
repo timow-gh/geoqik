@@ -212,6 +212,11 @@ static geoqik_error_code_t run_render_thread(const geoqik::GeoQikSettings& geoqi
   {
     return GEOQIK_ERROR_MEMORY_ALLOCATION;
   }
+  catch(const std::exception& e)
+  {
+    std::cerr << "Exception in GeoQik render thread: " << e.what() << std::endl;
+    return GEOQIK_ERROR_UNKNOWN;
+  }
   catch (...)
   {
     get_message_queue().clear();

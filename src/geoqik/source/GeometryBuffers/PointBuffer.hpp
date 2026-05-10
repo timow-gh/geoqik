@@ -111,7 +111,7 @@ public:
   [[nodiscard]] std::size_t get_point_capacity() const { return m_points.capacity() / m_pointDimension; }
   [[nodiscard]] std::size_t get_free_point_capacity() const { return m_points.free_capacity() / m_pointDimension; }
 
-  bool has_space_for_points(std::size_t count) const { return m_points.free_capacity() >= count * m_pointDimension; }
+  bool has_space_for_points(std::size_t count) const { return get_free_point_capacity() >= count; }
 
   void add_point(float x, float y, float z, const core::UUID* handle = nullptr)
   {

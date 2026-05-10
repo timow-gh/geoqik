@@ -115,7 +115,7 @@ public:
   [[nodiscard]] Color get_default_color() const { return m_currentLineColor; }
   void set_default_color(float r, float g, float b, float a) { m_currentLineColor = {r, g, b, a}; }
 
-  bool has_space_for_lines(std::size_t count) const { return m_lines.free_capacity() >= count * 2 * m_pointDimension; }
+  bool has_space_for_lines(std::size_t count) const { return get_free_line_capacity() >= count; }
 
   void add_lines(std::span<const float> lines, std::span<const float> colors, const core::UUID* handle = nullptr)
   {
