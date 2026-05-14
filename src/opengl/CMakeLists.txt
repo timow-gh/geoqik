@@ -13,6 +13,7 @@ set(opengl_HEADER_FILES
         include/OpenGL/VertexBuffer.hpp
         include/OpenGL/BufferId.hpp
         include/OpenGL/FmtIncludeHelper.hpp
+        include/OpenGL/FrameState.hpp
         include/OpenGL/BufferAccessPattern.hpp
         include/OpenGL/IndexBuffer.hpp
         include/OpenGL/LineType.hpp
@@ -29,6 +30,7 @@ set(opengl_HEADER_FILES
 
 set(opengl_SOURCE_FILES
         source/IndexBuffer.cpp
+        source/FrameState.cpp
         source/Programs/CreateProgram.cpp
         source/Programs/LineProgram.cpp
         source/Programs/MeshProgram.cpp

@@ -5,7 +5,6 @@ function(create_geoqik_internal_test testName)
 endfunction()
 
 create_geoqik_internal_test(BufferTest)
-create_geoqik_internal_test(GLSceneTest)
 create_geoqik_internal_test(GeometryBufferTest)
 create_geoqik_internal_test(SceneTest)
 create_geoqik_internal_test(TransparencySortingTest)

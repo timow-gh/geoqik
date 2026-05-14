@@ -4,17 +4,17 @@
 #include "Camera.hpp"
 #include "CameraInteractor.hpp"
 #include "ConcurrentQueue/ConcurrentQueue.hpp"
-#include "GLScene.hpp"
 #include "GeoQikMessages.hpp"
 #include "GeoQikSettings.hpp"
 #include "IdempotencyData.hpp"
+#include "Scene.hpp"
 #include "WindowSettings.hpp"
 #include <Core/UUID.hpp>
-#include <OpenGL/Programs/ProgramManager.hpp>
 #include <atomic>
 #include <cassert>
 #include <chrono>
 #include <compare>
+#include <functional>
 #include <memory>
 #include <unordered_map>
 #include <unordered_set>
@@ -24,6 +24,7 @@ namespace geoqik
 {
 
 class GlfwWindow;
+class OpenGLSceneRenderer;
 
 void init_message_queue(ConcurrentQueue<GeoQikMessage>&& messageQueue);
 [[nodiscard]] ConcurrentQueue<GeoQikMessage>& get_message_queue();
@@ -38,8 +39,6 @@ class Context
   std::unique_ptr<WindowSettings> m_windowSettings;
 
   std::unique_ptr<GlfwWindow> m_window;
-
-  opengl::ProgramManager m_programManager;
   std::atomic<bool> m_windowShouldClose{false};
 
   std::unique_ptr<CameraInteractor> m_cameraInteractor;
@@ -48,7 +47,8 @@ class Context
 
   std::unordered_set<IdempotencyData, IdempotencyData::Hash> m_idempotencySet;
 
-  GLScene m_scene;
+  Scene m_scene;
+  std::unique_ptr<OpenGLSceneRenderer> m_renderer;
   bool m_isDrawing{false};
   std::size_t m_frameCount{0};
   std::size_t m_drawAtEveryNGeometryChanges{10};
@@ -117,10 +117,6 @@ private:
   void initialize_message_handlers();
 
   [[nodiscard]] bool is_known_idempotency_key(const core::UUID* key);
-
-  [[nodiscard]] opengl::ProgramManager& get_program_manager();
-  [[nodiscard]] opengl::PointProgram& get_point_program() { return m_programManager.get_point_program(); }
-  [[nodiscard]] opengl::LineProgram& get_line_program() { return m_programManager.get_line_program(); }
 
   void print_frame_info(const std::chrono::high_resolution_clock::time_point& startTime,
                         const std::chrono::high_resolution_clock::time_point& messageProcessingEndTime,

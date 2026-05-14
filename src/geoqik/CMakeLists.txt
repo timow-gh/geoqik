@@ -21,13 +21,14 @@ set(geoqik_SOURCE_FILES
         source/GeoQikSettings.hpp
         source/GlfwWindow.cpp
         source/GlfwWindow.hpp
-        source/GLScene.hpp
         source/IdempotencyData.hpp
         source/InputState.hpp
         source/InputState.cpp
         source/MathConstants.hpp
         source/PickRay.hpp
         source/RayPlaneIntersection.hpp
+        source/Rendering/OpenGLSceneRenderer.cpp
+        source/Rendering/OpenGLSceneRenderer.hpp
         source/Scene.cpp
         source/Scene.hpp
         source/Viewport.hpp

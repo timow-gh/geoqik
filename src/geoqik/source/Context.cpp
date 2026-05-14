@@ -1,8 +1,8 @@
 #include "Context.hpp"
 #include "GlfwWindow.hpp"
 #include "GeoQikMessages.hpp"
+#include "Rendering/OpenGLSceneRenderer.hpp"
 #include <Core/Assert.hpp>
-#include <OpenGL/OpenGL.hpp>
 #include <fmt/format.h>
 
 namespace geoqik
@@ -36,7 +36,7 @@ bool Context::init_window(const GeoQikSettings& geoqikSettings, const WindowSett
   m_geoqikSettings = geoqikSettings;
   m_windowSettings = std::make_unique<WindowSettings>(settings);
 
-  m_scene = GLScene::create(geoqikSettings, &m_programManager.get_point_program(), &m_programManager.get_line_program());
+  m_scene = Scene::create(geoqikSettings);
 
   m_window = std::make_unique<GlfwWindow>();
   if (!m_window->create(*m_windowSettings))
@@ -50,7 +50,8 @@ bool Context::init_window(const GeoQikSettings& geoqikSettings, const WindowSett
   m_backgroundColor[2] = m_geoqikSettings.backgroundColor[2];
   m_backgroundColor[3] = m_geoqikSettings.backgroundColor[3];
 
-  m_programManager.compile();
+  m_renderer = std::make_unique<OpenGLSceneRenderer>();
+  m_renderer->compile_programs();
 
   // For high DPI, the frame buffer size may be different from the window size.
   const auto [framebufferWidth, framebufferHeight] = m_window->get_framebuffer_size();
@@ -126,6 +127,10 @@ void Context::add_point_with_opts(float x, float y, float z, const GeoQikMessage
   {
     return;
   }
+  if (m_scene.ensure_point_capacity(1))
+  {
+    m_renderer->recreate_point_drawables(m_scene);
+  }
   if (commonData.rgba && commonData.rgbaCount >= ColorChannelCount)
   {
     m_scene.add_point(x, y, z, commonData.rgba[0], commonData.rgba[1], commonData.rgba[2], commonData.rgba[3], &commonData.geometryId);
@@ -142,6 +147,10 @@ void Context::add_points_with_opts(const float* points, std::size_t count, const
   if (is_known_idempotency_key(&commonData.idempotencyId))
   {
     return;
+  }
+  if (m_scene.ensure_point_capacity(count / 3))
+  {
+    m_renderer->recreate_point_drawables(m_scene);
   }
   m_scene.add_points(std::span<const float>(points, count), std::span<const float>(commonData.rgba, commonData.rgbaCount), &commonData.geometryId);
   ++m_geometryMessagesProcessedThisFrame;
@@ -166,6 +175,10 @@ void Context::add_line(float x1,
   {
     return;
   }
+  if (m_scene.ensure_line_capacity(1))
+  {
+    m_renderer->recreate_line_drawables(m_scene);
+  }
   m_scene.add_line(x1, y1, z1, x2, y2, z2, handle);
   ++m_geometryMessagesProcessedThisFrame;
 }
@@ -187,6 +200,10 @@ void Context::add_line(float x1,
   {
     return;
   }
+  if (m_scene.ensure_line_capacity(1))
+  {
+    m_renderer->recreate_line_drawables(m_scene);
+  }
   m_scene.add_line(x1, y1, z1, x2, y2, z2, r, g, b, a, handle);
   ++m_geometryMessagesProcessedThisFrame;
 }
@@ -196,6 +213,10 @@ void Context::add_line_with_opts(float x1, float y1, float z1, float x2, float y
   if (is_known_idempotency_key(&commonData.idempotencyId))
   {
     return;
+  }
+  if (m_scene.ensure_line_capacity(1))
+  {
+    m_renderer->recreate_line_drawables(m_scene);
   }
   if (commonData.rgba && commonData.rgbaCount >= ColorChannelCount)
   {
@@ -214,6 +235,10 @@ void Context::add_lines_with_opts(const float* lines, std::size_t count, const G
   {
     return;
   }
+  if (m_scene.ensure_line_capacity(count / 6))
+  {
+    m_renderer->recreate_line_drawables(m_scene);
+  }
   m_scene.add_lines(std::span<const float>(lines, count),
                     std::span<const float>(commonData.rgba, commonData.rgbaCount),
                     &commonData.geometryId);
@@ -229,6 +254,7 @@ void Context::remove_line(const core::UUID& handle)
 void Context::remove_all_geometry()
 {
   m_scene.clear();
+  m_renderer->clear_drawables();
   ++m_geometryMessagesProcessedThisFrame;
 }
 
@@ -288,23 +314,10 @@ void Context::run_event_loop()
       break;
     }
 
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    glClearColor(m_backgroundColor[0], m_backgroundColor[1], m_backgroundColor[2], m_backgroundColor[3]);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    glEnable(GL_CULL_FACE);
-    glEnable(GL_DEPTH_TEST);
-    glDepthFunc(GL_LESS);
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glEnable(GL_MULTISAMPLE);
-
     const auto& viewport = m_cameraInteractor->get_viewport();
-    glViewport(static_cast<GLint>(viewport.get_xpos()),
-               static_cast<GLint>(viewport.get_ypos()),
-               static_cast<GLsizei>(viewport.get_width()),
-               static_cast<GLsizei>(viewport.get_height()));
+    m_renderer->begin_frame(m_backgroundColor, viewport);
 
-    if (m_scene.update_drawable_buffers())
+    if (m_renderer->sync_scene(m_scene))
     {
       // Update the camera, since the scene geometry has changed
       // First get the current bounding sphere of the scene
@@ -333,7 +346,7 @@ void Context::run_event_loop()
     }
 
     mvp = m_cameraInteractor->get_current_MVP();
-    m_scene.draw(mvp, m_cameraInteractor->get_position());
+    m_renderer->draw(mvp, m_cameraInteractor->get_position());
     m_window->swap_buffers();
 
     ////////////-------------------------------------
@@ -417,8 +430,12 @@ bool Context::cleanup()
 
   m_window->make_context_current();
 
-  m_scene.clear_drawables();
-  m_programManager.reset();
+  if (m_renderer)
+  {
+    m_renderer->clear_drawables();
+    m_renderer->reset_programs();
+    m_renderer.reset();
+  }
 
   m_window->destroy();
   m_window.reset();
@@ -561,11 +578,6 @@ bool Context::is_known_idempotency_key(const core::UUID* key)
     }
   }
   return false;
-}
-
-opengl::ProgramManager& Context::get_program_manager()
-{
-  return m_programManager;
 }
 
 void Context::print_frame_info(const std::chrono::high_resolution_clock::time_point& startTime,

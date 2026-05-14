@@ -1,6 +1,7 @@
 #include "Scene.hpp"
 #include "MathConstants.hpp"
 #include <gtest/gtest.h>
+#include <iterator>
 
 namespace
 {
@@ -60,6 +61,55 @@ TEST(SceneTest, CalculatesBoundingSphereAcrossPointsAndLines)
   const auto sphere = scene.calc_bounding_sphere(linal::float3{0.0f, 0.0f, 0.0f});
 
   EXPECT_FLOAT_EQ(sphere.get_radius(), 12.0f);
+}
+
+TEST(SceneTest, AddsBulkPointsAndLines)
+{
+  auto scene = geoqik::Scene::create(make_scene_test_settings());
+
+  const float points[] = {
+      0.0f, 1.0f, 2.0f,
+      3.0f, 4.0f, 5.0f,
+  };
+  const float pointColor[] = {0.9f, 0.8f, 0.7f, 0.6f};
+  scene.add_points(points, pointColor);
+
+  const float lines[] = {
+      0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f,
+      0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 0.0f,
+  };
+  const float lineColors[] = {
+      0.1f, 0.2f, 0.3f, 0.4f,
+      0.5f, 0.6f, 0.7f, 0.8f,
+  };
+  scene.add_lines(lines, lineColors);
+
+  EXPECT_EQ(scene.get_point_buffer().get_points().size(), std::size(points));
+  EXPECT_EQ(scene.get_point_buffer().get_point_colors().size(), 2 * geoqik::ColorChannelCount);
+  EXPECT_EQ(scene.get_point_buffer().get_point_indices().size(), 2);
+  EXPECT_EQ(scene.get_line_buffer().get_lines().size(), std::size(lines));
+  EXPECT_EQ(scene.get_line_buffer().get_line_colors().size(), 4 * geoqik::ColorChannelCount);
+  EXPECT_EQ(scene.get_line_buffer().get_line_indices().size(), 4);
+}
+
+TEST(SceneTest, RemovesPointAndLineGeometry)
+{
+  auto scene = geoqik::Scene::create(make_scene_test_settings());
+  const auto pointId = core::UUID::generate();
+  const auto lineId = core::UUID::generate();
+
+  scene.add_point(0.0f, 0.0f, 0.0f, &pointId);
+  scene.add_point(1.0f, 1.0f, 1.0f);
+  scene.add_line(0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, &lineId);
+  scene.add_line(0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 0.0f);
+
+  scene.remove_point(pointId);
+  scene.remove_line(lineId);
+
+  EXPECT_EQ(scene.get_point_buffer().get_points().size(), 3);
+  EXPECT_EQ(scene.get_point_buffer().get_point_indices().size(), 1);
+  EXPECT_EQ(scene.get_line_buffer().get_lines().size(), 6);
+  EXPECT_EQ(scene.get_line_buffer().get_line_indices().size(), 2);
 }
 
 TEST(SceneTest, ClearRemovesPointsAndLinesFromBoundingSphere)
