@@ -1,7 +1,8 @@
 #include "Context.hpp"
+#include "GlfwWindow.hpp"
 #include "GeoQikMessages.hpp"
-#include "GeoQik_Glfw.hpp"
 #include <Core/Assert.hpp>
+#include <OpenGL/OpenGL.hpp>
 #include <fmt/format.h>
 
 namespace geoqik
@@ -19,9 +20,13 @@ ConcurrentQueue<GeoQikMessage>& get_message_queue()
   return g_messageQueue;
 }
 
+Context::Context() = default;
+
+Context::~Context() = default;
+
 bool Context::init_window(const GeoQikSettings& geoqikSettings, const WindowSettings& settings)
 {
-  if (m_glfwWindow != nullptr)
+  if (m_window && m_window->is_initialized())
   {
     fmt::print("GeoQik context is already initialized.\n");
     CORE_ASSERT(false);
@@ -33,47 +38,13 @@ bool Context::init_window(const GeoQikSettings& geoqikSettings, const WindowSett
 
   m_scene = GLScene::create(geoqikSettings, &m_programManager.get_point_program(), &m_programManager.get_line_program());
 
-  if (glfwInit() == 0)
+  m_window = std::make_unique<GlfwWindow>();
+  if (!m_window->create(*m_windowSettings))
   {
-    const char* description = nullptr;
-    glfwGetError(&description);
-    fmt::print("Error: {}\n", description);
-    CORE_ASSERT(false);
+    m_window.reset();
     return false;
   }
 
-  glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-  glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-
-  // Set window hints based on the provided hints
-  set_window_hints(*m_windowSettings);
-
-  GLFWwindow* glfwWindow = glfwCreateWindow(static_cast<int>(m_windowSettings->width),
-                                            static_cast<int>(m_windowSettings->height),
-                                            m_windowSettings->title,
-                                            NULL,
-                                            NULL);
-
-  if (glfwWindow == nullptr)
-  {
-    const char* description = nullptr;
-    glfwGetError(&description);
-    fmt::print("Error: {}\n", description);
-    glfwTerminate();
-    CORE_ASSERT(false);
-    return false;
-  }
-
-  glfwMakeContextCurrent(glfwWindow);
-  if (gladLoadGLLoader(reinterpret_cast<GLADloadproc>(glfwGetProcAddress)) == 0)
-  {
-    fmt::print("Failed to initialize OpenGL context\n");
-    CORE_ASSERT(false);
-    return false;
-  }
-
-  m_glfwWindow = glfwWindow;
   m_backgroundColor[0] = m_geoqikSettings.backgroundColor[0];
   m_backgroundColor[1] = m_geoqikSettings.backgroundColor[1];
   m_backgroundColor[2] = m_geoqikSettings.backgroundColor[2];
@@ -82,9 +53,7 @@ bool Context::init_window(const GeoQikSettings& geoqikSettings, const WindowSett
   m_programManager.compile();
 
   // For high DPI, the frame buffer size may be different from the window size.
-  int framebufferWidth{0};
-  int framebufferHeight{0};
-  glfwGetFramebufferSize(glfwWindow, &framebufferWidth, &framebufferHeight);
+  const auto [framebufferWidth, framebufferHeight] = m_window->get_framebuffer_size();
   if (framebufferWidth <= 0 || framebufferHeight <= 0)
   {
     fmt::print("Error: Invalid framebuffer size: {}x{}\n", framebufferWidth, framebufferHeight);
@@ -95,12 +64,12 @@ bool Context::init_window(const GeoQikSettings& geoqikSettings, const WindowSett
   CameraSettings cameraSettings;
   cameraSettings.m_camera.set_viewport(0, 0, static_cast<std::uint32_t>(framebufferWidth), static_cast<std::uint32_t>(framebufferHeight));
 
-  m_cameraInteractor = std::make_unique<CameraInteractor>(*get_input_state(m_glfwWindow), cameraSettings);
+  m_cameraInteractor = std::make_unique<CameraInteractor>(m_window->get_input_state(), cameraSettings);
 
-  set_cursor_pos_callback(m_glfwWindow, [this](double xpos, double ypos) { m_cameraInteractor->on_cursor_position(xpos, ypos); });
-  set_scroll_callback(m_glfwWindow, [this](double xoff, double yoff) { m_cameraInteractor->on_scroll(xoff, yoff); });
-  set_mouse_button_callback(m_glfwWindow, [this](int button, Action action, Mods mods) { m_cameraInteractor->on_mouse_button(button, action, mods); });
-  set_framebuffer_size_callback(m_glfwWindow, [this](std::uint32_t width, std::uint32_t height) { m_cameraInteractor->on_framebuffer_size(width, height); });
+  m_window->set_cursor_pos_callback([this](double xpos, double ypos) { m_cameraInteractor->on_cursor_position(xpos, ypos); });
+  m_window->set_scroll_callback([this](double xoff, double yoff) { m_cameraInteractor->on_scroll(xoff, yoff); });
+  m_window->set_mouse_button_callback([this](int button, Action action, Mods mods) { m_cameraInteractor->on_mouse_button(button, action, mods); });
+  m_window->set_framebuffer_size_callback([this](std::uint32_t width, std::uint32_t height) { m_cameraInteractor->on_framebuffer_size(width, height); });
 
   initialize_message_handlers();
 
@@ -291,29 +260,29 @@ const Viewport& Context::get_viewport()
 
 void Context::run_event_loop()
 {
-  assert(m_glfwWindow);
+  assert(m_window && m_window->is_initialized());
 
   auto& messageQueue = get_message_queue();
   while (!m_windowShouldClose)
   {
     std::chrono::high_resolution_clock::time_point frameStartTime = std::chrono::high_resolution_clock::now();
 
-    glfwMakeContextCurrent(m_glfwWindow);
+    m_window->make_context_current();
 
     linal::hmatf mvp;
     mvp = m_cameraInteractor->get_current_MVP();
 
-    glfwPollEvents();
+    m_window->poll_events();
 
     // Check for escape key or window close event to stop drawing
-    if (glfwGetKey(m_glfwWindow, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+    if (m_window->is_escape_pressed())
     {
       m_windowShouldClose.store(true);
       break;
     }
 
     // Check if glfw got a request to close the window via the close button
-    if (glfwWindowShouldClose(m_glfwWindow))
+    if (m_window->should_close())
     {
       m_windowShouldClose.store(true);
       break;
@@ -365,7 +334,7 @@ void Context::run_event_loop()
 
     mvp = m_cameraInteractor->get_current_MVP();
     m_scene.draw(mvp, m_cameraInteractor->get_position());
-    glfwSwapBuffers(m_glfwWindow);
+    m_window->swap_buffers();
 
     ////////////-------------------------------------
     // Process messages in the queue
@@ -440,23 +409,19 @@ void Context::run_event_loop()
 
 bool Context::cleanup()
 {
-  if (!m_glfwWindow)
+  if (!m_window || !m_window->is_initialized())
   {
     fmt::print("GLFW window is not initialized.\n");
     return false;
   }
 
-  glfwMakeContextCurrent(m_glfwWindow);
+  m_window->make_context_current();
 
   m_scene.clear_drawables();
   m_programManager.reset();
 
-  clear_callbacks(m_glfwWindow);
-
-  glfwDestroyWindow(m_glfwWindow);
-  m_glfwWindow = nullptr;
-
-  glfwTerminate();
+  m_window->destroy();
+  m_window.reset();
 
   return true;
 }
@@ -596,38 +561,6 @@ bool Context::is_known_idempotency_key(const core::UUID* key)
     }
   }
   return false;
-}
-
-
-void Context::set_window_hints(const WindowSettings& hints)
-{
-  glfwWindowHint(GLFW_RED_BITS, hints.red_bits);
-  glfwWindowHint(GLFW_GREEN_BITS, hints.green_bits);
-  glfwWindowHint(GLFW_BLUE_BITS, hints.blue_bits);
-  glfwWindowHint(GLFW_ALPHA_BITS, hints.alpha_bits);
-  glfwWindowHint(GLFW_DEPTH_BITS, hints.depth_bits);
-  glfwWindowHint(GLFW_STENCIL_BITS, hints.stencil_bits);
-  glfwWindowHint(GLFW_ACCUM_RED_BITS, hints.accum_red_bits);
-  glfwWindowHint(GLFW_ACCUM_GREEN_BITS, hints.accum_green_bits);
-  glfwWindowHint(GLFW_ACCUM_BLUE_BITS, hints.accum_blue_bits);
-  glfwWindowHint(GLFW_ACCUM_ALPHA_BITS, hints.accum_alpha_bits);
-  glfwWindowHint(GLFW_AUX_BUFFERS, hints.aux_buffers);
-  glfwWindowHint(GLFW_SAMPLES, hints.samples);
-  glfwWindowHint(GLFW_REFRESH_RATE, hints.refresh_rate);
-  glfwWindowHint(GLFW_STEREO, window_hint_to_glfw_hint(hints.stereo));
-  glfwWindowHint(GLFW_SRGB_CAPABLE, window_hint_to_glfw_hint(hints.srgb_capable));
-  glfwWindowHint(GLFW_DOUBLEBUFFER, window_hint_to_glfw_hint(hints.double_buffer));
-  glfwWindowHint(GLFW_RESIZABLE, window_hint_to_glfw_hint(hints.resizable));
-  glfwWindowHint(GLFW_VISIBLE, window_hint_to_glfw_hint(hints.visible));
-  glfwWindowHint(GLFW_DECORATED, window_hint_to_glfw_hint(hints.decorated));
-  glfwWindowHint(GLFW_FOCUSED, window_hint_to_glfw_hint(hints.focused));
-  glfwWindowHint(GLFW_AUTO_ICONIFY, window_hint_to_glfw_hint(hints.auto_iconify));
-  glfwWindowHint(GLFW_FLOATING, window_hint_to_glfw_hint(hints.floating));
-  glfwWindowHint(GLFW_MAXIMIZED, window_hint_to_glfw_hint(hints.maximized));
-  glfwWindowHint(GLFW_CENTER_CURSOR, window_hint_to_glfw_hint(hints.center_cursor));
-  glfwWindowHint(GLFW_TRANSPARENT_FRAMEBUFFER, window_hint_to_glfw_hint(hints.transparent_framebuffer));
-  glfwWindowHint(GLFW_FOCUS_ON_SHOW, window_hint_to_glfw_hint(hints.focus_on_show));
-  glfwWindowHint(GLFW_SCALE_TO_MONITOR, window_hint_to_glfw_hint(hints.scale_to_monitor));
 }
 
 opengl::ProgramManager& Context::get_program_manager()

@@ -7,7 +7,6 @@
 #include "GLScene.hpp"
 #include "GeoQikMessages.hpp"
 #include "GeoQikSettings.hpp"
-#include "GeoQik_Glfw.hpp"
 #include "IdempotencyData.hpp"
 #include "WindowSettings.hpp"
 #include <Core/UUID.hpp>
@@ -24,6 +23,8 @@
 namespace geoqik
 {
 
+class GlfwWindow;
+
 void init_message_queue(ConcurrentQueue<GeoQikMessage>&& messageQueue);
 [[nodiscard]] ConcurrentQueue<GeoQikMessage>& get_message_queue();
 
@@ -36,7 +37,7 @@ class Context
   GeoQikSettings m_geoqikSettings;
   std::unique_ptr<WindowSettings> m_windowSettings;
 
-  GLFWwindow* m_glfwWindow = nullptr;
+  std::unique_ptr<GlfwWindow> m_window;
 
   opengl::ProgramManager m_programManager;
   std::atomic<bool> m_windowShouldClose{false};
@@ -58,7 +59,8 @@ class Context
   std::unordered_map<GeoQikMessageType, MessageHandler> m_messageHandlers;
 
 public:
-  Context() = default;
+  Context();
+  ~Context();
 
   static std::unique_ptr<Context> create(const GeoQikSettings& geoqikSettings, const WindowSettings& settings)
   {
@@ -112,9 +114,6 @@ public:
   bool cleanup();
 
 private:
-  [[nodiscard]] static int window_hint_to_glfw_hint(bool hint) { return hint ? 1 : 0; }
-  void set_window_hints(const WindowSettings& hints);
-
   void initialize_message_handlers();
 
   [[nodiscard]] bool is_known_idempotency_key(const core::UUID* key);

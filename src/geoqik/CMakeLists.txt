@@ -19,6 +19,8 @@ set(geoqik_SOURCE_FILES
         source/GeoQik.cpp
         source/GeoQikMessages.hpp
         source/GeoQikSettings.hpp
+        source/GlfwWindow.cpp
+        source/GlfwWindow.hpp
         source/GLScene.hpp
         source/IdempotencyData.hpp
         source/InputState.hpp
