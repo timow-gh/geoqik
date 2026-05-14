@@ -2,10 +2,7 @@
 #include "GeoQikMessages.hpp"
 #include "GeoQik_Glfw.hpp"
 #include <Core/Assert.hpp>
-#include <OpenGL/Drawable/LineDrawable.hpp>
-#include <OpenGL/Drawable/PointDrawable.hpp>
-#include <OpenGL/FmtIncludeHelper.hpp>
-#include <mutex>
+#include <fmt/format.h>
 
 namespace geoqik
 {

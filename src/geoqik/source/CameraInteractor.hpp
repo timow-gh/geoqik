@@ -3,7 +3,6 @@
 
 #include "Camera.hpp"
 #include "InputState.hpp"
-#include "OpenGL/FmtIncludeHelper.hpp"
 #include "PickRay.hpp"
 #include "RayPlaneIntersection.hpp"
 #include <Core/Warnings.hpp>
