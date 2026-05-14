@@ -5,7 +5,7 @@
 #include "GeometryBuffers/PointBuffer.hpp"
 #include "GeometryHelpers.hpp"
 #include "OpenGL/BufferAccessPattern.hpp"
-#include "OpenGLDrawablesManager.hpp"
+#include "OpenGL/Drawable/DrawablesManager.hpp"
 #include <Geometry/ExtremePointsInDirection.hpp>
 #include <Geometry/Sphere.hpp>
 #include <linal/vec.hpp>
@@ -18,7 +18,7 @@ class GLScene
   std::unique_ptr<PointBuffer> m_pointBuffer;
   std::unique_ptr<LineBuffer> m_lineBuffer;
   std::size_t m_geomBufferGrowthFactor{3};
-  OpenGLDrawablesManager m_drawablesManager;
+  opengl::DrawablesManager m_drawablesManager;
   float m_pointSize{3.0f};
   float m_lineWidth{1.0f};
 
@@ -141,7 +141,7 @@ public:
     m_lineBuffer->rotate_geometry(handle, centerX, centerY, centerZ, axisX, axisY, axisZ, angle);
   }
 
-  [[nodiscard]] const OpenGLDrawablesManager& get_drawables_manager() const { return m_drawablesManager; }
+  [[nodiscard]] const opengl::DrawablesManager& get_drawables_manager() const { return m_drawablesManager; }
 
   [[nodiscard]] const LineBuffer& get_geometry_buffer() const { return *m_lineBuffer; }
 

@@ -24,7 +24,6 @@ set(geoqik_SOURCE_FILES
         source/InputState.hpp
         source/InputState.cpp
         source/MathConstants.hpp
-        source/OpenGLDrawablesManager.hpp
         source/PickRay.hpp
         source/RayPlaneIntersection.hpp
         source/Viewport.hpp

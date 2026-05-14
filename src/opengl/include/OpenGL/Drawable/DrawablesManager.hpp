@@ -1,5 +1,5 @@
-#ifndef OPENGLDRAWABLESMANAGER_HPP
-#define OPENGLDRAWABLESMANAGER_HPP
+#ifndef OPENGL_DRAWABLE_DRAWABLESMANAGER_HPP
+#define OPENGL_DRAWABLE_DRAWABLESMANAGER_HPP
 
 #include <OpenGL/Drawable/LineDrawable.hpp>
 #include <OpenGL/Drawable/MeshDrawable.hpp>
@@ -11,10 +11,10 @@
 #include <cstddef>
 #include <vector>
 
-namespace geoqik
+namespace opengl
 {
 
-class OpenGLDrawablesManager
+class DrawablesManager
 {
   struct ScopedDepthMask
   {
@@ -60,8 +60,8 @@ class OpenGLDrawablesManager
   std::vector<opengl::MeshDrawable> m_meshDrawables;
 
 public:
-  OpenGLDrawablesManager() = default;
-  OpenGLDrawablesManager(opengl::PointProgram* pointProgram, opengl::LineProgram* lineProgram)
+  DrawablesManager() = default;
+  DrawablesManager(opengl::PointProgram* pointProgram, opengl::LineProgram* lineProgram)
       : m_pointProgram(pointProgram)
       , m_lineProgram(lineProgram)
   {
@@ -324,6 +324,6 @@ public:
   }
 };
 
-} // namespace geoqik
+} // namespace opengl
 
-#endif // OPENGLDRAWABLESMANAGER_HPP
+#endif // OPENGL_DRAWABLE_DRAWABLESMANAGER_HPP
