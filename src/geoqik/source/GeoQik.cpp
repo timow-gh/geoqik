@@ -25,75 +25,155 @@ std::atomic<bool> g_apiIsInitialized{false};
 // Forward declarations for internal C++ functions
 namespace geoqik_internal
 {
+static geoqik_settings_t create_default_c_settings()
+{
+  geoqik_settings_t settings{};
+
+  settings.maxMessageQueueSize = 1000000;
+  settings.initialPointCapacity = 100000;
+  settings.initialLineCapacity = 100000;
+  settings.capacityGrowthFactor = 2;
+  settings.defaultPointSize = 4.0f;
+  settings.defaultLineWidth = 2.0f;
+  settings.defaultPointColor[0] = 1.0f;
+  settings.defaultPointColor[1] = 1.0f;
+  settings.defaultPointColor[2] = 1.0f;
+  settings.defaultPointColor[3] = 1.0f;
+  settings.defaultLineColor[0] = 1.0f;
+  settings.defaultLineColor[1] = 1.0f;
+  settings.defaultLineColor[2] = 1.0f;
+  settings.defaultLineColor[3] = 1.0f;
+  settings.backgroundColor[0] = 0.1f;
+  settings.backgroundColor[1] = 0.1f;
+  settings.backgroundColor[2] = 0.1f;
+  settings.backgroundColor[3] = 1.0f;
+  settings.cameraFarPlaneMultiplier = 3.0;
+  settings.minGeometryProcessingTimeMs = 16;
+  settings.maxFrameProcessingTimeMs = 16;
+  settings.updateSceneFrequency = 5;
+
+  return settings;
+}
+
+static geoqik_window_settings_t create_default_c_window_settings()
+{
+  geoqik_window_settings_t settings{};
+
+  settings.title = "GeoQik Viewer";
+  settings.width = 1280;
+  settings.height = 720;
+  settings.red_bits = 8;
+  settings.green_bits = 8;
+  settings.blue_bits = 8;
+  settings.alpha_bits = 8;
+  settings.depth_bits = 24;
+  settings.stencil_bits = 8;
+  settings.accum_red_bits = 0;
+  settings.accum_green_bits = 0;
+  settings.accum_blue_bits = 0;
+  settings.accum_alpha_bits = 0;
+  settings.aux_buffers = 0;
+  settings.samples = 8;
+  settings.refresh_rate = -1;
+  settings.stereo = 0;
+  settings.srgb_capable = 0;
+  settings.double_buffer = 1;
+  settings.resizable = 1;
+  settings.visible = 1;
+  settings.decorated = 1;
+  settings.focused = 1;
+  settings.auto_iconify = 1;
+  settings.floating = 0;
+  settings.maximized = 0;
+  settings.center_cursor = 0;
+  settings.transparent_framebuffer = 0;
+  settings.focus_on_show = 1;
+  settings.scale_to_monitor = 1;
+
+  return settings;
+}
+
 static bool api_is_initialized()
 {
   return g_apiIsInitialized.load(std::memory_order_acquire);
 }
 
-static geoqik::GeoQikSettings convert_to_cpp_settings(const geoqik_settings_t* c_settings)
+static geoqik::GeoQikSettings convert_to_cpp_settings(const geoqik_settings_t& c_settings)
 {
   geoqik::GeoQikSettings cpp_settings;
+  cpp_settings.maxMessageQueueSize = c_settings.maxMessageQueueSize;
+  cpp_settings.initialPointCapacity = c_settings.initialPointCapacity;
+  cpp_settings.initialLineCapacity = c_settings.initialLineCapacity;
+  cpp_settings.capacityGrowthFactor = c_settings.capacityGrowthFactor;
+  cpp_settings.defaultPointSize = c_settings.defaultPointSize;
+  cpp_settings.defaultLineWidth = c_settings.defaultLineWidth;
+
+  for (size_t i = 0; i < ColorChannelCount; ++i)
+  {
+    cpp_settings.defaultPointColor[i] = c_settings.defaultPointColor[i];
+    cpp_settings.defaultLineColor[i] = c_settings.defaultLineColor[i];
+    cpp_settings.backgroundColor[i] = c_settings.backgroundColor[i];
+  }
+
+  cpp_settings.cameraFarPlaneMultiplier = c_settings.cameraFarPlaneMultiplier;
+  cpp_settings.minGeometryProcessingTime = std::chrono::milliseconds(c_settings.minGeometryProcessingTimeMs);
+  cpp_settings.maxFrameProcessingTime = std::chrono::milliseconds(c_settings.maxFrameProcessingTimeMs);
+  cpp_settings.updateSceneFrequency = c_settings.updateSceneFrequency;
+  return cpp_settings;
+}
+
+static geoqik::GeoQikSettings convert_to_cpp_settings(const geoqik_settings_t* c_settings)
+{
   if (c_settings)
   {
-    cpp_settings.maxMessageQueueSize = c_settings->maxMessageQueueSize;
-    cpp_settings.initialPointCapacity = c_settings->initialPointCapacity;
-    cpp_settings.initialLineCapacity = c_settings->initialLineCapacity;
-    cpp_settings.capacityGrowthFactor = c_settings->capacityGrowthFactor;
-    cpp_settings.defaultPointSize = c_settings->defaultPointSize;
-    cpp_settings.defaultLineWidth = c_settings->defaultLineWidth;
-
-    for (size_t i = 0; i < ColorChannelCount; ++i)
-    {
-      cpp_settings.defaultPointColor[i] = c_settings->defaultPointColor[i];
-      cpp_settings.defaultLineColor[i] = c_settings->defaultLineColor[i];
-      cpp_settings.backgroundColor[i] = c_settings->backgroundColor[i];
-    }
-
-    cpp_settings.cameraFarPlaneMultiplier = c_settings->cameraFarPlaneMultiplier;
-    cpp_settings.minGeometryProcessingTime = std::chrono::milliseconds(c_settings->minGeometryProcessingTimeMs);
-    cpp_settings.maxFrameProcessingTime = std::chrono::milliseconds(c_settings->maxFrameProcessingTimeMs);
-    cpp_settings.updateSceneFrequency = c_settings->updateSceneFrequency;
+    return convert_to_cpp_settings(*c_settings);
   }
+  return convert_to_cpp_settings(create_default_c_settings());
+}
+
+static geoqik::WindowSettings convert_to_cpp_window_settings(const geoqik_window_settings_t& c_settings)
+{
+  geoqik::WindowSettings cpp_settings;
+  cpp_settings.title = c_settings.title ? c_settings.title : create_default_c_window_settings().title;
+  cpp_settings.width = c_settings.width;
+  cpp_settings.height = c_settings.height;
+  cpp_settings.red_bits = c_settings.red_bits;
+  cpp_settings.green_bits = c_settings.green_bits;
+  cpp_settings.blue_bits = c_settings.blue_bits;
+  cpp_settings.alpha_bits = c_settings.alpha_bits;
+  cpp_settings.depth_bits = c_settings.depth_bits;
+  cpp_settings.stencil_bits = c_settings.stencil_bits;
+  cpp_settings.accum_red_bits = c_settings.accum_red_bits;
+  cpp_settings.accum_green_bits = c_settings.accum_green_bits;
+  cpp_settings.accum_blue_bits = c_settings.accum_blue_bits;
+  cpp_settings.accum_alpha_bits = c_settings.accum_alpha_bits;
+  cpp_settings.aux_buffers = c_settings.aux_buffers;
+  cpp_settings.samples = c_settings.samples;
+  cpp_settings.refresh_rate = c_settings.refresh_rate;
+  cpp_settings.stereo = c_settings.stereo != 0;
+  cpp_settings.srgb_capable = c_settings.srgb_capable != 0;
+  cpp_settings.double_buffer = c_settings.double_buffer != 0;
+  cpp_settings.resizable = c_settings.resizable != 0;
+  cpp_settings.visible = c_settings.visible != 0;
+  cpp_settings.decorated = c_settings.decorated != 0;
+  cpp_settings.focused = c_settings.focused != 0;
+  cpp_settings.auto_iconify = c_settings.auto_iconify != 0;
+  cpp_settings.floating = c_settings.floating != 0;
+  cpp_settings.maximized = c_settings.maximized != 0;
+  cpp_settings.center_cursor = c_settings.center_cursor != 0;
+  cpp_settings.transparent_framebuffer = c_settings.transparent_framebuffer != 0;
+  cpp_settings.focus_on_show = c_settings.focus_on_show != 0;
+  cpp_settings.scale_to_monitor = c_settings.scale_to_monitor != 0;
   return cpp_settings;
 }
 
 static geoqik::WindowSettings convert_to_cpp_window_settings(const geoqik_window_settings_t* c_settings)
 {
-  geoqik::WindowSettings cpp_settings;
   if (c_settings)
   {
-    cpp_settings.title = c_settings->title ? c_settings->title : "GeoQik Viewer";
-    cpp_settings.width = c_settings->width;
-    cpp_settings.height = c_settings->height;
-    cpp_settings.red_bits = c_settings->red_bits;
-    cpp_settings.green_bits = c_settings->green_bits;
-    cpp_settings.blue_bits = c_settings->blue_bits;
-    cpp_settings.alpha_bits = c_settings->alpha_bits;
-    cpp_settings.depth_bits = c_settings->depth_bits;
-    cpp_settings.stencil_bits = c_settings->stencil_bits;
-    cpp_settings.accum_red_bits = c_settings->accum_red_bits;
-    cpp_settings.accum_green_bits = c_settings->accum_green_bits;
-    cpp_settings.accum_blue_bits = c_settings->accum_blue_bits;
-    cpp_settings.accum_alpha_bits = c_settings->accum_alpha_bits;
-    cpp_settings.aux_buffers = c_settings->aux_buffers;
-    cpp_settings.samples = c_settings->samples;
-    cpp_settings.refresh_rate = c_settings->refresh_rate;
-    cpp_settings.stereo = c_settings->stereo != 0;
-    cpp_settings.srgb_capable = c_settings->srgb_capable != 0;
-    cpp_settings.double_buffer = c_settings->double_buffer != 0;
-    cpp_settings.resizable = c_settings->resizable != 0;
-    cpp_settings.visible = c_settings->visible != 0;
-    cpp_settings.decorated = c_settings->decorated != 0;
-    cpp_settings.focused = c_settings->focused != 0;
-    cpp_settings.auto_iconify = c_settings->auto_iconify != 0;
-    cpp_settings.floating = c_settings->floating != 0;
-    cpp_settings.maximized = c_settings->maximized != 0;
-    cpp_settings.center_cursor = c_settings->center_cursor != 0;
-    cpp_settings.transparent_framebuffer = c_settings->transparent_framebuffer != 0;
-    cpp_settings.focus_on_show = c_settings->focus_on_show != 0;
-    cpp_settings.scale_to_monitor = c_settings->scale_to_monitor != 0;
+    return convert_to_cpp_window_settings(*c_settings);
   }
-  return cpp_settings;
+  return convert_to_cpp_window_settings(create_default_c_window_settings());
 }
 
 static bool validate_finite_coords(double x, double y, double z)
@@ -356,9 +436,8 @@ geoqik_error_code_t geoqik_init()
   return geoqik_internal::execute_if_not_initialized(
       [&]() -> geoqik_error_code_t
       {
-        // Use default settings
-        geoqik::GeoQikSettings defaultGeoQikSettings;
-        geoqik::WindowSettings defaultWindowSettings;
+        geoqik::GeoQikSettings defaultGeoQikSettings = geoqik_internal::convert_to_cpp_settings(nullptr);
+        geoqik::WindowSettings defaultWindowSettings = geoqik_internal::convert_to_cpp_window_settings(nullptr);
 
         g_apiIsInitialized.store(true, std::memory_order_release);
         try
@@ -380,29 +459,7 @@ void geoqik_create_default_settings(geoqik_settings_t* settings)
   if (!settings)
     return;
 
-  // Initialize with default values matching GeoQikSettings defaults
-  settings->maxMessageQueueSize = 1000000;
-  settings->initialPointCapacity = 100000;
-  settings->initialLineCapacity = 100000;
-  settings->capacityGrowthFactor = 2;
-  settings->defaultPointSize = 4.0f;
-  settings->defaultLineWidth = 2.0f;
-  settings->defaultPointColor[0] = 1.0f;
-  settings->defaultPointColor[1] = 1.0f;
-  settings->defaultPointColor[2] = 1.0f;
-  settings->defaultPointColor[3] = 1.0f;
-  settings->defaultLineColor[0] = 1.0f;
-  settings->defaultLineColor[1] = 1.0f;
-  settings->defaultLineColor[2] = 1.0f;
-  settings->defaultLineColor[3] = 1.0f;
-  settings->backgroundColor[0] = 0.1f;
-  settings->backgroundColor[1] = 0.1f;
-  settings->backgroundColor[2] = 0.1f;
-  settings->backgroundColor[3] = 1.0f;
-  settings->cameraFarPlaneMultiplier = 3.0;
-  settings->minGeometryProcessingTimeMs = 16;
-  settings->maxFrameProcessingTimeMs = 16;
-  settings->updateSceneFrequency = 5;
+  *settings = geoqik_internal::create_default_c_settings();
 }
 
 void geoqik_init_default_window_settings(geoqik_window_settings_t* settings)
@@ -410,37 +467,7 @@ void geoqik_init_default_window_settings(geoqik_window_settings_t* settings)
   if (!settings)
     return;
 
-  // Initialize with default values matching WindowSettings defaults
-  settings->title = "GeoQik Viewer";
-  settings->width = 1920;
-  settings->height = 1080;
-  settings->red_bits = 8;
-  settings->green_bits = 8;
-  settings->blue_bits = 8;
-  settings->alpha_bits = 8;
-  settings->depth_bits = 24;
-  settings->stencil_bits = 8;
-  settings->accum_red_bits = 0;
-  settings->accum_green_bits = 0;
-  settings->accum_blue_bits = 0;
-  settings->accum_alpha_bits = 0;
-  settings->aux_buffers = 0;
-  settings->samples = 8;
-  settings->refresh_rate = -1;
-  settings->stereo = 0;
-  settings->srgb_capable = 0;
-  settings->double_buffer = 1;
-  settings->resizable = 1;
-  settings->visible = 1;
-  settings->decorated = 1;
-  settings->focused = 1;
-  settings->auto_iconify = 1;
-  settings->floating = 0;
-  settings->maximized = 0;
-  settings->center_cursor = 0;
-  settings->transparent_framebuffer = 0;
-  settings->focus_on_show = 1;
-  settings->scale_to_monitor = 1;
+  *settings = geoqik_internal::create_default_c_window_settings();
 }
 
 geoqik_error_code_t geoqik_init_with_settings(const geoqik_settings_t* geoqikSettings, const geoqik_window_settings_t* windowSettings)

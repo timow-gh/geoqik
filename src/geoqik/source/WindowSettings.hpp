@@ -17,8 +17,8 @@ namespace geoqik
 struct GEOQIK_EXPORT WindowSettings
 {
   const char* title = "GeoQik Viewer";  ///< Title of the window.
-  std::uint32_t width = 1920;           ///< Width of the window.
-  std::uint32_t height = 1080;          ///< Height of the window.
+  std::uint32_t width = 1280;           ///< Width of the window.
+  std::uint32_t height = 720;           ///< Height of the window.
 
   int red_bits = 8;                     ///< Number of bits for the red channel.
   int green_bits = 8;                   ///< Number of bits for the green channel.
