@@ -148,6 +148,29 @@ struct ReplayCurrentLog
   std::function<void(Context& context)> callback;
 };
 
+struct PauseReplay
+{
+};
+
+struct ResumeReplay
+{
+};
+
+struct StepReplay
+{
+  std::size_t count;
+};
+
+struct GetReplayState
+{
+  std::function<void(Context& context)> callback;
+};
+
+struct GetReplayProgress
+{
+  std::function<void(Context& context)> callback;
+};
+
 struct GetPointSize
 {
   std::function<void(Context& context)> callback;
@@ -205,6 +228,11 @@ using GeoQikMessage = std::variant<AddPointWithOpts,
                                    LoadLog,
                                    ReplayLog,
                                    ReplayCurrentLog,
+                                   PauseReplay,
+                                   ResumeReplay,
+                                   StepReplay,
+                                   GetReplayState,
+                                   GetReplayProgress,
                                    GetPointSize,
                                    GetPointColor,
                                    GetLineWidth,

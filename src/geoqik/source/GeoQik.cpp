@@ -13,6 +13,7 @@
 #include <string>
 #include <thread>
 #include <type_traits>
+#include <utility>
 #include <vector>
 
 using namespace geoqik;
@@ -1022,6 +1023,86 @@ geoqik_error_code_t geoqik_cancel_replay()
       [&]() -> geoqik_error_code_t
       {
         request_replay_cancel();
+        return GEOQIK_SUCCESS;
+      });
+}
+
+geoqik_error_code_t geoqik_pause_replay()
+{
+  return geoqik_internal::execute_if_initialized(
+      [&]() -> geoqik_error_code_t { return enqueue(GeoQikMessage{PauseReplay{}}); });
+}
+
+geoqik_error_code_t geoqik_resume_replay()
+{
+  return geoqik_internal::execute_if_initialized(
+      [&]() -> geoqik_error_code_t { return enqueue(GeoQikMessage{ResumeReplay{}}); });
+}
+
+geoqik_error_code_t geoqik_step_replay()
+{
+  return geoqik_step_replay_n(1);
+}
+
+geoqik_error_code_t geoqik_step_replay_n(size_t count)
+{
+  if (count == 0)
+  {
+    return GEOQIK_ERROR_INVALID_PARAMETER;
+  }
+
+  return geoqik_internal::execute_if_initialized(
+      [&]() -> geoqik_error_code_t { return enqueue(GeoQikMessage{StepReplay{count}}); });
+}
+
+geoqik_error_code_t geoqik_get_replay_state(geoqik_replay_state_t* state)
+{
+  if (!state)
+  {
+    return GEOQIK_ERROR_INVALID_PARAMETER;
+  }
+
+  return geoqik_internal::execute_if_initialized(
+      [&]() -> geoqik_error_code_t
+      {
+        std::promise<geoqik_replay_state_t> promise;
+        std::future<geoqik_replay_state_t> future = promise.get_future();
+
+        auto enqueueResult =
+            enqueue(GeoQikMessage{GetReplayState{[&promise](Context& context) { promise.set_value(context.get_replay_state()); }}});
+        if (enqueueResult != GEOQIK_SUCCESS)
+        {
+          return enqueueResult;
+        }
+
+        *state = future.get();
+        return GEOQIK_SUCCESS;
+      });
+}
+
+geoqik_error_code_t geoqik_get_replay_progress(size_t* currentEntry, size_t* totalEntries)
+{
+  if (!currentEntry || !totalEntries)
+  {
+    return GEOQIK_ERROR_INVALID_PARAMETER;
+  }
+
+  return geoqik_internal::execute_if_initialized(
+      [&]() -> geoqik_error_code_t
+      {
+        std::promise<std::pair<std::size_t, std::size_t>> promise;
+        std::future<std::pair<std::size_t, std::size_t>> future = promise.get_future();
+
+        auto enqueueResult =
+            enqueue(GeoQikMessage{GetReplayProgress{[&promise](Context& context) { promise.set_value(context.get_replay_progress()); }}});
+        if (enqueueResult != GEOQIK_SUCCESS)
+        {
+          return enqueueResult;
+        }
+
+        const auto [current, total] = future.get();
+        *currentEntry = current;
+        *totalEntries = total;
         return GEOQIK_SUCCESS;
       });
 }

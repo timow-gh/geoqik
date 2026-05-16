@@ -535,12 +535,67 @@ void Context::cancel_replay()
 {
   if (!is_replaying())
   {
+    m_isReplayPaused = false;
     return;
   }
 
   m_replayEntries.clear();
   m_replayEntryIndex = 0;
   m_replayEntryBudget = 0.0;
+  m_isReplayPaused = false;
+}
+
+void Context::pause_replay()
+{
+  if (is_replaying())
+  {
+    m_isReplayPaused = true;
+  }
+}
+
+void Context::resume_replay()
+{
+  if (is_replaying())
+  {
+    m_isReplayPaused = false;
+    m_replayEntryBudget = 0.0;
+    m_lastReplayTick = std::chrono::high_resolution_clock::now();
+  }
+}
+
+void Context::step_replay_entries(std::size_t count)
+{
+  if (!is_replaying())
+  {
+    return;
+  }
+
+  m_isReplayPaused = true;
+  m_replayEntryBudget = 0.0;
+  apply_replay_entries(count);
+
+  if (!is_replaying())
+  {
+    finish_replay();
+  }
+}
+
+geoqik_replay_state_t Context::get_replay_state() const
+{
+  if (!is_replaying())
+  {
+    return GEOQIK_REPLAY_INACTIVE;
+  }
+  return m_isReplayPaused ? GEOQIK_REPLAY_PAUSED : GEOQIK_REPLAY_PLAYING;
+}
+
+std::pair<std::size_t, std::size_t> Context::get_replay_progress() const
+{
+  if (!is_replaying())
+  {
+    return {0, 0};
+  }
+  return {m_replayEntryIndex, m_replayEntries.size()};
 }
 
 void Context::handle_message(const AddPointWithOpts& message)
@@ -649,6 +704,33 @@ void Context::handle_message(const ReplayCurrentLog& message)
   message.callback(*this);
 }
 
+void Context::handle_message([[maybe_unused]] const PauseReplay& message)
+{
+  pause_replay();
+}
+
+void Context::handle_message([[maybe_unused]] const ResumeReplay& message)
+{
+  resume_replay();
+}
+
+void Context::handle_message(const StepReplay& message)
+{
+  step_replay_entries(message.count);
+}
+
+void Context::handle_message(const GetReplayState& message)
+{
+  CORE_ASSERT(message.callback);
+  message.callback(*this);
+}
+
+void Context::handle_message(const GetReplayProgress& message)
+{
+  CORE_ASSERT(message.callback);
+  message.callback(*this);
+}
+
 void Context::handle_message(const GetPointSize& message)
 {
   CORE_ASSERT(message.callback);
@@ -686,7 +768,12 @@ bool Context::is_replaying() const
 
 bool Context::is_control_message(const GeoQikMessage& message)
 {
-  return std::holds_alternative<Cleanup>(message);
+  return std::holds_alternative<Cleanup>(message) ||
+         std::holds_alternative<PauseReplay>(message) ||
+         std::holds_alternative<ResumeReplay>(message) ||
+         std::holds_alternative<StepReplay>(message) ||
+         std::holds_alternative<GetReplayState>(message) ||
+         std::holds_alternative<GetReplayProgress>(message);
 }
 
 void Context::start_replay(std::vector<GeoQikLogEntry> entries, const ReplayOptions& options)
@@ -699,6 +786,7 @@ void Context::start_replay(std::vector<GeoQikLogEntry> entries, const ReplayOpti
   m_replayEntryIndex = 0;
   m_replayEntryBudget = 0.0;
   m_replayOptions = options;
+  m_isReplayPaused = false;
   m_lastReplayTick = std::chrono::high_resolution_clock::now();
 }
 
@@ -718,6 +806,12 @@ void Context::process_replay_entries(const std::chrono::high_resolution_clock::t
     return;
   }
 
+  if (m_isReplayPaused)
+  {
+    m_lastReplayTick = now;
+    return;
+  }
+
   const std::chrono::duration<double> elapsed = now - m_lastReplayTick;
   m_lastReplayTick = now;
   m_replayEntryBudget += elapsed.count() * m_replayOptions.entriesPerSecond;
@@ -725,16 +819,24 @@ void Context::process_replay_entries(const std::chrono::high_resolution_clock::t
   std::size_t entriesToApply = static_cast<std::size_t>(m_replayEntryBudget);
   entriesToApply = std::min(entriesToApply, m_replayOptions.maxEntriesPerFrame);
 
-  for (std::size_t i = 0; i < entriesToApply && is_replaying(); ++i)
-  {
-    apply_log_entry(m_replayEntries[m_replayEntryIndex]);
-    ++m_replayEntryIndex;
-    m_replayEntryBudget -= 1.0;
-  }
+  apply_replay_entries(entriesToApply);
 
   if (!is_replaying())
   {
     finish_replay();
+  }
+}
+
+void Context::apply_replay_entries(std::size_t entriesToApply)
+{
+  for (std::size_t i = 0; i < entriesToApply && is_replaying(); ++i)
+  {
+    apply_log_entry(m_replayEntries[m_replayEntryIndex]);
+    ++m_replayEntryIndex;
+    if (m_replayEntryBudget >= 1.0)
+    {
+      m_replayEntryBudget -= 1.0;
+    }
   }
 }
 
@@ -743,6 +845,7 @@ void Context::finish_replay()
   m_replayEntries.clear();
   m_replayEntryIndex = 0;
   m_replayEntryBudget = 0.0;
+  m_isReplayPaused = false;
 }
 
 void Context::defer_or_handle_message(GeoQikMessage&& message)

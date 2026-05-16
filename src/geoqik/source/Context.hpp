@@ -18,6 +18,7 @@
 #include <deque>
 #include <memory>
 #include <span>
+#include <utility>
 #include <unordered_set>
 #include <vector>
 
@@ -67,6 +68,7 @@ class Context
   std::size_t m_replayEntryIndex{0};
   double m_replayEntryBudget{0.0};
   ReplayOptions m_replayOptions;
+  bool m_isReplayPaused{false};
   std::chrono::high_resolution_clock::time_point m_lastReplayTick;
   std::deque<GeoQikMessage> m_deferredMessages;
 
@@ -128,6 +130,11 @@ public:
   geoqik_error_code_t replay_log(const char* path, geoqik_log_format_t format, const ReplayOptions& options);
   geoqik_error_code_t replay_current_log(const ReplayOptions& options);
   void cancel_replay();
+  void pause_replay();
+  void resume_replay();
+  void step_replay_entries(std::size_t count);
+  [[nodiscard]] geoqik_replay_state_t get_replay_state() const;
+  [[nodiscard]] std::pair<std::size_t, std::size_t> get_replay_progress() const;
 
   bool cleanup();
 
@@ -136,6 +143,7 @@ private:
   [[nodiscard]] static bool is_control_message(const GeoQikMessage& message);
   void start_replay(std::vector<GeoQikLogEntry> entries, const ReplayOptions& options);
   void process_replay_entries(const std::chrono::high_resolution_clock::time_point& now);
+  void apply_replay_entries(std::size_t entriesToApply);
   void finish_replay();
   void defer_or_handle_message(GeoQikMessage&& message);
   bool process_message(GeoQikMessage&& message, bool recordLogEntry);
@@ -164,6 +172,11 @@ private:
   void handle_message(const LoadLog& message);
   void handle_message(const ReplayLog& message);
   void handle_message(const ReplayCurrentLog& message);
+  void handle_message(const PauseReplay& message);
+  void handle_message(const ResumeReplay& message);
+  void handle_message(const StepReplay& message);
+  void handle_message(const GetReplayState& message);
+  void handle_message(const GetReplayProgress& message);
   void handle_message(const GetPointSize& message);
   void handle_message(const GetPointColor& message);
   void handle_message(const GetLineWidth& message);

@@ -122,6 +122,13 @@ extern "C"
     size_t maxEntriesPerFrame; /* 0 = default 1024 */
   } geoqik_replay_options_t;
 
+  typedef enum
+  {
+    GEOQIK_REPLAY_INACTIVE = 0,
+    GEOQIK_REPLAY_PLAYING = 1,
+    GEOQIK_REPLAY_PAUSED = 2
+  } geoqik_replay_state_t;
+
   typedef struct
   {
     uint8_t value[16];
@@ -230,6 +237,24 @@ extern "C"
 
   /** \brief Cancels an active replay, leaving the scene at its current replayed state. */
   GEOQIK_EXPORT geoqik_error_code_t geoqik_cancel_replay();
+
+  /** \brief Pauses an active replay. */
+  GEOQIK_EXPORT geoqik_error_code_t geoqik_pause_replay();
+
+  /** \brief Resumes a paused replay. */
+  GEOQIK_EXPORT geoqik_error_code_t geoqik_resume_replay();
+
+  /** \brief Advances an active replay by one log entry and leaves it paused. */
+  GEOQIK_EXPORT geoqik_error_code_t geoqik_step_replay();
+
+  /** \brief Advances an active replay by count log entries and leaves it paused. */
+  GEOQIK_EXPORT geoqik_error_code_t geoqik_step_replay_n(size_t count);
+
+  /** \brief Gets the current replay state. */
+  GEOQIK_EXPORT geoqik_error_code_t geoqik_get_replay_state(geoqik_replay_state_t* state);
+
+  /** \brief Gets the current replay progress as current and total log entries. */
+  GEOQIK_EXPORT geoqik_error_code_t geoqik_get_replay_progress(size_t* currentEntry, size_t* totalEntries);
 
   /** \brief Waits for user to close the window and then cleans up resources.
    *
