@@ -4,6 +4,8 @@
 #include "Camera.hpp"
 #include "CameraInteractor.hpp"
 #include "ConcurrentQueue/ConcurrentQueue.hpp"
+#include "GeoQik/GeoQik.hpp"
+#include "GeoQikLog.hpp"
 #include "GeoQikMessages.hpp"
 #include "GeoQikSettings.hpp"
 #include "IdempotencyData.hpp"
@@ -54,6 +56,7 @@ class Context
   std::size_t m_drawAtEveryNGeometryChanges{10};
   std::size_t m_geometryMessagesProcessedThisFrame{0};
   float m_drawAtEveryNPercentOfMessages{10.0f};
+  std::vector<GeoQikLogEntry> m_messageLog;
 
   using MessageHandler = std::function<void(Context&, const GeoQikMessage&)>;
   std::unordered_map<GeoQikMessageType, MessageHandler> m_messageHandlers;
@@ -111,12 +114,17 @@ public:
 
   void run_event_loop();
 
+  geoqik_error_code_t save_log(const char* path, geoqik_log_format_t format) const;
+  geoqik_error_code_t load_log(const char* path, geoqik_log_format_t format);
+
   bool cleanup();
 
 private:
   void initialize_message_handlers();
 
   [[nodiscard]] bool is_known_idempotency_key(const core::UUID* key);
+  void replay_log_entries(const std::vector<GeoQikLogEntry>& entries);
+  void apply_log_entry(const GeoQikLogEntry& entry);
 
   void print_frame_info(const std::chrono::high_resolution_clock::time_point& startTime,
                         const std::chrono::high_resolution_clock::time_point& messageProcessingEndTime,

@@ -17,6 +17,8 @@ set(geoqik_SOURCE_FILES
         source/GeometryBuffers/PointBuffer.hpp
         source/GeoQik_Glfw.hpp
         source/GeoQik.cpp
+        source/GeoQikLog.cpp
+        source/GeoQikLog.hpp
         source/GeoQikMessages.hpp
         source/GeoQikSettings.hpp
         source/GlfwWindow.cpp
@@ -116,7 +118,9 @@ endif ()
 add_library(geoqik_internals INTERFACE)
 # This following include dir paths need to be paths with the project as its root, since the test projects rely on them.
 target_include_directories(geoqik_internals INTERFACE ${CMAKE_SOURCE_DIR}/src/geoqik/source)
-target_sources(geoqik_internals INTERFACE ${CMAKE_SOURCE_DIR}/src/geoqik/source/Scene.cpp)
+target_sources(geoqik_internals INTERFACE
+        ${CMAKE_SOURCE_DIR}/src/geoqik/source/Scene.cpp
+        ${CMAKE_SOURCE_DIR}/src/geoqik/source/GeoQikLog.cpp)
 target_link_libraries(geoqik_internals INTERFACE 
         geoqik::core linal::linal Geometry::Geometry)
 add_library(geoqik::geoqik_internals ALIAS geoqik_internals)

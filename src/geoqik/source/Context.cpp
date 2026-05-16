@@ -4,6 +4,8 @@
 #include "Rendering/OpenGLSceneRenderer.hpp"
 #include <Core/Assert.hpp>
 #include <fmt/format.h>
+#include <type_traits>
+#include <utility>
 
 namespace geoqik
 {
@@ -403,6 +405,10 @@ void Context::run_event_loop()
         auto it = m_messageHandlers.find(message->type);
         if (it != m_messageHandlers.end())
         {
+          if (auto logEntry = create_log_entry(message.value()))
+          {
+            m_messageLog.push_back(std::move(*logEntry));
+          }
           it->second(*this, message.value());
         }
         else
@@ -443,6 +449,54 @@ bool Context::cleanup()
   return true;
 }
 
+geoqik_error_code_t Context::save_log(const char* path, geoqik_log_format_t format) const
+{
+  if (!path || path[0] == '\0' || format != GEOQIK_LOG_FORMAT_BINARY)
+  {
+    return GEOQIK_ERROR_INVALID_PARAMETER;
+  }
+
+  try
+  {
+    save_log_binary(path, m_messageLog);
+    return GEOQIK_SUCCESS;
+  }
+  catch (const std::bad_alloc&)
+  {
+    return GEOQIK_ERROR_MEMORY_ALLOCATION;
+  }
+  catch (...)
+  {
+    return GEOQIK_ERROR_UNKNOWN;
+  }
+}
+
+geoqik_error_code_t Context::load_log(const char* path, geoqik_log_format_t format)
+{
+  if (!path || path[0] == '\0' || format != GEOQIK_LOG_FORMAT_BINARY)
+  {
+    return GEOQIK_ERROR_INVALID_PARAMETER;
+  }
+
+  try
+  {
+    std::vector<GeoQikLogEntry> loadedEntries = load_log_binary(path);
+    remove_all_geometry();
+    m_idempotencySet.clear();
+    replay_log_entries(loadedEntries);
+    m_messageLog = std::move(loadedEntries);
+    return GEOQIK_SUCCESS;
+  }
+  catch (const std::bad_alloc&)
+  {
+    return GEOQIK_ERROR_MEMORY_ALLOCATION;
+  }
+  catch (...)
+  {
+    return GEOQIK_ERROR_UNKNOWN;
+  }
+}
+
 void Context::initialize_message_handlers()
 {
   // Draw control messages
@@ -455,6 +509,18 @@ void Context::initialize_message_handlers()
   m_messageHandlers[GeoQikMessageType::DRAW] = [](Context& ctx, [[maybe_unused]] const GeoQikMessage& msg) { ctx.m_isDrawing = true; };
 
   m_messageHandlers[GeoQikMessageType::STOP_DRAW] = [](Context& ctx, [[maybe_unused]] const GeoQikMessage& msg) { ctx.m_isDrawing = false; };
+
+  m_messageHandlers[GeoQikMessageType::SAVE_LOG] = []([[maybe_unused]] Context& ctx, const GeoQikMessage& msg)
+  {
+    CORE_ASSERT(msg.callback);
+    msg.callback(ctx);
+  };
+
+  m_messageHandlers[GeoQikMessageType::LOAD_LOG] = []([[maybe_unused]] Context& ctx, const GeoQikMessage& msg)
+  {
+    CORE_ASSERT(msg.callback);
+    msg.callback(ctx);
+  };
 
   m_messageHandlers[GeoQikMessageType::ADD_POINT_WITH_OPTS] = [](Context& ctx, const GeoQikMessage& msg)
   {
@@ -578,6 +644,92 @@ bool Context::is_known_idempotency_key(const core::UUID* key)
     }
   }
   return false;
+}
+
+void Context::replay_log_entries(const std::vector<GeoQikLogEntry>& entries)
+{
+  for (const GeoQikLogEntry& entry: entries)
+  {
+    apply_log_entry(entry);
+  }
+}
+
+void Context::apply_log_entry(const GeoQikLogEntry& entry)
+{
+  std::visit(
+      [this](const auto& value)
+      {
+        using T = std::decay_t<decltype(value)>;
+        if constexpr (std::is_same_v<T, GeoQikLogAddPointWithOpts>)
+        {
+          GeoQikMessageData::CommonMessageData commonData{value.commonData.geometryId,
+                                                          value.commonData.idempotencyId,
+                                                          const_cast<float*>(value.commonData.rgba.data()),
+                                                          value.commonData.rgba.size()};
+          add_point_with_opts(value.x, value.y, value.z, commonData);
+        }
+        else if constexpr (std::is_same_v<T, GeoQikLogAddPointsWithOpts>)
+        {
+          GeoQikMessageData::CommonMessageData commonData{value.commonData.geometryId,
+                                                          value.commonData.idempotencyId,
+                                                          const_cast<float*>(value.commonData.rgba.data()),
+                                                          value.commonData.rgba.size()};
+          add_points_with_opts(const_cast<float*>(value.points.data()), value.points.size(), commonData);
+        }
+        else if constexpr (std::is_same_v<T, GeoQikLogRemovePoint>)
+        {
+          remove_point(value.handle);
+        }
+        else if constexpr (std::is_same_v<T, GeoQikLogSetPointSize>)
+        {
+          set_point_size(value.size);
+        }
+        else if constexpr (std::is_same_v<T, GeoQikLogSetPointColor>)
+        {
+          set_default_point_color(value.color);
+        }
+        else if constexpr (std::is_same_v<T, GeoQikLogAddLineWithOpts>)
+        {
+          GeoQikMessageData::CommonMessageData commonData{value.commonData.geometryId,
+                                                          value.commonData.idempotencyId,
+                                                          const_cast<float*>(value.commonData.rgba.data()),
+                                                          value.commonData.rgba.size()};
+          add_line_with_opts(value.x1, value.y1, value.z1, value.x2, value.y2, value.z2, commonData);
+        }
+        else if constexpr (std::is_same_v<T, GeoQikLogAddLinesWithOpts>)
+        {
+          GeoQikMessageData::CommonMessageData commonData{value.commonData.geometryId,
+                                                          value.commonData.idempotencyId,
+                                                          const_cast<float*>(value.commonData.rgba.data()),
+                                                          value.commonData.rgba.size()};
+          add_lines_with_opts(const_cast<float*>(value.lines.data()), value.lines.size(), commonData);
+        }
+        else if constexpr (std::is_same_v<T, GeoQikLogRemoveLine>)
+        {
+          remove_line(value.handle);
+        }
+        else if constexpr (std::is_same_v<T, GeoQikLogSetLineWidth>)
+        {
+          set_line_width(value.width);
+        }
+        else if constexpr (std::is_same_v<T, GeoQikLogSetLineColor>)
+        {
+          set_line_color(value.color);
+        }
+        else if constexpr (std::is_same_v<T, GeoQikLogRemoveAllGeometry>)
+        {
+          remove_all_geometry();
+        }
+        else if constexpr (std::is_same_v<T, GeoQikLogTranslateGeometry>)
+        {
+          translate_geometry(value.handle, value.dx, value.dy, value.dz);
+        }
+        else if constexpr (std::is_same_v<T, GeoQikLogRotateGeometry>)
+        {
+          rotate_geometry(value.handle, value.centerX, value.centerY, value.centerZ, value.axisX, value.axisY, value.axisZ, value.angle);
+        }
+      },
+      entry);
 }
 
 void Context::print_frame_info(const std::chrono::high_resolution_clock::time_point& startTime,

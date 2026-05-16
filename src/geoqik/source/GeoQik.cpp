@@ -10,6 +10,7 @@
 #include <cmath>
 #include <future>
 #include <memory>
+#include <string>
 #include <thread>
 #include <type_traits>
 
@@ -862,6 +863,60 @@ geoqik_error_code_t geoqik_stop_drawing()
 {
   return geoqik_internal::execute_if_initialized(
       [&]() -> geoqik_error_code_t { return enqueue(GeoQikMessage{GeoQikMessageType::STOP_DRAW, GeoQikMessageData{}, nullptr}); });
+}
+
+geoqik_error_code_t geoqik_save_log(const char* path, geoqik_log_format_t format)
+{
+  if (!path || path[0] == '\0' || format != GEOQIK_LOG_FORMAT_BINARY)
+  {
+    return GEOQIK_ERROR_INVALID_PARAMETER;
+  }
+
+  return geoqik_internal::execute_if_initialized(
+      [&]() -> geoqik_error_code_t
+      {
+        std::promise<geoqik_error_code_t> promise;
+        std::future<geoqik_error_code_t> future = promise.get_future();
+        std::string pathCopy(path);
+
+        auto enqueueResult = enqueue(GeoQikMessage{
+            .type = GeoQikMessageType::SAVE_LOG,
+            .data = GeoQikMessageData{},
+            .callback = [&promise, path = std::move(pathCopy), format](Context& context) { promise.set_value(context.save_log(path.c_str(), format)); }});
+        if (enqueueResult != GEOQIK_SUCCESS)
+        {
+          return enqueueResult;
+        }
+
+        return future.get();
+      });
+}
+
+geoqik_error_code_t geoqik_load_log(const char* path, geoqik_log_format_t format)
+{
+  if (!path || path[0] == '\0' || format != GEOQIK_LOG_FORMAT_BINARY)
+  {
+    return GEOQIK_ERROR_INVALID_PARAMETER;
+  }
+
+  return geoqik_internal::execute_if_initialized(
+      [&]() -> geoqik_error_code_t
+      {
+        std::promise<geoqik_error_code_t> promise;
+        std::future<geoqik_error_code_t> future = promise.get_future();
+        std::string pathCopy(path);
+
+        auto enqueueResult = enqueue(GeoQikMessage{
+            .type = GeoQikMessageType::LOAD_LOG,
+            .data = GeoQikMessageData{},
+            .callback = [&promise, path = std::move(pathCopy), format](Context& context) { promise.set_value(context.load_log(path.c_str(), format)); }});
+        if (enqueueResult != GEOQIK_SUCCESS)
+        {
+          return enqueueResult;
+        }
+
+        return future.get();
+      });
 }
 
 geoqik_error_code_t geoqik_set_point_size(float pointSize)

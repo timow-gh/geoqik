@@ -110,6 +110,11 @@ extern "C"
     GEOQIK_ERROR_UNKNOWN = 6
   } geoqik_error_code_t;
 
+  typedef enum
+  {
+    GEOQIK_LOG_FORMAT_BINARY = 0
+  } geoqik_log_format_t;
+
   typedef struct
   {
     uint8_t value[16];
@@ -203,6 +208,12 @@ extern "C"
    */
   GEOQIK_EXPORT geoqik_error_code_t geoqik_draw();
   GEOQIK_EXPORT geoqik_error_code_t geoqik_stop_drawing();
+
+  /** \brief Saves the current geometry event log to a file. */
+  GEOQIK_EXPORT geoqik_error_code_t geoqik_save_log(const char* path, geoqik_log_format_t format);
+
+  /** \brief Loads a geometry event log from a file, replacing current geometry and the in-memory log. */
+  GEOQIK_EXPORT geoqik_error_code_t geoqik_load_log(const char* path, geoqik_log_format_t format);
 
   /** \brief Waits for user to close the window and then cleans up resources.
    *
