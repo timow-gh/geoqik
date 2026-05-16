@@ -13,6 +13,7 @@
 #include <string>
 #include <thread>
 #include <type_traits>
+#include <vector>
 
 using namespace geoqik;
 
@@ -499,7 +500,7 @@ geoqik_result_t geoqik_add_point_opts(double x, double y, double z, geoqik_add_p
     return geoqik_result_t{GEOQIK_ERROR_INVALID_PARAMETER, {}};
   }
 
-  std::unique_ptr<float[]> colorsCopy;
+  std::vector<float> colorsCopy;
 
   if (options)
   {
@@ -513,8 +514,7 @@ geoqik_result_t geoqik_add_point_opts(double x, double y, double z, geoqik_add_p
     }
     if (options->colorCount > 0)
     {
-      colorsCopy = std::make_unique<float[]>(options->colorCount);
-      std::copy(options->color, options->color + options->colorCount, colorsCopy.get());
+      colorsCopy.assign(options->color, options->color + options->colorCount);
     }
   }
 
@@ -522,25 +522,21 @@ geoqik_result_t geoqik_add_point_opts(double x, double y, double z, geoqik_add_p
       [&]() -> geoqik_result_t
       {
         core::UUID reqId = core::UUID::generate();
-        GeoQikMessageData messageData{
-            .pointWithOpts = {.x = static_cast<float>(x), .y = static_cast<float>(y), .z = static_cast<float>(z)}};
-        messageData.pointWithOpts.commonData.geometryId = reqId;
+        GeoQikMessageCommonData commonData;
+        commonData.geometryId = reqId;
 
         if (options)
         {
           if (core::UUID idem = convert_to_core_uuid(options->idempotencyKey); !idem.is_nil())
           {
-            messageData.pointWithOpts.commonData.idempotencyId = idem;
+            commonData.idempotencyId = idem;
           }
 
-          if (colorsCopy)
-          {
-            messageData.pointWithOpts.commonData.rgba = colorsCopy.release();
-            messageData.pointWithOpts.commonData.rgbaCount = options->colorCount;
-          }
+          commonData.rgba = std::move(colorsCopy);
         }
 
-        auto enqueueResult = enqueue(GeoQikMessage(GeoQikMessageType::ADD_POINT_WITH_OPTS, messageData, nullptr));
+        auto enqueueResult =
+            enqueue(GeoQikMessage{AddPointWithOpts{static_cast<float>(x), static_cast<float>(y), static_cast<float>(z), std::move(commonData)}});
         return geoqik_result_t{enqueueResult, convert_to_geoqik_uuid(reqId)};
       });
 }
@@ -552,8 +548,8 @@ geoqik_result_t geoqik_add_points_opts(const double* points, size_t size, geoqik
     return geoqik_result_t{GEOQIK_ERROR_INVALID_PARAMETER, {}};
   }
 
-  std::unique_ptr<float[]> pointsCopy = std::make_unique<float[]>(size);
-  std::unique_ptr<float[]> colorsCopy;
+  std::vector<float> pointsCopy(size);
+  std::vector<float> colorsCopy;
   const std::size_t pointCount = size / 3;
 
   for (size_t i = 0; i < size; i += 3)
@@ -580,8 +576,7 @@ geoqik_result_t geoqik_add_points_opts(const double* points, size_t size, geoqik
     {
       return geoqik_result_t{GEOQIK_ERROR_INVALID_PARAMETER, {}};
     }
-    colorsCopy = std::make_unique<float[]>(options->colorCount);
-    std::copy(options->color, options->color + options->colorCount, colorsCopy.get());
+    colorsCopy.assign(options->color, options->color + options->colorCount);
   }
   else if (options && options->colorCount > 0)
   {
@@ -592,24 +587,20 @@ geoqik_result_t geoqik_add_points_opts(const double* points, size_t size, geoqik
       [&]() -> geoqik_result_t
       {
         core::UUID reqId = core::UUID::generate();
-        GeoQikMessageData messageData{.pointsWithOpts = {.points = pointsCopy.release(), .size = size}};
-        messageData.pointsWithOpts.commonData.geometryId = reqId;
+        GeoQikMessageCommonData commonData;
+        commonData.geometryId = reqId;
 
         if (options)
         {
           if (core::UUID idem = convert_to_core_uuid(options->idempotencyKey); !idem.is_nil())
           {
-            messageData.pointsWithOpts.commonData.idempotencyId = idem;
+            commonData.idempotencyId = idem;
           }
 
-          if (colorsCopy)
-          {
-            messageData.pointsWithOpts.commonData.rgba = colorsCopy.release();
-            messageData.pointsWithOpts.commonData.rgbaCount = options->colorCount;
-          }
+          commonData.rgba = std::move(colorsCopy);
         }
 
-        auto enqueueResult = enqueue(GeoQikMessage(GeoQikMessageType::ADD_POINTS_WITH_OPTS, messageData, nullptr));
+        auto enqueueResult = enqueue(GeoQikMessage{AddPointsWithOpts{std::move(pointsCopy), std::move(commonData)}});
         return geoqik_result_t{enqueueResult, convert_to_geoqik_uuid(reqId)};
       });
 }
@@ -625,9 +616,7 @@ geoqik_error_code_t geoqik_remove_point(const geoqik_uuid_t* geometryId)
       [&]() -> geoqik_error_code_t
       {
         core::UUID handle = convert_to_core_uuid(*geometryId);
-        return enqueue(GeoQikMessage{GeoQikMessageType::REMOVE_POINT,
-                                     GeoQikMessageData{.removePoint = GeoQikMessageData::RemovePoint{handle}},
-                                     nullptr});
+        return enqueue(GeoQikMessage{RemovePoint{handle}});
       });
 }
 
@@ -657,7 +646,7 @@ geoqik_result_t geoqik_add_line_opts(double x1, double y1, double z1, double x2,
     return geoqik_result_t{GEOQIK_ERROR_INVALID_PARAMETER, {}};
   }
 
-  std::unique_ptr<float[]> colorsCopy;
+  std::vector<float> colorsCopy;
 
   if (options && options->colorCount > 0)
   {
@@ -669,38 +658,33 @@ geoqik_result_t geoqik_add_line_opts(double x1, double y1, double z1, double x2,
     {
       return geoqik_result_t{GEOQIK_ERROR_INVALID_PARAMETER, {}};
     }
-    colorsCopy = std::make_unique<float[]>(options->colorCount);
-    std::copy(options->color, options->color + options->colorCount, colorsCopy.get());
+    colorsCopy.assign(options->color, options->color + options->colorCount);
   }
 
   return geoqik_internal::execute_if_initialized(
       [&]() -> geoqik_result_t
       {
         core::UUID reqId = core::UUID::generate();
-        GeoQikMessageData messageData{
-            .lineWithOpts = {.x1 = static_cast<float>(x1),
-                             .y1 = static_cast<float>(y1),
-                             .z1 = static_cast<float>(z1),
-                             .x2 = static_cast<float>(x2),
-                             .y2 = static_cast<float>(y2),
-                             .z2 = static_cast<float>(z2)}};
-        messageData.lineWithOpts.commonData.geometryId = reqId;
+        GeoQikMessageCommonData commonData;
+        commonData.geometryId = reqId;
 
         if (options)
         {
           if (core::UUID idem = convert_to_core_uuid(options->idempotencyKey); !idem.is_nil())
           {
-            messageData.lineWithOpts.commonData.idempotencyId = idem;
+            commonData.idempotencyId = idem;
           }
 
-          if (colorsCopy)
-          {
-            messageData.lineWithOpts.commonData.rgba = colorsCopy.release();
-            messageData.lineWithOpts.commonData.rgbaCount = options->colorCount;
-          }
+          commonData.rgba = std::move(colorsCopy);
         }
 
-        auto enqueueResult = enqueue(GeoQikMessage(GeoQikMessageType::ADD_LINE_WITH_OPTS, messageData, nullptr));
+        auto enqueueResult = enqueue(GeoQikMessage{AddLineWithOpts{static_cast<float>(x1),
+                                                                    static_cast<float>(y1),
+                                                                    static_cast<float>(z1),
+                                                                    static_cast<float>(x2),
+                                                                    static_cast<float>(y2),
+                                                                    static_cast<float>(z2),
+                                                                    std::move(commonData)}});
         return geoqik_result_t{enqueueResult, convert_to_geoqik_uuid(reqId)};
       });
 }
@@ -713,8 +697,8 @@ geoqik_result_t geoqik_add_lines_opts(const double* lines, size_t size, geoqik_a
   }
 
   // count is the total number of doubles in the array; each line occupies 6 values (x1,y1,z1,x2,y2,z2)
-  std::unique_ptr<float[]> linesCopy = std::make_unique<float[]>(size);
-  std::unique_ptr<float[]> colorsCopy;
+  std::vector<float> linesCopy(size);
+  std::vector<float> colorsCopy;
   const std::size_t lineCount = size / 6;
 
   for (size_t i = 0; i < size; i += 6)
@@ -744,8 +728,7 @@ geoqik_result_t geoqik_add_lines_opts(const double* lines, size_t size, geoqik_a
     {
       return geoqik_result_t{GEOQIK_ERROR_INVALID_PARAMETER, {}};
     }
-    colorsCopy = std::make_unique<float[]>(options->colorCount);
-    std::copy(options->color, options->color + options->colorCount, colorsCopy.get());
+    colorsCopy.assign(options->color, options->color + options->colorCount);
   }
   else if (options && options->colorCount > 0)
   {
@@ -756,24 +739,20 @@ geoqik_result_t geoqik_add_lines_opts(const double* lines, size_t size, geoqik_a
       [&]() -> geoqik_result_t
       {
         core::UUID reqId = core::UUID::generate();
-        GeoQikMessageData messageData{.linesWithOpts = {.lines = linesCopy.release(), .size = size}};
-        messageData.linesWithOpts.commonData.geometryId = reqId;
+        GeoQikMessageCommonData commonData;
+        commonData.geometryId = reqId;
 
         if (options)
         {
           if (core::UUID idem = convert_to_core_uuid(options->idempotencyKey); !idem.is_nil())
           {
-            messageData.linesWithOpts.commonData.idempotencyId = idem;
+            commonData.idempotencyId = idem;
           }
 
-          if (colorsCopy)
-          {
-            messageData.linesWithOpts.commonData.rgba = colorsCopy.release();
-            messageData.linesWithOpts.commonData.rgbaCount = options->colorCount;
-          }
+          commonData.rgba = std::move(colorsCopy);
         }
 
-        auto enqueueResult = enqueue(GeoQikMessage(GeoQikMessageType::ADD_LINES_WITH_OPTS, messageData, nullptr));
+        auto enqueueResult = enqueue(GeoQikMessage{AddLinesWithOpts{std::move(linesCopy), std::move(commonData)}});
         return geoqik_result_t{enqueueResult, convert_to_geoqik_uuid(reqId)};
       });
 }
@@ -789,16 +768,14 @@ geoqik_error_code_t geoqik_remove_line(const geoqik_uuid_t* geometryId)
       [&]() -> geoqik_error_code_t
       {
         core::UUID handle = convert_to_core_uuid(*geometryId);
-        return enqueue(
-            GeoQikMessage{GeoQikMessageType::REMOVE_LINE, GeoQikMessageData{.removeLine = GeoQikMessageData::RemoveLine{handle}}, nullptr});
+        return enqueue(GeoQikMessage{RemoveLine{handle}});
       });
 }
 
 GEOQIK_EXPORT geoqik_error_code_t geoqik_remove_all_geometry()
 {
   return geoqik_internal::execute_if_initialized(
-      [&]() -> geoqik_error_code_t
-      { return enqueue(GeoQikMessage{GeoQikMessageType::REMOVE_ALL_GEOMETRY, GeoQikMessageData{}, nullptr}); });
+      [&]() -> geoqik_error_code_t { return enqueue(GeoQikMessage{RemoveAllGeometry{}}); });
 }
 
 GEOQIK_EXPORT geoqik_error_code_t geoqik_translate_geometry(const geoqik_uuid_t* geometryId, double dx, double dy, double dz)
@@ -812,12 +789,7 @@ GEOQIK_EXPORT geoqik_error_code_t geoqik_translate_geometry(const geoqik_uuid_t*
       [&]() -> geoqik_error_code_t
       {
         core::UUID handle = convert_to_core_uuid(*geometryId);
-        return enqueue(GeoQikMessage{
-            GeoQikMessageType::TRANSLATE_GEOMETRY,
-            GeoQikMessageData{
-                .translateGeometry =
-                    GeoQikMessageData::TranslateGeometry{handle, static_cast<float>(dx), static_cast<float>(dy), static_cast<float>(dz)}},
-            nullptr});
+        return enqueue(GeoQikMessage{TranslateGeometry{handle, static_cast<float>(dx), static_cast<float>(dy), static_cast<float>(dz)}});
       });
 }
 
@@ -840,29 +812,27 @@ GEOQIK_EXPORT geoqik_error_code_t geoqik_rotate_geometry(const geoqik_uuid_t* ge
       [&]() -> geoqik_error_code_t
       {
         core::UUID handle = convert_to_core_uuid(*geometryId);
-        return enqueue(GeoQikMessage{GeoQikMessageType::ROTATE_GEOMETRY,
-                                     GeoQikMessageData{.rotateGeometry = GeoQikMessageData::RotateGeometry{handle,
-                                                                                                           static_cast<float>(centerX),
-                                                                                                           static_cast<float>(centerY),
-                                                                                                           static_cast<float>(centerZ),
-                                                                                                           static_cast<float>(axisX),
-                                                                                                           static_cast<float>(axisY),
-                                                                                                           static_cast<float>(axisZ),
-                                                                                                           static_cast<float>(angle)}},
-                                     nullptr});
+        return enqueue(GeoQikMessage{RotateGeometry{handle,
+                                                    static_cast<float>(centerX),
+                                                    static_cast<float>(centerY),
+                                                    static_cast<float>(centerZ),
+                                                    static_cast<float>(axisX),
+                                                    static_cast<float>(axisY),
+                                                    static_cast<float>(axisZ),
+                                                    static_cast<float>(angle)}});
       });
 }
 
 geoqik_error_code_t geoqik_draw()
 {
   return geoqik_internal::execute_if_initialized([&]() -> geoqik_error_code_t
-                                                 { return enqueue(GeoQikMessage{GeoQikMessageType::DRAW, GeoQikMessageData{}, nullptr}); });
+                                                 { return enqueue(GeoQikMessage{Draw{}}); });
 }
 
 geoqik_error_code_t geoqik_stop_drawing()
 {
   return geoqik_internal::execute_if_initialized(
-      [&]() -> geoqik_error_code_t { return enqueue(GeoQikMessage{GeoQikMessageType::STOP_DRAW, GeoQikMessageData{}, nullptr}); });
+      [&]() -> geoqik_error_code_t { return enqueue(GeoQikMessage{StopDraw{}}); });
 }
 
 geoqik_error_code_t geoqik_save_log(const char* path, geoqik_log_format_t format)
@@ -880,9 +850,7 @@ geoqik_error_code_t geoqik_save_log(const char* path, geoqik_log_format_t format
         std::string pathCopy(path);
 
         auto enqueueResult = enqueue(GeoQikMessage{
-            .type = GeoQikMessageType::SAVE_LOG,
-            .data = GeoQikMessageData{},
-            .callback = [&promise, path = std::move(pathCopy), format](Context& context) { promise.set_value(context.save_log(path.c_str(), format)); }});
+            SaveLog{[&promise, path = std::move(pathCopy), format](Context& context) { promise.set_value(context.save_log(path.c_str(), format)); }}});
         if (enqueueResult != GEOQIK_SUCCESS)
         {
           return enqueueResult;
@@ -907,9 +875,7 @@ geoqik_error_code_t geoqik_load_log(const char* path, geoqik_log_format_t format
         std::string pathCopy(path);
 
         auto enqueueResult = enqueue(GeoQikMessage{
-            .type = GeoQikMessageType::LOAD_LOG,
-            .data = GeoQikMessageData{},
-            .callback = [&promise, path = std::move(pathCopy), format](Context& context) { promise.set_value(context.load_log(path.c_str(), format)); }});
+            LoadLog{[&promise, path = std::move(pathCopy), format](Context& context) { promise.set_value(context.load_log(path.c_str(), format)); }}});
         if (enqueueResult != GEOQIK_SUCCESS)
         {
           return enqueueResult;
@@ -927,8 +893,7 @@ geoqik_error_code_t geoqik_set_point_size(float pointSize)
   }
 
   return geoqik_internal::execute_if_initialized(
-      [&]() -> geoqik_error_code_t
-      { return enqueue(GeoQikMessage{GeoQikMessageType::SET_POINT_SIZE, GeoQikMessageData{.pointSize = {pointSize}}, nullptr}); });
+      [&]() -> geoqik_error_code_t { return enqueue(GeoQikMessage{SetPointSize{pointSize}}); });
 }
 
 geoqik_error_code_t geoqik_get_point_size(float* result)
@@ -944,10 +909,7 @@ geoqik_error_code_t geoqik_get_point_size(float* result)
         std::promise<float> promise;
         std::future<float> future = promise.get_future();
 
-        auto enqueueResult =
-            enqueue(GeoQikMessage{.type = GeoQikMessageType::GET_POINT_SIZE,
-                                  .data = GeoQikMessageData{},
-                                  .callback = [&promise](Context& context) { promise.set_value(context.get_point_size()); }});
+        auto enqueueResult = enqueue(GeoQikMessage{GetPointSize{[&promise](Context& context) { promise.set_value(context.get_point_size()); }}});
         if (enqueueResult != GEOQIK_SUCCESS)
         {
           return enqueueResult;
@@ -968,7 +930,7 @@ geoqik_error_code_t geoqik_set_point_color(float r, float g, float b, float a)
   return geoqik_internal::execute_if_initialized(
       [&]() -> geoqik_error_code_t
       {
-        return enqueue(GeoQikMessage{GeoQikMessageType::SET_POINT_COLOR, GeoQikMessageData{.color = Color{r, g, b, a}}, nullptr});
+        return enqueue(GeoQikMessage{SetPointColor{Color{r, g, b, a}}});
       });
 }
 
@@ -986,9 +948,7 @@ geoqik_error_code_t geoqik_get_point_color(float* r, float* g, float* b, float* 
         std::future<Color> future = promise.get_future();
 
         auto enqueueResult =
-            enqueue(GeoQikMessage{.type = GeoQikMessageType::GET_POINT_COLOR,
-                                  .data = GeoQikMessageData{},
-                                  .callback = [&promise](Context& context) { promise.set_value(context.get_point_color()); }});
+            enqueue(GeoQikMessage{GetPointColor{[&promise](Context& context) { promise.set_value(context.get_point_color()); }}});
         if (enqueueResult != GEOQIK_SUCCESS)
         {
           return enqueueResult;
@@ -1011,8 +971,7 @@ geoqik_error_code_t geoqik_set_line_width(float lineWidth)
   }
 
   return geoqik_internal::execute_if_initialized(
-      [&]() -> geoqik_error_code_t
-      { return enqueue(GeoQikMessage{GeoQikMessageType::SET_LINE_WIDTH, GeoQikMessageData{.lineWidth = {lineWidth}}, nullptr}); });
+      [&]() -> geoqik_error_code_t { return enqueue(GeoQikMessage{SetLineWidth{lineWidth}}); });
 }
 
 geoqik_error_code_t geoqik_get_line_width(float* result)
@@ -1028,10 +987,7 @@ geoqik_error_code_t geoqik_get_line_width(float* result)
         std::promise<float> promise;
         std::future<float> future = promise.get_future();
 
-        auto enqueueResult =
-            enqueue(GeoQikMessage{.type = GeoQikMessageType::GET_LINE_WIDTH,
-                                  .data = GeoQikMessageData{},
-                                  .callback = [&promise](Context& context) { promise.set_value(context.get_line_width()); }});
+        auto enqueueResult = enqueue(GeoQikMessage{GetLineWidth{[&promise](Context& context) { promise.set_value(context.get_line_width()); }}});
         if (enqueueResult != GEOQIK_SUCCESS)
         {
           return enqueueResult;
@@ -1053,7 +1009,7 @@ geoqik_error_code_t geoqik_set_line_color(float r, float g, float b, float a)
       [&]() -> geoqik_error_code_t
       {
         Color colorData{r, g, b, a};
-        return enqueue(GeoQikMessage{GeoQikMessageType::SET_LINE_COLOR, GeoQikMessageData{.color = colorData}, nullptr});
+        return enqueue(GeoQikMessage{SetLineColor{colorData}});
       });
 }
 
@@ -1071,9 +1027,7 @@ geoqik_error_code_t geoqik_get_line_color(float* r, float* g, float* b, float* a
         std::future<Color> future = promise.get_future();
 
         auto enqueueResult =
-            enqueue(GeoQikMessage{.type = GeoQikMessageType::GET_LINE_COLOR,
-                                  .data = GeoQikMessageData{},
-                                  .callback = [&promise](Context& context) { promise.set_value(context.get_line_color()); }});
+            enqueue(GeoQikMessage{GetLineColor{[&promise](Context& context) { promise.set_value(context.get_line_color()); }}});
         if (enqueueResult != GEOQIK_SUCCESS)
         {
           return enqueueResult;
@@ -1109,7 +1063,7 @@ geoqik_error_code_t geoqik_cleanup()
   return geoqik_internal::execute_if_initialized(
       [&]() -> geoqik_error_code_t
       {
-        enqueue(GeoQikMessage{GeoQikMessageType::CLEANUP, GeoQikMessageData{}, nullptr});
+        enqueue(GeoQikMessage{Cleanup{}});
 
         auto& renderThread = geoqik_internal::get_render_thread();
         if (renderThread.joinable())

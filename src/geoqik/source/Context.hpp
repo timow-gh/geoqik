@@ -15,10 +15,8 @@
 #include <atomic>
 #include <cassert>
 #include <chrono>
-#include <compare>
-#include <functional>
 #include <memory>
-#include <unordered_map>
+#include <span>
 #include <unordered_set>
 #include <vector>
 
@@ -58,9 +56,6 @@ class Context
   float m_drawAtEveryNPercentOfMessages{10.0f};
   std::vector<GeoQikLogEntry> m_messageLog;
 
-  using MessageHandler = std::function<void(Context&, const GeoQikMessage&)>;
-  std::unordered_map<GeoQikMessageType, MessageHandler> m_messageHandlers;
-
 public:
   Context();
   ~Context();
@@ -87,15 +82,15 @@ public:
   Color get_line_color();
   void set_line_color(Color color);
 
-  void add_point_with_opts(float x, float y, float z, const GeoQikMessageData::CommonMessageData& commonData);
-  void add_points_with_opts(const float* points, std::size_t count, const GeoQikMessageData::CommonMessageData& commonData);
+  void add_point_with_opts(float x, float y, float z, const GeoQikMessageCommonData& commonData);
+  void add_points_with_opts(std::span<const float> points, const GeoQikMessageCommonData& commonData);
 
   void remove_point(const core::UUID& handle);
 
   void add_line(float x1, float y1, float z1, float x2, float y2, float z2, const core::UUID* handle = nullptr, const core::UUID* idempotencyKey = nullptr);
   void add_line(float x1, float y1, float z1, float x2, float y2, float z2, float r, float g, float b, float a, const core::UUID* handle = nullptr,  const core::UUID* idempotencyKey = nullptr);
-  void add_line_with_opts(float x1, float y1, float z1, float x2, float y2, float z2, const GeoQikMessageData::CommonMessageData& commonData);
-  void add_lines_with_opts(const float* lines, std::size_t count, const GeoQikMessageData::CommonMessageData& commonData);
+  void add_line_with_opts(float x1, float y1, float z1, float x2, float y2, float z2, const GeoQikMessageCommonData& commonData);
+  void add_lines_with_opts(std::span<const float> lines, const GeoQikMessageCommonData& commonData);
   void remove_line(const core::UUID& handle);
 
   void remove_all_geometry();
@@ -120,11 +115,32 @@ public:
   bool cleanup();
 
 private:
-  void initialize_message_handlers();
-
   [[nodiscard]] bool is_known_idempotency_key(const core::UUID* key);
   void replay_log_entries(const std::vector<GeoQikLogEntry>& entries);
   void apply_log_entry(const GeoQikLogEntry& entry);
+
+  void handle_message(const AddPointWithOpts& message);
+  void handle_message(const AddPointsWithOpts& message);
+  void handle_message(const RemovePoint& message);
+  void handle_message(const SetPointSize& message);
+  void handle_message(const SetPointColor& message);
+  void handle_message(const AddLineWithOpts& message);
+  void handle_message(const AddLinesWithOpts& message);
+  void handle_message(const RemoveLine& message);
+  void handle_message(const SetLineWidth& message);
+  void handle_message(const SetLineColor& message);
+  void handle_message(const RemoveAllGeometry& message);
+  void handle_message(const TranslateGeometry& message);
+  void handle_message(const RotateGeometry& message);
+  void handle_message(const Draw& message);
+  void handle_message(const StopDraw& message);
+  void handle_message(const SaveLog& message);
+  void handle_message(const LoadLog& message);
+  void handle_message(const GetPointSize& message);
+  void handle_message(const GetPointColor& message);
+  void handle_message(const GetLineWidth& message);
+  void handle_message(const GetLineColor& message);
+  void handle_message(const Cleanup& message);
 
   void print_frame_info(const std::chrono::high_resolution_clock::time_point& startTime,
                         const std::chrono::high_resolution_clock::time_point& messageProcessingEndTime,

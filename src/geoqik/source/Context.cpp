@@ -74,8 +74,6 @@ bool Context::init_window(const GeoQikSettings& geoqikSettings, const WindowSett
   m_window->set_mouse_button_callback([this](int button, Action action, Mods mods) { m_cameraInteractor->on_mouse_button(button, action, mods); });
   m_window->set_framebuffer_size_callback([this](std::uint32_t width, std::uint32_t height) { m_cameraInteractor->on_framebuffer_size(width, height); });
 
-  initialize_message_handlers();
-
   return true;
 }
 
@@ -123,7 +121,7 @@ void Context::set_line_color(Color color)
   ++m_geometryMessagesProcessedThisFrame;
 }
 
-void Context::add_point_with_opts(float x, float y, float z, const GeoQikMessageData::CommonMessageData& commonData)
+void Context::add_point_with_opts(float x, float y, float z, const GeoQikMessageCommonData& commonData)
 {
   if (is_known_idempotency_key(&commonData.idempotencyId))
   {
@@ -133,7 +131,7 @@ void Context::add_point_with_opts(float x, float y, float z, const GeoQikMessage
   {
     m_renderer->recreate_point_drawables(m_scene);
   }
-  if (commonData.rgba && commonData.rgbaCount >= ColorChannelCount)
+  if (commonData.rgba.size() >= ColorChannelCount)
   {
     m_scene.add_point(x, y, z, commonData.rgba[0], commonData.rgba[1], commonData.rgba[2], commonData.rgba[3], &commonData.geometryId);
   }
@@ -144,17 +142,17 @@ void Context::add_point_with_opts(float x, float y, float z, const GeoQikMessage
   ++m_geometryMessagesProcessedThisFrame;
 }
 
-void Context::add_points_with_opts(const float* points, std::size_t count, const GeoQikMessageData::CommonMessageData& commonData)
+void Context::add_points_with_opts(std::span<const float> points, const GeoQikMessageCommonData& commonData)
 {
   if (is_known_idempotency_key(&commonData.idempotencyId))
   {
     return;
   }
-  if (m_scene.ensure_point_capacity(count / 3))
+  if (m_scene.ensure_point_capacity(points.size() / 3))
   {
     m_renderer->recreate_point_drawables(m_scene);
   }
-  m_scene.add_points(std::span<const float>(points, count), std::span<const float>(commonData.rgba, commonData.rgbaCount), &commonData.geometryId);
+  m_scene.add_points(points, std::span<const float>(commonData.rgba), &commonData.geometryId);
   ++m_geometryMessagesProcessedThisFrame;
 }
 
@@ -210,7 +208,7 @@ void Context::add_line(float x1,
   ++m_geometryMessagesProcessedThisFrame;
 }
 
-void Context::add_line_with_opts(float x1, float y1, float z1, float x2, float y2, float z2, const GeoQikMessageData::CommonMessageData& commonData)
+void Context::add_line_with_opts(float x1, float y1, float z1, float x2, float y2, float z2, const GeoQikMessageCommonData& commonData)
 {
   if (is_known_idempotency_key(&commonData.idempotencyId))
   {
@@ -220,7 +218,7 @@ void Context::add_line_with_opts(float x1, float y1, float z1, float x2, float y
   {
     m_renderer->recreate_line_drawables(m_scene);
   }
-  if (commonData.rgba && commonData.rgbaCount >= ColorChannelCount)
+  if (commonData.rgba.size() >= ColorChannelCount)
   {
     m_scene.add_line(x1, y1, z1, x2, y2, z2, commonData.rgba[0], commonData.rgba[1], commonData.rgba[2], commonData.rgba[3], &commonData.geometryId);
   }
@@ -231,18 +229,18 @@ void Context::add_line_with_opts(float x1, float y1, float z1, float x2, float y
   ++m_geometryMessagesProcessedThisFrame;
 }
 
-void Context::add_lines_with_opts(const float* lines, std::size_t count, const GeoQikMessageData::CommonMessageData& commonData)
+void Context::add_lines_with_opts(std::span<const float> lines, const GeoQikMessageCommonData& commonData)
 {
   if (is_known_idempotency_key(&commonData.idempotencyId))
   {
     return;
   }
-  if (m_scene.ensure_line_capacity(count / 6))
+  if (m_scene.ensure_line_capacity(lines.size() / 6))
   {
     m_renderer->recreate_line_drawables(m_scene);
   }
-  m_scene.add_lines(std::span<const float>(lines, count),
-                    std::span<const float>(commonData.rgba, commonData.rgbaCount),
+  m_scene.add_lines(lines,
+                    std::span<const float>(commonData.rgba),
                     &commonData.geometryId);
   ++m_geometryMessagesProcessedThisFrame;
 }
@@ -394,27 +392,22 @@ void Context::run_event_loop()
       {
         ++messagesProcessedThisFrame;
 
-        // Special handling for CLEANUP message - needs to return early
-        if (message->type == GeoQikMessageType::CLEANUP)
+        if (auto logEntry = create_log_entry(message.value()))
         {
-          cleanup();
-          return;
+          m_messageLog.push_back(std::move(*logEntry));
         }
 
-        // Look up and invoke the appropriate message handler
-        auto it = m_messageHandlers.find(message->type);
-        if (it != m_messageHandlers.end())
+        const bool shouldReturn = std::visit(
+            [this](const auto& value)
+            {
+              using T = std::decay_t<decltype(value)>;
+              handle_message(value);
+              return std::is_same_v<T, Cleanup>;
+            },
+            message.value());
+        if (shouldReturn)
         {
-          if (auto logEntry = create_log_entry(message.value()))
-          {
-            m_messageLog.push_back(std::move(*logEntry));
-          }
-          it->second(*this, message.value());
-        }
-        else
-        {
-          fmt::print("Warning: Unhandled message type\n");
-          CORE_ASSERT(false);
+          return;
         }
       }
     }
@@ -497,139 +490,127 @@ geoqik_error_code_t Context::load_log(const char* path, geoqik_log_format_t form
   }
 }
 
-void Context::initialize_message_handlers()
+void Context::handle_message(const AddPointWithOpts& message)
 {
-  // Draw control messages
-  m_messageHandlers[GeoQikMessageType::CLEANUP] = [](Context& ctx, [[maybe_unused]] const GeoQikMessage& msg)
-  {
-    ctx.cleanup();
-    // Note: This handler needs special treatment in the main loop to return early
-  };
+  add_point_with_opts(message.x, message.y, message.z, message.commonData);
+}
 
-  m_messageHandlers[GeoQikMessageType::DRAW] = [](Context& ctx, [[maybe_unused]] const GeoQikMessage& msg) { ctx.m_isDrawing = true; };
+void Context::handle_message(const AddPointsWithOpts& message)
+{
+  add_points_with_opts(message.points, message.commonData);
+}
 
-  m_messageHandlers[GeoQikMessageType::STOP_DRAW] = [](Context& ctx, [[maybe_unused]] const GeoQikMessage& msg) { ctx.m_isDrawing = false; };
+void Context::handle_message(const RemovePoint& message)
+{
+  remove_point(message.handle);
+}
 
-  m_messageHandlers[GeoQikMessageType::SAVE_LOG] = []([[maybe_unused]] Context& ctx, const GeoQikMessage& msg)
-  {
-    CORE_ASSERT(msg.callback);
-    msg.callback(ctx);
-  };
+void Context::handle_message(const SetPointSize& message)
+{
+  set_point_size(message.size);
+}
 
-  m_messageHandlers[GeoQikMessageType::LOAD_LOG] = []([[maybe_unused]] Context& ctx, const GeoQikMessage& msg)
-  {
-    CORE_ASSERT(msg.callback);
-    msg.callback(ctx);
-  };
+void Context::handle_message(const SetPointColor& message)
+{
+  set_default_point_color(message.color);
+}
 
-  m_messageHandlers[GeoQikMessageType::ADD_POINT_WITH_OPTS] = [](Context& ctx, const GeoQikMessage& msg)
-  {
-    const auto& pointWithOpts = msg.data.pointWithOpts;
-    ctx.add_point_with_opts(pointWithOpts.x, pointWithOpts.y, pointWithOpts.z, pointWithOpts.commonData);
-    delete[] pointWithOpts.commonData.rgba;
-  };
+void Context::handle_message(const AddLineWithOpts& message)
+{
+  add_line_with_opts(message.x1, message.y1, message.z1, message.x2, message.y2, message.z2, message.commonData);
+}
 
-  m_messageHandlers[GeoQikMessageType::ADD_POINTS_WITH_OPTS] = [](Context& ctx, const GeoQikMessage& msg)
-  {
-    const auto& pointsWithOpts = msg.data.pointsWithOpts;
-    ctx.add_points_with_opts(pointsWithOpts.points, pointsWithOpts.size, pointsWithOpts.commonData);
-    delete[] pointsWithOpts.points;
-    delete[] pointsWithOpts.commonData.rgba;
-  };
+void Context::handle_message(const AddLinesWithOpts& message)
+{
+  add_lines_with_opts(message.lines, message.commonData);
+}
 
-  m_messageHandlers[GeoQikMessageType::REMOVE_POINT] = [](Context& ctx, const GeoQikMessage& msg)
-  {
-    const auto& removePoint = msg.data.removePoint;
-    ctx.remove_point(removePoint.handle);
-  };
+void Context::handle_message(const RemoveLine& message)
+{
+  remove_line(message.handle);
+}
 
-  m_messageHandlers[GeoQikMessageType::SET_POINT_SIZE] = [](Context& ctx, const GeoQikMessage& msg)
-  { ctx.set_point_size(msg.data.pointSize.size); };
+void Context::handle_message(const SetLineWidth& message)
+{
+  set_line_width(message.width);
+}
 
-  m_messageHandlers[GeoQikMessageType::GET_POINT_SIZE] = [](Context& ctx, const GeoQikMessage& msg)
-  {
-    CORE_ASSERT(msg.callback);
-    msg.callback(ctx);
-  };
+void Context::handle_message(const SetLineColor& message)
+{
+  set_line_color(message.color);
+}
 
-  m_messageHandlers[GeoQikMessageType::SET_POINT_COLOR] = [](Context& ctx, const GeoQikMessage& msg)
-  {
-    ctx.set_default_point_color(msg.data.color);
-  };
+void Context::handle_message([[maybe_unused]] const RemoveAllGeometry& message)
+{
+  remove_all_geometry();
+}
 
-  m_messageHandlers[GeoQikMessageType::GET_POINT_COLOR] = [](Context& ctx, const GeoQikMessage& msg)
-  {
-    CORE_ASSERT(msg.callback);
-    msg.callback(ctx);
-  };
+void Context::handle_message(const TranslateGeometry& message)
+{
+  translate_geometry(message.handle, message.dx, message.dy, message.dz);
+}
 
-  m_messageHandlers[GeoQikMessageType::ADD_LINE_WITH_OPTS] = [](Context& ctx, const GeoQikMessage& msg)
-  {
-    const auto& lineWithOpts = msg.data.lineWithOpts;
-    ctx.add_line_with_opts(lineWithOpts.x1, lineWithOpts.y1, lineWithOpts.z1,
-                           lineWithOpts.x2, lineWithOpts.y2, lineWithOpts.z2,
-                           lineWithOpts.commonData);
-    delete[] lineWithOpts.commonData.rgba;
-  };
+void Context::handle_message(const RotateGeometry& message)
+{
+  rotate_geometry(message.handle,
+                  message.centerX,
+                  message.centerY,
+                  message.centerZ,
+                  message.axisX,
+                  message.axisY,
+                  message.axisZ,
+                  message.angle);
+}
 
-  m_messageHandlers[GeoQikMessageType::ADD_LINES_WITH_OPTS] = [](Context& ctx, const GeoQikMessage& msg)
-  {
-    const auto& linesWithOpts = msg.data.linesWithOpts;
-    ctx.add_lines_with_opts(linesWithOpts.lines, linesWithOpts.size, linesWithOpts.commonData);
-    delete[] linesWithOpts.lines;
-    delete[] linesWithOpts.commonData.rgba;
-  };
+void Context::handle_message([[maybe_unused]] const Draw& message)
+{
+  m_isDrawing = true;
+}
 
-  m_messageHandlers[GeoQikMessageType::REMOVE_LINE] = [](Context& ctx, const GeoQikMessage& msg)
-  {
-    const auto& removeLine = msg.data.removeLine;
-    ctx.remove_line(removeLine.handle);
-  };
+void Context::handle_message([[maybe_unused]] const StopDraw& message)
+{
+  m_isDrawing = false;
+}
 
-  m_messageHandlers[GeoQikMessageType::SET_LINE_WIDTH] = [](Context& ctx, const GeoQikMessage& msg)
-  { ctx.set_line_width(msg.data.lineWidth.width); };
+void Context::handle_message(const SaveLog& message)
+{
+  CORE_ASSERT(message.callback);
+  message.callback(*this);
+}
 
-  m_messageHandlers[GeoQikMessageType::GET_LINE_WIDTH] = [](Context& ctx, const GeoQikMessage& msg)
-  {
-    CORE_ASSERT(msg.callback);
-    msg.callback(ctx);
-  };
+void Context::handle_message(const LoadLog& message)
+{
+  CORE_ASSERT(message.callback);
+  message.callback(*this);
+}
 
-  m_messageHandlers[GeoQikMessageType::SET_LINE_COLOR] = [](Context& ctx, const GeoQikMessage& msg)
-  {
-    ctx.set_line_color(msg.data.color);
-  };
+void Context::handle_message(const GetPointSize& message)
+{
+  CORE_ASSERT(message.callback);
+  message.callback(*this);
+}
 
-  m_messageHandlers[GeoQikMessageType::GET_LINE_COLOR] = [](Context& ctx, const GeoQikMessage& msg)
-  {
-    CORE_ASSERT(msg.callback);
-    msg.callback(ctx);
-  };
+void Context::handle_message(const GetPointColor& message)
+{
+  CORE_ASSERT(message.callback);
+  message.callback(*this);
+}
 
+void Context::handle_message(const GetLineWidth& message)
+{
+  CORE_ASSERT(message.callback);
+  message.callback(*this);
+}
 
-  m_messageHandlers[GeoQikMessageType::REMOVE_ALL_GEOMETRY] = [](Context& ctx, [[maybe_unused]] const GeoQikMessage& msg)
-  {
-    ctx.remove_all_geometry();
-  };
+void Context::handle_message(const GetLineColor& message)
+{
+  CORE_ASSERT(message.callback);
+  message.callback(*this);
+}
 
-  m_messageHandlers[GeoQikMessageType::TRANSLATE_GEOMETRY] = [](Context& ctx, const GeoQikMessage& msg)
-  {
-    const auto& translateMsg = msg.data.translateGeometry;
-    ctx.translate_geometry(translateMsg.handle, translateMsg.dx, translateMsg.dy, translateMsg.dz);
-  };
-
-  m_messageHandlers[GeoQikMessageType::ROTATE_GEOMETRY] = [](Context& ctx, const GeoQikMessage& msg)
-  {
-    const auto& rotateMsg = msg.data.rotateGeometry;
-    ctx.rotate_geometry(rotateMsg.handle,
-                        rotateMsg.centerX,
-                        rotateMsg.centerY,
-                        rotateMsg.centerZ,
-                        rotateMsg.axisX,
-                        rotateMsg.axisY,
-                        rotateMsg.axisZ,
-                        rotateMsg.angle);
-  };
+void Context::handle_message([[maybe_unused]] const Cleanup& message)
+{
+  cleanup();
 }
 
 bool Context::is_known_idempotency_key(const core::UUID* key)
@@ -659,75 +640,7 @@ void Context::apply_log_entry(const GeoQikLogEntry& entry)
   std::visit(
       [this](const auto& value)
       {
-        using T = std::decay_t<decltype(value)>;
-        if constexpr (std::is_same_v<T, GeoQikLogAddPointWithOpts>)
-        {
-          GeoQikMessageData::CommonMessageData commonData{value.commonData.geometryId,
-                                                          value.commonData.idempotencyId,
-                                                          const_cast<float*>(value.commonData.rgba.data()),
-                                                          value.commonData.rgba.size()};
-          add_point_with_opts(value.x, value.y, value.z, commonData);
-        }
-        else if constexpr (std::is_same_v<T, GeoQikLogAddPointsWithOpts>)
-        {
-          GeoQikMessageData::CommonMessageData commonData{value.commonData.geometryId,
-                                                          value.commonData.idempotencyId,
-                                                          const_cast<float*>(value.commonData.rgba.data()),
-                                                          value.commonData.rgba.size()};
-          add_points_with_opts(const_cast<float*>(value.points.data()), value.points.size(), commonData);
-        }
-        else if constexpr (std::is_same_v<T, GeoQikLogRemovePoint>)
-        {
-          remove_point(value.handle);
-        }
-        else if constexpr (std::is_same_v<T, GeoQikLogSetPointSize>)
-        {
-          set_point_size(value.size);
-        }
-        else if constexpr (std::is_same_v<T, GeoQikLogSetPointColor>)
-        {
-          set_default_point_color(value.color);
-        }
-        else if constexpr (std::is_same_v<T, GeoQikLogAddLineWithOpts>)
-        {
-          GeoQikMessageData::CommonMessageData commonData{value.commonData.geometryId,
-                                                          value.commonData.idempotencyId,
-                                                          const_cast<float*>(value.commonData.rgba.data()),
-                                                          value.commonData.rgba.size()};
-          add_line_with_opts(value.x1, value.y1, value.z1, value.x2, value.y2, value.z2, commonData);
-        }
-        else if constexpr (std::is_same_v<T, GeoQikLogAddLinesWithOpts>)
-        {
-          GeoQikMessageData::CommonMessageData commonData{value.commonData.geometryId,
-                                                          value.commonData.idempotencyId,
-                                                          const_cast<float*>(value.commonData.rgba.data()),
-                                                          value.commonData.rgba.size()};
-          add_lines_with_opts(const_cast<float*>(value.lines.data()), value.lines.size(), commonData);
-        }
-        else if constexpr (std::is_same_v<T, GeoQikLogRemoveLine>)
-        {
-          remove_line(value.handle);
-        }
-        else if constexpr (std::is_same_v<T, GeoQikLogSetLineWidth>)
-        {
-          set_line_width(value.width);
-        }
-        else if constexpr (std::is_same_v<T, GeoQikLogSetLineColor>)
-        {
-          set_line_color(value.color);
-        }
-        else if constexpr (std::is_same_v<T, GeoQikLogRemoveAllGeometry>)
-        {
-          remove_all_geometry();
-        }
-        else if constexpr (std::is_same_v<T, GeoQikLogTranslateGeometry>)
-        {
-          translate_geometry(value.handle, value.dx, value.dy, value.dz);
-        }
-        else if constexpr (std::is_same_v<T, GeoQikLogRotateGeometry>)
-        {
-          rotate_geometry(value.handle, value.centerX, value.centerY, value.centerZ, value.axisX, value.axisY, value.axisZ, value.angle);
-        }
+        handle_message(value);
       },
       entry);
 }

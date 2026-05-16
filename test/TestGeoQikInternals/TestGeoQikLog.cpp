@@ -1,7 +1,9 @@
 #include "GeoQikLog.hpp"
+#include "GeoQikMessageSerialization.hpp"
 #include <array>
 #include <filesystem>
 #include <gtest/gtest.h>
+#include <sstream>
 #include <stdexcept>
 
 namespace
@@ -28,21 +30,21 @@ TEST(GeoQikLogTest, BinaryRoundTripPreservesRepresentativeEntries)
 {
   using namespace geoqik;
 
-  const GeoQikLogCommonData commonData{make_uuid(1), make_uuid(20), {0.1f, 0.2f, 0.3f, 1.0f}};
+  const GeoQikMessageCommonData commonData{make_uuid(1), make_uuid(20), {0.1f, 0.2f, 0.3f, 1.0f}};
   const std::vector<GeoQikLogEntry> entries{
-      GeoQikLogAddPointWithOpts{1.0f, 2.0f, 3.0f, commonData},
-      GeoQikLogAddPointsWithOpts{{1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f}, commonData},
-      GeoQikLogRemovePoint{make_uuid(2)},
-      GeoQikLogSetPointSize{7.0f},
-      GeoQikLogSetPointColor{Color{0.4f, 0.5f, 0.6f, 1.0f}},
-      GeoQikLogAddLineWithOpts{1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, commonData},
-      GeoQikLogAddLinesWithOpts{{1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f}, commonData},
-      GeoQikLogRemoveLine{make_uuid(3)},
-      GeoQikLogSetLineWidth{8.0f},
-      GeoQikLogSetLineColor{Color{0.7f, 0.8f, 0.9f, 1.0f}},
-      GeoQikLogRemoveAllGeometry{},
-      GeoQikLogTranslateGeometry{make_uuid(4), 1.0f, 2.0f, 3.0f},
-      GeoQikLogRotateGeometry{make_uuid(5), 1.0f, 2.0f, 3.0f, 0.0f, 0.0f, 1.0f, 90.0f}};
+      AddPointWithOpts{1.0f, 2.0f, 3.0f, commonData},
+      AddPointsWithOpts{{1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f}, commonData},
+      RemovePoint{make_uuid(2)},
+      SetPointSize{7.0f},
+      SetPointColor{Color{0.4f, 0.5f, 0.6f, 1.0f}},
+      AddLineWithOpts{1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, commonData},
+      AddLinesWithOpts{{1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f}, commonData},
+      RemoveLine{make_uuid(3)},
+      SetLineWidth{8.0f},
+      SetLineColor{Color{0.7f, 0.8f, 0.9f, 1.0f}},
+      RemoveAllGeometry{},
+      TranslateGeometry{make_uuid(4), 1.0f, 2.0f, 3.0f},
+      RotateGeometry{make_uuid(5), 1.0f, 2.0f, 3.0f, 0.0f, 0.0f, 1.0f, 90.0f}};
 
   const std::filesystem::path path = make_temp_path("geoqik_log_roundtrip.gqklog");
   save_log_binary(path, entries);
@@ -51,6 +53,45 @@ TEST(GeoQikLogTest, BinaryRoundTripPreservesRepresentativeEntries)
   EXPECT_EQ(entries, loadedEntries);
 
   (void)std::filesystem::remove(path);
+}
+
+TEST(GeoQikLogTest, MessageReaderWriterRoundTripPreservesRepresentativeEntries)
+{
+  using namespace geoqik;
+
+  const GeoQikMessageCommonData commonData{make_uuid(10), make_uuid(40), {0.1f, 0.2f, 0.3f, 1.0f}};
+  const std::vector<GeoQikLogEntry> entries{
+      AddPointWithOpts{1.0f, 2.0f, 3.0f, commonData},
+      AddPointsWithOpts{{1.0f, 2.0f, 3.0f}, commonData},
+      RemovePoint{make_uuid(11)},
+      SetPointSize{9.0f},
+      SetPointColor{Color{0.2f, 0.3f, 0.4f, 1.0f}},
+      AddLineWithOpts{1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, commonData},
+      AddLinesWithOpts{{1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f}, commonData},
+      RemoveLine{make_uuid(12)},
+      SetLineWidth{3.0f},
+      SetLineColor{Color{0.5f, 0.6f, 0.7f, 1.0f}},
+      RemoveAllGeometry{},
+      TranslateGeometry{make_uuid(13), 1.0f, 2.0f, 3.0f},
+      RotateGeometry{make_uuid(14), 1.0f, 2.0f, 3.0f, 0.0f, 0.0f, 1.0f, 45.0f}};
+
+  std::stringstream stream(std::ios::in | std::ios::out | std::ios::binary);
+  MessageWriter writer(stream);
+  for (const GeoQikLogEntry& entry: entries)
+  {
+    writer.write(entry);
+  }
+
+  stream.seekg(0);
+  MessageReader reader(stream);
+  std::vector<GeoQikLogEntry> loadedEntries;
+  loadedEntries.reserve(entries.size());
+  for (std::size_t i = 0; i < entries.size(); ++i)
+  {
+    loadedEntries.push_back(reader.read());
+  }
+
+  EXPECT_EQ(entries, loadedEntries);
 }
 
 TEST(GeoQikLogTest, BinaryLoadRejectsMissingFile)
