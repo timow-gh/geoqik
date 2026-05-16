@@ -68,6 +68,7 @@ void replay_current_log()
   replayOptions.entriesPerSecond = 240.0;
   replayOptions.speedMultiplier = 4.0;
   replayOptions.maxEntriesPerFrame = 64;
+  replayOptions.startPaused = 1;
 
   geoqik_error_code_t replayResult = geoqik_replay_current_log(&replayOptions);
   if (replayResult != GEOQIK_SUCCESS)

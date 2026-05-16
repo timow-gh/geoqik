@@ -161,6 +161,11 @@ struct StepReplay
   std::size_t count;
 };
 
+struct StepReplayBackward
+{
+  std::size_t count;
+};
+
 struct GetReplayState
 {
   std::function<void(Context& context)> callback;
@@ -231,6 +236,7 @@ using GeoQikMessage = std::variant<AddPointWithOpts,
                                    PauseReplay,
                                    ResumeReplay,
                                    StepReplay,
+                                   StepReplayBackward,
                                    GetReplayState,
                                    GetReplayProgress,
                                    GetPointSize,

@@ -7,12 +7,15 @@
 #include "GeoQikSettings.hpp"
 #include "GeometryBuffers/GeometryBufferConcept.hpp"
 #include "linal/linal.hpp"
+#include <algorithm>
 #include <cassert>
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <span>
 #include <stdexcept>
 #include <unordered_map>
+#include <vector>
 
 namespace geoqik
 {
@@ -33,6 +36,24 @@ struct LinesGeoBufferIndex
   [[nodiscard]] std::strong_ordering operator<=>(const LinesGeoBufferIndex& other) const = default;
 };
 
+struct LineBufferSnapshot
+{
+  Color currentLineColor;
+  std::vector<float> lines;
+  std::vector<float> lineColors;
+  std::vector<std::uint32_t> lineIndices;
+  std::size_t lineCapacity{0};
+  std::size_t lineColorCapacity{0};
+  std::size_t lineIndexCapacity{0};
+  std::unordered_map<core::UUID, LineGeoBufferIndex> handleToLineIndexMapping;
+  std::unordered_map<core::UUID, LinesGeoBufferIndex> handleToLinesIndexMapping;
+};
+
+struct LineBufferGeometry
+{
+  std::vector<float> lines;
+  std::vector<float> colors;
+};
 
 class LineBuffer
 {
@@ -114,6 +135,62 @@ public:
 
   [[nodiscard]] Color get_default_color() const { return m_currentLineColor; }
   void set_default_color(float r, float g, float b, float a) { m_currentLineColor = {r, g, b, a}; }
+
+  [[nodiscard]] std::optional<LineBufferGeometry> get_geometry(core::UUID handle) const
+  {
+    if (auto it = m_handleToLineIndexMapping.find(handle); it != m_handleToLineIndexMapping.end())
+    {
+      const std::size_t lineIndex = it->second.lineIndex;
+      return create_geometry(lineIndex, lineIndex);
+    }
+
+    if (auto it = m_handleToLinesIndexMapping.find(handle); it != m_handleToLinesIndexMapping.end())
+    {
+      return create_geometry(it->second.lineStartIndex, it->second.lineEndIndex);
+    }
+
+    return std::nullopt;
+  }
+
+  [[nodiscard]] LineBufferSnapshot create_snapshot() const
+  {
+    LineBufferSnapshot snapshot;
+    snapshot.currentLineColor = m_currentLineColor;
+    snapshot.lines.assign(m_lines.begin(), m_lines.end());
+    snapshot.lineColors.assign(m_lineColors.begin(), m_lineColors.end());
+    snapshot.lineIndices.assign(m_lineIndices.begin(), m_lineIndices.end());
+    snapshot.lineCapacity = m_lines.capacity();
+    snapshot.lineColorCapacity = m_lineColors.capacity();
+    snapshot.lineIndexCapacity = m_lineIndices.capacity();
+    snapshot.handleToLineIndexMapping = m_handleToLineIndexMapping;
+    snapshot.handleToLinesIndexMapping = m_handleToLinesIndexMapping;
+    return snapshot;
+  }
+
+  void restore_snapshot(const LineBufferSnapshot& snapshot)
+  {
+    m_currentLineColor = snapshot.currentLineColor;
+    m_lines = Buffer<float>(std::max(snapshot.lineCapacity, snapshot.lines.size()));
+    m_lineColors = Buffer<float>(std::max(snapshot.lineColorCapacity, snapshot.lineColors.size()));
+    m_lineIndices = Buffer<std::uint32_t>(std::max(snapshot.lineIndexCapacity, snapshot.lineIndices.size()));
+
+    for (float line: snapshot.lines)
+    {
+      m_lines.push_back(line);
+    }
+    for (float color: snapshot.lineColors)
+    {
+      m_lineColors.push_back(color);
+    }
+    for (std::uint32_t index: snapshot.lineIndices)
+    {
+      m_lineIndices.push_back(index);
+    }
+
+    m_handleToLineIndexMapping = snapshot.handleToLineIndexMapping;
+    m_handleToLinesIndexMapping = snapshot.handleToLinesIndexMapping;
+    m_linesHaveChanged = true;
+  }
 
   bool has_space_for_lines(std::size_t count) const { return get_free_line_capacity() >= count; }
 
@@ -267,41 +344,16 @@ public:
     }
 
     auto it = m_handleToLineIndexMapping.find(handle);
-    if (it == m_handleToLineIndexMapping.end())
+    if (it != m_handleToLineIndexMapping.end())
     {
+      remove_single_line(it);
       return;
     }
 
-    // Iterate the existing indices and decrement those greater than the removed line index.
-    // Otherwise they would point to the wrong data after removal of the current line.
-    std::size_t lineIndex = it->second.lineIndex;
-    for (auto& pairIter: m_handleToLineIndexMapping)
+    if (remove_lines(handle))
     {
-      if (lineIndex < pairIter.second.lineIndex)
-      {
-        pairIter.second.lineIndex--;
-      }
+      return;
     }
-
-    std::size_t lineStart = lineIndex * 2 * m_pointDimension;
-    std::size_t colorStart = lineIndex * 2 * m_colorDimension;
-    m_lines.remove(lineStart, 2 * m_pointDimension);
-    m_lineColors.remove(colorStart, 2 * m_colorDimension);
-
-    // Fix the indices in the index buffer and remove the indices of the removed line.
-    // The indices after the removed line need to be decremented by two (since each line has 2 vertices).
-    std::size_t indicesToRemove = lineIndex * 2;
-    for (std::size_t i = 0; i < m_lineIndices.size(); ++i)
-    {
-      if (m_lineIndices[i] > lineIndex * 2 + 1)
-      {
-        m_lineIndices[i] -= 2;
-      }
-    }
-    m_lineIndices.remove(indicesToRemove, 2);
-    m_handleToLineIndexMapping.erase(handle);
-
-    m_linesHaveChanged = true;
   }
 
   void translate_geometry(core::UUID handle, float dx, float dy, float dz)
@@ -319,6 +371,12 @@ public:
       }
       m_linesHaveChanged = true;
       return;
+    }
+
+    auto linesIt = m_handleToLinesIndexMapping.find(handle);
+    if (linesIt != m_handleToLinesIndexMapping.end())
+    {
+      translate_line_range(linesIt->second.lineStartIndex, linesIt->second.lineEndIndex, dx, dy, dz);
     }
   }
 
@@ -348,6 +406,13 @@ public:
         m_lines[lineStart + i * m_pointDimension + 2] = rotatedPoint[2];
       }
       m_linesHaveChanged = true;
+      return;
+    }
+
+    auto linesIt = m_handleToLinesIndexMapping.find(handle);
+    if (linesIt != m_handleToLinesIndexMapping.end())
+    {
+      rotate_line_range(linesIt->second.lineStartIndex, linesIt->second.lineEndIndex, centerX, centerY, centerZ, axisX, axisY, axisZ, angle);
     }
   }
 
@@ -366,6 +431,137 @@ private:
     assert(m_lines.capacity() % (2 * m_pointDimension) == 0);
     assert(m_lineColors.capacity() % (2 * m_colorDimension) == 0);
     assert(m_lineIndices.capacity() == settings.initialLineCapacity * 2);
+  }
+
+  [[nodiscard]] LineBufferGeometry create_geometry(std::size_t lineStartIndex, std::size_t lineEndIndex) const
+  {
+    LineBufferGeometry geometry;
+    const std::size_t lineCount = lineEndIndex - lineStartIndex + 1;
+    const std::size_t lineStart = lineStartIndex * 2 * m_pointDimension;
+    geometry.lines.assign(m_lines.begin() + lineStart, m_lines.begin() + lineStart + lineCount * 2 * m_pointDimension);
+    geometry.colors.reserve(lineCount * m_colorDimension);
+    for (std::size_t lineIndex = lineStartIndex; lineIndex <= lineEndIndex; ++lineIndex)
+    {
+      const std::size_t colorStart = lineIndex * 2 * m_colorDimension;
+      geometry.colors.insert(geometry.colors.end(), m_lineColors.begin() + colorStart, m_lineColors.begin() + colorStart + m_colorDimension);
+    }
+    return geometry;
+  }
+
+  void remove_single_line(std::unordered_map<core::UUID, LineGeoBufferIndex>::iterator it)
+  {
+    const core::UUID handle = it->first;
+    const std::size_t lineIndex = it->second.lineIndex;
+    remove_line_range(lineIndex, lineIndex);
+    m_handleToLineIndexMapping.erase(handle);
+  }
+
+  bool remove_lines(core::UUID handle)
+  {
+    if (handle.is_nil())
+    {
+      throw std::runtime_error("GeometryBuffer: Attempting to remove lines with a nil handle");
+    }
+
+    auto it = m_handleToLinesIndexMapping.find(handle);
+    if (it == m_handleToLinesIndexMapping.end())
+    {
+      return false;
+    }
+
+    const std::size_t lineStartIndex = it->second.lineStartIndex;
+    const std::size_t lineEndIndex = it->second.lineEndIndex;
+    remove_line_range(lineStartIndex, lineEndIndex);
+    m_handleToLinesIndexMapping.erase(handle);
+    return true;
+  }
+
+  void remove_line_range(std::size_t lineStartIndex, std::size_t lineEndIndex)
+  {
+    const std::size_t numberOfLinesToRemove = lineEndIndex - lineStartIndex + 1;
+    const std::size_t lineStart = lineStartIndex * 2 * m_pointDimension;
+    const std::size_t colorStart = lineStartIndex * 2 * m_colorDimension;
+    m_lines.remove(lineStart, numberOfLinesToRemove * 2 * m_pointDimension);
+    m_lineColors.remove(colorStart, numberOfLinesToRemove * 2 * m_colorDimension);
+
+    const std::size_t indicesToRemove = lineStartIndex * 2;
+    const std::uint32_t removedVertexCount = static_cast<std::uint32_t>(numberOfLinesToRemove * 2);
+    const std::uint32_t lastRemovedVertexIndex = static_cast<std::uint32_t>(lineEndIndex * 2 + 1);
+    for (std::size_t i = 0; i < m_lineIndices.size(); ++i)
+    {
+      if (m_lineIndices[i] > lastRemovedVertexIndex)
+      {
+        m_lineIndices[i] -= removedVertexCount;
+      }
+    }
+    m_lineIndices.remove(indicesToRemove, numberOfLinesToRemove * 2);
+
+    for (auto& pairIter: m_handleToLineIndexMapping)
+    {
+      if (lineEndIndex < pairIter.second.lineIndex)
+      {
+        pairIter.second.lineIndex -= numberOfLinesToRemove;
+      }
+    }
+    for (auto& pairIter: m_handleToLinesIndexMapping)
+    {
+      if (lineEndIndex < pairIter.second.lineStartIndex)
+      {
+        pairIter.second.lineStartIndex -= numberOfLinesToRemove;
+        pairIter.second.lineEndIndex -= numberOfLinesToRemove;
+      }
+    }
+
+    m_linesHaveChanged = true;
+  }
+
+  void translate_line_range(std::size_t lineStartIndex, std::size_t lineEndIndex, float dx, float dy, float dz)
+  {
+    for (std::size_t lineIndex = lineStartIndex; lineIndex <= lineEndIndex; ++lineIndex)
+    {
+      const std::size_t lineStart = lineIndex * 2 * m_pointDimension;
+      for (std::size_t i = 0; i < 2; ++i)
+      {
+        m_lines[lineStart + i * m_pointDimension] += dx;
+        m_lines[lineStart + i * m_pointDimension + 1] += dy;
+        m_lines[lineStart + i * m_pointDimension + 2] += dz;
+      }
+    }
+    m_linesHaveChanged = true;
+  }
+
+  void rotate_line_range(std::size_t lineStartIndex,
+                         std::size_t lineEndIndex,
+                         float centerX,
+                         float centerY,
+                         float centerZ,
+                         float axisX,
+                         float axisY,
+                         float axisZ,
+                         float angle)
+  {
+    linal::float3 center{centerX, centerY, centerZ};
+    linal::float3 axis{axisX, axisY, axisZ};
+    axis = axis.normalize();
+
+    linal::float33 rotationMatrix;
+    linal::rot_axis(rotationMatrix, axis, angle);
+
+    for (std::size_t lineIndex = lineStartIndex; lineIndex <= lineEndIndex; ++lineIndex)
+    {
+      const std::size_t lineStart = lineIndex * 2 * m_pointDimension;
+      for (std::size_t i = 0; i < 2; ++i)
+      {
+        linal::float3 point{m_lines[lineStart + i * m_pointDimension],
+                            m_lines[lineStart + i * m_pointDimension + 1],
+                            m_lines[lineStart + i * m_pointDimension + 2]};
+        linal::float3 rotatedPoint = rotationMatrix * (point - center) + center;
+        m_lines[lineStart + i * m_pointDimension] = rotatedPoint[0];
+        m_lines[lineStart + i * m_pointDimension + 1] = rotatedPoint[1];
+        m_lines[lineStart + i * m_pointDimension + 2] = rotatedPoint[2];
+      }
+    }
+    m_linesHaveChanged = true;
   }
 };
 

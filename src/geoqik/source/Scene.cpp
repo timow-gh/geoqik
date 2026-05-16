@@ -101,6 +101,34 @@ void Scene::clear()
   m_lineBuffer->clear();
 }
 
+SceneSnapshot Scene::create_snapshot() const
+{
+  SceneSnapshot snapshot;
+  snapshot.pointBuffer = m_pointBuffer->create_snapshot();
+  snapshot.lineBuffer = m_lineBuffer->create_snapshot();
+  snapshot.pointSize = m_pointSize;
+  snapshot.lineWidth = m_lineWidth;
+  return snapshot;
+}
+
+void Scene::restore_snapshot(const SceneSnapshot& snapshot)
+{
+  m_pointBuffer->restore_snapshot(snapshot.pointBuffer);
+  m_lineBuffer->restore_snapshot(snapshot.lineBuffer);
+  m_pointSize = snapshot.pointSize;
+  m_lineWidth = snapshot.lineWidth;
+}
+
+std::optional<PointBufferGeometry> Scene::get_point_geometry(core::UUID handle) const
+{
+  return m_pointBuffer->get_geometry(handle);
+}
+
+std::optional<LineBufferGeometry> Scene::get_line_geometry(core::UUID handle) const
+{
+  return m_lineBuffer->get_geometry(handle);
+}
+
 Color Scene::get_default_point_color() const
 {
   return m_pointBuffer->get_default_point_color();

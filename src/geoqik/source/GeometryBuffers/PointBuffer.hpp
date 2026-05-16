@@ -6,12 +6,15 @@
 #include "Core/UUID.hpp"
 #include "GeoQikSettings.hpp"
 #include "linal/linal.hpp"
+#include <algorithm>
 #include <cassert>
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <span>
 #include <stdexcept>
 #include <unordered_map>
+#include <vector>
 
 namespace geoqik
 {
@@ -32,6 +35,24 @@ struct PointsGeoBufferIndex
   [[nodiscard]] std::strong_ordering operator<=>(const PointsGeoBufferIndex& other) const = default;
 };
 
+struct PointBufferSnapshot
+{
+  Color currentPointColor;
+  std::vector<float> points;
+  std::vector<float> pointColors;
+  std::vector<std::uint32_t> pointIndices;
+  std::size_t pointCapacity{0};
+  std::size_t pointColorCapacity{0};
+  std::size_t pointIndexCapacity{0};
+  std::unordered_map<core::UUID, PointGeoBufferIndex> handleToPointIndexMapping;
+  std::unordered_map<core::UUID, PointsGeoBufferIndex> handleToPointsIndexMapping;
+};
+
+struct PointBufferGeometry
+{
+  std::vector<float> points;
+  std::vector<float> colors;
+};
 
 class PointBuffer
 {
@@ -67,6 +88,7 @@ public:
       newBuffer->m_pointColors = Buffer<float>::create_from(other.m_pointColors, other.m_pointColors.capacity() * growthFactor);
       newBuffer->m_pointIndices = Buffer<std::uint32_t>::create_from(other.m_pointIndices, other.m_pointIndices.capacity() * growthFactor);
       newBuffer->m_handleToPointIndexMapping = std::move(other.m_handleToPointIndexMapping);
+      newBuffer->m_handleToPointsIndexMapping = std::move(other.m_handleToPointsIndexMapping);
       newBuffer->m_pointsHaveChanged = true;
     }
 
@@ -101,6 +123,62 @@ public:
   [[nodiscard]] static constexpr std::int32_t get_color_dimension() { return m_colorDimension; }
 
   [[nodiscard]] Color get_default_point_color() const { return m_currentPointColor; }
+
+  [[nodiscard]] std::optional<PointBufferGeometry> get_geometry(core::UUID handle) const
+  {
+    if (auto it = m_handleToPointIndexMapping.find(handle); it != m_handleToPointIndexMapping.end())
+    {
+      const std::size_t pointIndex = it->second.pointIndex;
+      return create_geometry(pointIndex, pointIndex);
+    }
+
+    if (auto it = m_handleToPointsIndexMapping.find(handle); it != m_handleToPointsIndexMapping.end())
+    {
+      return create_geometry(it->second.pointStartIndex, it->second.pointEndIndex);
+    }
+
+    return std::nullopt;
+  }
+
+  [[nodiscard]] PointBufferSnapshot create_snapshot() const
+  {
+    PointBufferSnapshot snapshot;
+    snapshot.currentPointColor = m_currentPointColor;
+    snapshot.points.assign(m_points.begin(), m_points.end());
+    snapshot.pointColors.assign(m_pointColors.begin(), m_pointColors.end());
+    snapshot.pointIndices.assign(m_pointIndices.begin(), m_pointIndices.end());
+    snapshot.pointCapacity = m_points.capacity();
+    snapshot.pointColorCapacity = m_pointColors.capacity();
+    snapshot.pointIndexCapacity = m_pointIndices.capacity();
+    snapshot.handleToPointIndexMapping = m_handleToPointIndexMapping;
+    snapshot.handleToPointsIndexMapping = m_handleToPointsIndexMapping;
+    return snapshot;
+  }
+
+  void restore_snapshot(const PointBufferSnapshot& snapshot)
+  {
+    m_currentPointColor = snapshot.currentPointColor;
+    m_points = Buffer<float>(std::max(snapshot.pointCapacity, snapshot.points.size()));
+    m_pointColors = Buffer<float>(std::max(snapshot.pointColorCapacity, snapshot.pointColors.size()));
+    m_pointIndices = Buffer<std::uint32_t>(std::max(snapshot.pointIndexCapacity, snapshot.pointIndices.size()));
+
+    for (float point: snapshot.points)
+    {
+      m_points.push_back(point);
+    }
+    for (float color: snapshot.pointColors)
+    {
+      m_pointColors.push_back(color);
+    }
+    for (std::uint32_t index: snapshot.pointIndices)
+    {
+      m_pointIndices.push_back(index);
+    }
+
+    m_handleToPointIndexMapping = snapshot.handleToPointIndexMapping;
+    m_handleToPointsIndexMapping = snapshot.handleToPointsIndexMapping;
+    m_pointsHaveChanged = true;
+  }
 
   // clang-format off
   [[nodiscard]] std::span<const float> get_points() const { return m_points.get_as_span(); }
@@ -273,6 +351,12 @@ public:
       m_pointsHaveChanged = true;
       return;
     }
+
+    auto pointsIt = m_handleToPointsIndexMapping.find(handle);
+    if (pointsIt != m_handleToPointsIndexMapping.end())
+    {
+      translate_point_range(pointsIt->second.pointStartIndex, pointsIt->second.pointEndIndex, dx, dy, dz);
+    }
   }
 
   void rotate_geometry(core::UUID handle, float centerX, float centerY, float centerZ, float axisX, float axisY, float axisZ, float angle)
@@ -299,6 +383,12 @@ public:
       m_pointsHaveChanged = true;
       return;
     }
+
+    auto pointsIt = m_handleToPointsIndexMapping.find(handle);
+    if (pointsIt != m_handleToPointsIndexMapping.end())
+    {
+      rotate_point_range(pointsIt->second.pointStartIndex, pointsIt->second.pointEndIndex, centerX, centerY, centerZ, axisX, axisY, axisZ, angle);
+    }
   }
 
 private:
@@ -318,6 +408,58 @@ private:
     assert(m_pointIndices.capacity() == settings.initialPointCapacity);
   }
 
+  [[nodiscard]] PointBufferGeometry create_geometry(std::size_t pointStartIndex, std::size_t pointEndIndex) const
+  {
+    PointBufferGeometry geometry;
+    const std::size_t pointCount = pointEndIndex - pointStartIndex + 1;
+    const std::size_t pointStart = pointStartIndex * m_pointDimension;
+    const std::size_t colorStart = pointStartIndex * m_colorDimension;
+    geometry.points.assign(m_points.begin() + pointStart, m_points.begin() + pointStart + pointCount * m_pointDimension);
+    geometry.colors.assign(m_pointColors.begin() + colorStart, m_pointColors.begin() + colorStart + pointCount * m_colorDimension);
+    return geometry;
+  }
+
+  void translate_point_range(std::size_t pointStartIndex, std::size_t pointEndIndex, float dx, float dy, float dz)
+  {
+    for (std::size_t pointIndex = pointStartIndex; pointIndex <= pointEndIndex; ++pointIndex)
+    {
+      const std::size_t pointStart = pointIndex * m_pointDimension;
+      m_points[pointStart] += dx;
+      m_points[pointStart + 1] += dy;
+      m_points[pointStart + 2] += dz;
+    }
+    m_pointsHaveChanged = true;
+  }
+
+  void rotate_point_range(std::size_t pointStartIndex,
+                          std::size_t pointEndIndex,
+                          float centerX,
+                          float centerY,
+                          float centerZ,
+                          float axisX,
+                          float axisY,
+                          float axisZ,
+                          float angle)
+  {
+    linal::float3 center{centerX, centerY, centerZ};
+    linal::float3 axis{axisX, axisY, axisZ};
+    axis = axis.normalize();
+
+    linal::float33 rotationMatrix;
+    linal::rot_axis(rotationMatrix, axis, angle);
+
+    for (std::size_t pointIndex = pointStartIndex; pointIndex <= pointEndIndex; ++pointIndex)
+    {
+      const std::size_t pointStart = pointIndex * m_pointDimension;
+      linal::float3 point{m_points[pointStart], m_points[pointStart + 1], m_points[pointStart + 2]};
+      linal::float3 rotatedPoint = rotationMatrix * (point - center) + center;
+      m_points[pointStart] = rotatedPoint[0];
+      m_points[pointStart + 1] = rotatedPoint[1];
+      m_points[pointStart + 2] = rotatedPoint[2];
+    }
+    m_pointsHaveChanged = true;
+  }
+
   bool remove_single_point(core::UUID handle)
   {
     auto it = m_handleToPointIndexMapping.find(handle);
@@ -334,6 +476,14 @@ private:
       if (pointIndex < pairIter.second.pointIndex)
       {
         pairIter.second.pointIndex--;
+      }
+    }
+    for (auto& pairIter: m_handleToPointsIndexMapping)
+    {
+      if (pointIndex < pairIter.second.pointStartIndex)
+      {
+        pairIter.second.pointStartIndex--;
+        pairIter.second.pointEndIndex--;
       }
     }
 
@@ -400,6 +550,13 @@ private:
       {
         pairIter.second.pointStartIndex -= numberOfPointsToRemove;
         pairIter.second.pointEndIndex -= numberOfPointsToRemove;
+      }
+    }
+    for (auto& pairIter: m_handleToPointIndexMapping)
+    {
+      if (pointEndIndex < pairIter.second.pointIndex)
+      {
+        pairIter.second.pointIndex -= numberOfPointsToRemove;
       }
     }
     m_handleToPointsIndexMapping.erase(handle);

@@ -20,6 +20,7 @@
 #include <span>
 #include <utility>
 #include <unordered_set>
+#include <variant>
 #include <vector>
 
 namespace geoqik
@@ -36,6 +37,25 @@ struct ReplayOptions
 {
   double entriesPerSecond{60.0};
   std::size_t maxEntriesPerFrame{1024};
+  bool startPaused{false};
+  std::size_t entriesPerStep{1};
+  std::vector<Key> stepKeys;
+  std::vector<Key> backwardStepKeys;
+  std::vector<Key> resumeKeys;
+  std::vector<Key> pauseKeys;
+  std::vector<Key> increaseEntriesPerStepKeys;
+  std::vector<Key> decreaseEntriesPerStepKeys;
+};
+
+struct ReplayUndoFrame
+{
+  struct RestoreScene
+  {
+    SceneSnapshot scene;
+  };
+
+  std::variant<std::monostate, GeoQikLogEntry, RestoreScene> action;
+  core::UUID idempotencyKeyToErase;
 };
 
 // Holds idempotency key for messages.
@@ -65,9 +85,11 @@ class Context
   float m_drawAtEveryNPercentOfMessages{10.0f};
   std::vector<GeoQikLogEntry> m_messageLog;
   std::vector<GeoQikLogEntry> m_replayEntries;
+  std::vector<ReplayUndoFrame> m_replayUndoStack;
   std::size_t m_replayEntryIndex{0};
   double m_replayEntryBudget{0.0};
   ReplayOptions m_replayOptions;
+  bool m_isReplayActive{false};
   bool m_isReplayPaused{false};
   std::chrono::high_resolution_clock::time_point m_lastReplayTick;
   std::deque<GeoQikMessage> m_deferredMessages;
@@ -133,6 +155,7 @@ public:
   void pause_replay();
   void resume_replay();
   void step_replay_entries(std::size_t count);
+  void step_replay_entries_backward(std::size_t count);
   [[nodiscard]] geoqik_replay_state_t get_replay_state() const;
   [[nodiscard]] std::pair<std::size_t, std::size_t> get_replay_progress() const;
 
@@ -141,9 +164,15 @@ public:
 private:
   [[nodiscard]] bool is_replaying() const;
   [[nodiscard]] static bool is_control_message(const GeoQikMessage& message);
+  void on_key(Key key, Scancode scancode, Action action, Mods mods);
+  [[nodiscard]] static bool has_replay_key(const std::vector<Key>& keys, Key key);
   void start_replay(std::vector<GeoQikLogEntry> entries, const ReplayOptions& options);
   void process_replay_entries(const std::chrono::high_resolution_clock::time_point& now);
   void apply_replay_entries(std::size_t entriesToApply);
+  void undo_replay_entries(std::size_t entriesToUndo);
+  [[nodiscard]] ReplayUndoFrame create_replay_undo_frame(const GeoQikLogEntry& entry) const;
+  void restore_replay_undo_frame(const ReplayUndoFrame& frame);
+  [[nodiscard]] bool has_known_idempotency_key(const core::UUID& key) const;
   void finish_replay();
   void defer_or_handle_message(GeoQikMessage&& message);
   bool process_message(GeoQikMessage&& message, bool recordLogEntry);
@@ -175,6 +204,7 @@ private:
   void handle_message(const PauseReplay& message);
   void handle_message(const ResumeReplay& message);
   void handle_message(const StepReplay& message);
+  void handle_message(const StepReplayBackward& message);
   void handle_message(const GetReplayState& message);
   void handle_message(const GetReplayProgress& message);
   void handle_message(const GetPointSize& message);

@@ -80,6 +80,7 @@ bool Context::init_window(const GeoQikSettings& geoqikSettings, const WindowSett
   m_window->set_scroll_callback([this](double xoff, double yoff) { m_cameraInteractor->on_scroll(xoff, yoff); });
   m_window->set_mouse_button_callback([this](int button, Action action, Mods mods) { m_cameraInteractor->on_mouse_button(button, action, mods); });
   m_window->set_framebuffer_size_callback([this](std::uint32_t width, std::uint32_t height) { m_cameraInteractor->on_framebuffer_size(width, height); });
+  m_window->set_key_callback([this](Key key, Scancode scancode, Action action, Mods mods) { on_key(key, scancode, action, mods); });
 
   return true;
 }
@@ -92,6 +93,7 @@ float Context::get_point_size()
 void Context::set_point_size(float pointSize)
 {
   m_scene.set_point_size(pointSize);
+  m_renderer->clear_drawables();
   ++m_geometryMessagesProcessedThisFrame;
 }
 
@@ -114,6 +116,7 @@ float Context::get_line_width()
 void Context::set_line_width(float lineWidth)
 {
   m_scene.set_line_width(lineWidth);
+  m_renderer->clear_drawables();
   ++m_geometryMessagesProcessedThisFrame;
 }
 
@@ -536,12 +539,15 @@ void Context::cancel_replay()
   if (!is_replaying())
   {
     m_isReplayPaused = false;
+    m_isReplayActive = false;
     return;
   }
 
   m_replayEntries.clear();
+  m_replayUndoStack.clear();
   m_replayEntryIndex = 0;
   m_replayEntryBudget = 0.0;
+  m_isReplayActive = false;
   m_isReplayPaused = false;
 }
 
@@ -555,7 +561,7 @@ void Context::pause_replay()
 
 void Context::resume_replay()
 {
-  if (is_replaying())
+  if (is_replaying() && m_replayEntryIndex < m_replayEntries.size())
   {
     m_isReplayPaused = false;
     m_replayEntryBudget = 0.0;
@@ -565,7 +571,7 @@ void Context::resume_replay()
 
 void Context::step_replay_entries(std::size_t count)
 {
-  if (!is_replaying())
+  if (!is_replaying() || m_replayEntryIndex >= m_replayEntries.size())
   {
     return;
   }
@@ -573,11 +579,18 @@ void Context::step_replay_entries(std::size_t count)
   m_isReplayPaused = true;
   m_replayEntryBudget = 0.0;
   apply_replay_entries(count);
+}
 
-  if (!is_replaying())
+void Context::step_replay_entries_backward(std::size_t count)
+{
+  if (!is_replaying() || m_replayEntryIndex == 0)
   {
-    finish_replay();
+    return;
   }
+
+  m_isReplayPaused = true;
+  m_replayEntryBudget = 0.0;
+  undo_replay_entries(count);
 }
 
 geoqik_replay_state_t Context::get_replay_state() const
@@ -719,6 +732,11 @@ void Context::handle_message(const StepReplay& message)
   step_replay_entries(message.count);
 }
 
+void Context::handle_message(const StepReplayBackward& message)
+{
+  step_replay_entries_backward(message.count);
+}
+
 void Context::handle_message(const GetReplayState& message)
 {
   CORE_ASSERT(message.callback);
@@ -763,7 +781,7 @@ void Context::handle_message([[maybe_unused]] const Cleanup& message)
 
 bool Context::is_replaying() const
 {
-  return m_replayEntryIndex < m_replayEntries.size();
+  return m_isReplayActive;
 }
 
 bool Context::is_control_message(const GeoQikMessage& message)
@@ -772,8 +790,57 @@ bool Context::is_control_message(const GeoQikMessage& message)
          std::holds_alternative<PauseReplay>(message) ||
          std::holds_alternative<ResumeReplay>(message) ||
          std::holds_alternative<StepReplay>(message) ||
+         std::holds_alternative<StepReplayBackward>(message) ||
          std::holds_alternative<GetReplayState>(message) ||
          std::holds_alternative<GetReplayProgress>(message);
+}
+
+void Context::on_key(Key key, [[maybe_unused]] Scancode scancode, Action action, [[maybe_unused]] Mods mods)
+{
+  if (!is_replaying())
+  {
+    return;
+  }
+
+  if (action == Action::PRESS && m_isReplayPaused && has_replay_key(m_replayOptions.resumeKeys, key))
+  {
+    resume_replay();
+    return;
+  }
+
+  if (action == Action::PRESS && !m_isReplayPaused && has_replay_key(m_replayOptions.pauseKeys, key))
+  {
+    pause_replay();
+    return;
+  }
+
+  if ((action == Action::PRESS || action == Action::REPEAT) && has_replay_key(m_replayOptions.stepKeys, key))
+  {
+    step_replay_entries(m_replayOptions.entriesPerStep);
+    return;
+  }
+
+  if ((action == Action::PRESS || action == Action::REPEAT) && has_replay_key(m_replayOptions.backwardStepKeys, key))
+  {
+    step_replay_entries_backward(m_replayOptions.entriesPerStep);
+    return;
+  }
+
+  if (action == Action::PRESS && has_replay_key(m_replayOptions.increaseEntriesPerStepKeys, key))
+  {
+    ++m_replayOptions.entriesPerStep;
+    return;
+  }
+
+  if (action == Action::PRESS && has_replay_key(m_replayOptions.decreaseEntriesPerStepKeys, key) && m_replayOptions.entriesPerStep > 1)
+  {
+    --m_replayOptions.entriesPerStep;
+  }
+}
+
+bool Context::has_replay_key(const std::vector<Key>& keys, Key key)
+{
+  return std::find(keys.begin(), keys.end(), key) != keys.end();
 }
 
 void Context::start_replay(std::vector<GeoQikLogEntry> entries, const ReplayOptions& options)
@@ -783,10 +850,12 @@ void Context::start_replay(std::vector<GeoQikLogEntry> entries, const ReplayOpti
   m_idempotencySet.clear();
   m_messageLog = entries;
   m_replayEntries = std::move(entries);
+  m_replayUndoStack.clear();
   m_replayEntryIndex = 0;
   m_replayEntryBudget = 0.0;
   m_replayOptions = options;
-  m_isReplayPaused = false;
+  m_isReplayActive = !m_replayEntries.empty();
+  m_isReplayPaused = options.startPaused;
   m_lastReplayTick = std::chrono::high_resolution_clock::now();
 }
 
@@ -812,6 +881,14 @@ void Context::process_replay_entries(const std::chrono::high_resolution_clock::t
     return;
   }
 
+  if (m_replayEntryIndex >= m_replayEntries.size())
+  {
+    m_isReplayPaused = true;
+    m_replayEntryBudget = 0.0;
+    m_lastReplayTick = now;
+    return;
+  }
+
   const std::chrono::duration<double> elapsed = now - m_lastReplayTick;
   m_lastReplayTick = now;
   m_replayEntryBudget += elapsed.count() * m_replayOptions.entriesPerSecond;
@@ -821,16 +898,18 @@ void Context::process_replay_entries(const std::chrono::high_resolution_clock::t
 
   apply_replay_entries(entriesToApply);
 
-  if (!is_replaying())
+  if (m_replayEntryIndex >= m_replayEntries.size())
   {
-    finish_replay();
+    m_isReplayPaused = true;
+    m_replayEntryBudget = 0.0;
   }
 }
 
 void Context::apply_replay_entries(std::size_t entriesToApply)
 {
-  for (std::size_t i = 0; i < entriesToApply && is_replaying(); ++i)
+  for (std::size_t i = 0; i < entriesToApply && is_replaying() && m_replayEntryIndex < m_replayEntries.size(); ++i)
   {
+    m_replayUndoStack.push_back(create_replay_undo_frame(m_replayEntries[m_replayEntryIndex]));
     apply_log_entry(m_replayEntries[m_replayEntryIndex]);
     ++m_replayEntryIndex;
     if (m_replayEntryBudget >= 1.0)
@@ -840,11 +919,161 @@ void Context::apply_replay_entries(std::size_t entriesToApply)
   }
 }
 
+void Context::undo_replay_entries(std::size_t entriesToUndo)
+{
+  for (std::size_t i = 0; i < entriesToUndo && is_replaying() && m_replayEntryIndex > 0 && !m_replayUndoStack.empty(); ++i)
+  {
+    --m_replayEntryIndex;
+    restore_replay_undo_frame(m_replayUndoStack.back());
+    m_replayUndoStack.pop_back();
+  }
+}
+
+ReplayUndoFrame Context::create_replay_undo_frame(const GeoQikLogEntry& entry) const
+{
+  ReplayUndoFrame frame;
+
+  std::visit(
+      [this, &frame](const auto& value)
+      {
+        using T = std::decay_t<decltype(value)>;
+        if constexpr (std::is_same_v<T, AddPointWithOpts>)
+        {
+          if (has_known_idempotency_key(value.commonData.idempotencyId))
+          {
+            return;
+          }
+          frame.action = GeoQikLogEntry{RemovePoint{value.commonData.geometryId}};
+          frame.idempotencyKeyToErase = value.commonData.idempotencyId;
+        }
+        else if constexpr (std::is_same_v<T, AddPointsWithOpts>)
+        {
+          if (has_known_idempotency_key(value.commonData.idempotencyId))
+          {
+            return;
+          }
+          frame.action = GeoQikLogEntry{RemovePoint{value.commonData.geometryId}};
+          frame.idempotencyKeyToErase = value.commonData.idempotencyId;
+        }
+        else if constexpr (std::is_same_v<T, RemovePoint>)
+        {
+          if (auto geometry = m_scene.get_point_geometry(value.handle))
+          {
+            GeoQikMessageCommonData commonData;
+            commonData.geometryId = value.handle;
+            commonData.rgba = std::move(geometry->colors);
+            frame.action = GeoQikLogEntry{AddPointsWithOpts{std::move(geometry->points), std::move(commonData)}};
+          }
+        }
+        else if constexpr (std::is_same_v<T, SetPointSize>)
+        {
+          frame.action = GeoQikLogEntry{SetPointSize{m_scene.get_point_size()}};
+        }
+        else if constexpr (std::is_same_v<T, SetPointColor>)
+        {
+          frame.action = GeoQikLogEntry{SetPointColor{m_scene.get_default_point_color()}};
+        }
+        else if constexpr (std::is_same_v<T, AddLineWithOpts>)
+        {
+          if (has_known_idempotency_key(value.commonData.idempotencyId))
+          {
+            return;
+          }
+          frame.action = GeoQikLogEntry{RemoveLine{value.commonData.geometryId}};
+          frame.idempotencyKeyToErase = value.commonData.idempotencyId;
+        }
+        else if constexpr (std::is_same_v<T, AddLinesWithOpts>)
+        {
+          if (has_known_idempotency_key(value.commonData.idempotencyId))
+          {
+            return;
+          }
+          frame.action = GeoQikLogEntry{RemoveLine{value.commonData.geometryId}};
+          frame.idempotencyKeyToErase = value.commonData.idempotencyId;
+        }
+        else if constexpr (std::is_same_v<T, RemoveLine>)
+        {
+          if (auto geometry = m_scene.get_line_geometry(value.handle))
+          {
+            GeoQikMessageCommonData commonData;
+            commonData.geometryId = value.handle;
+            commonData.rgba = std::move(geometry->colors);
+            frame.action = GeoQikLogEntry{AddLinesWithOpts{std::move(geometry->lines), std::move(commonData)}};
+          }
+        }
+        else if constexpr (std::is_same_v<T, SetLineWidth>)
+        {
+          frame.action = GeoQikLogEntry{SetLineWidth{m_scene.get_line_width()}};
+        }
+        else if constexpr (std::is_same_v<T, SetLineColor>)
+        {
+          frame.action = GeoQikLogEntry{SetLineColor{m_scene.get_default_line_color()}};
+        }
+        else if constexpr (std::is_same_v<T, RemoveAllGeometry>)
+        {
+          frame.action = ReplayUndoFrame::RestoreScene{m_scene.create_snapshot()};
+        }
+        else if constexpr (std::is_same_v<T, TranslateGeometry>)
+        {
+          frame.action = GeoQikLogEntry{TranslateGeometry{value.handle, -value.dx, -value.dy, -value.dz}};
+        }
+        else if constexpr (std::is_same_v<T, RotateGeometry>)
+        {
+          frame.action = GeoQikLogEntry{RotateGeometry{value.handle,
+                                                       value.centerX,
+                                                       value.centerY,
+                                                       value.centerZ,
+                                                       value.axisX,
+                                                       value.axisY,
+                                                       value.axisZ,
+                                                       -value.angle}};
+        }
+      },
+      entry);
+
+  return frame;
+}
+
+void Context::restore_replay_undo_frame(const ReplayUndoFrame& frame)
+{
+  std::visit(
+      [this](const auto& action)
+      {
+        using T = std::decay_t<decltype(action)>;
+        if constexpr (std::is_same_v<T, GeoQikLogEntry>)
+        {
+          apply_log_entry(action);
+        }
+        else if constexpr (std::is_same_v<T, ReplayUndoFrame::RestoreScene>)
+        {
+          m_scene.restore_snapshot(action.scene);
+          m_renderer->clear_drawables();
+        }
+      },
+      frame.action);
+
+  if (!frame.idempotencyKeyToErase.is_nil())
+  {
+    m_idempotencySet.erase(IdempotencyData{frame.idempotencyKeyToErase, {}});
+  }
+}
+
+bool Context::has_known_idempotency_key(const core::UUID& key) const
+{
+  if (key.is_nil())
+  {
+    return false;
+  }
+  return m_idempotencySet.find(IdempotencyData{key, {}}) != m_idempotencySet.end();
+}
+
 void Context::finish_replay()
 {
   m_replayEntries.clear();
+  m_replayUndoStack.clear();
   m_replayEntryIndex = 0;
   m_replayEntryBudget = 0.0;
+  m_isReplayActive = false;
   m_isReplayPaused = false;
 }
 

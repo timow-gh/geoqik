@@ -9,6 +9,7 @@
 #include <barrier>
 #include <cmath>
 #include <future>
+#include <initializer_list>
 #include <memory>
 #include <string>
 #include <thread>
@@ -217,15 +218,47 @@ static bool validate_line_color_count(std::size_t colorCount, std::size_t lineCo
   return colorCount == 0 || colorCount == ColorChannelCount || colorCount == lineCount * ColorChannelCount;
 }
 
+static bool convert_replay_keys(const geoqik_key_t* cKeys,
+                                std::size_t cKeyCount,
+                                std::initializer_list<geoqik::Key> defaultKeys,
+                                std::vector<geoqik::Key>& replayKeys)
+{
+  replayKeys.clear();
+  if (cKeyCount == 0)
+  {
+    replayKeys.assign(defaultKeys.begin(), defaultKeys.end());
+    return true;
+  }
+
+  if (!cKeys)
+  {
+    return false;
+  }
+
+  replayKeys.reserve(cKeyCount);
+  for (std::size_t i = 0; i < cKeyCount; ++i)
+  {
+    if (static_cast<int>(cKeys[i]) <= static_cast<int>(GEOQIK_KEY_UNKNOWN))
+    {
+      return false;
+    }
+    replayKeys.push_back(static_cast<geoqik::Key>(static_cast<int>(cKeys[i])));
+  }
+  return true;
+}
+
 static bool convert_replay_options(const geoqik_replay_options_t* options, geoqik::ReplayOptions& replayOptions)
 {
   constexpr double defaultEntriesPerSecond = 60.0;
   constexpr double defaultSpeedMultiplier = 1.0;
   constexpr std::size_t defaultMaxEntriesPerFrame = 1024;
+  constexpr std::size_t defaultEntriesPerStep = 1;
 
   double entriesPerSecond = defaultEntriesPerSecond;
   double speedMultiplier = defaultSpeedMultiplier;
   std::size_t maxEntriesPerFrame = defaultMaxEntriesPerFrame;
+  bool startPaused = false;
+  std::size_t entriesPerStep = defaultEntriesPerStep;
 
   if (options)
   {
@@ -251,17 +284,55 @@ static bool convert_replay_options(const geoqik_replay_options_t* options, geoqi
     {
       maxEntriesPerFrame = options->maxEntriesPerFrame;
     }
+
+    startPaused = options->startPaused != 0;
+
+    if (options->entriesPerStep != 0)
+    {
+      entriesPerStep = options->entriesPerStep;
+    }
+  }
+
+  if (entriesPerStep == 0 || maxEntriesPerFrame == 0)
+  {
+    return false;
   }
 
   const double effectiveEntriesPerSecond = entriesPerSecond * speedMultiplier;
-  if (!std::isfinite(effectiveEntriesPerSecond) || effectiveEntriesPerSecond <= 0.0 || maxEntriesPerFrame == 0)
+  if (!std::isfinite(effectiveEntriesPerSecond) || effectiveEntriesPerSecond <= 0.0)
   {
     return false;
   }
 
   replayOptions.entriesPerSecond = effectiveEntriesPerSecond;
   replayOptions.maxEntriesPerFrame = maxEntriesPerFrame;
-  return true;
+  replayOptions.startPaused = startPaused;
+  replayOptions.entriesPerStep = entriesPerStep;
+
+  return convert_replay_keys(options ? options->stepKeys : nullptr,
+                             options ? options->stepKeyCount : 0,
+                             {geoqik::Key::KEY_RIGHT, geoqik::Key::KEY_D},
+                             replayOptions.stepKeys) &&
+         convert_replay_keys(options ? options->backwardStepKeys : nullptr,
+                             options ? options->backwardStepKeyCount : 0,
+                             {geoqik::Key::KEY_LEFT, geoqik::Key::KEY_A},
+                             replayOptions.backwardStepKeys) &&
+         convert_replay_keys(options ? options->resumeKeys : nullptr,
+                             options ? options->resumeKeyCount : 0,
+                             {geoqik::Key::KEY_SPACE},
+                             replayOptions.resumeKeys) &&
+         convert_replay_keys(options ? options->pauseKeys : nullptr,
+                             options ? options->pauseKeyCount : 0,
+                             {geoqik::Key::KEY_SPACE},
+                             replayOptions.pauseKeys) &&
+         convert_replay_keys(options ? options->increaseEntriesPerStepKeys : nullptr,
+                             options ? options->increaseEntriesPerStepKeyCount : 0,
+                             {geoqik::Key::KEY_UP, geoqik::Key::KEY_W},
+                             replayOptions.increaseEntriesPerStepKeys) &&
+         convert_replay_keys(options ? options->decreaseEntriesPerStepKeys : nullptr,
+                             options ? options->decreaseEntriesPerStepKeyCount : 0,
+                             {geoqik::Key::KEY_DOWN, geoqik::Key::KEY_S},
+                             replayOptions.decreaseEntriesPerStepKeys);
 }
 
 template <typename Func>
@@ -1053,6 +1124,22 @@ geoqik_error_code_t geoqik_step_replay_n(size_t count)
 
   return geoqik_internal::execute_if_initialized(
       [&]() -> geoqik_error_code_t { return enqueue(GeoQikMessage{StepReplay{count}}); });
+}
+
+geoqik_error_code_t geoqik_step_replay_backward()
+{
+  return geoqik_step_replay_backward_n(1);
+}
+
+geoqik_error_code_t geoqik_step_replay_backward_n(size_t count)
+{
+  if (count == 0)
+  {
+    return GEOQIK_ERROR_INVALID_PARAMETER;
+  }
+
+  return geoqik_internal::execute_if_initialized(
+      [&]() -> geoqik_error_code_t { return enqueue(GeoQikMessage{StepReplayBackward{count}}); });
 }
 
 geoqik_error_code_t geoqik_get_replay_state(geoqik_replay_state_t* state)

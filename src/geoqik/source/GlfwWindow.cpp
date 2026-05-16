@@ -120,6 +120,12 @@ InputState& GlfwWindow::get_input_state() const
   return *geoqik::get_input_state(m_window);
 }
 
+void GlfwWindow::set_key_callback(KeyCB cb)
+{
+  CORE_ASSERT(m_window);
+  geoqik::set_key_callback(m_window, std::move(cb));
+}
+
 void GlfwWindow::set_cursor_pos_callback(CursorPosCB cb)
 {
   CORE_ASSERT(m_window);

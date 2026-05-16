@@ -7,10 +7,19 @@
 #include <Geometry/Sphere.hpp>
 #include <cstddef>
 #include <memory>
+#include <optional>
 #include <span>
 
 namespace geoqik
 {
+
+struct SceneSnapshot
+{
+  PointBufferSnapshot pointBuffer;
+  LineBufferSnapshot lineBuffer;
+  float pointSize{3.0f};
+  float lineWidth{1.0f};
+};
 
 class Scene
 {
@@ -47,6 +56,11 @@ public:
   void rotate_geometry(core::UUID handle, float centerX, float centerY, float centerZ, float axisX, float axisY, float axisZ, float angle);
 
   void clear();
+
+  [[nodiscard]] SceneSnapshot create_snapshot() const;
+  void restore_snapshot(const SceneSnapshot& snapshot);
+  [[nodiscard]] std::optional<PointBufferGeometry> get_point_geometry(core::UUID handle) const;
+  [[nodiscard]] std::optional<LineBufferGeometry> get_line_geometry(core::UUID handle) const;
 
   [[nodiscard]] float get_point_size() const { return m_pointSize; }
   void set_point_size(float pointSize) { m_pointSize = pointSize; }
