@@ -136,6 +136,53 @@ static bool validate_line_color_count(std::size_t colorCount, std::size_t lineCo
   return colorCount == 0 || colorCount == ColorChannelCount || colorCount == lineCount * ColorChannelCount;
 }
 
+static bool convert_replay_options(const geoqik_replay_options_t* options, geoqik::ReplayOptions& replayOptions)
+{
+  constexpr double defaultEntriesPerSecond = 60.0;
+  constexpr double defaultSpeedMultiplier = 1.0;
+  constexpr std::size_t defaultMaxEntriesPerFrame = 1024;
+
+  double entriesPerSecond = defaultEntriesPerSecond;
+  double speedMultiplier = defaultSpeedMultiplier;
+  std::size_t maxEntriesPerFrame = defaultMaxEntriesPerFrame;
+
+  if (options)
+  {
+    if (options->entriesPerSecond != 0.0)
+    {
+      if (!std::isfinite(options->entriesPerSecond) || options->entriesPerSecond < 0.0)
+      {
+        return false;
+      }
+      entriesPerSecond = options->entriesPerSecond;
+    }
+
+    if (options->speedMultiplier != 0.0)
+    {
+      if (!std::isfinite(options->speedMultiplier) || options->speedMultiplier < 0.0)
+      {
+        return false;
+      }
+      speedMultiplier = options->speedMultiplier;
+    }
+
+    if (options->maxEntriesPerFrame != 0)
+    {
+      maxEntriesPerFrame = options->maxEntriesPerFrame;
+    }
+  }
+
+  const double effectiveEntriesPerSecond = entriesPerSecond * speedMultiplier;
+  if (!std::isfinite(effectiveEntriesPerSecond) || effectiveEntriesPerSecond <= 0.0 || maxEntriesPerFrame == 0)
+  {
+    return false;
+  }
+
+  replayOptions.entriesPerSecond = effectiveEntriesPerSecond;
+  replayOptions.maxEntriesPerFrame = maxEntriesPerFrame;
+  return true;
+}
+
 template <typename Func>
 static auto execute_with_error_handling(Func&& func) -> std::invoke_result_t<Func>
 {
@@ -882,6 +929,73 @@ geoqik_error_code_t geoqik_load_log(const char* path, geoqik_log_format_t format
         }
 
         return future.get();
+      });
+}
+
+geoqik_error_code_t geoqik_replay_log(const char* path, geoqik_log_format_t format, const geoqik_replay_options_t* options)
+{
+  if (!path || path[0] == '\0' || format != GEOQIK_LOG_FORMAT_BINARY)
+  {
+    return GEOQIK_ERROR_INVALID_PARAMETER;
+  }
+
+  geoqik::ReplayOptions replayOptions;
+  if (!geoqik_internal::convert_replay_options(options, replayOptions))
+  {
+    return GEOQIK_ERROR_INVALID_PARAMETER;
+  }
+
+  return geoqik_internal::execute_if_initialized(
+      [&]() -> geoqik_error_code_t
+      {
+        std::promise<geoqik_error_code_t> promise;
+        std::future<geoqik_error_code_t> future = promise.get_future();
+        std::string pathCopy(path);
+
+        auto enqueueResult = enqueue(GeoQikMessage{
+            ReplayLog{[&promise, path = std::move(pathCopy), format, replayOptions](Context& context)
+                      { promise.set_value(context.replay_log(path.c_str(), format, replayOptions)); }}});
+        if (enqueueResult != GEOQIK_SUCCESS)
+        {
+          return enqueueResult;
+        }
+
+        return future.get();
+      });
+}
+
+geoqik_error_code_t geoqik_replay_current_log(const geoqik_replay_options_t* options)
+{
+  geoqik::ReplayOptions replayOptions;
+  if (!geoqik_internal::convert_replay_options(options, replayOptions))
+  {
+    return GEOQIK_ERROR_INVALID_PARAMETER;
+  }
+
+  return geoqik_internal::execute_if_initialized(
+      [&]() -> geoqik_error_code_t
+      {
+        std::promise<geoqik_error_code_t> promise;
+        std::future<geoqik_error_code_t> future = promise.get_future();
+
+        auto enqueueResult = enqueue(GeoQikMessage{
+            ReplayCurrentLog{[&promise, replayOptions](Context& context) { promise.set_value(context.replay_current_log(replayOptions)); }}});
+        if (enqueueResult != GEOQIK_SUCCESS)
+        {
+          return enqueueResult;
+        }
+
+        return future.get();
+      });
+}
+
+geoqik_error_code_t geoqik_cancel_replay()
+{
+  return geoqik_internal::execute_if_initialized(
+      [&]() -> geoqik_error_code_t
+      {
+        request_replay_cancel();
+        return GEOQIK_SUCCESS;
       });
 }
 

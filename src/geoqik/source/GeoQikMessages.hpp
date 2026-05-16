@@ -138,6 +138,16 @@ struct LoadLog
   std::function<void(Context& context)> callback;
 };
 
+struct ReplayLog
+{
+  std::function<void(Context& context)> callback;
+};
+
+struct ReplayCurrentLog
+{
+  std::function<void(Context& context)> callback;
+};
+
 struct GetPointSize
 {
   std::function<void(Context& context)> callback;
@@ -193,6 +203,8 @@ using GeoQikMessage = std::variant<AddPointWithOpts,
                                    StopDraw,
                                    SaveLog,
                                    LoadLog,
+                                   ReplayLog,
+                                   ReplayCurrentLog,
                                    GetPointSize,
                                    GetPointColor,
                                    GetLineWidth,

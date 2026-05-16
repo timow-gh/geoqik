@@ -117,6 +117,13 @@ extern "C"
 
   typedef struct
   {
+    double entriesPerSecond;   /* 0 = default 60.0 */
+    double speedMultiplier;    /* 0 = default 1.0 */
+    size_t maxEntriesPerFrame; /* 0 = default 1024 */
+  } geoqik_replay_options_t;
+
+  typedef struct
+  {
     uint8_t value[16];
   } geoqik_uuid_t;
 
@@ -214,6 +221,15 @@ extern "C"
 
   /** \brief Loads a geometry event log from a file, replacing current geometry and the in-memory log. */
   GEOQIK_EXPORT geoqik_error_code_t geoqik_load_log(const char* path, geoqik_log_format_t format);
+
+  /** \brief Replays a geometry event log from a file over time, replacing current geometry and the in-memory log. */
+  GEOQIK_EXPORT geoqik_error_code_t geoqik_replay_log(const char* path, geoqik_log_format_t format, const geoqik_replay_options_t* options);
+
+  /** \brief Replays the current in-memory geometry event log over time. */
+  GEOQIK_EXPORT geoqik_error_code_t geoqik_replay_current_log(const geoqik_replay_options_t* options);
+
+  /** \brief Cancels an active replay, leaving the scene at its current replayed state. */
+  GEOQIK_EXPORT geoqik_error_code_t geoqik_cancel_replay();
 
   /** \brief Waits for user to close the window and then cleans up resources.
    *

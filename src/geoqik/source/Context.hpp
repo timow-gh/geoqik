@@ -15,6 +15,7 @@
 #include <atomic>
 #include <cassert>
 #include <chrono>
+#include <deque>
 #include <memory>
 #include <span>
 #include <unordered_set>
@@ -28,6 +29,13 @@ class OpenGLSceneRenderer;
 
 void init_message_queue(ConcurrentQueue<GeoQikMessage>&& messageQueue);
 [[nodiscard]] ConcurrentQueue<GeoQikMessage>& get_message_queue();
+void request_replay_cancel();
+
+struct ReplayOptions
+{
+  double entriesPerSecond{60.0};
+  std::size_t maxEntriesPerFrame{1024};
+};
 
 // Holds idempotency key for messages.
 // If a message with the same key has already been processed, it will be ignored.
@@ -55,6 +63,12 @@ class Context
   std::size_t m_geometryMessagesProcessedThisFrame{0};
   float m_drawAtEveryNPercentOfMessages{10.0f};
   std::vector<GeoQikLogEntry> m_messageLog;
+  std::vector<GeoQikLogEntry> m_replayEntries;
+  std::size_t m_replayEntryIndex{0};
+  double m_replayEntryBudget{0.0};
+  ReplayOptions m_replayOptions;
+  std::chrono::high_resolution_clock::time_point m_lastReplayTick;
+  std::deque<GeoQikMessage> m_deferredMessages;
 
 public:
   Context();
@@ -111,10 +125,22 @@ public:
 
   geoqik_error_code_t save_log(const char* path, geoqik_log_format_t format) const;
   geoqik_error_code_t load_log(const char* path, geoqik_log_format_t format);
+  geoqik_error_code_t replay_log(const char* path, geoqik_log_format_t format, const ReplayOptions& options);
+  geoqik_error_code_t replay_current_log(const ReplayOptions& options);
+  void cancel_replay();
 
   bool cleanup();
 
 private:
+  [[nodiscard]] bool is_replaying() const;
+  [[nodiscard]] static bool is_control_message(const GeoQikMessage& message);
+  void start_replay(std::vector<GeoQikLogEntry> entries, const ReplayOptions& options);
+  void process_replay_entries(const std::chrono::high_resolution_clock::time_point& now);
+  void finish_replay();
+  void defer_or_handle_message(GeoQikMessage&& message);
+  bool process_message(GeoQikMessage&& message, bool recordLogEntry);
+  bool process_deferred_messages();
+  bool process_deferred_messages_before_cleanup();
   [[nodiscard]] bool is_known_idempotency_key(const core::UUID* key);
   void replay_log_entries(const std::vector<GeoQikLogEntry>& entries);
   void apply_log_entry(const GeoQikLogEntry& entry);
@@ -136,6 +162,8 @@ private:
   void handle_message(const StopDraw& message);
   void handle_message(const SaveLog& message);
   void handle_message(const LoadLog& message);
+  void handle_message(const ReplayLog& message);
+  void handle_message(const ReplayCurrentLog& message);
   void handle_message(const GetPointSize& message);
   void handle_message(const GetPointColor& message);
   void handle_message(const GetLineWidth& message);

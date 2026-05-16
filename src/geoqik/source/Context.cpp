@@ -3,6 +3,7 @@
 #include "GeoQikMessages.hpp"
 #include "Rendering/OpenGLSceneRenderer.hpp"
 #include <Core/Assert.hpp>
+#include <algorithm>
 #include <fmt/format.h>
 #include <type_traits>
 #include <utility>
@@ -11,6 +12,7 @@ namespace geoqik
 {
 
 static ConcurrentQueue<GeoQikMessage> g_messageQueue;
+static std::atomic<bool> g_replayCancelRequested{false};
 
 void init_message_queue(ConcurrentQueue<GeoQikMessage>&& messageQueue)
 {
@@ -20,6 +22,11 @@ void init_message_queue(ConcurrentQueue<GeoQikMessage>&& messageQueue)
 ConcurrentQueue<GeoQikMessage>& get_message_queue()
 {
   return g_messageQueue;
+}
+
+void request_replay_cancel()
+{
+  g_replayCancelRequested.store(true, std::memory_order_release);
 }
 
 Context::Context() = default;
@@ -289,6 +296,7 @@ void Context::run_event_loop()
   assert(m_window && m_window->is_initialized());
 
   auto& messageQueue = get_message_queue();
+  m_lastReplayTick = std::chrono::high_resolution_clock::now();
   while (!m_windowShouldClose)
   {
     std::chrono::high_resolution_clock::time_point frameStartTime = std::chrono::high_resolution_clock::now();
@@ -349,6 +357,12 @@ void Context::run_event_loop()
     m_renderer->draw(mvp, m_cameraInteractor->get_position());
     m_window->swap_buffers();
 
+    process_replay_entries(std::chrono::high_resolution_clock::now());
+    if (!is_replaying() && process_deferred_messages())
+    {
+      return;
+    }
+
     ////////////-------------------------------------
     // Process messages in the queue
     ////////////-------------------------------------
@@ -391,21 +405,8 @@ void Context::run_event_loop()
       if (message.has_value())
       {
         ++messagesProcessedThisFrame;
-
-        if (auto logEntry = create_log_entry(message.value()))
-        {
-          m_messageLog.push_back(std::move(*logEntry));
-        }
-
-        const bool shouldReturn = std::visit(
-            [this](const auto& value)
-            {
-              using T = std::decay_t<decltype(value)>;
-              handle_message(value);
-              return std::is_same_v<T, Cleanup>;
-            },
-            message.value());
-        if (shouldReturn)
+        defer_or_handle_message(std::move(*message));
+        if (m_windowShouldClose)
         {
           return;
         }
@@ -488,6 +489,58 @@ geoqik_error_code_t Context::load_log(const char* path, geoqik_log_format_t form
   {
     return GEOQIK_ERROR_UNKNOWN;
   }
+}
+
+geoqik_error_code_t Context::replay_log(const char* path, geoqik_log_format_t format, const ReplayOptions& options)
+{
+  if (!path || path[0] == '\0' || format != GEOQIK_LOG_FORMAT_BINARY)
+  {
+    return GEOQIK_ERROR_INVALID_PARAMETER;
+  }
+
+  try
+  {
+    std::vector<GeoQikLogEntry> loadedEntries = load_log_binary(path);
+    start_replay(std::move(loadedEntries), options);
+    return GEOQIK_SUCCESS;
+  }
+  catch (const std::bad_alloc&)
+  {
+    return GEOQIK_ERROR_MEMORY_ALLOCATION;
+  }
+  catch (...)
+  {
+    return GEOQIK_ERROR_UNKNOWN;
+  }
+}
+
+geoqik_error_code_t Context::replay_current_log(const ReplayOptions& options)
+{
+  try
+  {
+    start_replay(m_messageLog, options);
+    return GEOQIK_SUCCESS;
+  }
+  catch (const std::bad_alloc&)
+  {
+    return GEOQIK_ERROR_MEMORY_ALLOCATION;
+  }
+  catch (...)
+  {
+    return GEOQIK_ERROR_UNKNOWN;
+  }
+}
+
+void Context::cancel_replay()
+{
+  if (!is_replaying())
+  {
+    return;
+  }
+
+  m_replayEntries.clear();
+  m_replayEntryIndex = 0;
+  m_replayEntryBudget = 0.0;
 }
 
 void Context::handle_message(const AddPointWithOpts& message)
@@ -584,6 +637,18 @@ void Context::handle_message(const LoadLog& message)
   message.callback(*this);
 }
 
+void Context::handle_message(const ReplayLog& message)
+{
+  CORE_ASSERT(message.callback);
+  message.callback(*this);
+}
+
+void Context::handle_message(const ReplayCurrentLog& message)
+{
+  CORE_ASSERT(message.callback);
+  message.callback(*this);
+}
+
 void Context::handle_message(const GetPointSize& message)
 {
   CORE_ASSERT(message.callback);
@@ -611,6 +676,157 @@ void Context::handle_message(const GetLineColor& message)
 void Context::handle_message([[maybe_unused]] const Cleanup& message)
 {
   cleanup();
+  m_windowShouldClose.store(true);
+}
+
+bool Context::is_replaying() const
+{
+  return m_replayEntryIndex < m_replayEntries.size();
+}
+
+bool Context::is_control_message(const GeoQikMessage& message)
+{
+  return std::holds_alternative<Cleanup>(message);
+}
+
+void Context::start_replay(std::vector<GeoQikLogEntry> entries, const ReplayOptions& options)
+{
+  cancel_replay();
+  remove_all_geometry();
+  m_idempotencySet.clear();
+  m_messageLog = entries;
+  m_replayEntries = std::move(entries);
+  m_replayEntryIndex = 0;
+  m_replayEntryBudget = 0.0;
+  m_replayOptions = options;
+  m_lastReplayTick = std::chrono::high_resolution_clock::now();
+}
+
+void Context::process_replay_entries(const std::chrono::high_resolution_clock::time_point& now)
+{
+  if (!is_replaying())
+  {
+    g_replayCancelRequested.store(false, std::memory_order_release);
+    m_lastReplayTick = now;
+    return;
+  }
+
+  if (g_replayCancelRequested.exchange(false, std::memory_order_acq_rel))
+  {
+    cancel_replay();
+    m_lastReplayTick = now;
+    return;
+  }
+
+  const std::chrono::duration<double> elapsed = now - m_lastReplayTick;
+  m_lastReplayTick = now;
+  m_replayEntryBudget += elapsed.count() * m_replayOptions.entriesPerSecond;
+
+  std::size_t entriesToApply = static_cast<std::size_t>(m_replayEntryBudget);
+  entriesToApply = std::min(entriesToApply, m_replayOptions.maxEntriesPerFrame);
+
+  for (std::size_t i = 0; i < entriesToApply && is_replaying(); ++i)
+  {
+    apply_log_entry(m_replayEntries[m_replayEntryIndex]);
+    ++m_replayEntryIndex;
+    m_replayEntryBudget -= 1.0;
+  }
+
+  if (!is_replaying())
+  {
+    finish_replay();
+  }
+}
+
+void Context::finish_replay()
+{
+  m_replayEntries.clear();
+  m_replayEntryIndex = 0;
+  m_replayEntryBudget = 0.0;
+}
+
+void Context::defer_or_handle_message(GeoQikMessage&& message)
+{
+  if (is_replaying() && !is_control_message(message))
+  {
+    m_deferredMessages.push_back(std::move(message));
+    return;
+  }
+
+  if (std::holds_alternative<Cleanup>(message))
+  {
+    cancel_replay();
+    if (process_deferred_messages_before_cleanup())
+    {
+      return;
+    }
+  }
+
+  if (process_message(std::move(message), true))
+  {
+    m_windowShouldClose.store(true);
+  }
+  else if (!is_replaying())
+  {
+    process_deferred_messages();
+  }
+}
+
+bool Context::process_message(GeoQikMessage&& message, bool recordLogEntry)
+{
+  if (recordLogEntry)
+  {
+    if (auto logEntry = create_log_entry(message))
+    {
+      m_messageLog.push_back(std::move(*logEntry));
+    }
+  }
+
+  return std::visit(
+      [this](const auto& value)
+      {
+        using T = std::decay_t<decltype(value)>;
+        handle_message(value);
+        return std::is_same_v<T, Cleanup>;
+      },
+      message);
+}
+
+bool Context::process_deferred_messages()
+{
+  while (!m_deferredMessages.empty() && !is_replaying())
+  {
+    GeoQikMessage message = std::move(m_deferredMessages.front());
+    m_deferredMessages.pop_front();
+
+    if (process_message(std::move(message), true))
+    {
+      m_windowShouldClose.store(true);
+      return true;
+    }
+  }
+  return false;
+}
+
+bool Context::process_deferred_messages_before_cleanup()
+{
+  while (!m_deferredMessages.empty())
+  {
+    if (is_replaying())
+    {
+      cancel_replay();
+    }
+
+    GeoQikMessage message = std::move(m_deferredMessages.front());
+    m_deferredMessages.pop_front();
+
+    if (process_message(std::move(message), true))
+    {
+      m_windowShouldClose.store(true);
+      return true;
+    }
+  }
+  return false;
 }
 
 bool Context::is_known_idempotency_key(const core::UUID* key)

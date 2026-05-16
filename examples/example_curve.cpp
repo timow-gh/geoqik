@@ -1,10 +1,12 @@
 #include "Grid.hpp"
 #include "Origin.hpp"
+#include "sleep_helper.hpp"
 #include <GeoQik/GeoQik.hpp>
 #include <linal/linal.hpp>
 #include <cassert>
 #include <array>
 #include <algorithm>
+#include <cstdio>
 
 void add_float3_with_color(const linal::float3& point)
 {
@@ -60,6 +62,20 @@ void draw_curve_points(const std::array<linal::float3, 4>& startPoints, std::siz
   }
 }
 
+void replay_current_log()
+{
+  geoqik_replay_options_t replayOptions{};
+  replayOptions.entriesPerSecond = 240.0;
+  replayOptions.speedMultiplier = 4.0;
+  replayOptions.maxEntriesPerFrame = 64;
+
+  geoqik_error_code_t replayResult = geoqik_replay_current_log(&replayOptions);
+  if (replayResult != GEOQIK_SUCCESS)
+  {
+    std::fprintf(stderr, "Failed to start replay: %s\n", geoqik_get_error_string(replayResult));
+  }
+}
+
 int main()
 {
   geoqik_init();
@@ -82,6 +98,10 @@ int main()
     point += linal::float3{15.0f, 0.0f, 0.0f};
   }
   draw_curve_points(startPoints, 100);
+
+  geoqik::examples::sleep_for_seconds(1.0f);
+
+  replay_current_log();
 
   geoqik_wait_for_exit_and_cleanup();
   
