@@ -50,6 +50,12 @@ static geoqik_settings_t create_default_c_settings()
   settings.backgroundColor[2] = 0.1f;
   settings.backgroundColor[3] = 1.0f;
   settings.cameraFarPlaneMultiplier = 3.0;
+  settings.autoFitCameraEnabled = 1;
+  settings.autoFitZoomInEnabled = 1;
+  settings.autoFitZoomOutPadding = 1.15;
+  settings.autoFitMinViewportOccupancy = 0.20;
+  settings.autoFitTargetViewportOccupancy = 0.65;
+  settings.autoFitSuppressAfterUserCameraInteractionMs = 1000;
   settings.minGeometryProcessingTimeMs = 16;
   settings.maxFrameProcessingTimeMs = 16;
   settings.updateSceneFrequency = 5;
@@ -118,6 +124,13 @@ static geoqik::GeoQikSettings convert_to_cpp_settings(const geoqik_settings_t& c
   }
 
   cpp_settings.cameraFarPlaneMultiplier = c_settings.cameraFarPlaneMultiplier;
+  cpp_settings.autoFitCameraEnabled = c_settings.autoFitCameraEnabled != 0;
+  cpp_settings.autoFitZoomInEnabled = c_settings.autoFitZoomInEnabled != 0;
+  cpp_settings.autoFitZoomOutPadding = c_settings.autoFitZoomOutPadding;
+  cpp_settings.autoFitMinViewportOccupancy = c_settings.autoFitMinViewportOccupancy;
+  cpp_settings.autoFitTargetViewportOccupancy = c_settings.autoFitTargetViewportOccupancy;
+  cpp_settings.autoFitSuppressAfterUserCameraInteraction =
+      std::chrono::milliseconds(c_settings.autoFitSuppressAfterUserCameraInteractionMs);
   cpp_settings.minGeometryProcessingTime = std::chrono::milliseconds(c_settings.minGeometryProcessingTimeMs);
   cpp_settings.maxFrameProcessingTime = std::chrono::milliseconds(c_settings.maxFrameProcessingTimeMs);
   cpp_settings.updateSceneFrequency = c_settings.updateSceneFrequency;

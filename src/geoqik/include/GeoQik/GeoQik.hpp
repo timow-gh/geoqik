@@ -60,6 +60,12 @@ extern "C"
     float defaultLineColor[4];           /* Default color for lines (RGBA) */
     float backgroundColor[4];            /* Background color for the window (RGBA) */
     double cameraFarPlaneMultiplier;     /* Far plane multiplier for camera */
+    int autoFitCameraEnabled;            /* Whether camera auto-fit runs after scene changes */
+    int autoFitZoomInEnabled;            /* Whether auto-fit may zoom in when geometry is very small */
+    double autoFitZoomOutPadding;        /* Padding used when auto-fit zooms out */
+    double autoFitMinViewportOccupancy;  /* Occupancy below which auto-fit may zoom in */
+    double autoFitTargetViewportOccupancy; /* Target occupancy when auto-fit zooms in */
+    int64_t autoFitSuppressAfterUserCameraInteractionMs; /* Suppress zoom-in after user camera movement */
     int64_t minGeometryProcessingTimeMs; /* Minimum time for geometry processing per frame (ms) */
     int64_t maxFrameProcessingTimeMs;    /* Maximum time for frame processing (ms) */
     size_t updateSceneFrequency;         /* Frequency of updating the scene */

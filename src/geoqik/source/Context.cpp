@@ -29,6 +29,39 @@ void request_replay_cancel()
   g_replayCancelRequested.store(true, std::memory_order_release);
 }
 
+CameraAutoFitSettings make_camera_auto_fit_settings(const GeoQikSettings& settings)
+{
+  CameraAutoFitSettings autoFitSettings;
+  autoFitSettings.enabled = settings.autoFitCameraEnabled;
+  autoFitSettings.zoomInEnabled = settings.autoFitZoomInEnabled;
+  autoFitSettings.zoomOutPadding = settings.autoFitZoomOutPadding;
+  autoFitSettings.minViewportOccupancy = settings.autoFitMinViewportOccupancy;
+  autoFitSettings.targetViewportOccupancy = settings.autoFitTargetViewportOccupancy;
+  autoFitSettings.suppressAfterUserCameraInteraction = settings.autoFitSuppressAfterUserCameraInteraction;
+  return autoFitSettings;
+}
+
+CameraAutoFitInput make_camera_auto_fit_input(const CameraInteractor& cameraInteractor,
+                                              const GeoQikSettings& settings,
+                                              bool suppressZoomIn)
+{
+  const auto orthographicParams = cameraInteractor.get_orthographic_params();
+  CameraAutoFitInput input;
+  input.position = cameraInteractor.get_position();
+  input.target = cameraInteractor.get_target();
+  input.vertical = cameraInteractor.get_vertical();
+  input.projectionType = cameraInteractor.get_projection_type();
+  input.verticalFovDegrees = cameraInteractor.get_fov();
+  input.orthographicWidth = orthographicParams.width;
+  input.orthographicHeight = orthographicParams.height;
+  input.aspectRatio = cameraInteractor.get_viewport().get_aspect_ratio();
+  input.nearPlane = cameraInteractor.get_near_plane();
+  input.farPlaneMultiplier = settings.cameraFarPlaneMultiplier;
+  input.suppressZoomIn = suppressZoomIn;
+  input.settings = make_camera_auto_fit_settings(settings);
+  return input;
+}
+
 Context::Context() = default;
 
 Context::~Context() = default;
@@ -349,6 +382,12 @@ void Context::run_event_loop()
     mvp = m_cameraInteractor->get_current_MVP();
 
     m_window->poll_events();
+    const bool cameraWasMovedByUser = m_cameraInteractor->get_was_blocking();
+    if (cameraWasMovedByUser)
+    {
+      m_lastCameraInteractionTime = std::chrono::high_resolution_clock::now();
+      m_cameraInteractor->reset_was_blocking();
+    }
 
     // Check for escape key or window close event to stop drawing
     if (m_window->is_escape_pressed())
@@ -369,29 +408,17 @@ void Context::run_event_loop()
 
     if (m_renderer->sync_scene(m_scene))
     {
-      // Update the camera, since the scene geometry has changed
-      // First get the current bounding sphere of the scene
-      Geometry::Sphere<float> boundingSphere = m_scene.calc_bounding_sphere(m_cameraInteractor->get_target());
-      // Then check if the camera pos is inside the bounding sphere
+      const auto now = std::chrono::high_resolution_clock::now();
+      const bool hasRecentCameraInteraction =
+          m_lastCameraInteractionTime.time_since_epoch().count() != 0 &&
+          now - m_lastCameraInteractionTime < m_geoqikSettings.autoFitSuppressAfterUserCameraInteraction;
 
-      boundingSphere.set_radius(boundingSphere.get_radius() * 1.6f);
-
-      if (boundingSphere.contains(m_cameraInteractor->get_position()))
+      const CameraAutoFitInput autoFitInput =
+          make_camera_auto_fit_input(*m_cameraInteractor, m_geoqikSettings, hasRecentCameraInteraction);
+      const CameraAutoFitResult autoFitResult = calculate_camera_auto_fit(m_scene, autoFitInput);
+      if (autoFitResult.hasGeometry)
       {
-        // If it is, we move the camera along the opposite direction it's current view direction until it is outside
-        // the bounding sphere.
-        linal::double3 cameraPos = m_cameraInteractor->get_position();
-        linal::double3 cameraTarget = m_cameraInteractor->get_target();
-        linal::double3 cameraVertical = m_cameraInteractor->get_vertical();
-        linal::float3 origin = boundingSphere.get_origin();
-        linal::double3 cTarget{origin[0], origin[1], origin[2]};
-        linal::double3 cameraDir = linal::normalize(cTarget - cameraPos);
-        double radius = static_cast<double>(boundingSphere.get_radius());
-        linal::double3 newCameraPos = cameraPos - cameraDir * radius;
-        m_cameraInteractor->look_at(newCameraPos, cameraTarget, cameraVertical);
-        // Update the near and the far plane of the camera
-        // Increase the far plane to ensure the whole scene is visible when the camera is zoomed out
-        m_cameraInteractor->set_far_plane(static_cast<double>(boundingSphere.get_radius()) * 2 * m_geoqikSettings.cameraFarPlaneMultiplier);
+        m_cameraInteractor->apply_auto_fit_result(autoFitResult);
       }
     }
 
@@ -975,6 +1002,8 @@ void Context::apply_replay_entries(std::size_t entriesToApply)
     }
   }
 
+  m_geometryMessagesProcessedThisFrame += entriesToApply;
+
   if (is_replaying() && m_replayEntryIndex >= m_replayEntries.size())
   {
     finish_replay();
@@ -989,6 +1018,8 @@ void Context::undo_replay_entries(std::size_t entriesToUndo)
     restore_replay_undo_frame(m_replayUndoStack.back());
     m_replayUndoStack.pop_back();
   }
+
+  m_geometryMessagesProcessedThisFrame += entriesToUndo;
 }
 
 ReplayUndoFrame Context::create_replay_undo_frame(const GeoQikLogEntry& entry) const

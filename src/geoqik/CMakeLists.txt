@@ -6,6 +6,8 @@ set(geoqik_SOURCE_FILES
         source/ConcurrentQueue/ConcurrentQueue.hpp
         source/Buffer.hpp
         source/Camera.cpp
+        source/CameraAutoFit.cpp
+        source/CameraAutoFit.hpp
         source/Camera.hpp
         source/CameraInteractor.hpp
         source/CameraProjectionType.hpp
@@ -124,6 +126,7 @@ add_library(geoqik_internals INTERFACE)
 target_include_directories(geoqik_internals INTERFACE ${CMAKE_SOURCE_DIR}/src/geoqik/source)
 target_sources(geoqik_internals INTERFACE
         ${CMAKE_SOURCE_DIR}/src/geoqik/source/Scene.cpp
+        ${CMAKE_SOURCE_DIR}/src/geoqik/source/CameraAutoFit.cpp
         ${CMAKE_SOURCE_DIR}/src/geoqik/source/GeoQikLog.cpp
         ${CMAKE_SOURCE_DIR}/src/geoqik/source/GeoQikMessageSerialization.cpp
         ${CMAKE_SOURCE_DIR}/src/geoqik/source/GeoQikReplayUndo.cpp)

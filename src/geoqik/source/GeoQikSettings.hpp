@@ -31,6 +31,12 @@ struct GEOQIK_EXPORT GeoQikSettings
   Color backgroundColor{0.1f, 0.1f, 0.1f, 1.0f};   // Default background color for the window.
 
   double cameraFarPlaneMultiplier{3.0}; // The far plane of the camera is set to the radius of the bounding sphere multiplied by this factor.
+  bool autoFitCameraEnabled{true};
+  bool autoFitZoomInEnabled{true};
+  double autoFitZoomOutPadding{1.15};
+  double autoFitMinViewportOccupancy{0.20};
+  double autoFitTargetViewportOccupancy{0.65};
+  std::chrono::milliseconds autoFitSuppressAfterUserCameraInteraction{1000};
 
   // Minimum time to be spent processing geometries per frame. This is used to ensure that the API does process
   // geometries. This reduces the frame rate at the expense of faster geometry processing. If the processing time is set to 0,

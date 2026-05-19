@@ -81,6 +81,7 @@ class Context
   bool m_isReplayActive{false};
   bool m_isReplayPaused{false};
   std::chrono::high_resolution_clock::time_point m_lastReplayTick;
+  std::chrono::high_resolution_clock::time_point m_lastCameraInteractionTime;
   std::deque<GeoQikMessage> m_deferredMessages;
 
 public:

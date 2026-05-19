@@ -3,6 +3,7 @@
 
 #include "Camera.hpp"
 #include "InputState.hpp"
+#include "CameraAutoFit.hpp"
 #include "PickRay.hpp"
 #include "RayPlaneIntersection.hpp"
 #include <Core/Warnings.hpp>
@@ -123,6 +124,11 @@ public:
   [[nodiscard]] linal::double3 get_position() const { return to_linal(m_camera.get_position()); }
   [[nodiscard]] linal::double3 get_target() const { return to_linal(m_camera.get_target()); }
   [[nodiscard]] linal::double3 get_vertical() const { return to_linal(m_camera.get_vertical()); }
+  [[nodiscard]] CameraProjectionType get_projection_type() const { return m_projectionType; }
+  [[nodiscard]] double get_fov() const { return m_camera.get_fov(); }
+  [[nodiscard]] double get_near_plane() const { return m_camera.get_near_plane(); }
+  [[nodiscard]] double get_far_plane() const { return m_camera.get_far_plane(); }
+  [[nodiscard]] Camera::OrthographicParams get_orthographic_params() const { return m_camera.get_orthographic_params(); }
 
   [[nodiscard]] linal::double3 get_default_position() const { return m_defaultPosition; }
   [[nodiscard]] linal::double3 get_default_target() const { return m_defaultTarget; }
@@ -146,6 +152,7 @@ public:
   void set_projection_type(CameraProjectionType projectionType)
   {
     m_projectionType = projectionType;
+    m_camera.set_projection_type(projectionType);
     update_mvp();
   }
 
@@ -154,6 +161,17 @@ public:
   void set_viewport(std::uint32_t x, std::uint32_t y, std::uint32_t width, std::uint32_t height)
   {
     m_camera.set_viewport(x, y, width, height);
+    update_mvp();
+  }
+
+  void apply_auto_fit_result(const CameraAutoFitResult& result)
+  {
+    m_camera.look_at(to_glm(result.position), to_glm(result.target), to_glm(result.vertical));
+    if (m_projectionType == CameraProjectionType::ORTHOGRAPHIC)
+    {
+      m_camera.set_orthographic_size(result.orthographicWidth, result.orthographicHeight);
+    }
+    m_camera.set_far_plane(result.farPlane);
     update_mvp();
   }
 
@@ -189,6 +207,7 @@ public:
     }
     }
 
+    m_wasBlocking = true;
     update_mvp();
   }
 
