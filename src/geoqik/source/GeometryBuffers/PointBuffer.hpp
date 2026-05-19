@@ -247,6 +247,111 @@ public:
     }
   }
 
+  [[nodiscard]] bool update_point(core::UUID handle, float x, float y, float z, std::span<const float> colors = {})
+  {
+    if (handle.is_nil())
+    {
+      return false;
+    }
+
+    auto it = m_handleToPointIndexMapping.find(handle);
+    if (it == m_handleToPointIndexMapping.end())
+    {
+      return false;
+    }
+
+    const std::size_t pointIndex = it->second.pointIndex;
+    if (!colors.empty() && colors.size() != ColorChannelCount)
+    {
+      return false;
+    }
+
+    const std::size_t pointStart = pointIndex * m_pointDimension;
+    m_points[pointStart] = x;
+    m_points[pointStart + 1] = y;
+    m_points[pointStart + 2] = z;
+
+    if (!colors.empty())
+    {
+      const std::size_t colorStart = pointIndex * m_colorDimension;
+      for (std::size_t colorIndex = 0; colorIndex < ColorChannelCount; ++colorIndex)
+      {
+        m_pointColors[colorStart + colorIndex] = colors[colorIndex];
+      }
+    }
+
+    m_pointsHaveChanged = true;
+    return true;
+  }
+
+  [[nodiscard]] bool update_points(core::UUID handle, std::span<const float> points, std::span<const float> colors = {})
+  {
+    if (handle.is_nil())
+    {
+      return false;
+    }
+    if (points.size() % m_pointDimension != 0)
+    {
+      throw std::runtime_error("GeometryBuffer: The size of the points span must be a multiple of the point dimension.");
+    }
+
+    if (auto pointIt = m_handleToPointIndexMapping.find(handle); pointIt != m_handleToPointIndexMapping.end())
+    {
+      if (points.size() != m_pointDimension)
+      {
+        return false;
+      }
+      return update_point(handle, points[0], points[1], points[2], colors);
+    }
+
+    auto pointsIt = m_handleToPointsIndexMapping.find(handle);
+    if (pointsIt == m_handleToPointsIndexMapping.end())
+    {
+      return false;
+    }
+
+    const std::size_t pointStartIndex = pointsIt->second.pointStartIndex;
+    const std::size_t pointEndIndex = pointsIt->second.pointEndIndex;
+    const std::size_t pointCount = pointEndIndex - pointStartIndex + 1;
+    if (points.size() != pointCount * m_pointDimension)
+    {
+      return false;
+    }
+    if (!colors.empty() && colors.size() != ColorChannelCount && colors.size() != pointCount * ColorChannelCount)
+    {
+      return false;
+    }
+
+    const std::size_t pointStart = pointStartIndex * m_pointDimension;
+    for (std::size_t i = 0; i < points.size(); ++i)
+    {
+      m_points[pointStart + i] = points[i];
+    }
+
+    if (colors.size() == ColorChannelCount)
+    {
+      for (std::size_t pointIndex = pointStartIndex; pointIndex <= pointEndIndex; ++pointIndex)
+      {
+        const std::size_t colorStart = pointIndex * m_colorDimension;
+        for (std::size_t colorIndex = 0; colorIndex < ColorChannelCount; ++colorIndex)
+        {
+          m_pointColors[colorStart + colorIndex] = colors[colorIndex];
+        }
+      }
+    }
+    else if (colors.size() == pointCount * ColorChannelCount)
+    {
+      const std::size_t colorStart = pointStartIndex * m_colorDimension;
+      for (std::size_t i = 0; i < colors.size(); ++i)
+      {
+        m_pointColors[colorStart + i] = colors[i];
+      }
+    }
+
+    m_pointsHaveChanged = true;
+    return true;
+  }
+
   void add_points(std::span<const float> points, std::span<const float> colors, const core::UUID* handle = nullptr)
   {
     if (points.empty() && colors.empty())

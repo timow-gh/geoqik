@@ -190,3 +190,37 @@ TEST(GeoQikReplayUndoTest, TransformUndoCreatesInverseEntries)
   EXPECT_FLOAT_EQ(1.0f, rotate->axisZ);
   EXPECT_FLOAT_EQ(-90.0f, rotate->angle);
 }
+
+TEST(GeoQikReplayUndoTest, UpdateGeometryUndoCapturesPreviousGeometry)
+{
+  auto scene = geoqik::Scene::create(make_scene_settings());
+  geoqik::IdempotencySet idempotencySet;
+  const geoqik::ReplayUndoContext context{scene, idempotencySet};
+
+  const auto pointId = make_uuid(30);
+  const std::vector<float> points{1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f};
+  const std::vector<float> pointColors{0.1f, 0.2f, 0.3f, 1.0f, 0.4f, 0.5f, 0.6f, 1.0f};
+  scene.add_points(points, pointColors, &pointId);
+
+  const auto pointFrame = geoqik::make_replay_undo_frame(geoqik::UpdatePointsWithOpts{pointId, {7.0f, 8.0f, 9.0f, 10.0f, 11.0f, 12.0f}, {}}, context);
+  const auto* updatePoints = get_log_action<geoqik::UpdatePointsWithOpts>(pointFrame);
+  ASSERT_NE(nullptr, updatePoints);
+  EXPECT_EQ(pointId, updatePoints->handle);
+  EXPECT_EQ(points, updatePoints->points);
+  EXPECT_EQ(pointColors, updatePoints->rgba);
+
+  const auto lineId = make_uuid(31);
+  const std::vector<float> lines{1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f};
+  const std::vector<float> lineColors{0.7f, 0.8f, 0.9f, 1.0f};
+  scene.add_lines(lines, lineColors, &lineId);
+
+  const auto lineFrame = geoqik::make_replay_undo_frame(geoqik::UpdateLineWithOpts{lineId, 7.0f, 8.0f, 9.0f, 10.0f, 11.0f, 12.0f, {}}, context);
+  const auto* updateLines = get_log_action<geoqik::UpdateLinesWithOpts>(lineFrame);
+  ASSERT_NE(nullptr, updateLines);
+  EXPECT_EQ(lineId, updateLines->handle);
+  EXPECT_EQ(lines, updateLines->lines);
+  EXPECT_EQ(lineColors, updateLines->rgba);
+
+  const auto missingFrame = geoqik::make_replay_undo_frame(geoqik::UpdatePointWithOpts{make_uuid(32), 1.0f, 2.0f, 3.0f, {}}, context);
+  EXPECT_TRUE(std::holds_alternative<std::monostate>(missingFrame.action));
+}

@@ -125,3 +125,34 @@ TEST_F(TestGeoQikApi_Points, AddPointWithColor)
   geoqik_draw();
   geoqik_cleanup();
 }
+
+TEST_F(TestGeoQikApi_Points, UpdatePointValidation)
+{
+  geoqik_uuid_t id{};
+
+  EXPECT_EQ(geoqik_update_point(nullptr, 1.0, 2.0, 3.0), GEOQIK_ERROR_INVALID_PARAMETER);
+  EXPECT_EQ(geoqik_update_point(&id, NAN, 2.0, 3.0), GEOQIK_ERROR_INVALID_PARAMETER);
+
+  const double points[] = {1.0, 2.0};
+  EXPECT_EQ(geoqik_update_points_opts(&id, points, 2, nullptr), GEOQIK_ERROR_INVALID_PARAMETER);
+
+  const double validPoints[] = {1.0, 2.0, 3.0};
+  const float invalidColors[] = {0.0f, 1.0f, 0.0f};
+  geoqik_update_points_options_t opts{};
+  opts.color = invalidColors;
+  opts.colorCount = 3;
+  EXPECT_EQ(geoqik_update_points_opts(&id, validPoints, 3, &opts), GEOQIK_ERROR_WRONG_COLOR_SIZE);
+}
+
+TEST_F(TestGeoQikApi_Points, UpdatePointEnqueues)
+{
+  geoqik_init();
+
+  geoqik_result_t result = geoqik_add_point(0.0, 0.0, 0.0);
+  ASSERT_EQ(result.err, GEOQIK_SUCCESS);
+
+  EXPECT_EQ(geoqik_update_point(&result.geometryId, 1.0, 2.0, 3.0), GEOQIK_SUCCESS);
+  EXPECT_EQ(geoqik_update_point_with_color(&result.geometryId, 4.0, 5.0, 6.0, 0.1f, 0.2f, 0.3f, 1.0f), GEOQIK_SUCCESS);
+
+  geoqik_cleanup();
+}

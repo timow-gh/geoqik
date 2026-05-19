@@ -38,6 +38,24 @@ struct AddPointsWithOpts
   [[nodiscard]] bool operator==(const AddPointsWithOpts&) const = default;
 };
 
+struct UpdatePointWithOpts
+{
+  core::UUID handle;
+  float x, y, z;
+  std::vector<float> rgba;
+
+  [[nodiscard]] bool operator==(const UpdatePointWithOpts&) const = default;
+};
+
+struct UpdatePointsWithOpts
+{
+  core::UUID handle;
+  std::vector<float> points;
+  std::vector<float> rgba;
+
+  [[nodiscard]] bool operator==(const UpdatePointsWithOpts&) const = default;
+};
+
 struct RemovePoint
 {
   core::UUID handle;
@@ -74,6 +92,25 @@ struct AddLinesWithOpts
   GeoQikMessageCommonData commonData;
 
   [[nodiscard]] bool operator==(const AddLinesWithOpts&) const = default;
+};
+
+struct UpdateLineWithOpts
+{
+  core::UUID handle;
+  float x1, y1, z1;
+  float x2, y2, z2;
+  std::vector<float> rgba;
+
+  [[nodiscard]] bool operator==(const UpdateLineWithOpts&) const = default;
+};
+
+struct UpdateLinesWithOpts
+{
+  core::UUID handle;
+  std::vector<float> lines;
+  std::vector<float> rgba;
+
+  [[nodiscard]] bool operator==(const UpdateLinesWithOpts&) const = default;
 };
 
 struct RemoveLine
@@ -202,11 +239,15 @@ struct Cleanup
 
 using GeoQikLogEntry = std::variant<AddPointWithOpts,
                                     AddPointsWithOpts,
+                                    UpdatePointWithOpts,
+                                    UpdatePointsWithOpts,
                                     RemovePoint,
                                     SetPointSize,
                                     SetPointColor,
                                     AddLineWithOpts,
                                     AddLinesWithOpts,
+                                    UpdateLineWithOpts,
+                                    UpdateLinesWithOpts,
                                     RemoveLine,
                                     SetLineWidth,
                                     SetLineColor,
@@ -216,11 +257,15 @@ using GeoQikLogEntry = std::variant<AddPointWithOpts,
 
 using GeoQikMessage = std::variant<AddPointWithOpts,
                                    AddPointsWithOpts,
+                                   UpdatePointWithOpts,
+                                   UpdatePointsWithOpts,
                                    RemovePoint,
                                    SetPointSize,
                                    SetPointColor,
                                    AddLineWithOpts,
                                    AddLinesWithOpts,
+                                   UpdateLineWithOpts,
+                                   UpdateLinesWithOpts,
                                    RemoveLine,
                                    SetLineWidth,
                                    SetLineColor,

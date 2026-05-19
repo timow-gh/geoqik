@@ -111,6 +111,8 @@ public:
 
   void add_point_with_opts(float x, float y, float z, const GeoQikMessageCommonData& commonData);
   void add_points_with_opts(std::span<const float> points, const GeoQikMessageCommonData& commonData);
+  void update_point_with_opts(const core::UUID& handle, float x, float y, float z, std::span<const float> colors);
+  void update_points_with_opts(const core::UUID& handle, std::span<const float> points, std::span<const float> colors);
 
   void remove_point(const core::UUID& handle);
 
@@ -118,6 +120,15 @@ public:
   void add_line(float x1, float y1, float z1, float x2, float y2, float z2, float r, float g, float b, float a, const core::UUID* handle = nullptr,  const core::UUID* idempotencyKey = nullptr);
   void add_line_with_opts(float x1, float y1, float z1, float x2, float y2, float z2, const GeoQikMessageCommonData& commonData);
   void add_lines_with_opts(std::span<const float> lines, const GeoQikMessageCommonData& commonData);
+  void update_line_with_opts(const core::UUID& handle,
+                             float x1,
+                             float y1,
+                             float z1,
+                             float x2,
+                             float y2,
+                             float z2,
+                             std::span<const float> colors);
+  void update_lines_with_opts(const core::UUID& handle, std::span<const float> lines, std::span<const float> colors);
   void remove_line(const core::UUID& handle);
 
   void remove_all_geometry();
@@ -172,11 +183,15 @@ private:
 
   void handle_message(const AddPointWithOpts& message);
   void handle_message(const AddPointsWithOpts& message);
+  void handle_message(const UpdatePointWithOpts& message);
+  void handle_message(const UpdatePointsWithOpts& message);
   void handle_message(const RemovePoint& message);
   void handle_message(const SetPointSize& message);
   void handle_message(const SetPointColor& message);
   void handle_message(const AddLineWithOpts& message);
   void handle_message(const AddLinesWithOpts& message);
+  void handle_message(const UpdateLineWithOpts& message);
+  void handle_message(const UpdateLinesWithOpts& message);
   void handle_message(const RemoveLine& message);
   void handle_message(const SetLineWidth& message);
   void handle_message(const SetLineColor& message);

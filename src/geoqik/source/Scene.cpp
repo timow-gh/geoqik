@@ -58,6 +58,16 @@ void Scene::add_points(std::span<const float> points, std::span<const float> col
   m_pointBuffer->add_points(points, colors, handle);
 }
 
+bool Scene::update_point(core::UUID handle, float x, float y, float z, std::span<const float> colors)
+{
+  return m_pointBuffer->update_point(handle, x, y, z, colors);
+}
+
+bool Scene::update_points(core::UUID handle, std::span<const float> points, std::span<const float> colors)
+{
+  return m_pointBuffer->update_points(handle, points, colors);
+}
+
 void Scene::remove_point(core::UUID handle)
 {
   m_pointBuffer->remove_point(handle);
@@ -76,6 +86,23 @@ void Scene::add_line(float x1, float y1, float z1, float x2, float y2, float z2,
 void Scene::add_lines(std::span<const float> lines, std::span<const float> colors, const core::UUID* handle)
 {
   m_lineBuffer->add_lines(lines, colors, handle);
+}
+
+bool Scene::update_line(core::UUID handle,
+                        float x1,
+                        float y1,
+                        float z1,
+                        float x2,
+                        float y2,
+                        float z2,
+                        std::span<const float> colors)
+{
+  return m_lineBuffer->update_line(handle, x1, y1, z1, x2, y2, z2, colors);
+}
+
+bool Scene::update_lines(core::UUID handle, std::span<const float> lines, std::span<const float> colors)
+{
+  return m_lineBuffer->update_lines(handle, lines, colors);
 }
 
 void Scene::remove_line(core::UUID handle)

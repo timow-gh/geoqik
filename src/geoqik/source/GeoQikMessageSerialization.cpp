@@ -27,7 +27,11 @@ enum class SerializedMessageType : std::uint32_t
   SetLineColor = 10,
   RemoveAllGeometry = 11,
   TranslateGeometry = 12,
-  RotateGeometry = 13
+  RotateGeometry = 13,
+  UpdatePointWithOpts = 14,
+  UpdatePointsWithOpts = 15,
+  UpdateLineWithOpts = 16,
+  UpdateLinesWithOpts = 17
 };
 
 template <typename T>
@@ -168,6 +172,22 @@ void MessageWriter::write(const GeoQikLogEntry& message)
           write_float_vector(m_stream, value.points);
           write_common_data(m_stream, value.commonData);
         }
+        else if constexpr (std::is_same_v<T, UpdatePointWithOpts>)
+        {
+          write_pod(m_stream, SerializedMessageType::UpdatePointWithOpts);
+          write_uuid(m_stream, value.handle);
+          write_pod(m_stream, value.x);
+          write_pod(m_stream, value.y);
+          write_pod(m_stream, value.z);
+          write_float_vector(m_stream, value.rgba);
+        }
+        else if constexpr (std::is_same_v<T, UpdatePointsWithOpts>)
+        {
+          write_pod(m_stream, SerializedMessageType::UpdatePointsWithOpts);
+          write_uuid(m_stream, value.handle);
+          write_float_vector(m_stream, value.points);
+          write_float_vector(m_stream, value.rgba);
+        }
         else if constexpr (std::is_same_v<T, RemovePoint>)
         {
           write_pod(m_stream, SerializedMessageType::RemovePoint);
@@ -199,6 +219,25 @@ void MessageWriter::write(const GeoQikLogEntry& message)
           write_pod(m_stream, SerializedMessageType::AddLinesWithOpts);
           write_float_vector(m_stream, value.lines);
           write_common_data(m_stream, value.commonData);
+        }
+        else if constexpr (std::is_same_v<T, UpdateLineWithOpts>)
+        {
+          write_pod(m_stream, SerializedMessageType::UpdateLineWithOpts);
+          write_uuid(m_stream, value.handle);
+          write_pod(m_stream, value.x1);
+          write_pod(m_stream, value.y1);
+          write_pod(m_stream, value.z1);
+          write_pod(m_stream, value.x2);
+          write_pod(m_stream, value.y2);
+          write_pod(m_stream, value.z2);
+          write_float_vector(m_stream, value.rgba);
+        }
+        else if constexpr (std::is_same_v<T, UpdateLinesWithOpts>)
+        {
+          write_pod(m_stream, SerializedMessageType::UpdateLinesWithOpts);
+          write_uuid(m_stream, value.handle);
+          write_float_vector(m_stream, value.lines);
+          write_float_vector(m_stream, value.rgba);
         }
         else if constexpr (std::is_same_v<T, RemoveLine>)
         {
@@ -255,6 +294,14 @@ GeoQikLogEntry MessageReader::read()
   case SerializedMessageType::AddPointWithOpts:
     return AddPointWithOpts{read_pod<float>(m_stream), read_pod<float>(m_stream), read_pod<float>(m_stream), read_common_data(m_stream)};
   case SerializedMessageType::AddPointsWithOpts: return AddPointsWithOpts{read_float_vector(m_stream), read_common_data(m_stream)};
+  case SerializedMessageType::UpdatePointWithOpts:
+    return UpdatePointWithOpts{read_uuid(m_stream),
+                               read_pod<float>(m_stream),
+                               read_pod<float>(m_stream),
+                               read_pod<float>(m_stream),
+                               read_float_vector(m_stream)};
+  case SerializedMessageType::UpdatePointsWithOpts:
+    return UpdatePointsWithOpts{read_uuid(m_stream), read_float_vector(m_stream), read_float_vector(m_stream)};
   case SerializedMessageType::RemovePoint: return RemovePoint{read_uuid(m_stream)};
   case SerializedMessageType::SetPointSize: return SetPointSize{read_pod<float>(m_stream)};
   case SerializedMessageType::SetPointColor: return SetPointColor{read_color(m_stream)};
@@ -267,6 +314,17 @@ GeoQikLogEntry MessageReader::read()
                            read_pod<float>(m_stream),
                            read_common_data(m_stream)};
   case SerializedMessageType::AddLinesWithOpts: return AddLinesWithOpts{read_float_vector(m_stream), read_common_data(m_stream)};
+  case SerializedMessageType::UpdateLineWithOpts:
+    return UpdateLineWithOpts{read_uuid(m_stream),
+                              read_pod<float>(m_stream),
+                              read_pod<float>(m_stream),
+                              read_pod<float>(m_stream),
+                              read_pod<float>(m_stream),
+                              read_pod<float>(m_stream),
+                              read_pod<float>(m_stream),
+                              read_float_vector(m_stream)};
+  case SerializedMessageType::UpdateLinesWithOpts:
+    return UpdateLinesWithOpts{read_uuid(m_stream), read_float_vector(m_stream), read_float_vector(m_stream)};
   case SerializedMessageType::RemoveLine: return RemoveLine{read_uuid(m_stream)};
   case SerializedMessageType::SetLineWidth: return SetLineWidth{read_pod<float>(m_stream)};
   case SerializedMessageType::SetLineColor: return SetLineColor{read_color(m_stream)};

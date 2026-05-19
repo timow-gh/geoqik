@@ -180,3 +180,31 @@ TEST(SceneTest, RotatesPointAndLineGeometry)
   EXPECT_NEAR(lines[4], 1.0f, 1.0e-5f);
   EXPECT_NEAR(lines[5], 0.0f, 1.0e-5f);
 }
+
+TEST(SceneTest, UpdatesPointAndLineGeometry)
+{
+  auto scene = geoqik::Scene::create(make_scene_test_settings());
+  const auto pointId = core::UUID::generate();
+  const auto lineId = core::UUID::generate();
+
+  scene.add_point(1.0f, 2.0f, 3.0f, &pointId);
+  scene.add_line(0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, &lineId);
+
+  const float pointColor[] = {0.2f, 0.3f, 0.4f, 0.5f};
+  const float lineColor[] = {0.6f, 0.7f, 0.8f, 0.9f};
+  EXPECT_TRUE(scene.update_point(pointId, 4.0f, 5.0f, 6.0f, pointColor));
+  EXPECT_TRUE(scene.update_line(lineId, 7.0f, 8.0f, 9.0f, 10.0f, 11.0f, 12.0f, lineColor));
+
+  const auto points = scene.get_point_buffer().get_points();
+  ASSERT_EQ(points.size(), 3);
+  EXPECT_FLOAT_EQ(points[0], 4.0f);
+  EXPECT_FLOAT_EQ(points[1], 5.0f);
+  EXPECT_FLOAT_EQ(points[2], 6.0f);
+  EXPECT_FLOAT_EQ(scene.get_point_buffer().get_point_colors()[0], 0.2f);
+
+  const auto lines = scene.get_line_buffer().get_lines();
+  ASSERT_EQ(lines.size(), 6);
+  EXPECT_FLOAT_EQ(lines[0], 7.0f);
+  EXPECT_FLOAT_EQ(lines[5], 12.0f);
+  EXPECT_FLOAT_EQ(scene.get_line_buffer().get_line_colors()[0], 0.6f);
+}

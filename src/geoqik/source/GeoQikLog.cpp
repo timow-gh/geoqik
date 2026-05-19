@@ -48,11 +48,15 @@ std::optional<GeoQikLogEntry> create_log_entry(const GeoQikMessage& message)
         using T = std::decay_t<decltype(value)>;
         if constexpr (std::is_same_v<T, AddPointWithOpts> ||
                       std::is_same_v<T, AddPointsWithOpts> ||
+                      std::is_same_v<T, UpdatePointWithOpts> ||
+                      std::is_same_v<T, UpdatePointsWithOpts> ||
                       std::is_same_v<T, RemovePoint> ||
                       std::is_same_v<T, SetPointSize> ||
                       std::is_same_v<T, SetPointColor> ||
                       std::is_same_v<T, AddLineWithOpts> ||
                       std::is_same_v<T, AddLinesWithOpts> ||
+                      std::is_same_v<T, UpdateLineWithOpts> ||
+                      std::is_same_v<T, UpdateLinesWithOpts> ||
                       std::is_same_v<T, RemoveLine> ||
                       std::is_same_v<T, SetLineWidth> ||
                       std::is_same_v<T, SetLineColor> ||

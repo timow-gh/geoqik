@@ -39,6 +39,26 @@ ReplayUndoFrame make_replay_undo_frame(const AddPointsWithOpts& message, const R
   return frame;
 }
 
+ReplayUndoFrame make_replay_undo_frame(const UpdatePointWithOpts& message, const ReplayUndoContext& context)
+{
+  ReplayUndoFrame frame;
+  if (auto geometry = context.scene.get_point_geometry(message.handle))
+  {
+    frame.action = GeoQikLogEntry{UpdatePointsWithOpts{message.handle, std::move(geometry->points), std::move(geometry->colors)}};
+  }
+  return frame;
+}
+
+ReplayUndoFrame make_replay_undo_frame(const UpdatePointsWithOpts& message, const ReplayUndoContext& context)
+{
+  ReplayUndoFrame frame;
+  if (auto geometry = context.scene.get_point_geometry(message.handle))
+  {
+    frame.action = GeoQikLogEntry{UpdatePointsWithOpts{message.handle, std::move(geometry->points), std::move(geometry->colors)}};
+  }
+  return frame;
+}
+
 ReplayUndoFrame make_replay_undo_frame(const RemovePoint& message, const ReplayUndoContext& context)
 {
   ReplayUndoFrame frame;
@@ -89,6 +109,26 @@ ReplayUndoFrame make_replay_undo_frame(const AddLinesWithOpts& message, const Re
 
   frame.action = GeoQikLogEntry{RemoveLine{message.commonData.geometryId}};
   frame.idempotencyKeyToErase = message.commonData.idempotencyId;
+  return frame;
+}
+
+ReplayUndoFrame make_replay_undo_frame(const UpdateLineWithOpts& message, const ReplayUndoContext& context)
+{
+  ReplayUndoFrame frame;
+  if (auto geometry = context.scene.get_line_geometry(message.handle))
+  {
+    frame.action = GeoQikLogEntry{UpdateLinesWithOpts{message.handle, std::move(geometry->lines), std::move(geometry->colors)}};
+  }
+  return frame;
+}
+
+ReplayUndoFrame make_replay_undo_frame(const UpdateLinesWithOpts& message, const ReplayUndoContext& context)
+{
+  ReplayUndoFrame frame;
+  if (auto geometry = context.scene.get_line_geometry(message.handle))
+  {
+    frame.action = GeoQikLogEntry{UpdateLinesWithOpts{message.handle, std::move(geometry->lines), std::move(geometry->colors)}};
+  }
   return frame;
 }
 

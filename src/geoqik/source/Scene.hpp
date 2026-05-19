@@ -45,11 +45,22 @@ public:
   void add_point(float x, float y, float z, const core::UUID* handle = nullptr);
   void add_point(float x, float y, float z, float r, float g, float b, float a, const core::UUID* handle = nullptr);
   void add_points(std::span<const float> points, std::span<const float> colors, const core::UUID* handle = nullptr);
+  [[nodiscard]] bool update_point(core::UUID handle, float x, float y, float z, std::span<const float> colors = {});
+  [[nodiscard]] bool update_points(core::UUID handle, std::span<const float> points, std::span<const float> colors = {});
   void remove_point(core::UUID handle);
 
   void add_line(float x1, float y1, float z1, float x2, float y2, float z2, const core::UUID* handle = nullptr);
   void add_line(float x1, float y1, float z1, float x2, float y2, float z2, float r, float g, float b, float a, const core::UUID* handle = nullptr);
   void add_lines(std::span<const float> lines, std::span<const float> colors, const core::UUID* handle = nullptr);
+  [[nodiscard]] bool update_line(core::UUID handle,
+                                 float x1,
+                                 float y1,
+                                 float z1,
+                                 float x2,
+                                 float y2,
+                                 float z2,
+                                 std::span<const float> colors = {});
+  [[nodiscard]] bool update_lines(core::UUID handle, std::span<const float> lines, std::span<const float> colors = {});
   void remove_line(core::UUID handle);
 
   void translate_geometry(core::UUID handle, float dx, float dy, float dz);

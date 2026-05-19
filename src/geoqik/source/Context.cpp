@@ -166,6 +166,22 @@ void Context::add_points_with_opts(std::span<const float> points, const GeoQikMe
   ++m_geometryMessagesProcessedThisFrame;
 }
 
+void Context::update_point_with_opts(const core::UUID& handle, float x, float y, float z, std::span<const float> colors)
+{
+  if (m_scene.update_point(handle, x, y, z, colors))
+  {
+    ++m_geometryMessagesProcessedThisFrame;
+  }
+}
+
+void Context::update_points_with_opts(const core::UUID& handle, std::span<const float> points, std::span<const float> colors)
+{
+  if (m_scene.update_points(handle, points, colors))
+  {
+    ++m_geometryMessagesProcessedThisFrame;
+  }
+}
+
 void Context::remove_point(const core::UUID& handle)
 {
   m_scene.remove_point(handle);
@@ -253,6 +269,29 @@ void Context::add_lines_with_opts(std::span<const float> lines, const GeoQikMess
                     std::span<const float>(commonData.rgba),
                     &commonData.geometryId);
   ++m_geometryMessagesProcessedThisFrame;
+}
+
+void Context::update_line_with_opts(const core::UUID& handle,
+                                    float x1,
+                                    float y1,
+                                    float z1,
+                                    float x2,
+                                    float y2,
+                                    float z2,
+                                    std::span<const float> colors)
+{
+  if (m_scene.update_line(handle, x1, y1, z1, x2, y2, z2, colors))
+  {
+    ++m_geometryMessagesProcessedThisFrame;
+  }
+}
+
+void Context::update_lines_with_opts(const core::UUID& handle, std::span<const float> lines, std::span<const float> colors)
+{
+  if (m_scene.update_lines(handle, lines, colors))
+  {
+    ++m_geometryMessagesProcessedThisFrame;
+  }
 }
 
 void Context::remove_line(const core::UUID& handle)
@@ -621,6 +660,16 @@ void Context::handle_message(const AddPointsWithOpts& message)
   add_points_with_opts(message.points, message.commonData);
 }
 
+void Context::handle_message(const UpdatePointWithOpts& message)
+{
+  update_point_with_opts(message.handle, message.x, message.y, message.z, message.rgba);
+}
+
+void Context::handle_message(const UpdatePointsWithOpts& message)
+{
+  update_points_with_opts(message.handle, message.points, message.rgba);
+}
+
 void Context::handle_message(const RemovePoint& message)
 {
   remove_point(message.handle);
@@ -644,6 +693,16 @@ void Context::handle_message(const AddLineWithOpts& message)
 void Context::handle_message(const AddLinesWithOpts& message)
 {
   add_lines_with_opts(message.lines, message.commonData);
+}
+
+void Context::handle_message(const UpdateLineWithOpts& message)
+{
+  update_line_with_opts(message.handle, message.x1, message.y1, message.z1, message.x2, message.y2, message.z2, message.rgba);
+}
+
+void Context::handle_message(const UpdateLinesWithOpts& message)
+{
+  update_lines_with_opts(message.handle, message.lines, message.rgba);
 }
 
 void Context::handle_message(const RemoveLine& message)

@@ -356,6 +356,133 @@ public:
     }
   }
 
+  [[nodiscard]] bool update_line(core::UUID handle,
+                                 float x1,
+                                 float y1,
+                                 float z1,
+                                 float x2,
+                                 float y2,
+                                 float z2,
+                                 std::span<const float> colors = {})
+  {
+    if (handle.is_nil())
+    {
+      return false;
+    }
+
+    auto it = m_handleToLineIndexMapping.find(handle);
+    if (it == m_handleToLineIndexMapping.end())
+    {
+      return false;
+    }
+    if (!colors.empty() && colors.size() != ColorChannelCount)
+    {
+      return false;
+    }
+
+    const std::size_t lineIndex = it->second.lineIndex;
+    const std::size_t lineStart = lineIndex * 2 * m_pointDimension;
+    m_lines[lineStart] = x1;
+    m_lines[lineStart + 1] = y1;
+    m_lines[lineStart + 2] = z1;
+    m_lines[lineStart + 3] = x2;
+    m_lines[lineStart + 4] = y2;
+    m_lines[lineStart + 5] = z2;
+
+    if (!colors.empty())
+    {
+      const std::size_t colorStart = lineIndex * 2 * m_colorDimension;
+      for (std::size_t vertex = 0; vertex < 2; ++vertex)
+      {
+        for (std::size_t colorIndex = 0; colorIndex < ColorChannelCount; ++colorIndex)
+        {
+          m_lineColors[colorStart + vertex * m_colorDimension + colorIndex] = colors[colorIndex];
+        }
+      }
+    }
+
+    m_linesHaveChanged = true;
+    return true;
+  }
+
+  [[nodiscard]] bool update_lines(core::UUID handle, std::span<const float> lines, std::span<const float> colors = {})
+  {
+    if (handle.is_nil())
+    {
+      return false;
+    }
+    if (lines.size() % (2 * m_pointDimension) != 0)
+    {
+      throw std::runtime_error("GeometryBuffer: The size of the lines span must be a multiple of 6 (2 * pointDimension).");
+    }
+
+    if (auto lineIt = m_handleToLineIndexMapping.find(handle); lineIt != m_handleToLineIndexMapping.end())
+    {
+      if (lines.size() != 2 * m_pointDimension)
+      {
+        return false;
+      }
+      return update_line(handle, lines[0], lines[1], lines[2], lines[3], lines[4], lines[5], colors);
+    }
+
+    auto linesIt = m_handleToLinesIndexMapping.find(handle);
+    if (linesIt == m_handleToLinesIndexMapping.end())
+    {
+      return false;
+    }
+
+    const std::size_t lineStartIndex = linesIt->second.lineStartIndex;
+    const std::size_t lineEndIndex = linesIt->second.lineEndIndex;
+    const std::size_t lineCount = lineEndIndex - lineStartIndex + 1;
+    if (lines.size() != lineCount * 2 * m_pointDimension)
+    {
+      return false;
+    }
+    if (!colors.empty() && colors.size() != ColorChannelCount && colors.size() != lineCount * ColorChannelCount)
+    {
+      return false;
+    }
+
+    const std::size_t lineStart = lineStartIndex * 2 * m_pointDimension;
+    for (std::size_t i = 0; i < lines.size(); ++i)
+    {
+      m_lines[lineStart + i] = lines[i];
+    }
+
+    if (colors.size() == ColorChannelCount)
+    {
+      for (std::size_t lineIndex = lineStartIndex; lineIndex <= lineEndIndex; ++lineIndex)
+      {
+        const std::size_t colorStart = lineIndex * 2 * m_colorDimension;
+        for (std::size_t vertex = 0; vertex < 2; ++vertex)
+        {
+          for (std::size_t colorIndex = 0; colorIndex < ColorChannelCount; ++colorIndex)
+          {
+            m_lineColors[colorStart + vertex * m_colorDimension + colorIndex] = colors[colorIndex];
+          }
+        }
+      }
+    }
+    else if (colors.size() == lineCount * ColorChannelCount)
+    {
+      for (std::size_t lineIndex = 0; lineIndex < lineCount; ++lineIndex)
+      {
+        const std::size_t targetColorStart = (lineStartIndex + lineIndex) * 2 * m_colorDimension;
+        const std::size_t sourceColorStart = lineIndex * ColorChannelCount;
+        for (std::size_t vertex = 0; vertex < 2; ++vertex)
+        {
+          for (std::size_t colorIndex = 0; colorIndex < ColorChannelCount; ++colorIndex)
+          {
+            m_lineColors[targetColorStart + vertex * m_colorDimension + colorIndex] = colors[sourceColorStart + colorIndex];
+          }
+        }
+      }
+    }
+
+    m_linesHaveChanged = true;
+    return true;
+  }
+
   void translate_geometry(core::UUID handle, float dx, float dy, float dz)
   {
     auto lineIt = m_handleToLineIndexMapping.find(handle);

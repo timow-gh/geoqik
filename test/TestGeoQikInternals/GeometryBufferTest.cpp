@@ -827,3 +827,110 @@ TEST_F(GeometryBufferTest, RemoveLine_Multiple)
   EXPECT_EQ(buffer->get_line_colors().size(), 0);
   EXPECT_EQ(buffer->get_line_indices().size(), 0);
 }
+
+TEST_F(GeometryBufferTest, UpdateSingleAndBulkPoints)
+{
+  m_settings.initialPointCapacity = 4;
+  auto buffer = geoqik::PointBuffer::create(m_settings);
+  ASSERT_TRUE(buffer != nullptr);
+
+  const core::UUID singleId = core::UUID::generate();
+  const core::UUID bulkId = core::UUID::generate();
+  buffer->add_point(1.0f, 2.0f, 3.0f, &singleId);
+  const std::vector<float> addedPoints{4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f};
+  const std::vector<float> noPointColors;
+  buffer->add_points(addedPoints, noPointColors, &bulkId);
+  buffer->reset_changed_flag();
+
+  const std::vector<float> singleColor{0.1f, 0.2f, 0.3f, 0.4f};
+  EXPECT_TRUE(buffer->update_point(singleId, 10.0f, 11.0f, 12.0f, singleColor));
+  const std::vector<float> bulkPoints{13.0f, 14.0f, 15.0f, 16.0f, 17.0f, 18.0f};
+  const std::vector<float> bulkColors{0.5f, 0.6f, 0.7f, 0.8f, 0.9f, 1.0f, 0.1f, 0.2f};
+  EXPECT_TRUE(buffer->update_points(bulkId, bulkPoints, bulkColors));
+
+  const auto points = buffer->get_points();
+  ASSERT_EQ(points.size(), 9);
+  EXPECT_FLOAT_EQ(points[0], 10.0f);
+  EXPECT_FLOAT_EQ(points[1], 11.0f);
+  EXPECT_FLOAT_EQ(points[2], 12.0f);
+  EXPECT_FLOAT_EQ(points[3], 13.0f);
+  EXPECT_FLOAT_EQ(points[8], 18.0f);
+
+  const auto colors = buffer->get_point_colors();
+  EXPECT_FLOAT_EQ(colors[0], 0.1f);
+  EXPECT_FLOAT_EQ(colors[4], 0.5f);
+  EXPECT_FLOAT_EQ(colors[8], 0.9f);
+  EXPECT_TRUE(buffer->has_changed());
+}
+
+TEST_F(GeometryBufferTest, PointUpdateCountMismatchDoesNotMutate)
+{
+  m_settings.initialPointCapacity = 4;
+  auto buffer = geoqik::PointBuffer::create(m_settings);
+  ASSERT_TRUE(buffer != nullptr);
+
+  const core::UUID bulkId = core::UUID::generate();
+  const std::vector<float> original{1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f};
+  const std::vector<float> emptyColors;
+  buffer->add_points(original, emptyColors, &bulkId);
+  buffer->reset_changed_flag();
+
+  const std::vector<float> wrongCount{7.0f, 8.0f, 9.0f};
+  const std::vector<float> noColors;
+  EXPECT_FALSE(buffer->update_points(bulkId, wrongCount, noColors));
+  EXPECT_EQ(std::vector<float>(buffer->get_points().begin(), buffer->get_points().end()), original);
+  EXPECT_FALSE(buffer->has_changed());
+}
+
+TEST_F(GeometryBufferTest, UpdateSingleAndBulkLines)
+{
+  m_settings.initialLineCapacity = 4;
+  auto buffer = geoqik::LineBuffer::create(m_settings);
+  ASSERT_TRUE(buffer != nullptr);
+
+  const core::UUID singleId = core::UUID::generate();
+  const core::UUID bulkId = core::UUID::generate();
+  buffer->add_line(1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, &singleId);
+  const std::vector<float> addedLines{7.0f, 8.0f, 9.0f, 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f, 16.0f, 17.0f, 18.0f};
+  const std::vector<float> noLineColors;
+  buffer->add_lines(addedLines, noLineColors, &bulkId);
+  buffer->reset_changed_flag();
+
+  const std::vector<float> singleColor{0.1f, 0.2f, 0.3f, 0.4f};
+  EXPECT_TRUE(buffer->update_line(singleId, 20.0f, 21.0f, 22.0f, 23.0f, 24.0f, 25.0f, singleColor));
+  const std::vector<float> bulkLines{26.0f, 27.0f, 28.0f, 29.0f, 30.0f, 31.0f, 32.0f, 33.0f, 34.0f, 35.0f, 36.0f, 37.0f};
+  const std::vector<float> bulkColors{0.5f, 0.6f, 0.7f, 0.8f, 0.9f, 1.0f, 0.1f, 0.2f};
+  EXPECT_TRUE(buffer->update_lines(bulkId, bulkLines, bulkColors));
+
+  const auto lines = buffer->get_lines();
+  ASSERT_EQ(lines.size(), 18);
+  EXPECT_FLOAT_EQ(lines[0], 20.0f);
+  EXPECT_FLOAT_EQ(lines[5], 25.0f);
+  EXPECT_FLOAT_EQ(lines[6], 26.0f);
+  EXPECT_FLOAT_EQ(lines[17], 37.0f);
+
+  const auto colors = buffer->get_line_colors();
+  EXPECT_FLOAT_EQ(colors[0], 0.1f);
+  EXPECT_FLOAT_EQ(colors[8], 0.5f);
+  EXPECT_FLOAT_EQ(colors[16], 0.9f);
+  EXPECT_TRUE(buffer->has_changed());
+}
+
+TEST_F(GeometryBufferTest, LineUpdateCountMismatchDoesNotMutate)
+{
+  m_settings.initialLineCapacity = 4;
+  auto buffer = geoqik::LineBuffer::create(m_settings);
+  ASSERT_TRUE(buffer != nullptr);
+
+  const core::UUID bulkId = core::UUID::generate();
+  const std::vector<float> original{1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f, 10.0f, 11.0f, 12.0f};
+  const std::vector<float> emptyColors;
+  buffer->add_lines(original, emptyColors, &bulkId);
+  buffer->reset_changed_flag();
+
+  const std::vector<float> wrongCount{13.0f, 14.0f, 15.0f, 16.0f, 17.0f, 18.0f};
+  const std::vector<float> noColors;
+  EXPECT_FALSE(buffer->update_lines(bulkId, wrongCount, noColors));
+  EXPECT_EQ(std::vector<float>(buffer->get_lines().begin(), buffer->get_lines().end()), original);
+  EXPECT_FALSE(buffer->has_changed());
+}

@@ -751,6 +751,111 @@ geoqik_result_t geoqik_add_points_opts(const double* points, size_t size, geoqik
       });
 }
 
+geoqik_error_code_t geoqik_update_point(const geoqik_uuid_t* geometryId, double x, double y, double z)
+{
+  return geoqik_update_point_opts(geometryId, x, y, z, nullptr);
+}
+
+geoqik_error_code_t geoqik_update_point_with_color(const geoqik_uuid_t* geometryId, double x, double y, double z, float r, float g, float b, float a)
+{
+  if (!geoqik_internal::validate_color(r, g, b, a))
+  {
+    return GEOQIK_ERROR_INVALID_PARAMETER;
+  }
+
+  const float color[ColorChannelCount] = {r, g, b, a};
+  geoqik_update_points_options_t opts{};
+  opts.color = color;
+  opts.colorCount = ColorChannelCount;
+  return geoqik_update_point_opts(geometryId, x, y, z, &opts);
+}
+
+geoqik_error_code_t geoqik_update_point_opts(const geoqik_uuid_t* geometryId,
+                                             double x,
+                                             double y,
+                                             double z,
+                                             geoqik_update_points_options_t* options)
+{
+  if (!geometryId || !geoqik_internal::validate_finite_coords(x, y, z))
+  {
+    return GEOQIK_ERROR_INVALID_PARAMETER;
+  }
+
+  std::vector<float> colorsCopy;
+  if (options && options->colorCount > 0)
+  {
+    if (!geoqik_internal::validate_point_color_count(options->colorCount, 1))
+    {
+      return GEOQIK_ERROR_WRONG_COLOR_SIZE;
+    }
+    if (!geoqik_internal::validate_color_values(options->color, options->colorCount))
+    {
+      return GEOQIK_ERROR_INVALID_PARAMETER;
+    }
+    colorsCopy.assign(options->color, options->color + options->colorCount);
+  }
+
+  return geoqik_internal::execute_if_initialized(
+      [&]() -> geoqik_error_code_t
+      {
+        core::UUID handle = convert_to_core_uuid(*geometryId);
+        return enqueue(GeoQikMessage{UpdatePointWithOpts{handle,
+                                                         static_cast<float>(x),
+                                                         static_cast<float>(y),
+                                                         static_cast<float>(z),
+                                                         std::move(colorsCopy)}});
+      });
+}
+
+geoqik_error_code_t geoqik_update_points_opts(const geoqik_uuid_t* geometryId,
+                                              const double* points,
+                                              size_t size,
+                                              geoqik_update_points_options_t* options)
+{
+  if (!geometryId || !points || size == 0 || size % 3 != 0)
+  {
+    return GEOQIK_ERROR_INVALID_PARAMETER;
+  }
+
+  std::vector<float> pointsCopy(size);
+  std::vector<float> colorsCopy;
+  const std::size_t pointCount = size / 3;
+
+  for (std::size_t i = 0; i < size; i += 3)
+  {
+    const double px = points[i + 0];
+    const double py = points[i + 1];
+    const double pz = points[i + 2];
+    if (!geoqik_internal::validate_finite_coords(px, py, pz))
+    {
+      return GEOQIK_ERROR_INVALID_PARAMETER;
+    }
+    pointsCopy[i + 0] = static_cast<float>(px);
+    pointsCopy[i + 1] = static_cast<float>(py);
+    pointsCopy[i + 2] = static_cast<float>(pz);
+  }
+
+  if (options && options->colorCount > 0)
+  {
+    if (!geoqik_internal::validate_point_color_count(options->colorCount, pointCount))
+    {
+      return GEOQIK_ERROR_WRONG_COLOR_SIZE;
+    }
+    if (!geoqik_internal::validate_color_values(options->color, options->colorCount))
+    {
+      return GEOQIK_ERROR_INVALID_PARAMETER;
+    }
+    colorsCopy.assign(options->color, options->color + options->colorCount);
+  }
+
+  return geoqik_internal::execute_if_initialized(
+      [&]() -> geoqik_error_code_t
+      {
+        core::UUID handle = convert_to_core_uuid(*geometryId);
+        return enqueue(GeoQikMessage{UpdatePointsWithOpts{handle, std::move(pointsCopy), std::move(colorsCopy)}});
+      });
+}
+
 geoqik_error_code_t geoqik_remove_point(const geoqik_uuid_t* geometryId)
 {
   if (!geometryId)
@@ -900,6 +1005,133 @@ geoqik_result_t geoqik_add_lines_opts(const double* lines, size_t size, geoqik_a
 
         auto enqueueResult = enqueue(GeoQikMessage{AddLinesWithOpts{std::move(linesCopy), std::move(commonData)}});
         return geoqik_result_t{enqueueResult, convert_to_geoqik_uuid(reqId)};
+      });
+}
+
+geoqik_error_code_t geoqik_update_line(const geoqik_uuid_t* geometryId, double x1, double y1, double z1, double x2, double y2, double z2)
+{
+  return geoqik_update_line_opts(geometryId, x1, y1, z1, x2, y2, z2, nullptr);
+}
+
+geoqik_error_code_t geoqik_update_line_with_color(const geoqik_uuid_t* geometryId,
+                                                  double x1,
+                                                  double y1,
+                                                  double z1,
+                                                  double x2,
+                                                  double y2,
+                                                  double z2,
+                                                  float r,
+                                                  float g,
+                                                  float b,
+                                                  float a)
+{
+  if (!geoqik_internal::validate_color(r, g, b, a))
+  {
+    return GEOQIK_ERROR_INVALID_PARAMETER;
+  }
+
+  const float color[ColorChannelCount] = {r, g, b, a};
+  geoqik_update_line_opts_t opts{};
+  opts.color = color;
+  opts.colorCount = ColorChannelCount;
+  return geoqik_update_line_opts(geometryId, x1, y1, z1, x2, y2, z2, &opts);
+}
+
+geoqik_error_code_t geoqik_update_line_opts(const geoqik_uuid_t* geometryId,
+                                            double x1,
+                                            double y1,
+                                            double z1,
+                                            double x2,
+                                            double y2,
+                                            double z2,
+                                            geoqik_update_line_opts_t* options)
+{
+  if (!geometryId || !geoqik_internal::validate_finite_coords(x1, y1, z1) || !geoqik_internal::validate_finite_coords(x2, y2, z2))
+  {
+    return GEOQIK_ERROR_INVALID_PARAMETER;
+  }
+
+  std::vector<float> colorsCopy;
+  if (options && options->colorCount > 0)
+  {
+    if (!geoqik_internal::validate_line_color_count(options->colorCount, 1))
+    {
+      return GEOQIK_ERROR_WRONG_COLOR_SIZE;
+    }
+    if (!geoqik_internal::validate_color_values(options->color, options->colorCount))
+    {
+      return GEOQIK_ERROR_INVALID_PARAMETER;
+    }
+    colorsCopy.assign(options->color, options->color + options->colorCount);
+  }
+
+  return geoqik_internal::execute_if_initialized(
+      [&]() -> geoqik_error_code_t
+      {
+        core::UUID handle = convert_to_core_uuid(*geometryId);
+        return enqueue(GeoQikMessage{UpdateLineWithOpts{handle,
+                                                        static_cast<float>(x1),
+                                                        static_cast<float>(y1),
+                                                        static_cast<float>(z1),
+                                                        static_cast<float>(x2),
+                                                        static_cast<float>(y2),
+                                                        static_cast<float>(z2),
+                                                        std::move(colorsCopy)}});
+      });
+}
+
+geoqik_error_code_t geoqik_update_lines_opts(const geoqik_uuid_t* geometryId,
+                                             const double* lines,
+                                             size_t size,
+                                             geoqik_update_line_opts_t* options)
+{
+  if (!geometryId || !lines || size == 0 || size % 6 != 0)
+  {
+    return GEOQIK_ERROR_INVALID_PARAMETER;
+  }
+
+  std::vector<float> linesCopy(size);
+  std::vector<float> colorsCopy;
+  const std::size_t lineCount = size / 6;
+
+  for (std::size_t i = 0; i < size; i += 6)
+  {
+    const double lx1 = lines[i + 0];
+    const double ly1 = lines[i + 1];
+    const double lz1 = lines[i + 2];
+    const double lx2 = lines[i + 3];
+    const double ly2 = lines[i + 4];
+    const double lz2 = lines[i + 5];
+    if (!geoqik_internal::validate_finite_coords(lx1, ly1, lz1) || !geoqik_internal::validate_finite_coords(lx2, ly2, lz2))
+    {
+      return GEOQIK_ERROR_INVALID_PARAMETER;
+    }
+    linesCopy[i + 0] = static_cast<float>(lx1);
+    linesCopy[i + 1] = static_cast<float>(ly1);
+    linesCopy[i + 2] = static_cast<float>(lz1);
+    linesCopy[i + 3] = static_cast<float>(lx2);
+    linesCopy[i + 4] = static_cast<float>(ly2);
+    linesCopy[i + 5] = static_cast<float>(lz2);
+  }
+
+  if (options && options->colorCount > 0)
+  {
+    if (!geoqik_internal::validate_line_color_count(options->colorCount, lineCount))
+    {
+      return GEOQIK_ERROR_WRONG_COLOR_SIZE;
+    }
+    if (!geoqik_internal::validate_color_values(options->color, options->colorCount))
+    {
+      return GEOQIK_ERROR_INVALID_PARAMETER;
+    }
+    colorsCopy.assign(options->color, options->color + options->colorCount);
+  }
+
+  return geoqik_internal::execute_if_initialized(
+      [&]() -> geoqik_error_code_t
+      {
+        core::UUID handle = convert_to_core_uuid(*geometryId);
+        return enqueue(GeoQikMessage{UpdateLinesWithOpts{handle, std::move(linesCopy), std::move(colorsCopy)}});
       });
 }
 

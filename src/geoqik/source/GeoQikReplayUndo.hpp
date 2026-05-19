@@ -31,11 +31,15 @@ struct ReplayUndoContext
 
 [[nodiscard]] ReplayUndoFrame make_replay_undo_frame(const AddPointWithOpts& message, const ReplayUndoContext& context);
 [[nodiscard]] ReplayUndoFrame make_replay_undo_frame(const AddPointsWithOpts& message, const ReplayUndoContext& context);
+[[nodiscard]] ReplayUndoFrame make_replay_undo_frame(const UpdatePointWithOpts& message, const ReplayUndoContext& context);
+[[nodiscard]] ReplayUndoFrame make_replay_undo_frame(const UpdatePointsWithOpts& message, const ReplayUndoContext& context);
 [[nodiscard]] ReplayUndoFrame make_replay_undo_frame(const RemovePoint& message, const ReplayUndoContext& context);
 [[nodiscard]] ReplayUndoFrame make_replay_undo_frame(const SetPointSize& message, const ReplayUndoContext& context);
 [[nodiscard]] ReplayUndoFrame make_replay_undo_frame(const SetPointColor& message, const ReplayUndoContext& context);
 [[nodiscard]] ReplayUndoFrame make_replay_undo_frame(const AddLineWithOpts& message, const ReplayUndoContext& context);
 [[nodiscard]] ReplayUndoFrame make_replay_undo_frame(const AddLinesWithOpts& message, const ReplayUndoContext& context);
+[[nodiscard]] ReplayUndoFrame make_replay_undo_frame(const UpdateLineWithOpts& message, const ReplayUndoContext& context);
+[[nodiscard]] ReplayUndoFrame make_replay_undo_frame(const UpdateLinesWithOpts& message, const ReplayUndoContext& context);
 [[nodiscard]] ReplayUndoFrame make_replay_undo_frame(const RemoveLine& message, const ReplayUndoContext& context);
 [[nodiscard]] ReplayUndoFrame make_replay_undo_frame(const SetLineWidth& message, const ReplayUndoContext& context);
 [[nodiscard]] ReplayUndoFrame make_replay_undo_frame(const SetLineColor& message, const ReplayUndoContext& context);
