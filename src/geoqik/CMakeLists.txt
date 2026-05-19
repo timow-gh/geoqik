@@ -22,6 +22,8 @@ set(geoqik_SOURCE_FILES
         source/GeoQikMessageSerialization.cpp
         source/GeoQikMessageSerialization.hpp
         source/GeoQikMessages.hpp
+        source/GeoQikReplayUndo.cpp
+        source/GeoQikReplayUndo.hpp
         source/GeoQikSettings.hpp
         source/GlfwWindow.cpp
         source/GlfwWindow.hpp
@@ -123,7 +125,8 @@ target_include_directories(geoqik_internals INTERFACE ${CMAKE_SOURCE_DIR}/src/ge
 target_sources(geoqik_internals INTERFACE
         ${CMAKE_SOURCE_DIR}/src/geoqik/source/Scene.cpp
         ${CMAKE_SOURCE_DIR}/src/geoqik/source/GeoQikLog.cpp
-        ${CMAKE_SOURCE_DIR}/src/geoqik/source/GeoQikMessageSerialization.cpp)
+        ${CMAKE_SOURCE_DIR}/src/geoqik/source/GeoQikMessageSerialization.cpp
+        ${CMAKE_SOURCE_DIR}/src/geoqik/source/GeoQikReplayUndo.cpp)
 target_link_libraries(geoqik_internals INTERFACE 
         geoqik::core linal::linal Geometry::Geometry)
 add_library(geoqik::geoqik_internals ALIAS geoqik_internals)

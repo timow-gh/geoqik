@@ -3,6 +3,7 @@
 
 #include <Core/UUID.hpp>
 #include <chrono>
+#include <unordered_set>
 
 namespace geoqik
 {
@@ -35,6 +36,8 @@ struct IdempotencyData
     }
   };
 };
+
+using IdempotencySet = std::unordered_set<IdempotencyData, IdempotencyData::Hash>;
 
 } // namespace geoqik
 

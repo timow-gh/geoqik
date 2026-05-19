@@ -883,8 +883,7 @@ void Context::process_replay_entries(const std::chrono::high_resolution_clock::t
 
   if (m_replayEntryIndex >= m_replayEntries.size())
   {
-    m_isReplayPaused = true;
-    m_replayEntryBudget = 0.0;
+    finish_replay();
     m_lastReplayTick = now;
     return;
   }
@@ -898,10 +897,9 @@ void Context::process_replay_entries(const std::chrono::high_resolution_clock::t
 
   apply_replay_entries(entriesToApply);
 
-  if (m_replayEntryIndex >= m_replayEntries.size())
+  if (is_replaying() && m_replayEntryIndex >= m_replayEntries.size())
   {
-    m_isReplayPaused = true;
-    m_replayEntryBudget = 0.0;
+    finish_replay();
   }
 }
 
@@ -917,6 +915,11 @@ void Context::apply_replay_entries(std::size_t entriesToApply)
       m_replayEntryBudget -= 1.0;
     }
   }
+
+  if (is_replaying() && m_replayEntryIndex >= m_replayEntries.size())
+  {
+    finish_replay();
+  }
 }
 
 void Context::undo_replay_entries(std::size_t entriesToUndo)
@@ -931,107 +934,7 @@ void Context::undo_replay_entries(std::size_t entriesToUndo)
 
 ReplayUndoFrame Context::create_replay_undo_frame(const GeoQikLogEntry& entry) const
 {
-  ReplayUndoFrame frame;
-
-  std::visit(
-      [this, &frame](const auto& value)
-      {
-        using T = std::decay_t<decltype(value)>;
-        if constexpr (std::is_same_v<T, AddPointWithOpts>)
-        {
-          if (has_known_idempotency_key(value.commonData.idempotencyId))
-          {
-            return;
-          }
-          frame.action = GeoQikLogEntry{RemovePoint{value.commonData.geometryId}};
-          frame.idempotencyKeyToErase = value.commonData.idempotencyId;
-        }
-        else if constexpr (std::is_same_v<T, AddPointsWithOpts>)
-        {
-          if (has_known_idempotency_key(value.commonData.idempotencyId))
-          {
-            return;
-          }
-          frame.action = GeoQikLogEntry{RemovePoint{value.commonData.geometryId}};
-          frame.idempotencyKeyToErase = value.commonData.idempotencyId;
-        }
-        else if constexpr (std::is_same_v<T, RemovePoint>)
-        {
-          if (auto geometry = m_scene.get_point_geometry(value.handle))
-          {
-            GeoQikMessageCommonData commonData;
-            commonData.geometryId = value.handle;
-            commonData.rgba = std::move(geometry->colors);
-            frame.action = GeoQikLogEntry{AddPointsWithOpts{std::move(geometry->points), std::move(commonData)}};
-          }
-        }
-        else if constexpr (std::is_same_v<T, SetPointSize>)
-        {
-          frame.action = GeoQikLogEntry{SetPointSize{m_scene.get_point_size()}};
-        }
-        else if constexpr (std::is_same_v<T, SetPointColor>)
-        {
-          frame.action = GeoQikLogEntry{SetPointColor{m_scene.get_default_point_color()}};
-        }
-        else if constexpr (std::is_same_v<T, AddLineWithOpts>)
-        {
-          if (has_known_idempotency_key(value.commonData.idempotencyId))
-          {
-            return;
-          }
-          frame.action = GeoQikLogEntry{RemoveLine{value.commonData.geometryId}};
-          frame.idempotencyKeyToErase = value.commonData.idempotencyId;
-        }
-        else if constexpr (std::is_same_v<T, AddLinesWithOpts>)
-        {
-          if (has_known_idempotency_key(value.commonData.idempotencyId))
-          {
-            return;
-          }
-          frame.action = GeoQikLogEntry{RemoveLine{value.commonData.geometryId}};
-          frame.idempotencyKeyToErase = value.commonData.idempotencyId;
-        }
-        else if constexpr (std::is_same_v<T, RemoveLine>)
-        {
-          if (auto geometry = m_scene.get_line_geometry(value.handle))
-          {
-            GeoQikMessageCommonData commonData;
-            commonData.geometryId = value.handle;
-            commonData.rgba = std::move(geometry->colors);
-            frame.action = GeoQikLogEntry{AddLinesWithOpts{std::move(geometry->lines), std::move(commonData)}};
-          }
-        }
-        else if constexpr (std::is_same_v<T, SetLineWidth>)
-        {
-          frame.action = GeoQikLogEntry{SetLineWidth{m_scene.get_line_width()}};
-        }
-        else if constexpr (std::is_same_v<T, SetLineColor>)
-        {
-          frame.action = GeoQikLogEntry{SetLineColor{m_scene.get_default_line_color()}};
-        }
-        else if constexpr (std::is_same_v<T, RemoveAllGeometry>)
-        {
-          frame.action = ReplayUndoFrame::RestoreScene{m_scene.create_snapshot()};
-        }
-        else if constexpr (std::is_same_v<T, TranslateGeometry>)
-        {
-          frame.action = GeoQikLogEntry{TranslateGeometry{value.handle, -value.dx, -value.dy, -value.dz}};
-        }
-        else if constexpr (std::is_same_v<T, RotateGeometry>)
-        {
-          frame.action = GeoQikLogEntry{RotateGeometry{value.handle,
-                                                       value.centerX,
-                                                       value.centerY,
-                                                       value.centerZ,
-                                                       value.axisX,
-                                                       value.axisY,
-                                                       value.axisZ,
-                                                       -value.angle}};
-        }
-      },
-      entry);
-
-  return frame;
+  return geoqik::create_replay_undo_frame(entry, ReplayUndoContext{m_scene, m_idempotencySet});
 }
 
 void Context::restore_replay_undo_frame(const ReplayUndoFrame& frame)
@@ -1056,15 +959,6 @@ void Context::restore_replay_undo_frame(const ReplayUndoFrame& frame)
   {
     m_idempotencySet.erase(IdempotencyData{frame.idempotencyKeyToErase, {}});
   }
-}
-
-bool Context::has_known_idempotency_key(const core::UUID& key) const
-{
-  if (key.is_nil())
-  {
-    return false;
-  }
-  return m_idempotencySet.find(IdempotencyData{key, {}}) != m_idempotencySet.end();
 }
 
 void Context::finish_replay()

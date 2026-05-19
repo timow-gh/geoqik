@@ -442,6 +442,14 @@ TEST_F(GeoQikTestApi, PauseStepAndResumeReplayExposeStateAndProgress)
   ASSERT_EQ(GEOQIK_SUCCESS, geoqik_get_replay_progress(&currentEntry, &totalEntries));
   EXPECT_EQ(5, totalEntries);
   EXPECT_GE(currentEntry, 2);
+  const std::size_t progressAfterForwardStep = currentEntry;
+
+  ASSERT_EQ(GEOQIK_SUCCESS, geoqik_step_replay_backward_n(1));
+  ASSERT_EQ(GEOQIK_SUCCESS, geoqik_get_replay_state(&state));
+  EXPECT_EQ(GEOQIK_REPLAY_PAUSED, state);
+  ASSERT_EQ(GEOQIK_SUCCESS, geoqik_get_replay_progress(&currentEntry, &totalEntries));
+  EXPECT_EQ(5, totalEntries);
+  EXPECT_LT(currentEntry, progressAfterForwardStep);
 
   ASSERT_EQ(GEOQIK_SUCCESS, geoqik_resume_replay());
   ASSERT_EQ(GEOQIK_SUCCESS, geoqik_get_replay_state(&state));

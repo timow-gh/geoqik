@@ -7,6 +7,7 @@
 #include "GeoQik/GeoQik.hpp"
 #include "GeoQikLog.hpp"
 #include "GeoQikMessages.hpp"
+#include "GeoQikReplayUndo.hpp"
 #include "GeoQikSettings.hpp"
 #include "IdempotencyData.hpp"
 #include "Scene.hpp"
@@ -19,7 +20,6 @@
 #include <memory>
 #include <span>
 #include <utility>
-#include <unordered_set>
 #include <variant>
 #include <vector>
 
@@ -47,17 +47,6 @@ struct ReplayOptions
   std::vector<Key> decreaseEntriesPerStepKeys;
 };
 
-struct ReplayUndoFrame
-{
-  struct RestoreScene
-  {
-    SceneSnapshot scene;
-  };
-
-  std::variant<std::monostate, GeoQikLogEntry, RestoreScene> action;
-  core::UUID idempotencyKeyToErase;
-};
-
 // Holds idempotency key for messages.
 // If a message with the same key has already been processed, it will be ignored.
 
@@ -74,7 +63,7 @@ class Context
 
   Color m_backgroundColor{0.1f, 0.1f, 0.1f, 1.0f}; // Default background color
 
-  std::unordered_set<IdempotencyData, IdempotencyData::Hash> m_idempotencySet;
+  IdempotencySet m_idempotencySet;
 
   Scene m_scene;
   std::unique_ptr<OpenGLSceneRenderer> m_renderer;
@@ -172,7 +161,6 @@ private:
   void undo_replay_entries(std::size_t entriesToUndo);
   [[nodiscard]] ReplayUndoFrame create_replay_undo_frame(const GeoQikLogEntry& entry) const;
   void restore_replay_undo_frame(const ReplayUndoFrame& frame);
-  [[nodiscard]] bool has_known_idempotency_key(const core::UUID& key) const;
   void finish_replay();
   void defer_or_handle_message(GeoQikMessage&& message);
   bool process_message(GeoQikMessage&& message, bool recordLogEntry);
