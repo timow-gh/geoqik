@@ -37,6 +37,21 @@ jobs:
           cmake --build --preset build-msvc-${{ matrix.build_type }}
         shell: pwsh
       
+      - name: Install Mesa3D (software OpenGL for headless tests)
+        run: |
+          $MesaVersion = "24.3.4"
+          $MesaAsset = "mesa3d-${MesaVersion}-release-msvc.7z"
+          $MesaUrl = "https://github.com/pal1000/mesa-dist-win/releases/download/${MesaVersion}/${MesaAsset}"
+          Invoke-WebRequest -Uri $MesaUrl -OutFile $MesaAsset
+          7z x $MesaAsset -oMesa -y
+          # Copy Mesa's opengl32.dll next to every test executable so that
+          # Windows DLL search order prefers it over the system32 stub.
+          Get-ChildItem -Path "out/build/conf-msvc-${{ matrix.build_type }}" `
+            -Filter "*.exe" -Recurse |
+            Select-Object -ExpandProperty DirectoryName -Unique |
+            ForEach-Object { Copy-Item "Mesa\x64\opengl32.dll" "$_\" -Force }
+        shell: pwsh
+      
       - name: Test
         run: |
           ctest --preset test-msvc-${{ matrix.build_type }}
