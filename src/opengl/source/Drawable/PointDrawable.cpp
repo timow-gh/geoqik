@@ -140,7 +140,7 @@ void PointDrawable::draw_index_buffer(const linal::hmatf& mvp, const IndexBuffer
   CORE_ASSERT(m_program != nullptr);
   auto& prog = *m_program;
   prog.use();
-  glUniformMatrix4fv(prog.get_mvp_location().get_value(), 1, GL_FALSE, (const GLfloat*)mvp.data());
+  glUniformMatrix4fv(prog.get_mvp_location().get_value(), 1, GL_FALSE, mvp.data());
   glPointSize(m_pointSize);
   m_vertexArray.bind();
   indexBuffer.bind();

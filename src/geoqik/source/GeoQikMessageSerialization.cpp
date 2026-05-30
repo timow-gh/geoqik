@@ -79,7 +79,7 @@ core::UUID read_uuid(std::istream& stream)
 
 void write_float_vector(std::ostream& stream, const std::vector<float>& values)
 {
-  const std::uint64_t count = static_cast<std::uint64_t>(values.size());
+  const std::uint64_t count = values.size();
   write_pod(stream, count);
   if (!values.empty())
   {
@@ -94,7 +94,7 @@ void write_float_vector(std::ostream& stream, const std::vector<float>& values)
 std::vector<float> read_float_vector(std::istream& stream)
 {
   const std::uint64_t count = read_pod<std::uint64_t>(stream);
-  if (count > static_cast<std::uint64_t>(std::numeric_limits<std::size_t>::max()))
+  if (count > std::numeric_limits<std::size_t>::max())
   {
     throw std::runtime_error("GeoQik message vector is too large");
   }

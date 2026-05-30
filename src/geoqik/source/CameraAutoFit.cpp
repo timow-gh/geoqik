@@ -85,11 +85,6 @@ void add_vertices_to_bounds(CameraSpaceBounds& bounds,
   return bounds;
 }
 
-[[nodiscard]] linal::double3 get_world_center(const CameraSpaceBounds& bounds)
-{
-  return (bounds.worldMin + bounds.worldMax) * 0.5;
-}
-
 [[nodiscard]] double get_world_radius(const CameraSpaceBounds& bounds)
 {
   return linal::length(bounds.worldMax - bounds.worldMin) * 0.5;

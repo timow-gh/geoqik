@@ -77,10 +77,10 @@ void MeshDrawable::draw(const linal::hmatf& modelMatrix,
   const auto& prog = *m_program;
   prog.use();
 
-  glUniformMatrix4fv(prog.get_model_matrix_location().get_value(), 1, GL_FALSE, (const GLfloat*)modelMatrix.data());
-  glUniformMatrix4fv(prog.get_view_matrix_location().get_value(), 1, GL_FALSE, (const GLfloat*)viewMatrix.data());
-  glUniformMatrix4fv(prog.get_projection_matrix_location().get_value(), 1, GL_FALSE, (const GLfloat*)projectionMatrix.data());
-  glUniformMatrix4fv(prog.get_normal_matrix_location().get_value(), 1, GL_FALSE, (const GLfloat*)normalMatrix.data());
+  glUniformMatrix4fv(prog.get_model_matrix_location().get_value(), 1, GL_FALSE, modelMatrix.data());
+  glUniformMatrix4fv(prog.get_view_matrix_location().get_value(), 1, GL_FALSE, viewMatrix.data());
+  glUniformMatrix4fv(prog.get_projection_matrix_location().get_value(), 1, GL_FALSE, projectionMatrix.data());
+  glUniformMatrix4fv(prog.get_normal_matrix_location().get_value(), 1, GL_FALSE, normalMatrix.data());
 
   glUniform3fv(prog.get_light_pos_location().get_value(), 1, lightPosition.data());
   glUniform3fv(prog.get_view_pos_location().get_value(), 1, viewPos.data());

@@ -89,7 +89,8 @@ void save_log_binary(const std::filesystem::path& path, std::span<const GeoQikLo
   }
 
   write_pod(stream, LogVersion);
-  write_pod(stream, static_cast<std::uint64_t>(entries.size()));
+  const std::uint64_t entrySize = entries.size();
+  write_pod(stream, entrySize);
 
   MessageWriter writer(stream);
   for (const GeoQikLogEntry& entry: entries)
@@ -119,7 +120,7 @@ std::vector<GeoQikLogEntry> load_log_binary(const std::filesystem::path& path)
   }
 
   const std::uint64_t entryCount = read_pod<std::uint64_t>(stream);
-  if (entryCount > static_cast<std::uint64_t>(std::numeric_limits<std::size_t>::max()))
+  if (entryCount > std::numeric_limits<std::size_t>::max())
   {
     throw std::runtime_error("GeoQik log entry count is too large");
   }
