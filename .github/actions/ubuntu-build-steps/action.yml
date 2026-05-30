@@ -17,13 +17,15 @@ runs:
   using: "composite"
   steps:
     - uses: actions/checkout@v4
-      with:
-        submodules: 'recursive'
+    
+    - name: Set VCPKG_ROOT
+      run: echo "VCPKG_ROOT=$VCPKG_INSTALLATION_ROOT" >> $GITHUB_ENV
+      shell: bash
     
     - name: Install build tools
       run: |
         sudo apt-get update
-        sudo apt-get install -y ninja-build ${{ inputs.install_tools }}
+        sudo apt-get install -y ninja-build libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libgl-dev ${{ inputs.install_tools }}
       shell: bash
     
     - name: Extract preset names

@@ -24,8 +24,10 @@ jobs:
     name: Build - msvc - ${{ matrix.build_type }} - ${{ matrix.library_type }}
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: 'recursive'
+      
+      - name: Set VCPKG_ROOT
+        run: echo "VCPKG_ROOT=$env:VCPKG_INSTALLATION_ROOT" >> $env:GITHUB_ENV
+        shell: pwsh
       
       - name: Setup MSVC
         uses: microsoft/setup-msbuild@v2
