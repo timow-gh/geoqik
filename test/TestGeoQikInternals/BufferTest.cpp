@@ -78,8 +78,8 @@ TEST_F(BufferTest, CreateFromBuffer)
   EXPECT_FALSE(newBuffer.is_empty());
   EXPECT_FALSE(newBuffer.is_full());
 
-  for (int i = 0; i < 5; ++i) {
-    EXPECT_EQ(newBuffer.get_as_span()[i], i);
+  for (std::size_t i = 0; i < 5; ++i) {
+    EXPECT_EQ(newBuffer.get_as_span()[i], static_cast<int>(i));
   }
 }
 
