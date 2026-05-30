@@ -8,7 +8,6 @@ project(geoqik
         VERSION 0.1.0
         LANGUAGES CXX)
 
-
 include(warnings)
 include(static_analysis)
 

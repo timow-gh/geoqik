@@ -1,6 +1,0 @@
-{
-    "dependencies": [
-        "glad",
-        "glfw3"
-    ]
-}

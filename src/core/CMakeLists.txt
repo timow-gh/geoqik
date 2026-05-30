@@ -13,7 +13,7 @@ set(core_SOURCES
 )
 
 set(TARGET_NAME geoqik_core)
-add_library(${TARGET_NAME} OBJECT ${core_SOURCES} ${core_HEADERS})
+add_library(${TARGET_NAME} STATIC ${core_SOURCES} ${core_HEADERS})
 add_library(${PROJECT_NAME}::core ALIAS ${TARGET_NAME})
 target_include_directories(${TARGET_NAME} PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/export_header_includes/>

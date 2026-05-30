@@ -44,7 +44,7 @@ set(geoqik_SOURCE_FILES
 )
 
 set(TARGET_NAME geoqik)
-add_library(${TARGET_NAME} ${geoqik_SOURCE_FILES} ${geoqik_HEADER_FILES})
+add_library(${TARGET_NAME} SHARED ${geoqik_SOURCE_FILES} ${geoqik_HEADER_FILES})
 
 include(GenerateExportHeader)
 set(EXPORT_HEADER_BASE_NAME "geoqik")
@@ -88,15 +88,11 @@ target_link_libraries(${TARGET_NAME}
         PRIVATE
         $<BUILD_LOCAL_INTERFACE:geoqik::core>
         $<BUILD_LOCAL_INTERFACE:geoqik::opengl>
-        glfw
-        glad::glad
-        fmt::fmt
+        $<BUILD_LOCAL_INTERFACE:glfw>
+        $<BUILD_LOCAL_INTERFACE:glad::glad>
+        $<BUILD_LOCAL_INTERFACE:fmt::fmt>
         $<BUILD_LOCAL_INTERFACE:linal::linal>
         $<BUILD_LOCAL_INTERFACE:Geometry::Geometry>
-        INTERFACE
-        $<LINK_ONLY:fmt::fmt>
-        $<LINK_ONLY:glad::glad>
-        $<LINK_ONLY:glfw>
 )
 
 if (${PROJECT_NAME}_INSTALL)
