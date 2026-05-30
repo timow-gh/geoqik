@@ -1,25 +1,31 @@
 #include "Camera.hpp"
-#include <vector>
+
+#include "PickRay.hpp"
+#include <Core/Assert.hpp>
+#include <cmath>
+#include <glm/ext/vector_double3.hpp>
+#include <glm/geometric.hpp>
+#include <glm/trigonometric.hpp>
 
 namespace geoqik
 {
 
 [[maybe_unused]] static bool has_nan_value(const glm::dvec3& vec)
 {
-  return std::isnan(vec.x) || std::isnan(vec.y) || std::isnan(vec.z);
+  return std::isnan(vec[0]) || std::isnan(vec[1]) || std::isnan(vec[2]);
 }
 
 [[maybe_unused]] static bool has_inf_value(const glm::dvec3& vec)
 {
-  return std::isinf(vec.x) || std::isinf(vec.y) || std::isinf(vec.z);
+  return std::isinf(vec[0]) || std::isinf(vec[1]) || std::isinf(vec[2]);
 }
 
 [[maybe_unused]] static bool has_huge_value(const glm::dvec3& vec)
 {
-  constexpr double huge_value = 1e10; // Define a threshold for "huge" values
-  return std::abs(vec.x) > huge_value ||
-         std::abs(vec.y) > huge_value ||
-         std::abs(vec.z) > huge_value;
+  constexpr double hugeValue = 1e10;
+  return std::abs(vec[0]) > hugeValue ||
+         std::abs(vec[1]) > hugeValue ||
+         std::abs(vec[2]) > hugeValue;
 }
 
 PickRay Camera::create_perspective_ray(double screenX, double screenY) const {
@@ -28,7 +34,7 @@ PickRay Camera::create_perspective_ray(double screenX, double screenY) const {
   const auto [uNDC, vNDC] = screen_to_ndc(screenX, screenY);
 
   // Compute the tangent of the half field-of-view angle
-  const double tangent = tan(glm::radians(m_perspective.fov) / 2.0);
+  const double tangent = std::tan(glm::radians(m_perspective.fov) / 2.0);
 
   glm::dvec3 cameraGaze = gaze();
   const glm::dvec3 right = glm::normalize(glm::cross(cameraGaze, get_vertical()));
