@@ -1,7 +1,6 @@
 #ifndef CORE_UUID_HPP
 #define CORE_UUID_HPP
 
-#define UUID_SYSTEM_GENERATOR
 #include "stduuid/uuid.h"
 
 #include <array>

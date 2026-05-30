@@ -6,6 +6,9 @@
     "glad",
     "glfw3",
     "glm",
-    "stduuid"
+    {
+      "name": "stduuid",
+      "features": [ "system-gen" ]
+    }
   ]
 }

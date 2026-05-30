@@ -225,7 +225,7 @@ TEST_F(GeometryBufferTest, RemovePoints_Multiple)
   std::vector<float> colors = {2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f};
 
   std::array<core::UUID, 3> handles;
-  for (int i = 0; i < 3; ++i)
+  for (std::size_t i = 0; i < 3; ++i)
   {
     if (i > 0)
     {
