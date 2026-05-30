@@ -1,0 +1,59 @@
+name: Windows Build
+
+on:
+  push:
+    branches: [main, 'develop-**']
+  pull_request:
+    branches: [main]
+
+jobs:
+  windows-build:
+    runs-on: windows-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        build_type: [debug, release]
+        library_type: [shared]
+        include:
+          # Test static libraries only in release build to minimize CI time
+          - build_type: release
+            library_type: static
+        exclude:
+          # For develop-* branches, run only msvc+debug+shared
+          - build_type: ${{ startsWith(github.ref, 'refs/heads/develop-') && 'release' || '_no_match_' }}
+    name: Build - msvc - ${{ matrix.build_type }} - ${{ matrix.library_type }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
+      
+      - name: Setup MSVC
+        uses: microsoft/setup-msbuild@v2
+      
+      - name: Configure
+        run: |
+          cmake --preset conf-msvc-${{ matrix.build_type }} -DBUILD_SHARED_LIBS=${{ matrix.library_type == 'shared' && 'ON' || 'OFF' }}
+        shell: pwsh
+      
+      - name: Build
+        run: |
+          cmake --build --preset build-msvc-${{ matrix.build_type }}
+        shell: pwsh
+      
+      - name: Test
+        run: |
+          ctest --preset test-msvc-${{ matrix.build_type }}
+        shell: pwsh
+  
+  windows-build-summary:
+    runs-on: ubuntu-latest
+    needs: windows-build
+    if: always()
+    steps:
+      - name: Check build status
+        run: |
+          if [ "${{ needs.windows-build.result }}" != "success" ]; then
+            echo "Windows build failed"
+            exit 1
+          fi
+          echo "All Windows builds passed"

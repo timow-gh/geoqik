@@ -1,0 +1,71 @@
+name: Create Release
+
+# Trigger the workflow only when a tag starting with 'v' is pushed
+# Example: v1.0.0, v2.3.1-beta, etc.
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-packages:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        library-type: [shared, static]
+        include:
+          - os: ubuntu-latest
+            workflow-prefix: workflow-package-gcc
+            artifact-path: out/packages/package-gcc-release
+          - os: windows-latest
+            workflow-prefix: workflow-package-msvc
+            artifact-path: out/packages/package-msvc-release
+    
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install NSIS (Windows only)
+        if: matrix.os == 'windows-latest'
+        run: choco install nsis -y
+      
+      - name: Create ${{ matrix.library-type }} package
+        run: |
+          cmake --workflow --preset ${{ matrix.workflow-prefix }}-${{ matrix.library-type }}
+        shell: bash
+      
+      - name: Upload ${{ matrix.os }} ${{ matrix.library-type }} artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.os }}-${{ matrix.library-type }}-build
+          path: ${{ github.workspace }}/${{ matrix.artifact-path }}-${{ matrix.library-type }}/*.*
+          retention-days: 1
+
+  create-release:
+    needs: build-packages
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Get version from tag
+        id: get_version
+        run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Release ${{ steps.get_version.outputs.version }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: |
+            ubuntu-latest-shared-build/*
+            ubuntu-latest-static-build/*
+            windows-latest-shared-build/*
+            windows-latest-static-build/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
