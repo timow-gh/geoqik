@@ -86,13 +86,17 @@ endif ()
 
 target_link_libraries(${TARGET_NAME}
         PRIVATE
-        geoqik::core
-        geoqik::opengl
+        $<BUILD_LOCAL_INTERFACE:geoqik::core>
+        $<BUILD_LOCAL_INTERFACE:geoqik::opengl>
         glfw
         glad::glad
         fmt::fmt
         $<BUILD_LOCAL_INTERFACE:linal::linal>
         $<BUILD_LOCAL_INTERFACE:Geometry::Geometry>
+        INTERFACE
+        $<LINK_ONLY:fmt::fmt>
+        $<LINK_ONLY:glad::glad>
+        $<LINK_ONLY:glfw>
 )
 
 if (${PROJECT_NAME}_INSTALL)
@@ -130,6 +134,9 @@ target_sources(geoqik_internals INTERFACE
         ${CMAKE_SOURCE_DIR}/src/geoqik/source/GeoQikLog.cpp
         ${CMAKE_SOURCE_DIR}/src/geoqik/source/GeoQikMessageSerialization.cpp
         ${CMAKE_SOURCE_DIR}/src/geoqik/source/GeoQikReplayUndo.cpp)
-target_link_libraries(geoqik_internals INTERFACE 
-        geoqik::core linal::linal Geometry::Geometry)
+target_link_libraries(geoqik_internals INTERFACE
+        stduuid linal::linal Geometry::Geometry geoqik::core)
+target_include_directories(geoqik_internals INTERFACE
+        $<TARGET_PROPERTY:geoqik_core,INTERFACE_INCLUDE_DIRECTORIES>
+        $<TARGET_PROPERTY:geoqik_opengl,INTERFACE_INCLUDE_DIRECTORIES>)
 add_library(geoqik::geoqik_internals ALIAS geoqik_internals)

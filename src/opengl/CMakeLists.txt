@@ -48,7 +48,7 @@ set(opengl_SOURCE_FILES
 )
 
 set(TARGET_NAME geoqik_opengl)
-add_library(${TARGET_NAME} STATIC ${opengl_SOURCE_FILES} ${opengl_HEADER_FILES})
+add_library(${TARGET_NAME} OBJECT ${opengl_SOURCE_FILES} ${opengl_HEADER_FILES})
 
 include(GenerateExportHeader)
 set(EXPORT_HEADER_BASE_NAME "opengl")
@@ -65,6 +65,8 @@ target_include_directories(${TARGET_NAME}
         $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/export_header_includes>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>)
 
+target_compile_definitions(${TARGET_NAME} PUBLIC OPENGL_STATIC_DEFINE)
+
 add_library(${PROJECT_NAME}::opengl ALIAS ${TARGET_NAME})
 
 set(TARGET_EXPORT_NAME ${TARGET_NAME})
@@ -77,12 +79,8 @@ set_target_properties(
         ${TARGET_NAME}
         PROPERTIES
         LANGUAGE CXX
-        LINKER_LANGUAGE CXX
         POSITION_INDEPENDENT_CODE ON
-        DEBUG_POSTFIX d
-        VERSION ${${TARGET_NAME}_MAJOR}.${${TARGET_NAME}_MINOR}.${${TARGET_NAME}_PATCH}
-        SOVERSION ${PROJECT_VERSION_MAJOR}
-        EXPORT_NAME ${TARGET_EXPORT_NAME})
+        DEBUG_POSTFIX d)
 
 add_warnings_and_compile_options(${TARGET_NAME} OFF)
 if (${PROJECT_NAME}_STATIC_ANALYSIS)
@@ -90,21 +88,9 @@ if (${PROJECT_NAME}_STATIC_ANALYSIS)
 endif ()
 
 target_link_libraries(${TARGET_NAME}
-        PUBLIC
+        PRIVATE
         geoqik::core
         glad::glad
         fmt::fmt
         $<BUILD_LOCAL_INTERFACE:linal::linal>
 )
-
-if (${PROJECT_NAME}_INSTALL)
-    install(TARGETS ${TARGET_NAME}
-            EXPORT ${project_export_set_name}
-            RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-            COMPONENT runtime
-            LIBRARY DESTINATION ${CMAKE_INSTALL_BINDIR}
-            COMPONENT runtime
-            ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-            COMPONENT dev
-            )
-endif ()
