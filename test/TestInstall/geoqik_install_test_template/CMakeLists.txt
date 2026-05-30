@@ -54,12 +54,17 @@ if (BUILD_SHARED_LIBS)
                 [[api-ms-win-.*]] [[ext-ms-.*]] [[kernel32\.dll]] [[msvc.*]] [[vcruntime.*]] [[ucrt.*]]
                 [[ntdll\.dll]] [[advapi32\.dll]] [[user32\.dll]] [[gdi32\.dll]] [[shell32\.dll]]
                 [[HvsiFileTrust\.dll]] [[bcrypt\.dll]] [[crypt32\.dll]]
+                # wtdccm.dll is a Windows CI runner monitoring component that
+                # appears in PE import tables on GitHub-hosted runners but is
+                # not a redistributable dependency.
+                [[wtdccm.*]]
                 POST_EXCLUDE_REGEXES
                 [[.*/[Ss]ystem32/.*]]
                 [[.*/[Ss]ys[Ww][Oo][Ww]64/.*]]
                 [[.*/[Ww]indows/.*]]
                 [[.*[Ww]indows[Kk]its.*]]
                 [[.*[Mm]icrosoft.*]]
+                DIRECTORIES "${CMAKE_PREFIX_PATH}/bin"
                 DESTINATION ${CMAKE_INSTALL_BINDIR}
         )
     endif()
