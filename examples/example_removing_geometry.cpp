@@ -42,13 +42,13 @@ int main()
   constexpr double delaySeconds = 0.3;
 
   geoqik_set_point_color(1.0f, 0.0f, 0.0f, 1.0f); // Red
-  geoqik_uuid_t pointIdA = add_point_with_delay(5.0, 5.0, 0.0, delaySeconds);
+  [[maybe_unused]] geoqik_uuid_t pointIdA = add_point_with_delay(5.0, 5.0, 0.0, delaySeconds);
 
   geoqik_set_point_color(0.0f, 1.0f, 0.0f, 1.0f); // Green
-  geoqik_uuid_t pointIdB = add_point_with_delay(5.0, 0.0, 0.0, delaySeconds);
+  [[maybe_unused]] geoqik_uuid_t pointIdB = add_point_with_delay(5.0, 0.0, 0.0, delaySeconds);
 
   geoqik_set_point_color(0.0f, 0.0f, 1.0f, 1.0f); // Blue
-  geoqik_uuid_t pointIdC = add_point_with_delay(0.0, 5.0, 0.0, delaySeconds);
+  [[maybe_unused]] geoqik_uuid_t pointIdC = add_point_with_delay(0.0, 5.0, 0.0, delaySeconds);
 
   geoqik_uuid_t lineIdA = add_line_with_delay(5.0, 5.0, 0.0, 5.0, 0.0, 0.0, delaySeconds);
   geoqik_uuid_t lineIdB = add_line_with_delay(5.0, 0.0, 0.0, 0.0, 5.0, 0.0, delaySeconds);
@@ -68,7 +68,7 @@ int main()
   std::array<float, 80> xyColors;
   std::array<double, 30> zPoints;
   std::array<float, 40> zColors;
-  for (int i = 0; i < 10; ++i)
+  for (std::size_t i = 0; i < 10; ++i)
   {
     double coord = static_cast<double>(i);
 
