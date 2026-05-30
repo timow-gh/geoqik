@@ -8,16 +8,10 @@ inputs:
     description: 'Additional tools to install (space-separated list: lcov, clang-tidy, cppcheck)'
     required: false
     default: ''
-  build_shared_libs:
-    description: 'Whether to build shared libraries (ON/OFF)'
-    required: false
-    default: 'ON'
 
 runs:
   using: "composite"
   steps:
-    - uses: actions/checkout@v4
-    
     - name: Set VCPKG_ROOT
       run: echo "VCPKG_ROOT=$VCPKG_INSTALLATION_ROOT" >> $GITHUB_ENV
       shell: bash
@@ -42,7 +36,7 @@ runs:
     
     - name: Configure
       run: |
-        cmake --preset ${{ steps.preset.outputs.configure }} -DBUILD_SHARED_LIBS=${{ inputs.build_shared_libs }}
+        cmake --preset ${{ steps.preset.outputs.configure }} -DBUILD_SHARED_LIBS=ON
       shell: bash
     
     - name: Build

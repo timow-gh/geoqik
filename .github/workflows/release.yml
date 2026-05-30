@@ -11,15 +11,13 @@ jobs:
   build-packages:
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest]
-        library-type: [shared, static]
         include:
           - os: ubuntu-latest
-            workflow-prefix: workflow-package-gcc
-            artifact-path: out/packages/package-gcc-release
+            workflow-preset: workflow-package-gcc-shared
+            artifact-path: out/packages/package-gcc-release-shared
           - os: windows-latest
-            workflow-prefix: workflow-package-msvc
-            artifact-path: out/packages/package-msvc-release
+            workflow-preset: workflow-package-msvc-shared
+            artifact-path: out/packages/package-msvc-release-shared
     
     runs-on: ${{ matrix.os }}
     
@@ -45,16 +43,16 @@ jobs:
         if: matrix.os == 'windows-latest'
         run: choco install nsis -y
       
-      - name: Create ${{ matrix.library-type }} package
+      - name: Create package
         run: |
-          cmake --workflow --preset ${{ matrix.workflow-prefix }}-${{ matrix.library-type }}
+          cmake --workflow --preset ${{ matrix.workflow-preset }}
         shell: bash
       
-      - name: Upload ${{ matrix.os }} ${{ matrix.library-type }} artifacts
+      - name: Upload ${{ matrix.os }} artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.os }}-${{ matrix.library-type }}-build
-          path: ${{ github.workspace }}/${{ matrix.artifact-path }}-${{ matrix.library-type }}/*.*
+          name: ${{ matrix.os }}-shared-build
+          path: ${{ github.workspace }}/${{ matrix.artifact-path }}/*.*
           retention-days: 1
 
   create-release:
@@ -79,8 +77,6 @@ jobs:
           generate_release_notes: true
           files: |
             ubuntu-latest-shared-build/*
-            ubuntu-latest-static-build/*
             windows-latest-shared-build/*
-            windows-latest-static-build/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
