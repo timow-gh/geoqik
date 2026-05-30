@@ -38,18 +38,32 @@ jobs:
         shell: pwsh
       
       - name: Install Mesa3D (software OpenGL for headless tests)
+        # windows-latest runners have no GPU. The system opengl32.dll in
+        # System32 only implements OpenGL 1.1, so glfwCreateWindow fails when
+        # asked for a 3.3 Core Profile context.
+        #
+        # Mesa3D ships a drop-in opengl32.dll backed by LLVMpipe (a CPU
+        # software renderer that supports OpenGL 4.5).  opengl32.dll is NOT a
+        # Windows KnownDLL, so it is resolved via the normal DLL search order:
+        # the executable's own directory is searched before System32.  Copying
+        # Mesa's opengl32.dll alongside each test .exe is therefore enough to
+        # make Windows load Mesa instead of the system stub, giving GLFW a
+        # working OpenGL 3.3 Core Profile context on the CPU.
         run: |
           $MesaVersion = "24.3.4"
           $MesaAsset = "mesa3d-${MesaVersion}-release-msvc.7z"
           $MesaUrl = "https://github.com/pal1000/mesa-dist-win/releases/download/${MesaVersion}/${MesaAsset}"
           Invoke-WebRequest -Uri $MesaUrl -OutFile $MesaAsset
           7z x $MesaAsset -oMesa -y
-          # Copy Mesa's opengl32.dll next to every test executable so that
-          # Windows DLL search order prefers it over the system32 stub.
+          # Copy ALL Mesa x64 DLLs next to every test executable.
+          # Mesa 21+ splits the driver: opengl32.dll is only an ICD loader;
+          # the actual LLVMpipe implementation lives in libgallium_wgl.dll
+          # (and related DLLs).  All of them must be co-located with the
+          # executable for Mesa to initialise successfully.
           Get-ChildItem -Path "out/build/conf-msvc-${{ matrix.build_type }}" `
             -Filter "*.exe" -Recurse |
             Select-Object -ExpandProperty DirectoryName -Unique |
-            ForEach-Object { Copy-Item "Mesa\x64\opengl32.dll" "$_\" -Force }
+            ForEach-Object { Copy-Item "Mesa\x64\*.dll" "$_\" -Force }
         shell: pwsh
       
       - name: Test
