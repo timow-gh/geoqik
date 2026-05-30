@@ -15,6 +15,8 @@ jobs:
       pull-requests: write
     steps:
       - uses: actions/checkout@v4
+      # ubuntu-build-steps installs build deps (including xvfb for headless OpenGL)
+      # and runs configure, build, and ctest under xvfb-run.
       - uses: ./.github/actions/ubuntu-build-steps
         with:
           cmake_workflow: workflow-test-gcc-coverage

@@ -19,7 +19,16 @@ runs:
     - name: Install build tools
       run: |
         sudo apt-get update
-        sudo apt-get install -y ninja-build uuid-dev libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libgl-dev ${{ inputs.install_tools }}
+        # ninja-build: fast build backend used by the CMake presets
+        # uuid-dev: required by the stduuid dependency
+        # libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev: X11 headers needed to build GLFW
+        # libgl-dev: OpenGL headers; the system Mesa (llvmpipe) provides the runtime
+        # xvfb: X Virtual Framebuffer — GitHub Actions runners have no display server.
+        #   GeoQik uses GLFW which calls XOpenDisplay() at glfwInit() time; without a
+        #   display that call fails and every test that opens a window aborts immediately.
+        #   xvfb-run (see Test step) starts a temporary in-process display so glfwInit()
+        #   and glfwCreateWindow() succeed against the system Mesa/llvmpipe renderer.
+        sudo apt-get install -y ninja-build uuid-dev libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libgl-dev xvfb ${{ inputs.install_tools }}
       shell: bash
     
     - name: Extract preset names
@@ -46,5 +55,9 @@ runs:
     
     - name: Test
       run: |
-        ctest --preset ${{ steps.preset.outputs.test }}
+        # xvfb-run starts a throwaway X server for the duration of ctest so that
+        # GLFW can open an OpenGL window (rendered in software by Mesa/llvmpipe).
+        # --auto-servernum selects a free display number automatically, which avoids
+        # conflicts when multiple matrix jobs run on the same host.
+        xvfb-run --auto-servernum ctest --preset ${{ steps.preset.outputs.test }}
       shell: bash
