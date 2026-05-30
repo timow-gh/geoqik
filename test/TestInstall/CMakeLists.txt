@@ -45,4 +45,9 @@ add_custom_target(test_geoqik_install_clean
         COMMAND ${CMAKE_COMMAND} -E rm -Rf ${${test_target}_TEST_SOURCE_DIR}
 )
 
-add_test(NAME TestGeoqikInstall COMMAND ${CMAKE_COMMAND} --build . --target test_geoqik_install)
+# CMAKE_BINARY_DIR is the root build directory. Using an absolute path here
+# is required because CTest's default working directory for a test is the
+# subdirectory build tree (out/build/<preset>/test/TestInstall/), which has no
+# build.ninja. cmake --build then calls ninja in the wrong directory and fails
+# immediately with "ninja: error: loading 'build.ninja': No such file or directory".
+add_test(NAME TestGeoqikInstall COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target test_geoqik_install)
