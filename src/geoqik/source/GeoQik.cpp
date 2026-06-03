@@ -5,11 +5,13 @@
 #include "GeoQikMessages.hpp"
 #include "GeoQikSettings.hpp"
 #include "WindowSettings.hpp"
+#include <array>
 #include <atomic>
 #include <barrier>
 #include <cmath>
 #include <future>
 #include <initializer_list>
+#include <iostream>
 #include <memory>
 #include <string>
 #include <thread>
@@ -21,8 +23,39 @@ using namespace geoqik;
 
 namespace
 {
-std::atomic<bool> g_apiIsInitialized{false};
+constexpr std::size_t coordinateCount = 3;
+constexpr std::size_t lineCoordinateCount = 6;
+constexpr std::size_t uuidByteCount = 16;
+
+constexpr std::size_t defaultMaxMessageQueueSize = 1'000'000;
+constexpr std::size_t defaultInitialGeometryCapacity = 100'000;
+constexpr std::size_t defaultCapacityGrowthFactor = 2;
+constexpr float defaultPointSize = 4.0F;
+constexpr float defaultLineWidth = 2.0F;
+constexpr float defaultColorChannel = 1.0F;
+constexpr float defaultBackgroundColorChannel = 0.1F;
+constexpr double defaultCameraFarPlaneMultiplier = 3.0;
+constexpr double defaultAutoFitZoomOutPadding = 1.15;
+constexpr double defaultAutoFitMinViewportOccupancy = 0.20;
+constexpr double defaultAutoFitTargetViewportOccupancy = 0.65;
+constexpr std::size_t defaultAutoFitSuppressAfterUserCameraInteractionMs = 1000;
+constexpr std::size_t defaultFrameProcessingTimeMs = 16;
+constexpr std::size_t defaultUpdateSceneFrequency = 5;
+
+constexpr std::uint32_t defaultWindowWidth = 1280;
+constexpr std::uint32_t defaultWindowHeight = 720;
+constexpr int defaultColorBits = 8;
+constexpr int defaultDepthBits = 24;
+constexpr int defaultStencilBits = 8;
+constexpr int defaultSamples = 8;
+
+std::atomic<bool>& api_is_initialized_storage()
+{
+  static std::atomic<bool> apiIsInitialized{false}; // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
+  return apiIsInitialized;
 }
+
+} // namespace
 
 // Forward declarations for internal C++ functions
 namespace geoqik_internal
@@ -31,34 +64,34 @@ static geoqik_settings_t create_default_c_settings()
 {
   geoqik_settings_t settings{};
 
-  settings.maxMessageQueueSize = 1000000;
-  settings.initialPointCapacity = 100000;
-  settings.initialLineCapacity = 100000;
-  settings.capacityGrowthFactor = 2;
-  settings.defaultPointSize = 4.0f;
-  settings.defaultLineWidth = 2.0f;
-  settings.defaultPointColor[0] = 1.0f;
-  settings.defaultPointColor[1] = 1.0f;
-  settings.defaultPointColor[2] = 1.0f;
-  settings.defaultPointColor[3] = 1.0f;
-  settings.defaultLineColor[0] = 1.0f;
-  settings.defaultLineColor[1] = 1.0f;
-  settings.defaultLineColor[2] = 1.0f;
-  settings.defaultLineColor[3] = 1.0f;
-  settings.backgroundColor[0] = 0.1f;
-  settings.backgroundColor[1] = 0.1f;
-  settings.backgroundColor[2] = 0.1f;
-  settings.backgroundColor[3] = 1.0f;
-  settings.cameraFarPlaneMultiplier = 3.0;
+  settings.maxMessageQueueSize = defaultMaxMessageQueueSize;
+  settings.initialPointCapacity = defaultInitialGeometryCapacity;
+  settings.initialLineCapacity = defaultInitialGeometryCapacity;
+  settings.capacityGrowthFactor = defaultCapacityGrowthFactor;
+  settings.defaultPointSize = defaultPointSize;
+  settings.defaultLineWidth = defaultLineWidth;
+  settings.defaultPointColor[0] = defaultColorChannel;
+  settings.defaultPointColor[1] = defaultColorChannel;
+  settings.defaultPointColor[2] = defaultColorChannel;
+  settings.defaultPointColor[3] = defaultColorChannel;
+  settings.defaultLineColor[0] = defaultColorChannel;
+  settings.defaultLineColor[1] = defaultColorChannel;
+  settings.defaultLineColor[2] = defaultColorChannel;
+  settings.defaultLineColor[3] = defaultColorChannel;
+  settings.backgroundColor[0] = defaultBackgroundColorChannel;
+  settings.backgroundColor[1] = defaultBackgroundColorChannel;
+  settings.backgroundColor[2] = defaultBackgroundColorChannel;
+  settings.backgroundColor[3] = defaultColorChannel;
+  settings.cameraFarPlaneMultiplier = defaultCameraFarPlaneMultiplier;
   settings.autoFitCameraEnabled = 1;
   settings.autoFitZoomInEnabled = 1;
-  settings.autoFitZoomOutPadding = 1.15;
-  settings.autoFitMinViewportOccupancy = 0.20;
-  settings.autoFitTargetViewportOccupancy = 0.65;
-  settings.autoFitSuppressAfterUserCameraInteractionMs = 1000;
-  settings.minGeometryProcessingTimeMs = 16;
-  settings.maxFrameProcessingTimeMs = 16;
-  settings.updateSceneFrequency = 5;
+  settings.autoFitZoomOutPadding = defaultAutoFitZoomOutPadding;
+  settings.autoFitMinViewportOccupancy = defaultAutoFitMinViewportOccupancy;
+  settings.autoFitTargetViewportOccupancy = defaultAutoFitTargetViewportOccupancy;
+  settings.autoFitSuppressAfterUserCameraInteractionMs = defaultAutoFitSuppressAfterUserCameraInteractionMs;
+  settings.minGeometryProcessingTimeMs = defaultFrameProcessingTimeMs;
+  settings.maxFrameProcessingTimeMs = defaultFrameProcessingTimeMs;
+  settings.updateSceneFrequency = defaultUpdateSceneFrequency;
 
   return settings;
 }
@@ -68,20 +101,20 @@ static geoqik_window_settings_t create_default_c_window_settings()
   geoqik_window_settings_t settings{};
 
   settings.title = "GeoQik Viewer";
-  settings.width = 1280;
-  settings.height = 720;
-  settings.red_bits = 8;
-  settings.green_bits = 8;
-  settings.blue_bits = 8;
-  settings.alpha_bits = 8;
-  settings.depth_bits = 24;
-  settings.stencil_bits = 8;
+  settings.width = defaultWindowWidth;
+  settings.height = defaultWindowHeight;
+  settings.red_bits = defaultColorBits;
+  settings.green_bits = defaultColorBits;
+  settings.blue_bits = defaultColorBits;
+  settings.alpha_bits = defaultColorBits;
+  settings.depth_bits = defaultDepthBits;
+  settings.stencil_bits = defaultStencilBits;
   settings.accum_red_bits = 0;
   settings.accum_green_bits = 0;
   settings.accum_blue_bits = 0;
   settings.accum_alpha_bits = 0;
   settings.aux_buffers = 0;
-  settings.samples = 8;
+  settings.samples = defaultSamples;
   settings.refresh_rate = -1;
   settings.stereo = 0;
   settings.srgb_capable = 0;
@@ -103,90 +136,90 @@ static geoqik_window_settings_t create_default_c_window_settings()
 
 static bool api_is_initialized()
 {
-  return g_apiIsInitialized.load(std::memory_order_acquire);
+  return api_is_initialized_storage().load(std::memory_order_acquire);
 }
 
-static geoqik::GeoQikSettings convert_to_cpp_settings(const geoqik_settings_t& c_settings)
+static geoqik::GeoQikSettings convert_to_cpp_settings(const geoqik_settings_t& cSettings)
 {
-  geoqik::GeoQikSettings cpp_settings;
-  cpp_settings.maxMessageQueueSize = c_settings.maxMessageQueueSize;
-  cpp_settings.initialPointCapacity = c_settings.initialPointCapacity;
-  cpp_settings.initialLineCapacity = c_settings.initialLineCapacity;
-  cpp_settings.capacityGrowthFactor = c_settings.capacityGrowthFactor;
-  cpp_settings.defaultPointSize = c_settings.defaultPointSize;
-  cpp_settings.defaultLineWidth = c_settings.defaultLineWidth;
+  geoqik::GeoQikSettings cppSettings;
+  cppSettings.maxMessageQueueSize = cSettings.maxMessageQueueSize;
+  cppSettings.initialPointCapacity = cSettings.initialPointCapacity;
+  cppSettings.initialLineCapacity = cSettings.initialLineCapacity;
+  cppSettings.capacityGrowthFactor = cSettings.capacityGrowthFactor;
+  cppSettings.defaultPointSize = cSettings.defaultPointSize;
+  cppSettings.defaultLineWidth = cSettings.defaultLineWidth;
 
   for (size_t i = 0; i < ColorChannelCount; ++i)
   {
-    cpp_settings.defaultPointColor[i] = c_settings.defaultPointColor[i];
-    cpp_settings.defaultLineColor[i] = c_settings.defaultLineColor[i];
-    cpp_settings.backgroundColor[i] = c_settings.backgroundColor[i];
+    cppSettings.defaultPointColor[i] = cSettings.defaultPointColor[i];
+    cppSettings.defaultLineColor[i] = cSettings.defaultLineColor[i];
+    cppSettings.backgroundColor[i] = cSettings.backgroundColor[i];
   }
 
-  cpp_settings.cameraFarPlaneMultiplier = c_settings.cameraFarPlaneMultiplier;
-  cpp_settings.autoFitCameraEnabled = c_settings.autoFitCameraEnabled != 0;
-  cpp_settings.autoFitZoomInEnabled = c_settings.autoFitZoomInEnabled != 0;
-  cpp_settings.autoFitZoomOutPadding = c_settings.autoFitZoomOutPadding;
-  cpp_settings.autoFitMinViewportOccupancy = c_settings.autoFitMinViewportOccupancy;
-  cpp_settings.autoFitTargetViewportOccupancy = c_settings.autoFitTargetViewportOccupancy;
-  cpp_settings.autoFitSuppressAfterUserCameraInteraction =
-      std::chrono::milliseconds(c_settings.autoFitSuppressAfterUserCameraInteractionMs);
-  cpp_settings.minGeometryProcessingTime = std::chrono::milliseconds(c_settings.minGeometryProcessingTimeMs);
-  cpp_settings.maxFrameProcessingTime = std::chrono::milliseconds(c_settings.maxFrameProcessingTimeMs);
-  cpp_settings.updateSceneFrequency = c_settings.updateSceneFrequency;
-  return cpp_settings;
+  cppSettings.cameraFarPlaneMultiplier = cSettings.cameraFarPlaneMultiplier;
+  cppSettings.autoFitCameraEnabled = cSettings.autoFitCameraEnabled != 0;
+  cppSettings.autoFitZoomInEnabled = cSettings.autoFitZoomInEnabled != 0;
+  cppSettings.autoFitZoomOutPadding = cSettings.autoFitZoomOutPadding;
+  cppSettings.autoFitMinViewportOccupancy = cSettings.autoFitMinViewportOccupancy;
+  cppSettings.autoFitTargetViewportOccupancy = cSettings.autoFitTargetViewportOccupancy;
+  cppSettings.autoFitSuppressAfterUserCameraInteraction =
+      std::chrono::milliseconds(cSettings.autoFitSuppressAfterUserCameraInteractionMs);
+  cppSettings.minGeometryProcessingTime = std::chrono::milliseconds(cSettings.minGeometryProcessingTimeMs);
+  cppSettings.maxFrameProcessingTime = std::chrono::milliseconds(cSettings.maxFrameProcessingTimeMs);
+  cppSettings.updateSceneFrequency = cSettings.updateSceneFrequency;
+  return cppSettings;
 }
 
-static geoqik::GeoQikSettings convert_to_cpp_settings(const geoqik_settings_t* c_settings)
+static geoqik::GeoQikSettings convert_to_cpp_settings(const geoqik_settings_t* cSettings)
 {
-  if (c_settings)
+  if (cSettings != nullptr)
   {
-    return convert_to_cpp_settings(*c_settings);
+    return convert_to_cpp_settings(*cSettings);
   }
   return convert_to_cpp_settings(create_default_c_settings());
 }
 
-static geoqik::WindowSettings convert_to_cpp_window_settings(const geoqik_window_settings_t& c_settings)
+static geoqik::WindowSettings convert_to_cpp_window_settings(const geoqik_window_settings_t& cSettings)
 {
-  geoqik::WindowSettings cpp_settings;
-  cpp_settings.title = c_settings.title ? c_settings.title : create_default_c_window_settings().title;
-  cpp_settings.width = c_settings.width;
-  cpp_settings.height = c_settings.height;
-  cpp_settings.red_bits = c_settings.red_bits;
-  cpp_settings.green_bits = c_settings.green_bits;
-  cpp_settings.blue_bits = c_settings.blue_bits;
-  cpp_settings.alpha_bits = c_settings.alpha_bits;
-  cpp_settings.depth_bits = c_settings.depth_bits;
-  cpp_settings.stencil_bits = c_settings.stencil_bits;
-  cpp_settings.accum_red_bits = c_settings.accum_red_bits;
-  cpp_settings.accum_green_bits = c_settings.accum_green_bits;
-  cpp_settings.accum_blue_bits = c_settings.accum_blue_bits;
-  cpp_settings.accum_alpha_bits = c_settings.accum_alpha_bits;
-  cpp_settings.aux_buffers = c_settings.aux_buffers;
-  cpp_settings.samples = c_settings.samples;
-  cpp_settings.refresh_rate = c_settings.refresh_rate;
-  cpp_settings.stereo = c_settings.stereo != 0;
-  cpp_settings.srgb_capable = c_settings.srgb_capable != 0;
-  cpp_settings.double_buffer = c_settings.double_buffer != 0;
-  cpp_settings.resizable = c_settings.resizable != 0;
-  cpp_settings.visible = c_settings.visible != 0;
-  cpp_settings.decorated = c_settings.decorated != 0;
-  cpp_settings.focused = c_settings.focused != 0;
-  cpp_settings.auto_iconify = c_settings.auto_iconify != 0;
-  cpp_settings.floating = c_settings.floating != 0;
-  cpp_settings.maximized = c_settings.maximized != 0;
-  cpp_settings.center_cursor = c_settings.center_cursor != 0;
-  cpp_settings.transparent_framebuffer = c_settings.transparent_framebuffer != 0;
-  cpp_settings.focus_on_show = c_settings.focus_on_show != 0;
-  cpp_settings.scale_to_monitor = c_settings.scale_to_monitor != 0;
-  return cpp_settings;
+  geoqik::WindowSettings cppSettings;
+  cppSettings.title = cSettings.title != nullptr ? cSettings.title : create_default_c_window_settings().title;
+  cppSettings.width = cSettings.width;
+  cppSettings.height = cSettings.height;
+  cppSettings.red_bits = cSettings.red_bits;
+  cppSettings.green_bits = cSettings.green_bits;
+  cppSettings.blue_bits = cSettings.blue_bits;
+  cppSettings.alpha_bits = cSettings.alpha_bits;
+  cppSettings.depth_bits = cSettings.depth_bits;
+  cppSettings.stencil_bits = cSettings.stencil_bits;
+  cppSettings.accum_red_bits = cSettings.accum_red_bits;
+  cppSettings.accum_green_bits = cSettings.accum_green_bits;
+  cppSettings.accum_blue_bits = cSettings.accum_blue_bits;
+  cppSettings.accum_alpha_bits = cSettings.accum_alpha_bits;
+  cppSettings.aux_buffers = cSettings.aux_buffers;
+  cppSettings.samples = cSettings.samples;
+  cppSettings.refresh_rate = cSettings.refresh_rate;
+  cppSettings.stereo = cSettings.stereo != 0;
+  cppSettings.srgb_capable = cSettings.srgb_capable != 0;
+  cppSettings.double_buffer = cSettings.double_buffer != 0;
+  cppSettings.resizable = cSettings.resizable != 0;
+  cppSettings.visible = cSettings.visible != 0;
+  cppSettings.decorated = cSettings.decorated != 0;
+  cppSettings.focused = cSettings.focused != 0;
+  cppSettings.auto_iconify = cSettings.auto_iconify != 0;
+  cppSettings.floating = cSettings.floating != 0;
+  cppSettings.maximized = cSettings.maximized != 0;
+  cppSettings.center_cursor = cSettings.center_cursor != 0;
+  cppSettings.transparent_framebuffer = cSettings.transparent_framebuffer != 0;
+  cppSettings.focus_on_show = cSettings.focus_on_show != 0;
+  cppSettings.scale_to_monitor = cSettings.scale_to_monitor != 0;
+  return cppSettings;
 }
 
-static geoqik::WindowSettings convert_to_cpp_window_settings(const geoqik_window_settings_t* c_settings)
+static geoqik::WindowSettings convert_to_cpp_window_settings(const geoqik_window_settings_t* cSettings)
 {
-  if (c_settings)
+  if (cSettings != nullptr)
   {
-    return convert_to_cpp_window_settings(*c_settings);
+    return convert_to_cpp_window_settings(*cSettings);
   }
   return convert_to_cpp_window_settings(create_default_c_window_settings());
 }
@@ -198,7 +231,7 @@ static bool validate_finite_coords(double x, double y, double z)
 
 static bool validate_color(float r, float g, float b, float a)
 {
-  return r >= 0.0f && r <= 1.0f && g >= 0.0f && g <= 1.0f && b >= 0.0f && b <= 1.0f && a >= 0.0f && a <= 1.0f;
+  return r >= 0.0F && r <= 1.0F && g >= 0.0F && g <= 1.0F && b >= 0.0F && b <= 1.0F && a >= 0.0F && a <= 1.0F;
 }
 
 static bool validate_color_values(const float* colors, std::size_t colorCount)
@@ -207,13 +240,13 @@ static bool validate_color_values(const float* colors, std::size_t colorCount)
   {
     return true;
   }
-  if (!colors)
+  if (colors == nullptr)
   {
     return false;
   }
   for (std::size_t i = 0; i < colorCount; ++i)
   {
-    if (colors[i] < 0.0f || colors[i] > 1.0f)
+    if (colors[i] < 0.0F || colors[i] > 1.0F)
     {
       return false;
     }
@@ -243,7 +276,7 @@ static bool convert_replay_keys(const geoqik_key_t* cKeys,
     return true;
   }
 
-  if (!cKeys)
+  if (cKeys == nullptr)
   {
     return false;
   }
@@ -260,6 +293,47 @@ static bool convert_replay_keys(const geoqik_key_t* cKeys,
   return true;
 }
 
+static bool read_replay_option_keys(const geoqik_replay_options_t* options, geoqik::ReplayOptions& replayOptions)
+{
+  const geoqik_key_t* stepKeys = options != nullptr ? options->stepKeys : nullptr;
+  const std::size_t stepKeyCount = options != nullptr ? options->stepKeyCount : 0;
+  const geoqik_key_t* backwardStepKeys = options != nullptr ? options->backwardStepKeys : nullptr;
+  const std::size_t backwardStepKeyCount = options != nullptr ? options->backwardStepKeyCount : 0;
+  const geoqik_key_t* resumeKeys = options != nullptr ? options->resumeKeys : nullptr;
+  const std::size_t resumeKeyCount = options != nullptr ? options->resumeKeyCount : 0;
+  const geoqik_key_t* pauseKeys = options != nullptr ? options->pauseKeys : nullptr;
+  const std::size_t pauseKeyCount = options != nullptr ? options->pauseKeyCount : 0;
+  const geoqik_key_t* increaseKeys = options != nullptr ? options->increaseEntriesPerStepKeys : nullptr;
+  const std::size_t increaseKeyCount = options != nullptr ? options->increaseEntriesPerStepKeyCount : 0;
+  const geoqik_key_t* decreaseKeys = options != nullptr ? options->decreaseEntriesPerStepKeys : nullptr;
+  const std::size_t decreaseKeyCount = options != nullptr ? options->decreaseEntriesPerStepKeyCount : 0;
+
+  return convert_replay_keys(stepKeys,
+                             stepKeyCount,
+                             {geoqik::Key::KEY_RIGHT, geoqik::Key::KEY_D},
+                             replayOptions.stepKeys) &&
+         convert_replay_keys(backwardStepKeys,
+                             backwardStepKeyCount,
+                             {geoqik::Key::KEY_LEFT, geoqik::Key::KEY_A},
+                             replayOptions.backwardStepKeys) &&
+         convert_replay_keys(resumeKeys,
+                             resumeKeyCount,
+                             {geoqik::Key::KEY_SPACE},
+                             replayOptions.resumeKeys) &&
+         convert_replay_keys(pauseKeys,
+                             pauseKeyCount,
+                             {geoqik::Key::KEY_SPACE},
+                             replayOptions.pauseKeys) &&
+         convert_replay_keys(increaseKeys,
+                             increaseKeyCount,
+                             {geoqik::Key::KEY_UP, geoqik::Key::KEY_W},
+                             replayOptions.increaseEntriesPerStepKeys) &&
+         convert_replay_keys(decreaseKeys,
+                             decreaseKeyCount,
+                             {geoqik::Key::KEY_DOWN, geoqik::Key::KEY_S},
+                             replayOptions.decreaseEntriesPerStepKeys);
+}
+
 static bool convert_replay_options(const geoqik_replay_options_t* options, geoqik::ReplayOptions& replayOptions)
 {
   constexpr double defaultEntriesPerSecond = 60.0;
@@ -273,7 +347,7 @@ static bool convert_replay_options(const geoqik_replay_options_t* options, geoqi
   bool startPaused = false;
   std::size_t entriesPerStep = defaultEntriesPerStep;
 
-  if (options)
+  if (options != nullptr)
   {
     if (options->entriesPerSecond != 0.0)
     {
@@ -322,30 +396,7 @@ static bool convert_replay_options(const geoqik_replay_options_t* options, geoqi
   replayOptions.startPaused = startPaused;
   replayOptions.entriesPerStep = entriesPerStep;
 
-  return convert_replay_keys(options ? options->stepKeys : nullptr,
-                             options ? options->stepKeyCount : 0,
-                             {geoqik::Key::KEY_RIGHT, geoqik::Key::KEY_D},
-                             replayOptions.stepKeys) &&
-         convert_replay_keys(options ? options->backwardStepKeys : nullptr,
-                             options ? options->backwardStepKeyCount : 0,
-                             {geoqik::Key::KEY_LEFT, geoqik::Key::KEY_A},
-                             replayOptions.backwardStepKeys) &&
-         convert_replay_keys(options ? options->resumeKeys : nullptr,
-                             options ? options->resumeKeyCount : 0,
-                             {geoqik::Key::KEY_SPACE},
-                             replayOptions.resumeKeys) &&
-         convert_replay_keys(options ? options->pauseKeys : nullptr,
-                             options ? options->pauseKeyCount : 0,
-                             {geoqik::Key::KEY_SPACE},
-                             replayOptions.pauseKeys) &&
-         convert_replay_keys(options ? options->increaseEntriesPerStepKeys : nullptr,
-                             options ? options->increaseEntriesPerStepKeyCount : 0,
-                             {geoqik::Key::KEY_UP, geoqik::Key::KEY_W},
-                             replayOptions.increaseEntriesPerStepKeys) &&
-         convert_replay_keys(options ? options->decreaseEntriesPerStepKeys : nullptr,
-                             options ? options->decreaseEntriesPerStepKeyCount : 0,
-                             {geoqik::Key::KEY_DOWN, geoqik::Key::KEY_S},
-                             replayOptions.decreaseEntriesPerStepKeys);
+  return read_replay_option_keys(options, replayOptions);
 }
 
 template <typename Func>
@@ -354,21 +405,29 @@ static auto execute_with_error_handling(Func&& func) -> std::invoke_result_t<Fun
   using ReturnType = std::invoke_result_t<Func>;
   try
   {
-    return func();
+    return std::forward<Func>(func)();
   }
   catch (const std::bad_alloc&)
   {
     if constexpr (std::is_same_v<ReturnType, geoqik_error_code_t>)
+    {
       return GEOQIK_ERROR_MEMORY_ALLOCATION;
+    }
     else
+    {
       return geoqik_result_t{GEOQIK_ERROR_MEMORY_ALLOCATION, {}};
+    }
   }
   catch (...)
   {
     if constexpr (std::is_same_v<ReturnType, geoqik_error_code_t>)
+    {
       return GEOQIK_ERROR_UNKNOWN;
+    }
     else
+    {
       return geoqik_result_t{GEOQIK_ERROR_UNKNOWN, {}};
+    }
   }
 }
 
@@ -382,11 +441,15 @@ static auto execute_if_initialized(Func&& func) -> std::invoke_result_t<Func>
         if (!api_is_initialized())
         {
           if constexpr (std::is_same_v<ReturnType, geoqik_error_code_t>)
+          {
             return GEOQIK_ERROR_NOT_INITIALIZED;
+          }
           else
+          {
             return geoqik_result_t{GEOQIK_ERROR_NOT_INITIALIZED, {}};
+          }
         }
-        return func();
+        return std::forward<Func>(func)();
       });
 }
 
@@ -400,17 +463,21 @@ static auto execute_if_not_initialized(Func&& func) -> std::invoke_result_t<Func
         if (api_is_initialized())
         {
           if constexpr (std::is_same_v<ReturnType, geoqik_error_code_t>)
+          {
             return GEOQIK_ERROR_ALREADY_INITIALIZED;
+          }
           else
+          {
             return geoqik_result_t{GEOQIK_ERROR_ALREADY_INITIALIZED, {}};
+          }
         }
-        return func();
+        return std::forward<Func>(func)();
       });
 }
 
 static geoqik_error_code_t run_render_thread(const geoqik::GeoQikSettings& geoqikSettings,
                                              const geoqik::WindowSettings& settings,
-                                             std::shared_ptr<std::barrier<>> initBarrier)
+                                             const std::shared_ptr<std::barrier<>>& initBarrier)
 {
   try
   {
@@ -426,15 +493,15 @@ static geoqik_error_code_t run_render_thread(const geoqik::GeoQikSettings& geoqi
   {
     return GEOQIK_ERROR_MEMORY_ALLOCATION;
   }
-  catch(const std::exception& e)
+  catch (const std::exception& e)
   {
-    std::cerr << "Exception in GeoQik render thread: " << e.what() << std::endl;
+    std::cerr << "Exception in GeoQik render thread: " << e.what() << '\n';
     return GEOQIK_ERROR_UNKNOWN;
   }
   catch (...)
   {
     get_message_queue().clear();
-    g_apiIsInitialized.store(false, std::memory_order_release);
+    api_is_initialized_storage().store(false, std::memory_order_release);
     return GEOQIK_ERROR_UNKNOWN;
   }
 }
@@ -475,29 +542,29 @@ static geoqik_error_code_t start_geoqik_thread(const geoqik::GeoQikSettings& geo
 namespace
 {
 
-static core::UUID convert_to_core_uuid(const geoqik_uuid_t& uuid)
+core::UUID convert_to_core_uuid(const geoqik_uuid_t& uuid)
 {
-  std::array<uint8_t, 16> bytes;
-  for (size_t i = 0; i < 16; ++i)
+  std::array<uint8_t, uuidByteCount> bytes{};
+  for (size_t i = 0; i < uuidByteCount; ++i)
   {
     bytes[i] = uuid.value[i];
   }
   return core::UUID(bytes);
 }
 
-static geoqik_uuid_t convert_to_geoqik_uuid(const core::UUID& uuid)
+geoqik_uuid_t convert_to_geoqik_uuid(const core::UUID& uuid)
 {
-  geoqik_uuid_t gUuid;
+  geoqik_uuid_t gUuid{};
   auto bytes = uuid.to_array();
-  assert(bytes.size() == 16);
-  for (size_t i = 0; i < 16; ++i)
+  assert(bytes.size() == uuidByteCount);
+  for (size_t i = 0; i < uuidByteCount; ++i)
   {
     gUuid.value[i] = bytes[i];
   }
   return gUuid;
 }
 
-static geoqik_error_code_t enqueue(GeoQikMessage&& message)
+geoqik_error_code_t enqueue(GeoQikMessage&& message)
 {
   try
   {
@@ -514,7 +581,7 @@ static geoqik_error_code_t enqueue(GeoQikMessage&& message)
   }
 }
 
-} // anonymous namespace
+} // namespace
 
 geoqik_error_code_t geoqik_init()
 {
@@ -524,7 +591,7 @@ geoqik_error_code_t geoqik_init()
         geoqik::GeoQikSettings defaultGeoQikSettings = geoqik_internal::convert_to_cpp_settings(nullptr);
         geoqik::WindowSettings defaultWindowSettings = geoqik_internal::convert_to_cpp_window_settings(nullptr);
 
-        g_apiIsInitialized.store(true, std::memory_order_release);
+        api_is_initialized_storage().store(true, std::memory_order_release);
         try
         {
           init_message_queue(ConcurrentQueue<GeoQikMessage>(defaultGeoQikSettings.maxMessageQueueSize));
@@ -533,7 +600,7 @@ geoqik_error_code_t geoqik_init()
         }
         catch (...)
         {
-          g_apiIsInitialized.store(false, std::memory_order_release);
+          api_is_initialized_storage().store(false, std::memory_order_release);
           throw;
         }
       });
@@ -541,16 +608,20 @@ geoqik_error_code_t geoqik_init()
 
 void geoqik_create_default_settings(geoqik_settings_t* settings)
 {
-  if (!settings)
+  if (settings == nullptr)
+  {
     return;
+  }
 
   *settings = geoqik_internal::create_default_c_settings();
 }
 
 void geoqik_init_default_window_settings(geoqik_window_settings_t* settings)
 {
-  if (!settings)
+  if (settings == nullptr)
+  {
     return;
+  }
 
   *settings = geoqik_internal::create_default_c_window_settings();
 }
@@ -564,7 +635,7 @@ geoqik_error_code_t geoqik_init_with_settings(const geoqik_settings_t* geoqikSet
         geoqik::GeoQikSettings cppGeoQikSettings = geoqik_internal::convert_to_cpp_settings(geoqikSettings);
         geoqik::WindowSettings cppWindowSettings = geoqik_internal::convert_to_cpp_window_settings(windowSettings);
 
-        g_apiIsInitialized.store(true, std::memory_order_release);
+        api_is_initialized_storage().store(true, std::memory_order_release);
         try
         {
           init_message_queue(ConcurrentQueue<GeoQikMessage>(cppGeoQikSettings.maxMessageQueueSize));
@@ -573,7 +644,7 @@ geoqik_error_code_t geoqik_init_with_settings(const geoqik_settings_t* geoqikSet
         }
         catch (...)
         {
-          g_apiIsInitialized.store(false, std::memory_order_release);
+          api_is_initialized_storage().store(false, std::memory_order_release);
           throw;
         }
       });
@@ -581,14 +652,14 @@ geoqik_error_code_t geoqik_init_with_settings(const geoqik_settings_t* geoqikSet
 
 geoqik_error_code_t geoqik_is_api_initialized(bool* isInitialized)
 {
-  if (!isInitialized)
+  if (isInitialized == nullptr)
   {
     return GEOQIK_ERROR_INVALID_PARAMETER;
   }
 
   try
   {
-    *isInitialized = geoqik_internal::api_is_initialized() ? true : false;
+    *isInitialized = geoqik_internal::api_is_initialized();
     return GEOQIK_SUCCESS;
   }
   catch (...)
@@ -614,7 +685,7 @@ const char* geoqik_get_error_string(geoqik_error_code_t result)
 
 geoqik_error_code_t geoqik_generate_uuid(geoqik_uuid_t* uuid)
 {
-  if (!uuid)
+  if (uuid == nullptr)
   {
     return GEOQIK_ERROR_INVALID_PARAMETER;
   }
@@ -624,8 +695,8 @@ geoqik_error_code_t geoqik_generate_uuid(geoqik_uuid_t* uuid)
       {
         auto coreUuid = core::UUID::generate().to_array();
 
-        assert(coreUuid.size() == 16);
-        for (std::size_t i = 0; i < 16; ++i)
+        assert(coreUuid.size() == uuidByteCount);
+        for (std::size_t i = 0; i < uuidByteCount; ++i)
         {
           uuid->value[i] = coreUuid[i];
         }
@@ -661,7 +732,7 @@ geoqik_result_t geoqik_add_point_opts(double x, double y, double z, geoqik_add_p
 
   std::vector<float> colorsCopy;
 
-  if (options)
+  if (options != nullptr)
   {
     if (!geoqik_internal::validate_point_color_count(options->colorCount, 1))
     {
@@ -684,7 +755,7 @@ geoqik_result_t geoqik_add_point_opts(double x, double y, double z, geoqik_add_p
         GeoQikMessageCommonData commonData;
         commonData.geometryId = reqId;
 
-        if (options)
+        if (options != nullptr)
         {
           if (core::UUID idem = convert_to_core_uuid(options->idempotencyKey); !idem.is_nil())
           {
@@ -702,20 +773,20 @@ geoqik_result_t geoqik_add_point_opts(double x, double y, double z, geoqik_add_p
 
 geoqik_result_t geoqik_add_points_opts(const double* points, size_t size, geoqik_add_points_options_t* options)
 {
-  if (!points || size == 0 || size % 3 != 0)
+  if (points == nullptr || size == 0 || size % coordinateCount != 0)
   {
     return geoqik_result_t{GEOQIK_ERROR_INVALID_PARAMETER, {}};
   }
 
   std::vector<float> pointsCopy(size);
   std::vector<float> colorsCopy;
-  const std::size_t pointCount = size / 3;
+  const std::size_t pointCount = size / coordinateCount;
 
-  for (size_t i = 0; i < size; i += 3)
+  for (size_t i = 0; i < size; i += coordinateCount)
   {
-    auto& x = points[i];
-    auto& y = points[i + 1];
-    auto& z = points[i + 2];
+    const double& x = points[i];
+    const double& y = points[i + 1];
+    const double& z = points[i + 2];
     if (!geoqik_internal::validate_finite_coords(x, y, z))
     {
       return geoqik_result_t{GEOQIK_ERROR_INVALID_PARAMETER, {}};
@@ -725,7 +796,7 @@ geoqik_result_t geoqik_add_points_opts(const double* points, size_t size, geoqik
     pointsCopy[i + 2] = static_cast<float>(z);
   }
 
-  if (options && options->color && options->colorCount > 0)
+  if (options != nullptr && options->color != nullptr && options->colorCount > 0)
   {
     if (!geoqik_internal::validate_point_color_count(options->colorCount, pointCount))
     {
@@ -737,7 +808,7 @@ geoqik_result_t geoqik_add_points_opts(const double* points, size_t size, geoqik
     }
     colorsCopy.assign(options->color, options->color + options->colorCount);
   }
-  else if (options && options->colorCount > 0)
+  else if (options != nullptr && options->colorCount > 0)
   {
     return geoqik_result_t{GEOQIK_ERROR_INVALID_PARAMETER, {}};
   }
@@ -749,7 +820,7 @@ geoqik_result_t geoqik_add_points_opts(const double* points, size_t size, geoqik
         GeoQikMessageCommonData commonData;
         commonData.geometryId = reqId;
 
-        if (options)
+        if (options != nullptr)
         {
           if (core::UUID idem = convert_to_core_uuid(options->idempotencyKey); !idem.is_nil())
           {
@@ -789,13 +860,13 @@ geoqik_error_code_t geoqik_update_point_opts(const geoqik_uuid_t* geometryId,
                                              double z,
                                              geoqik_update_points_options_t* options)
 {
-  if (!geometryId || !geoqik_internal::validate_finite_coords(x, y, z))
+  if (geometryId == nullptr || !geoqik_internal::validate_finite_coords(x, y, z))
   {
     return GEOQIK_ERROR_INVALID_PARAMETER;
   }
 
   std::vector<float> colorsCopy;
-  if (options && options->colorCount > 0)
+  if (options != nullptr && options->colorCount > 0)
   {
     if (!geoqik_internal::validate_point_color_count(options->colorCount, 1))
     {
@@ -825,16 +896,16 @@ geoqik_error_code_t geoqik_update_points_opts(const geoqik_uuid_t* geometryId,
                                               size_t size,
                                               geoqik_update_points_options_t* options)
 {
-  if (!geometryId || !points || size == 0 || size % 3 != 0)
+  if (geometryId == nullptr || points == nullptr || size == 0 || size % coordinateCount != 0)
   {
     return GEOQIK_ERROR_INVALID_PARAMETER;
   }
 
   std::vector<float> pointsCopy(size);
   std::vector<float> colorsCopy;
-  const std::size_t pointCount = size / 3;
+  const std::size_t pointCount = size / coordinateCount;
 
-  for (std::size_t i = 0; i < size; i += 3)
+  for (std::size_t i = 0; i < size; i += coordinateCount)
   {
     const double px = points[i + 0];
     const double py = points[i + 1];
@@ -848,7 +919,7 @@ geoqik_error_code_t geoqik_update_points_opts(const geoqik_uuid_t* geometryId,
     pointsCopy[i + 2] = static_cast<float>(pz);
   }
 
-  if (options && options->colorCount > 0)
+  if (options != nullptr && options->colorCount > 0)
   {
     if (!geoqik_internal::validate_point_color_count(options->colorCount, pointCount))
     {
@@ -871,7 +942,7 @@ geoqik_error_code_t geoqik_update_points_opts(const geoqik_uuid_t* geometryId,
 
 geoqik_error_code_t geoqik_remove_point(const geoqik_uuid_t* geometryId)
 {
-  if (!geometryId)
+  if (geometryId == nullptr)
   {
     return GEOQIK_ERROR_INVALID_PARAMETER;
   }
@@ -912,7 +983,7 @@ geoqik_result_t geoqik_add_line_opts(double x1, double y1, double z1, double x2,
 
   std::vector<float> colorsCopy;
 
-  if (options && options->colorCount > 0)
+  if (options != nullptr && options->colorCount > 0)
   {
     if (!geoqik_internal::validate_line_color_count(options->colorCount, 1))
     {
@@ -932,7 +1003,7 @@ geoqik_result_t geoqik_add_line_opts(double x1, double y1, double z1, double x2,
         GeoQikMessageCommonData commonData;
         commonData.geometryId = reqId;
 
-        if (options)
+        if (options != nullptr)
         {
           if (core::UUID idem = convert_to_core_uuid(options->idempotencyKey); !idem.is_nil())
           {
@@ -955,7 +1026,7 @@ geoqik_result_t geoqik_add_line_opts(double x1, double y1, double z1, double x2,
 
 geoqik_result_t geoqik_add_lines_opts(const double* lines, size_t size, geoqik_add_line_opts_t* options)
 {
-  if (!lines || size == 0 || size % 6 != 0)
+  if (lines == nullptr || size == 0 || size % lineCoordinateCount != 0)
   {
     return geoqik_result_t{GEOQIK_ERROR_INVALID_PARAMETER, {}};
   }
@@ -963,13 +1034,17 @@ geoqik_result_t geoqik_add_lines_opts(const double* lines, size_t size, geoqik_a
   // count is the total number of doubles in the array; each line occupies 6 values (x1,y1,z1,x2,y2,z2)
   std::vector<float> linesCopy(size);
   std::vector<float> colorsCopy;
-  const std::size_t lineCount = size / 6;
+  const std::size_t lineCount = size / lineCoordinateCount;
 
-  for (size_t i = 0; i < size; i += 6)
+  for (size_t i = 0; i < size; i += lineCoordinateCount)
   {
     const size_t base = i;
-    const double lx1 = lines[base + 0], ly1 = lines[base + 1], lz1 = lines[base + 2];
-    const double lx2 = lines[base + 3], ly2 = lines[base + 4], lz2 = lines[base + 5];
+    const double lx1 = lines[base + 0];
+    const double ly1 = lines[base + 1];
+    const double lz1 = lines[base + 2];
+    const double lx2 = lines[base + 3];
+    const double ly2 = lines[base + 4];
+    const double lz2 = lines[base + lineCoordinateCount - 1];
     if (!geoqik_internal::validate_finite_coords(lx1, ly1, lz1) || !geoqik_internal::validate_finite_coords(lx2, ly2, lz2))
     {
       return geoqik_result_t{GEOQIK_ERROR_INVALID_PARAMETER, {}};
@@ -979,10 +1054,10 @@ geoqik_result_t geoqik_add_lines_opts(const double* lines, size_t size, geoqik_a
     linesCopy[base + 2] = static_cast<float>(lz1);
     linesCopy[base + 3] = static_cast<float>(lx2);
     linesCopy[base + 4] = static_cast<float>(ly2);
-    linesCopy[base + 5] = static_cast<float>(lz2);
+    linesCopy[base + lineCoordinateCount - 1] = static_cast<float>(lz2);
   }
 
-  if (options && options->color && options->colorCount > 0)
+  if (options != nullptr && options->color != nullptr && options->colorCount > 0)
   {
     if (!geoqik_internal::validate_line_color_count(options->colorCount, lineCount))
     {
@@ -994,7 +1069,7 @@ geoqik_result_t geoqik_add_lines_opts(const double* lines, size_t size, geoqik_a
     }
     colorsCopy.assign(options->color, options->color + options->colorCount);
   }
-  else if (options && options->colorCount > 0)
+  else if (options != nullptr && options->colorCount > 0)
   {
     return geoqik_result_t{GEOQIK_ERROR_INVALID_PARAMETER, {}};
   }
@@ -1006,7 +1081,7 @@ geoqik_result_t geoqik_add_lines_opts(const double* lines, size_t size, geoqik_a
         GeoQikMessageCommonData commonData;
         commonData.geometryId = reqId;
 
-        if (options)
+        if (options != nullptr)
         {
           if (core::UUID idem = convert_to_core_uuid(options->idempotencyKey); !idem.is_nil())
           {
@@ -1059,13 +1134,13 @@ geoqik_error_code_t geoqik_update_line_opts(const geoqik_uuid_t* geometryId,
                                             double z2,
                                             geoqik_update_line_opts_t* options)
 {
-  if (!geometryId || !geoqik_internal::validate_finite_coords(x1, y1, z1) || !geoqik_internal::validate_finite_coords(x2, y2, z2))
+  if (geometryId == nullptr || !geoqik_internal::validate_finite_coords(x1, y1, z1) || !geoqik_internal::validate_finite_coords(x2, y2, z2))
   {
     return GEOQIK_ERROR_INVALID_PARAMETER;
   }
 
   std::vector<float> colorsCopy;
-  if (options && options->colorCount > 0)
+  if (options != nullptr && options->colorCount > 0)
   {
     if (!geoqik_internal::validate_line_color_count(options->colorCount, 1))
     {
@@ -1098,23 +1173,23 @@ geoqik_error_code_t geoqik_update_lines_opts(const geoqik_uuid_t* geometryId,
                                              size_t size,
                                              geoqik_update_line_opts_t* options)
 {
-  if (!geometryId || !lines || size == 0 || size % 6 != 0)
+  if (geometryId == nullptr || lines == nullptr || size == 0 || size % lineCoordinateCount != 0)
   {
     return GEOQIK_ERROR_INVALID_PARAMETER;
   }
 
   std::vector<float> linesCopy(size);
   std::vector<float> colorsCopy;
-  const std::size_t lineCount = size / 6;
+  const std::size_t lineCount = size / lineCoordinateCount;
 
-  for (std::size_t i = 0; i < size; i += 6)
+  for (std::size_t i = 0; i < size; i += lineCoordinateCount)
   {
     const double lx1 = lines[i + 0];
     const double ly1 = lines[i + 1];
     const double lz1 = lines[i + 2];
     const double lx2 = lines[i + 3];
     const double ly2 = lines[i + 4];
-    const double lz2 = lines[i + 5];
+    const double lz2 = lines[i + lineCoordinateCount - 1];
     if (!geoqik_internal::validate_finite_coords(lx1, ly1, lz1) || !geoqik_internal::validate_finite_coords(lx2, ly2, lz2))
     {
       return GEOQIK_ERROR_INVALID_PARAMETER;
@@ -1124,10 +1199,10 @@ geoqik_error_code_t geoqik_update_lines_opts(const geoqik_uuid_t* geometryId,
     linesCopy[i + 2] = static_cast<float>(lz1);
     linesCopy[i + 3] = static_cast<float>(lx2);
     linesCopy[i + 4] = static_cast<float>(ly2);
-    linesCopy[i + 5] = static_cast<float>(lz2);
+    linesCopy[i + lineCoordinateCount - 1] = static_cast<float>(lz2);
   }
 
-  if (options && options->colorCount > 0)
+  if (options != nullptr && options->colorCount > 0)
   {
     if (!geoqik_internal::validate_line_color_count(options->colorCount, lineCount))
     {
@@ -1150,7 +1225,7 @@ geoqik_error_code_t geoqik_update_lines_opts(const geoqik_uuid_t* geometryId,
 
 geoqik_error_code_t geoqik_remove_line(const geoqik_uuid_t* geometryId)
 {
-  if (!geometryId)
+  if (geometryId == nullptr)
   {
     return GEOQIK_ERROR_INVALID_PARAMETER;
   }
@@ -1171,7 +1246,7 @@ GEOQIK_EXPORT geoqik_error_code_t geoqik_remove_all_geometry()
 
 GEOQIK_EXPORT geoqik_error_code_t geoqik_translate_geometry(const geoqik_uuid_t* geometryId, double dx, double dy, double dz)
 {
-  if (!geometryId || !geoqik_internal::validate_finite_coords(dx, dy, dz))
+  if (geometryId == nullptr || !geoqik_internal::validate_finite_coords(dx, dy, dz))
   {
     return GEOQIK_ERROR_INVALID_PARAMETER;
   }
@@ -1193,7 +1268,7 @@ GEOQIK_EXPORT geoqik_error_code_t geoqik_rotate_geometry(const geoqik_uuid_t* ge
                                                          double axisZ,
                                                          double angle)
 {
-  if (!geometryId || !geoqik_internal::validate_finite_coords(centerX, centerY, centerZ) ||
+  if (geometryId == nullptr || !geoqik_internal::validate_finite_coords(centerX, centerY, centerZ) ||
       !geoqik_internal::validate_finite_coords(axisX, axisY, axisZ) || !std::isfinite(angle))
   {
     return GEOQIK_ERROR_INVALID_PARAMETER;
@@ -1228,7 +1303,7 @@ geoqik_error_code_t geoqik_stop_drawing()
 
 geoqik_error_code_t geoqik_save_log(const char* path, geoqik_log_format_t format)
 {
-  if (!path || path[0] == '\0' || format != GEOQIK_LOG_FORMAT_BINARY)
+  if (path == nullptr || path[0] == '\0' || format != GEOQIK_LOG_FORMAT_BINARY)
   {
     return GEOQIK_ERROR_INVALID_PARAMETER;
   }
@@ -1253,7 +1328,7 @@ geoqik_error_code_t geoqik_save_log(const char* path, geoqik_log_format_t format
 
 geoqik_error_code_t geoqik_load_log(const char* path, geoqik_log_format_t format)
 {
-  if (!path || path[0] == '\0' || format != GEOQIK_LOG_FORMAT_BINARY)
+  if (path == nullptr || path[0] == '\0' || format != GEOQIK_LOG_FORMAT_BINARY)
   {
     return GEOQIK_ERROR_INVALID_PARAMETER;
   }
@@ -1278,7 +1353,7 @@ geoqik_error_code_t geoqik_load_log(const char* path, geoqik_log_format_t format
 
 geoqik_error_code_t geoqik_replay_log(const char* path, geoqik_log_format_t format, const geoqik_replay_options_t* options)
 {
-  if (!path || path[0] == '\0' || format != GEOQIK_LOG_FORMAT_BINARY)
+  if (path == nullptr || path[0] == '\0' || format != GEOQIK_LOG_FORMAT_BINARY)
   {
     return GEOQIK_ERROR_INVALID_PARAMETER;
   }
@@ -1389,7 +1464,7 @@ geoqik_error_code_t geoqik_step_replay_backward_n(size_t count)
 
 geoqik_error_code_t geoqik_get_replay_state(geoqik_replay_state_t* state)
 {
-  if (!state)
+  if (state == nullptr)
   {
     return GEOQIK_ERROR_INVALID_PARAMETER;
   }
@@ -1414,7 +1489,7 @@ geoqik_error_code_t geoqik_get_replay_state(geoqik_replay_state_t* state)
 
 geoqik_error_code_t geoqik_get_replay_progress(size_t* currentEntry, size_t* totalEntries)
 {
-  if (!currentEntry || !totalEntries)
+  if (currentEntry == nullptr || totalEntries == nullptr)
   {
     return GEOQIK_ERROR_INVALID_PARAMETER;
   }
@@ -1441,7 +1516,7 @@ geoqik_error_code_t geoqik_get_replay_progress(size_t* currentEntry, size_t* tot
 
 geoqik_error_code_t geoqik_set_point_size(float pointSize)
 {
-  if (pointSize <= 0.0f)
+  if (pointSize <= 0.0F)
   {
     return GEOQIK_ERROR_INVALID_PARAMETER;
   }
@@ -1452,7 +1527,7 @@ geoqik_error_code_t geoqik_set_point_size(float pointSize)
 
 geoqik_error_code_t geoqik_get_point_size(float* result)
 {
-  if (!result)
+  if (result == nullptr)
   {
     return GEOQIK_ERROR_INVALID_PARAMETER;
   }
@@ -1490,7 +1565,7 @@ geoqik_error_code_t geoqik_set_point_color(float r, float g, float b, float a)
 
 geoqik_error_code_t geoqik_get_point_color(float* r, float* g, float* b, float* a)
 {
-  if (!r || !g || !b || !a)
+  if (r == nullptr || g == nullptr || b == nullptr || a == nullptr)
   {
     return GEOQIK_ERROR_INVALID_PARAMETER;
   }
@@ -1519,7 +1594,7 @@ geoqik_error_code_t geoqik_get_point_color(float* r, float* g, float* b, float* 
 
 geoqik_error_code_t geoqik_set_line_width(float lineWidth)
 {
-  if (lineWidth <= 0.0f)
+  if (lineWidth <= 0.0F)
   {
     return GEOQIK_ERROR_INVALID_PARAMETER;
   }
@@ -1530,7 +1605,7 @@ geoqik_error_code_t geoqik_set_line_width(float lineWidth)
 
 geoqik_error_code_t geoqik_get_line_width(float* result)
 {
-  if (!result)
+  if (result == nullptr)
   {
     return GEOQIK_ERROR_INVALID_PARAMETER;
   }
@@ -1569,7 +1644,7 @@ geoqik_error_code_t geoqik_set_line_color(float r, float g, float b, float a)
 
 geoqik_error_code_t geoqik_get_line_color(float* r, float* g, float* b, float* a)
 {
-  if (!r || !g || !b || !a)
+  if (r == nullptr || g == nullptr || b == nullptr || a == nullptr)
   {
     return GEOQIK_ERROR_INVALID_PARAMETER;
   }
@@ -1607,7 +1682,7 @@ geoqik_error_code_t geoqik_wait_for_exit_and_cleanup()
           renderThread.join();
         }
 
-        g_apiIsInitialized.store(false, std::memory_order_release);
+        api_is_initialized_storage().store(false, std::memory_order_release);
         return GEOQIK_SUCCESS;
       });
 }
@@ -1625,7 +1700,7 @@ geoqik_error_code_t geoqik_cleanup()
           renderThread.join(); // Wait for the render thread to finish
         }
 
-        g_apiIsInitialized.store(false, std::memory_order_release);
+        api_is_initialized_storage().store(false, std::memory_order_release);
         return GEOQIK_SUCCESS;
       });
 }
