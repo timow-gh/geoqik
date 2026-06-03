@@ -1,5 +1,6 @@
 #include "GeoQikMessageSerialization.hpp"
 #include <array>
+#include <bit>
 #include <cstdint>
 #include <istream>
 #include <limits>
@@ -13,7 +14,9 @@ namespace geoqik
 namespace
 {
 
-enum class SerializedMessageType : std::uint32_t
+constexpr std::size_t uuidByteCount = 16;
+
+enum class SerializedMessageType : std::uint32_t // NOLINT(performance-enum-size): persisted binary log format uses uint32_t.
 {
   AddPointWithOpts = 1,
   AddPointsWithOpts = 2,
@@ -37,7 +40,9 @@ enum class SerializedMessageType : std::uint32_t
 template <typename T>
 void write_pod(std::ostream& stream, const T& value)
 {
-  stream.write(reinterpret_cast<const char*>(&value), sizeof(T));
+  static_assert(std::is_trivially_copyable_v<T>);
+  const auto bytes = std::bit_cast<std::array<char, sizeof(T)>>(value);
+  stream.write(bytes.data(), static_cast<std::streamsize>(bytes.size()));
   if (!stream)
   {
     throw std::runtime_error("Failed to write GeoQik message");
@@ -47,32 +52,41 @@ void write_pod(std::ostream& stream, const T& value)
 template <typename T>
 T read_pod(std::istream& stream)
 {
-  T value{};
-  stream.read(reinterpret_cast<char*>(&value), sizeof(T));
+  static_assert(std::is_trivially_copyable_v<T>);
+  std::array<char, sizeof(T)> bytes{};
+  stream.read(bytes.data(), static_cast<std::streamsize>(bytes.size()));
   if (!stream)
   {
     throw std::runtime_error("Failed to read GeoQik message");
   }
-  return value;
+  return std::bit_cast<T>(bytes);
 }
 
 void write_uuid(std::ostream& stream, const core::UUID& uuid)
 {
   const auto bytes = uuid.to_array();
-  stream.write(reinterpret_cast<const char*>(bytes.data()), bytes.size());
-  if (!stream)
+  for (const std::uint8_t byte: bytes)
   {
-    throw std::runtime_error("Failed to write GeoQik message UUID");
+    stream.put(static_cast<char>(byte));
+    if (!stream)
+    {
+      throw std::runtime_error("Failed to write GeoQik message UUID");
+    }
   }
 }
 
 core::UUID read_uuid(std::istream& stream)
 {
-  std::array<std::uint8_t, 16> bytes{};
-  stream.read(reinterpret_cast<char*>(bytes.data()), bytes.size());
-  if (!stream)
+  std::array<std::uint8_t, uuidByteCount> bytes{};
+  for (std::uint8_t& byte: bytes)
   {
-    throw std::runtime_error("Failed to read GeoQik message UUID");
+    char value{};
+    stream.get(value);
+    if (!stream)
+    {
+      throw std::runtime_error("Failed to read GeoQik message UUID");
+    }
+    byte = static_cast<std::uint8_t>(value);
   }
   return core::UUID(bytes);
 }
@@ -83,10 +97,9 @@ void write_float_vector(std::ostream& stream, const std::vector<float>& values)
   write_pod(stream, count);
   if (!values.empty())
   {
-    stream.write(reinterpret_cast<const char*>(values.data()), static_cast<std::streamsize>(values.size() * sizeof(float)));
-    if (!stream)
+    for (const float value: values)
     {
-      throw std::runtime_error("Failed to write GeoQik message float vector");
+      write_pod(stream, value);
     }
   }
 }
@@ -99,14 +112,10 @@ std::vector<float> read_float_vector(std::istream& stream)
     throw std::runtime_error("GeoQik message vector is too large");
   }
 
-  std::vector<float> values(static_cast<std::size_t>(count));
-  if (!values.empty())
+  auto values = std::vector<float>(static_cast<std::size_t>(count));
+  for (float& value: values)
   {
-    stream.read(reinterpret_cast<char*>(values.data()), static_cast<std::streamsize>(values.size() * sizeof(float)));
-    if (!stream)
-    {
-      throw std::runtime_error("Failed to read GeoQik message float vector");
-    }
+    value = read_pod<float>(stream);
   }
   return values;
 }

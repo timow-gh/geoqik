@@ -8,7 +8,11 @@ namespace geoqik
 namespace
 {
 
-constexpr double Epsilon = 1.0e-9;
+constexpr double epsilon = 1.0e-9;
+constexpr double halfScale = 0.5;
+constexpr double nearPlaneMultiplier = 2.0;
+constexpr double significantRecenterImprovement = 1.5;
+constexpr double degreesToRadians = 3.14159265358979323846 / 180.0;
 
 struct CameraFrame
 {
@@ -87,7 +91,7 @@ void add_vertices_to_bounds(CameraSpaceBounds& bounds,
 
 [[nodiscard]] double get_world_radius(const CameraSpaceBounds& bounds)
 {
-  return linal::length(bounds.worldMax - bounds.worldMin) * 0.5;
+  return linal::length(bounds.worldMax - bounds.worldMin) * halfScale;
 }
 
 [[nodiscard]] double get_perspective_required_delta(const CameraSpaceBounds& bounds,
@@ -101,11 +105,11 @@ void add_vertices_to_bounds(CameraSpaceBounds& bounds,
   const double maxAbsY = std::max(std::abs(bounds.minY), std::abs(bounds.maxY));
 
   double requiredDelta = nearPlane - bounds.minZ + nearPlane;
-  if (maxAbsX > Epsilon)
+  if (maxAbsX > epsilon)
   {
     requiredDelta = std::max(requiredDelta, maxAbsX * padding / tanHalfHorizontalFov - bounds.minZ);
   }
-  if (maxAbsY > Epsilon)
+  if (maxAbsY > epsilon)
   {
     requiredDelta = std::max(requiredDelta, maxAbsY * padding / tanHalfVerticalFov - bounds.minZ);
   }
@@ -114,7 +118,7 @@ void add_vertices_to_bounds(CameraSpaceBounds& bounds,
 
 [[nodiscard]] double get_perspective_occupancy(const CameraSpaceBounds& bounds, double tanHalfVerticalFov, double aspectRatio)
 {
-  const double minPositiveZ = std::max(bounds.minZ, Epsilon);
+  const double minPositiveZ = std::max(bounds.minZ, epsilon);
   const double tanHalfHorizontalFov = tanHalfVerticalFov * aspectRatio;
   const double xOccupancy = std::max(std::abs(bounds.minX), std::abs(bounds.maxX)) / (minPositiveZ * tanHalfHorizontalFov);
   const double yOccupancy = std::max(std::abs(bounds.minY), std::abs(bounds.maxY)) / (minPositiveZ * tanHalfVerticalFov);
@@ -123,8 +127,8 @@ void add_vertices_to_bounds(CameraSpaceBounds& bounds,
 
 [[nodiscard]] double get_orthographic_occupancy(const CameraSpaceBounds& bounds, double orthographicWidth, double orthographicHeight, double aspectRatio)
 {
-  const double halfWidth = std::max(orthographicWidth * aspectRatio * 0.5, Epsilon);
-  const double halfHeight = std::max(orthographicHeight * 0.5, Epsilon);
+  const double halfWidth = std::max(orthographicWidth * aspectRatio * halfScale, epsilon);
+  const double halfHeight = std::max(orthographicHeight * halfScale, epsilon);
   const double xOccupancy = std::max(std::abs(bounds.minX), std::abs(bounds.maxX)) / halfWidth;
   const double yOccupancy = std::max(std::abs(bounds.minY), std::abs(bounds.maxY)) / halfHeight;
   return std::max(xOccupancy, yOccupancy);
@@ -134,13 +138,13 @@ void add_vertices_to_bounds(CameraSpaceBounds& bounds,
 {
   const double maxAbsX = std::max(std::abs(bounds.minX), std::abs(bounds.maxX));
   const double maxAbsY = std::max(std::abs(bounds.minY), std::abs(bounds.maxY));
-  return std::max(2.0 * maxAbsY * padding, 2.0 * maxAbsX * padding / aspectRatio);
+  return std::max(nearPlaneMultiplier * maxAbsY * padding, nearPlaneMultiplier * maxAbsX * padding / aspectRatio);
 }
 
 void pan_bounds_to_scene_center(CameraSpaceBounds& bounds)
 {
-  const double centerX = (bounds.minX + bounds.maxX) * 0.5;
-  const double centerY = (bounds.minY + bounds.maxY) * 0.5;
+  const double centerX = (bounds.minX + bounds.maxX) * halfScale;
+  const double centerY = (bounds.minY + bounds.maxY) * halfScale;
   bounds.minX -= centerX;
   bounds.maxX -= centerX;
   bounds.minY -= centerY;
@@ -152,23 +156,138 @@ void pan_bounds_to_scene_center(CameraSpaceBounds& bounds)
                                               double requiredDeltaWithoutPan,
                                               double requiredDeltaWithPan)
 {
-  if (requiredDeltaWithoutPan <= Epsilon)
+  if (requiredDeltaWithoutPan <= epsilon)
   {
     return false;
   }
 
-  const double centerX = (bounds.minX + bounds.maxX) * 0.5;
-  const double centerY = (bounds.minY + bounds.maxY) * 0.5;
+  const double centerX = (bounds.minX + bounds.maxX) * halfScale;
+  const double centerY = (bounds.minY + bounds.maxY) * halfScale;
 
   if (input.projectionType == CameraProjectionType::ORTHOGRAPHIC)
   {
-    const double halfWidth = input.orthographicWidth * input.aspectRatio * 0.5;
-    const double halfHeight = input.orthographicHeight * 0.5;
+    const double halfWidth = input.orthographicWidth * input.aspectRatio * halfScale;
+    const double halfHeight = input.orthographicHeight * halfScale;
     return std::abs(centerX) > halfWidth || std::abs(centerY) > halfHeight ||
-           requiredDeltaWithoutPan > requiredDeltaWithPan * 1.5;
+           requiredDeltaWithoutPan > requiredDeltaWithPan * significantRecenterImprovement;
   }
 
-  return requiredDeltaWithoutPan > requiredDeltaWithPan * 1.5;
+  return requiredDeltaWithoutPan > requiredDeltaWithPan * significantRecenterImprovement;
+}
+
+void pan_result_to_bounds_center(CameraAutoFitResult& result,
+                                 CameraSpaceBounds& bounds,
+                                 const CameraSpaceBounds& centeredBounds,
+                                 const CameraFrame& frame)
+{
+  const double centerX = (bounds.minX + bounds.maxX) * halfScale;
+  const double centerY = (bounds.minY + bounds.maxY) * halfScale;
+  const linal::double3 pan = frame.right * centerX + frame.up * centerY;
+  result.position += pan;
+  result.target += pan;
+  bounds = centeredBounds;
+  result.panned = true;
+}
+
+void apply_perspective_auto_fit(CameraAutoFitResult& result,
+                                CameraSpaceBounds& bounds,
+                                const CameraAutoFitInput& input,
+                                const CameraFrame& frame,
+                                double sceneRadius,
+                                double farPadding,
+                                double& movementDelta)
+{
+  const double tanHalfVerticalFov = std::tan(input.verticalFovDegrees * halfScale * degreesToRadians);
+  const double requiredDeltaWithoutPan =
+      get_perspective_required_delta(bounds, tanHalfVerticalFov, input.aspectRatio, input.settings.zoomOutPadding, input.nearPlane);
+
+  CameraSpaceBounds centeredBounds = bounds;
+  pan_bounds_to_scene_center(centeredBounds);
+  const double requiredDeltaWithPan =
+      get_perspective_required_delta(centeredBounds, tanHalfVerticalFov, input.aspectRatio, input.settings.zoomOutPadding, input.nearPlane);
+
+  if (should_pan_to_scene_center(bounds, input, requiredDeltaWithoutPan, requiredDeltaWithPan))
+  {
+    pan_result_to_bounds_center(result, bounds, centeredBounds, frame);
+  }
+
+  movementDelta = get_perspective_required_delta(bounds, tanHalfVerticalFov, input.aspectRatio, input.settings.zoomOutPadding, input.nearPlane);
+  if (movementDelta > epsilon)
+  {
+    result.zoomedOut = true;
+  }
+  else if (input.settings.zoomInEnabled && !input.suppressZoomIn && sceneRadius > epsilon)
+  {
+    result.viewportOccupancy = get_perspective_occupancy(bounds, tanHalfVerticalFov, input.aspectRatio);
+    if (result.viewportOccupancy < input.settings.minViewportOccupancy)
+    {
+      const double centerZ = (bounds.minZ + bounds.maxZ) * halfScale;
+      const double desiredCenterZ = sceneRadius * input.settings.zoomOutPadding /
+                                    (input.settings.targetViewportOccupancy * tanHalfVerticalFov);
+      movementDelta = std::max(desiredCenterZ - centerZ, input.nearPlane - bounds.minZ + input.nearPlane);
+      if (movementDelta < -epsilon)
+      {
+        result.zoomedIn = true;
+      }
+      else
+      {
+        movementDelta = 0.0;
+      }
+    }
+  }
+
+  result.position -= frame.forward * movementDelta;
+  result.farPlane = std::max(input.nearPlane * nearPlaneMultiplier, bounds.maxZ + movementDelta + farPadding);
+  result.viewportOccupancy = get_perspective_occupancy(bounds, tanHalfVerticalFov, input.aspectRatio);
+}
+
+void apply_orthographic_auto_fit(CameraAutoFitResult& result,
+                                 CameraSpaceBounds& bounds,
+                                 const CameraAutoFitInput& input,
+                                 const CameraFrame& frame,
+                                 double sceneRadius,
+                                 double farPadding,
+                                 double& movementDelta)
+{
+  const double requiredHeightWithoutPan =
+      get_required_orthographic_height(bounds, input.aspectRatio, input.settings.zoomOutPadding);
+  CameraSpaceBounds centeredBounds = bounds;
+  pan_bounds_to_scene_center(centeredBounds);
+  const double requiredHeightWithPan =
+      get_required_orthographic_height(centeredBounds, input.aspectRatio, input.settings.zoomOutPadding);
+
+  if (should_pan_to_scene_center(bounds, input, requiredHeightWithoutPan - input.orthographicHeight, requiredHeightWithPan - input.orthographicHeight))
+  {
+    pan_result_to_bounds_center(result, bounds, centeredBounds, frame);
+  }
+
+  double targetHeight = get_required_orthographic_height(bounds, input.aspectRatio, input.settings.zoomOutPadding);
+  if (targetHeight > input.orthographicHeight + epsilon)
+  {
+    result.zoomedOut = true;
+    result.orthographicHeight = targetHeight;
+    result.orthographicWidth = targetHeight;
+  }
+  else
+  {
+    result.viewportOccupancy = get_orthographic_occupancy(bounds, input.orthographicWidth, input.orthographicHeight, input.aspectRatio);
+    if (input.settings.zoomInEnabled && !input.suppressZoomIn && sceneRadius > epsilon &&
+        result.viewportOccupancy < input.settings.minViewportOccupancy)
+    {
+      targetHeight = get_required_orthographic_height(bounds, input.aspectRatio, input.settings.targetViewportOccupancy);
+      if (targetHeight > epsilon && targetHeight < input.orthographicHeight)
+      {
+        result.zoomedIn = true;
+        result.orthographicHeight = targetHeight;
+        result.orthographicWidth = targetHeight;
+      }
+    }
+  }
+
+  movementDelta = std::max(0.0, input.nearPlane - bounds.minZ + input.nearPlane);
+  result.position -= frame.forward * movementDelta;
+  result.farPlane = std::max(input.nearPlane * nearPlaneMultiplier, bounds.maxZ + movementDelta + farPadding);
+  result.viewportOccupancy = get_orthographic_occupancy(bounds, result.orthographicWidth, result.orthographicHeight, input.aspectRatio);
 }
 
 } // namespace
@@ -201,105 +320,14 @@ CameraAutoFitResult calculate_camera_auto_fit(const Scene& scene, const CameraAu
   double movementDelta = 0.0;
   if (input.projectionType == CameraProjectionType::PERSPECTIVE)
   {
-    const double tanHalfVerticalFov = std::tan(input.verticalFovDegrees * 0.5 * 3.14159265358979323846 / 180.0);
-    const double requiredDeltaWithoutPan =
-        get_perspective_required_delta(bounds, tanHalfVerticalFov, input.aspectRatio, input.settings.zoomOutPadding, input.nearPlane);
-
-    CameraSpaceBounds centeredBounds = bounds;
-    pan_bounds_to_scene_center(centeredBounds);
-    const double requiredDeltaWithPan =
-        get_perspective_required_delta(centeredBounds, tanHalfVerticalFov, input.aspectRatio, input.settings.zoomOutPadding, input.nearPlane);
-
-    if (should_pan_to_scene_center(bounds, input, requiredDeltaWithoutPan, requiredDeltaWithPan))
-    {
-      const double centerX = (bounds.minX + bounds.maxX) * 0.5;
-      const double centerY = (bounds.minY + bounds.maxY) * 0.5;
-      const linal::double3 pan = frame.right * centerX + frame.up * centerY;
-      result.position += pan;
-      result.target += pan;
-      bounds = centeredBounds;
-      result.panned = true;
-    }
-
-    movementDelta = get_perspective_required_delta(bounds, tanHalfVerticalFov, input.aspectRatio, input.settings.zoomOutPadding, input.nearPlane);
-    if (movementDelta > Epsilon)
-    {
-      result.zoomedOut = true;
-    }
-    else if (input.settings.zoomInEnabled && !input.suppressZoomIn && sceneRadius > Epsilon)
-    {
-      result.viewportOccupancy = get_perspective_occupancy(bounds, tanHalfVerticalFov, input.aspectRatio);
-      if (result.viewportOccupancy < input.settings.minViewportOccupancy)
-      {
-        const double centerZ = (bounds.minZ + bounds.maxZ) * 0.5;
-        const double desiredCenterZ = sceneRadius * input.settings.zoomOutPadding /
-                                      (input.settings.targetViewportOccupancy * tanHalfVerticalFov);
-        movementDelta = std::max(desiredCenterZ - centerZ, input.nearPlane - bounds.minZ + input.nearPlane);
-        if (movementDelta < -Epsilon)
-        {
-          result.zoomedIn = true;
-        }
-        else
-        {
-          movementDelta = 0.0;
-        }
-      }
-    }
-
-    result.position -= frame.forward * movementDelta;
-    result.farPlane = std::max(input.nearPlane * 2.0, bounds.maxZ + movementDelta + farPadding);
-    result.viewportOccupancy = get_perspective_occupancy(bounds, tanHalfVerticalFov, input.aspectRatio);
+    apply_perspective_auto_fit(result, bounds, input, frame, sceneRadius, farPadding, movementDelta);
   }
   else
   {
-    const double requiredHeightWithoutPan =
-        get_required_orthographic_height(bounds, input.aspectRatio, input.settings.zoomOutPadding);
-    CameraSpaceBounds centeredBounds = bounds;
-    pan_bounds_to_scene_center(centeredBounds);
-    const double requiredHeightWithPan =
-        get_required_orthographic_height(centeredBounds, input.aspectRatio, input.settings.zoomOutPadding);
-
-    if (should_pan_to_scene_center(bounds, input, requiredHeightWithoutPan - input.orthographicHeight, requiredHeightWithPan - input.orthographicHeight))
-    {
-      const double centerX = (bounds.minX + bounds.maxX) * 0.5;
-      const double centerY = (bounds.minY + bounds.maxY) * 0.5;
-      const linal::double3 pan = frame.right * centerX + frame.up * centerY;
-      result.position += pan;
-      result.target += pan;
-      bounds = centeredBounds;
-      result.panned = true;
-    }
-
-    double targetHeight = get_required_orthographic_height(bounds, input.aspectRatio, input.settings.zoomOutPadding);
-    if (targetHeight > input.orthographicHeight + Epsilon)
-    {
-      result.zoomedOut = true;
-      result.orthographicHeight = targetHeight;
-      result.orthographicWidth = targetHeight;
-    }
-    else
-    {
-      result.viewportOccupancy = get_orthographic_occupancy(bounds, input.orthographicWidth, input.orthographicHeight, input.aspectRatio);
-      if (input.settings.zoomInEnabled && !input.suppressZoomIn && sceneRadius > Epsilon &&
-          result.viewportOccupancy < input.settings.minViewportOccupancy)
-      {
-        targetHeight = get_required_orthographic_height(bounds, input.aspectRatio, input.settings.targetViewportOccupancy);
-        if (targetHeight > Epsilon && targetHeight < input.orthographicHeight)
-        {
-          result.zoomedIn = true;
-          result.orthographicHeight = targetHeight;
-          result.orthographicWidth = targetHeight;
-        }
-      }
-    }
-
-    movementDelta = std::max(0.0, input.nearPlane - bounds.minZ + input.nearPlane);
-    result.position -= frame.forward * movementDelta;
-    result.farPlane = std::max(input.nearPlane * 2.0, bounds.maxZ + movementDelta + farPadding);
-    result.viewportOccupancy = get_orthographic_occupancy(bounds, result.orthographicWidth, result.orthographicHeight, input.aspectRatio);
+    apply_orthographic_auto_fit(result, bounds, input, frame, sceneRadius, farPadding, movementDelta);
   }
 
-  result.changed = result.zoomedOut || result.zoomedIn || result.panned || std::abs(movementDelta) > Epsilon;
+  result.changed = result.zoomedOut || result.zoomedIn || result.panned || std::abs(movementDelta) > epsilon;
   return result;
 }
 

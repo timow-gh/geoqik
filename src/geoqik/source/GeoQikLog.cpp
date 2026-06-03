@@ -1,6 +1,7 @@
 #include "GeoQikLog.hpp"
 #include "GeoQikMessageSerialization.hpp"
 #include <array>
+#include <bit>
 #include <cstdint>
 #include <fstream>
 #include <limits>
@@ -13,13 +14,15 @@ namespace geoqik
 namespace
 {
 
-constexpr std::array<char, 8> LogMagic{'G', 'Q', 'K', 'L', 'O', 'G', '0', '1'};
-constexpr std::uint32_t LogVersion = 1;
+constexpr std::array<char, 8> logMagic{'G', 'Q', 'K', 'L', 'O', 'G', '0', '1'};
+constexpr std::uint32_t logVersion = 1;
 
 template <typename T>
 void write_pod(std::ostream& stream, const T& value)
 {
-  stream.write(reinterpret_cast<const char*>(&value), sizeof(T));
+  static_assert(std::is_trivially_copyable_v<T>);
+  const auto bytes = std::bit_cast<std::array<char, sizeof(T)>>(value);
+  stream.write(bytes.data(), static_cast<std::streamsize>(bytes.size()));
   if (!stream)
   {
     throw std::runtime_error("Failed to write GeoQik log");
@@ -29,13 +32,14 @@ void write_pod(std::ostream& stream, const T& value)
 template <typename T>
 T read_pod(std::istream& stream)
 {
-  T value{};
-  stream.read(reinterpret_cast<char*>(&value), sizeof(T));
+  static_assert(std::is_trivially_copyable_v<T>);
+  std::array<char, sizeof(T)> bytes{};
+  stream.read(bytes.data(), static_cast<std::streamsize>(bytes.size()));
   if (!stream)
   {
     throw std::runtime_error("Failed to read GeoQik log");
   }
-  return value;
+  return std::bit_cast<T>(bytes);
 }
 
 } // namespace
@@ -82,13 +86,13 @@ void save_log_binary(const std::filesystem::path& path, std::span<const GeoQikLo
     throw std::runtime_error("Failed to open GeoQik log for writing");
   }
 
-  stream.write(LogMagic.data(), LogMagic.size());
+  stream.write(logMagic.data(), static_cast<std::streamsize>(logMagic.size()));
   if (!stream)
   {
     throw std::runtime_error("Failed to write GeoQik log header");
   }
 
-  write_pod(stream, LogVersion);
+  write_pod(stream, logVersion);
   const std::uint64_t entrySize = entries.size();
   write_pod(stream, entrySize);
 
@@ -107,19 +111,19 @@ std::vector<GeoQikLogEntry> load_log_binary(const std::filesystem::path& path)
     throw std::runtime_error("Failed to open GeoQik log for reading");
   }
 
-  std::array<char, LogMagic.size()> magic{};
-  stream.read(magic.data(), magic.size());
-  if (!stream || magic != LogMagic)
+  std::array<char, logMagic.size()> magic{};
+  stream.read(magic.data(), static_cast<std::streamsize>(magic.size()));
+  if (!stream || magic != logMagic)
   {
     throw std::runtime_error("Invalid GeoQik log header");
   }
 
-  if (read_pod<std::uint32_t>(stream) != LogVersion)
+  if (read_pod<std::uint32_t>(stream) != logVersion)
   {
     throw std::runtime_error("Unsupported GeoQik log version");
   }
 
-  const std::uint64_t entryCount = read_pod<std::uint64_t>(stream);
+  const auto entryCount = read_pod<std::uint64_t>(stream);
   if (entryCount > std::numeric_limits<std::size_t>::max())
   {
     throw std::runtime_error("GeoQik log entry count is too large");
