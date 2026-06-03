@@ -1,6 +1,6 @@
 #include "Context.hpp"
-#include "GlfwWindow.hpp"
 #include "GeoQikMessages.hpp"
+#include "GlfwWindow.hpp"
 #include "Rendering/OpenGLSceneRenderer.hpp"
 #include <Core/Assert.hpp>
 #include <algorithm>
@@ -11,22 +11,39 @@
 namespace geoqik
 {
 
-static ConcurrentQueue<GeoQikMessage> g_messageQueue;
-static std::atomic<bool> g_replayCancelRequested{false};
+namespace
+{
+
+constexpr std::size_t lineCoordinateCount = 6;
+constexpr std::size_t frameInfoPrintInterval = 10;
+
+ConcurrentQueue<GeoQikMessage>& message_queue_storage()
+{
+  static ConcurrentQueue<GeoQikMessage> messageQueue; // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
+  return messageQueue;
+}
+
+std::atomic<bool>& replay_cancel_requested_storage()
+{
+  static std::atomic<bool> replayCancelRequested{false}; // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
+  return replayCancelRequested;
+}
+
+} // namespace
 
 void init_message_queue(ConcurrentQueue<GeoQikMessage>&& messageQueue)
 {
-  g_messageQueue = std::move(messageQueue);
+  message_queue_storage() = std::move(messageQueue);
 }
 
 ConcurrentQueue<GeoQikMessage>& get_message_queue()
 {
-  return g_messageQueue;
+  return message_queue_storage();
 }
 
 void request_replay_cancel()
 {
-  g_replayCancelRequested.store(true, std::memory_order_release);
+  replay_cancel_requested_storage().store(true, std::memory_order_release);
 }
 
 CameraAutoFitSettings make_camera_auto_fit_settings(const GeoQikSettings& settings)
@@ -294,7 +311,7 @@ void Context::add_lines_with_opts(std::span<const float> lines, const GeoQikMess
   {
     return;
   }
-  if (m_scene.ensure_line_capacity(lines.size() / 6))
+  if (m_scene.ensure_line_capacity(lines.size() / lineCoordinateCount))
   {
     m_renderer->recreate_line_drawables(m_scene);
   }
@@ -382,45 +399,16 @@ void Context::run_event_loop()
     mvp = m_cameraInteractor->get_current_MVP();
 
     m_window->poll_events();
-    const bool cameraWasMovedByUser = m_cameraInteractor->get_was_blocking();
-    if (cameraWasMovedByUser)
+    update_camera_interaction_state();
+    if (should_close_event_loop())
     {
-      m_lastCameraInteractionTime = std::chrono::high_resolution_clock::now();
-      m_cameraInteractor->reset_was_blocking();
-    }
-
-    // Check for escape key or window close event to stop drawing
-    if (m_window->is_escape_pressed())
-    {
-      m_windowShouldClose.store(true);
-      break;
-    }
-
-    // Check if glfw got a request to close the window via the close button
-    if (m_window->should_close())
-    {
-      m_windowShouldClose.store(true);
       break;
     }
 
     const auto& viewport = m_cameraInteractor->get_viewport();
     m_renderer->begin_frame(m_backgroundColor, viewport);
 
-    if (m_renderer->sync_scene(m_scene))
-    {
-      const auto now = std::chrono::high_resolution_clock::now();
-      const bool hasRecentCameraInteraction =
-          m_lastCameraInteractionTime.time_since_epoch().count() != 0 &&
-          now - m_lastCameraInteractionTime < m_geoqikSettings.autoFitSuppressAfterUserCameraInteraction;
-
-      const CameraAutoFitInput autoFitInput =
-          make_camera_auto_fit_input(*m_cameraInteractor, m_geoqikSettings, hasRecentCameraInteraction);
-      const CameraAutoFitResult autoFitResult = calculate_camera_auto_fit(m_scene, autoFitInput);
-      if (autoFitResult.hasGeometry)
-      {
-        m_cameraInteractor->apply_auto_fit_result(autoFitResult);
-      }
-    }
+    sync_scene_and_auto_fit();
 
     mvp = m_cameraInteractor->get_current_MVP();
     m_renderer->draw(mvp, m_cameraInteractor->get_position());
@@ -432,54 +420,10 @@ void Context::run_event_loop()
       return;
     }
 
-    ////////////-------------------------------------
-    // Process messages in the queue
-    ////////////-------------------------------------
-
-    m_geometryMessagesProcessedThisFrame = 0;
-    std::size_t messagesProcessedThisFrame = 0;
-    std::chrono::high_resolution_clock::time_point messageProcessingStartTime = std::chrono::high_resolution_clock::now();
-    while (true)
+    const std::chrono::high_resolution_clock::time_point messageProcessingStartTime = std::chrono::high_resolution_clock::now();
+    if (process_message_queue(messageQueue, frameStartTime))
     {
-      if (messageQueue.empty())
-      {
-        break;
-      }
-
-      std::chrono::high_resolution_clock::time_point now = std::chrono::high_resolution_clock::now();
-
-      // Stop processing messages if enough messages have been processed or if the frame processing time
-      // exceeds the maximum allowed time.
-      // The maximum frame processing time is used to ensure the fps does not drop too low.
-      // Checking the frame processing time is only done if the window is drawing geometry already.
-      if (m_isDrawing)
-      {
-        auto elapsedMessageTime = std::chrono::duration_cast<std::chrono::milliseconds>(now - messageProcessingStartTime);
-
-        bool minimumProcessingTimeReached = true;
-        if (m_geoqikSettings.minGeometryProcessingTime > std::chrono::milliseconds(0))
-        {
-          minimumProcessingTimeReached =
-              elapsedMessageTime >= m_geoqikSettings.minGeometryProcessingTime;
-        }
-
-        if (minimumProcessingTimeReached &&
-            ((now - frameStartTime) >= m_geoqikSettings.maxFrameProcessingTime))
-        {
-          break;
-        }
-      }
-
-      std::optional<GeoQikMessage> message = messageQueue.dequeue();
-      if (message.has_value())
-      {
-        ++messagesProcessedThisFrame;
-        defer_or_handle_message(std::move(*message));
-        if (m_windowShouldClose)
-        {
-          return;
-        }
-      }
+      return;
     }
 
 #ifdef PRINT_FRAME_INFO
@@ -487,6 +431,96 @@ void Context::run_event_loop()
     print_frame_info(frameStartTime, messageProcessingStartTime, endTime);
 #endif
   }
+}
+
+bool Context::should_close_event_loop()
+{
+  if (m_window->is_escape_pressed() || m_window->should_close())
+  {
+    m_windowShouldClose.store(true);
+    return true;
+  }
+  return false;
+}
+
+void Context::update_camera_interaction_state()
+{
+  if (!m_cameraInteractor->get_was_blocking())
+  {
+    return;
+  }
+
+  m_lastCameraInteractionTime = std::chrono::high_resolution_clock::now();
+  m_cameraInteractor->reset_was_blocking();
+}
+
+void Context::sync_scene_and_auto_fit()
+{
+  if (!m_renderer->sync_scene(m_scene))
+  {
+    return;
+  }
+
+  const auto now = std::chrono::high_resolution_clock::now();
+  const bool hasRecentCameraInteraction =
+      m_lastCameraInteractionTime.time_since_epoch().count() != 0 &&
+      now - m_lastCameraInteractionTime < m_geoqikSettings.autoFitSuppressAfterUserCameraInteraction;
+
+  const CameraAutoFitInput autoFitInput =
+      make_camera_auto_fit_input(*m_cameraInteractor, m_geoqikSettings, hasRecentCameraInteraction);
+  const CameraAutoFitResult autoFitResult = calculate_camera_auto_fit(m_scene, autoFitInput);
+  if (autoFitResult.hasGeometry)
+  {
+    m_cameraInteractor->apply_auto_fit_result(autoFitResult);
+  }
+}
+
+bool Context::should_stop_processing_messages(const std::chrono::high_resolution_clock::time_point& frameStartTime,
+                                              const std::chrono::high_resolution_clock::time_point& messageProcessingStartTime) const
+{
+  if (!m_isDrawing)
+  {
+    return false;
+  }
+
+  const auto now = std::chrono::high_resolution_clock::now();
+  const auto elapsedMessageTime = std::chrono::duration_cast<std::chrono::milliseconds>(now - messageProcessingStartTime);
+
+  bool minimumProcessingTimeReached = true;
+  if (m_geoqikSettings.minGeometryProcessingTime > std::chrono::milliseconds(0))
+  {
+    minimumProcessingTimeReached = elapsedMessageTime >= m_geoqikSettings.minGeometryProcessingTime;
+  }
+
+  return minimumProcessingTimeReached && (now - frameStartTime) >= m_geoqikSettings.maxFrameProcessingTime;
+}
+
+bool Context::process_message_queue(ConcurrentQueue<GeoQikMessage>& messageQueue,
+                                    const std::chrono::high_resolution_clock::time_point& frameStartTime)
+{
+  m_geometryMessagesProcessedThisFrame = 0;
+  const std::chrono::high_resolution_clock::time_point messageProcessingStartTime = std::chrono::high_resolution_clock::now();
+  while (!messageQueue.empty())
+  {
+    if (should_stop_processing_messages(frameStartTime, messageProcessingStartTime))
+    {
+      return false;
+    }
+
+    std::optional<GeoQikMessage> message = messageQueue.dequeue();
+    if (!message.has_value())
+    {
+      continue;
+    }
+
+    defer_or_handle_message(std::move(*message));
+    if (m_windowShouldClose)
+    {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 bool Context::cleanup()
@@ -514,7 +548,7 @@ bool Context::cleanup()
 
 geoqik_error_code_t Context::save_log(const char* path, geoqik_log_format_t format) const
 {
-  if (!path || path[0] == '\0' || format != GEOQIK_LOG_FORMAT_BINARY)
+  if (path == nullptr || path[0] == '\0' || format != GEOQIK_LOG_FORMAT_BINARY)
   {
     return GEOQIK_ERROR_INVALID_PARAMETER;
   }
@@ -536,7 +570,7 @@ geoqik_error_code_t Context::save_log(const char* path, geoqik_log_format_t form
 
 geoqik_error_code_t Context::load_log(const char* path, geoqik_log_format_t format)
 {
-  if (!path || path[0] == '\0' || format != GEOQIK_LOG_FORMAT_BINARY)
+  if (path == nullptr || path[0] == '\0' || format != GEOQIK_LOG_FORMAT_BINARY)
   {
     return GEOQIK_ERROR_INVALID_PARAMETER;
   }
@@ -562,7 +596,7 @@ geoqik_error_code_t Context::load_log(const char* path, geoqik_log_format_t form
 
 geoqik_error_code_t Context::replay_log(const char* path, geoqik_log_format_t format, const ReplayOptions& options)
 {
-  if (!path || path[0] == '\0' || format != GEOQIK_LOG_FORMAT_BINARY)
+  if (path == nullptr || path[0] == '\0' || format != GEOQIK_LOG_FORMAT_BINARY)
   {
     return GEOQIK_ERROR_INVALID_PARAMETER;
   }
@@ -949,12 +983,12 @@ void Context::process_replay_entries(const std::chrono::high_resolution_clock::t
 {
   if (!is_replaying())
   {
-    g_replayCancelRequested.store(false, std::memory_order_release);
+    replay_cancel_requested_storage().store(false, std::memory_order_release);
     m_lastReplayTick = now;
     return;
   }
 
-  if (g_replayCancelRequested.exchange(false, std::memory_order_acq_rel))
+  if (replay_cancel_requested_storage().exchange(false, std::memory_order_acq_rel))
   {
     cancel_replay();
     m_lastReplayTick = now;
@@ -978,7 +1012,7 @@ void Context::process_replay_entries(const std::chrono::high_resolution_clock::t
   m_lastReplayTick = now;
   m_replayEntryBudget += elapsed.count() * m_replayOptions.entriesPerSecond;
 
-  std::size_t entriesToApply = static_cast<std::size_t>(m_replayEntryBudget);
+  auto entriesToApply = static_cast<std::size_t>(m_replayEntryBudget);
   entriesToApply = std::min(entriesToApply, m_replayOptions.maxEntriesPerFrame);
 
   apply_replay_entries(entriesToApply);
@@ -1078,7 +1112,7 @@ void Context::defer_or_handle_message(GeoQikMessage&& message)
     }
   }
 
-  if (process_message(std::move(message), true))
+  if (process_message(message, true))
   {
     m_windowShouldClose.store(true);
   }
@@ -1088,7 +1122,7 @@ void Context::defer_or_handle_message(GeoQikMessage&& message)
   }
 }
 
-bool Context::process_message(GeoQikMessage&& message, bool recordLogEntry)
+bool Context::process_message(const GeoQikMessage& message, bool recordLogEntry)
 {
   if (recordLogEntry)
   {
@@ -1115,7 +1149,7 @@ bool Context::process_deferred_messages()
     GeoQikMessage message = std::move(m_deferredMessages.front());
     m_deferredMessages.pop_front();
 
-    if (process_message(std::move(message), true))
+    if (process_message(message, true))
     {
       m_windowShouldClose.store(true);
       return true;
@@ -1136,7 +1170,7 @@ bool Context::process_deferred_messages_before_cleanup()
     GeoQikMessage message = std::move(m_deferredMessages.front());
     m_deferredMessages.pop_front();
 
-    if (process_message(std::move(message), true))
+    if (process_message(message, true))
     {
       m_windowShouldClose.store(true);
       return true;
@@ -1147,7 +1181,7 @@ bool Context::process_deferred_messages_before_cleanup()
 
 bool Context::is_known_idempotency_key(const core::UUID* key)
 {
-  if (key && !key->is_nil())
+  if (key != nullptr && !key->is_nil())
   {
     IdempotencyData idempotencyData{*key, std::chrono::high_resolution_clock::now()};
     auto [it, inserted] = m_idempotencySet.insert(idempotencyData);
@@ -1181,7 +1215,7 @@ void Context::print_frame_info(const std::chrono::high_resolution_clock::time_po
                                const std::chrono::high_resolution_clock::time_point& messageProcessingStartTime,
                                const std::chrono::high_resolution_clock::time_point& endTime) const
 {
-  if (m_frameCount % 10 != 0)
+  if (m_frameCount % frameInfoPrintInterval != 0)
   {
     return;
   }

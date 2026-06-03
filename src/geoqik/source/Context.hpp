@@ -174,8 +174,15 @@ private:
   [[nodiscard]] ReplayUndoFrame create_replay_undo_frame(const GeoQikLogEntry& entry) const;
   void restore_replay_undo_frame(const ReplayUndoFrame& frame);
   void finish_replay();
+  [[nodiscard]] bool should_close_event_loop();
+  void update_camera_interaction_state();
+  void sync_scene_and_auto_fit();
+  [[nodiscard]] bool should_stop_processing_messages(const std::chrono::high_resolution_clock::time_point& frameStartTime,
+                                                     const std::chrono::high_resolution_clock::time_point& messageProcessingStartTime) const;
+  [[nodiscard]] bool process_message_queue(ConcurrentQueue<GeoQikMessage>& messageQueue,
+                                           const std::chrono::high_resolution_clock::time_point& frameStartTime);
   void defer_or_handle_message(GeoQikMessage&& message);
-  bool process_message(GeoQikMessage&& message, bool recordLogEntry);
+  bool process_message(const GeoQikMessage& message, bool recordLogEntry);
   bool process_deferred_messages();
   bool process_deferred_messages_before_cleanup();
   [[nodiscard]] bool is_known_idempotency_key(const core::UUID* key);
@@ -218,7 +225,7 @@ private:
   void handle_message(const Cleanup& message);
 
   void print_frame_info(const std::chrono::high_resolution_clock::time_point& startTime,
-                        const std::chrono::high_resolution_clock::time_point& messageProcessingEndTime,
+                        const std::chrono::high_resolution_clock::time_point& messageProcessingStartTime,
                         const std::chrono::high_resolution_clock::time_point& endTime) const;
 };
 
