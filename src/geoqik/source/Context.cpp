@@ -420,7 +420,9 @@ void Context::run_event_loop()
       return;
     }
 
+#ifdef PRINT_FRAME_INFO
     const std::chrono::high_resolution_clock::time_point messageProcessingStartTime = std::chrono::high_resolution_clock::now();
+#endif
     if (process_message_queue(messageQueue, frameStartTime))
     {
       return;
