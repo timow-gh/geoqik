@@ -30,7 +30,7 @@ public:
   void compile_programs();
   void reset_programs() noexcept;
 
-  void begin_frame(const Color& backgroundColor, const Viewport& viewport) const;
+  static void begin_frame(const Color& backgroundColor, const Viewport& viewport);
 
   void recreate_point_drawables(const Scene& scene);
   void recreate_line_drawables(const Scene& scene);

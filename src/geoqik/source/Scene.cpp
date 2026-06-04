@@ -26,7 +26,7 @@ bool Scene::ensure_point_capacity(std::size_t pointCount)
 
   const std::size_t growthFactor =
       calc_growth_factor(m_pointBuffer->get_point_capacity(), m_pointBuffer->get_free_point_capacity(), pointCount);
-  m_pointBuffer = PointBuffer::create_from(std::move(*m_pointBuffer), growthFactor);
+  m_pointBuffer = PointBuffer::create_from(*m_pointBuffer, growthFactor);
   return true;
 }
 
@@ -39,7 +39,7 @@ bool Scene::ensure_line_capacity(std::size_t lineCount)
 
   const std::size_t growthFactor =
       calc_growth_factor(m_lineBuffer->get_line_capacity(), m_lineBuffer->get_free_line_capacity(), lineCount);
-  m_lineBuffer = LineBuffer::create_from(std::move(*m_lineBuffer), growthFactor);
+  m_lineBuffer = LineBuffer::create_from(*m_lineBuffer, growthFactor);
   return true;
 }
 
@@ -178,7 +178,7 @@ void Scene::set_default_line_color(float r, float g, float b, float a)
 
 Geometry::Sphere<float> Scene::calc_bounding_sphere(const linal::float3& center) const
 {
-  float maxRadiusSq = 0.0f;
+  float maxRadiusSq = 0.0F;
 
   std::span<const float> points = m_pointBuffer->get_points();
   if (!points.empty())

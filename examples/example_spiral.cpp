@@ -15,37 +15,45 @@ int main()
 
   geoqik_settings_t settings;
   geoqik_create_default_settings(&settings);
-  settings.initialPointCapacity = 10000;
-  settings.initialLineCapacity = 10000;
+  const std::uint32_t initialGeometryCapacity = 10000;
+  settings.initialPointCapacity = initialGeometryCapacity;
+  settings.initialLineCapacity = initialGeometryCapacity;
 
   geoqik_init_with_settings(&settings, nullptr);
 
-  geoqik_set_point_size(5.0f);
-  geoqik_set_line_width(2.0f);
+  constexpr float pointSize = 5.0F;
+  constexpr float lineWidth = 2.0F;
+  geoqik_set_point_size(pointSize);
+  geoqik_set_line_width(lineWidth);
 
   geoqik_draw();
 
-  geoqik_add_point_with_color(0.0, 0.0, 0.0, 1.0f, 0.0f, 0.0f, 1.0f);
-  geoqik_add_point_with_color(1.0, 0.0, 0.0, 0.0f, 1.0f, 0.0f, 1.0f);
-  geoqik_add_point_with_color(0.0, 1.0, 0.0, 0.0f, 0.0f, 1.0f, 1.0f);
-  geoqik_add_point_with_color(0.0, 0.0, 1.0, 0.0f, 0.0f, 0.0f, 1.0f);
+  constexpr float colorMin = 0.0F;
+  constexpr float colorMax = 1.0F;
+  geoqik_add_point_with_color(0.0, 0.0, 0.0, colorMax, colorMin, colorMin, colorMax);
+  geoqik_add_point_with_color(1.0, 0.0, 0.0, colorMin, colorMax, colorMin, colorMax);
+  geoqik_add_point_with_color(0.0, 1.0, 0.0, colorMin, colorMin, colorMax, colorMax);
+  geoqik_add_point_with_color(0.0, 0.0, 1.0, colorMin, colorMin, colorMin, colorMax);
 
-  geoqik_add_line_with_color(0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0f, 0.0f, 0.0f, 1.0f);
-  geoqik_add_line_with_color(0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0f, 1.0f, 0.0f, 1.0f);
-  geoqik_add_line_with_color(0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0f, 0.0f, 1.0f, 1.0f);
+  geoqik_add_line_with_color(0.0, 0.0, 0.0, 1.0, 0.0, 0.0, colorMax, colorMin, colorMin, colorMax);
+  geoqik_add_line_with_color(0.0, 0.0, 0.0, 0.0, 1.0, 0.0, colorMin, colorMax, colorMin, colorMax);
+  geoqik_add_line_with_color(0.0, 0.0, 0.0, 0.0, 0.0, 1.0, colorMin, colorMin, colorMax, colorMax);
 
-  auto grid = geoqik::examples::create_grid(500.0, 10.0);
+  constexpr double gridSize = 500.0;
+  constexpr double gridSpacing = 10.0;
+  auto grid = geoqik::examples::create_grid(gridSize, gridSpacing);
   geoqik::examples::add_grid(grid);
 
   // Use multiple threads to provoke contention
-  std::array<std::thread, 5> threads;
+  constexpr std::size_t threadCount = 5;
+  std::array<std::thread, threadCount> threads;
   const std::size_t numThreads = threads.size();
 
   // Synchronization point to ensure all threads start adding lines at the same time
   std::barrier syncPoint(static_cast<std::int64_t>(numThreads));
 
   // Produces lines and adds them to geoqik.
-  auto add_spiral_lines = [&syncPoint](const std::size_t startIdx, const std::size_t endIdx)
+  auto addSpiralLines = [&syncPoint](const std::size_t startIdx, const std::size_t endIdx)
   {
     syncPoint.arrive_and_wait(); // Wait for all threads to reach this point
 
@@ -56,7 +64,9 @@ int main()
     const double lineLength = 0.3; // Length of the outward lines
     const double thetaStep = 0.1;  // Angular step for discretization
 
-    double prevX = 0, prevY = 0, prevZ = 0;
+    double prevX = 0;
+    double prevY = 0;
+    double prevZ = 0;
     bool firstPoint = true;
 
     for (std::size_t i = startIdx; i < endIdx; ++i)
@@ -102,10 +112,13 @@ int main()
       // const double bz = tx*ny - ty*nx;
 
       // Color based on position along the spiral
-      geoqik_set_line_color(0.5f + std::sin(static_cast<float>(theta)) * 0.5f,
-                             0.5f + std::cos(static_cast<float>(theta)) * 0.5f,
-                             0.5f + std::sin(static_cast<float>(theta) + 3.14f) * 0.5f,
-                             1.0f);
+      constexpr float colorOffset = 0.5F;
+      constexpr float colorScale = 0.5F;
+      constexpr float piApprox = 3.14F;
+      geoqik_set_line_color(colorOffset + std::sin(static_cast<float>(theta)) * colorScale,
+                             colorOffset + std::cos(static_cast<float>(theta)) * colorScale,
+                             colorOffset + std::sin(static_cast<float>(theta) + piApprox) * colorScale,
+                             colorMax);
 
       // Draw the discretized spiral by connecting consecutive points
       if (!firstPoint)
@@ -123,13 +136,13 @@ int main()
     }
   };
 
-  std::size_t numberOfSteps = 300000;
-  std::size_t stride = numberOfSteps / numThreads;
-  for (std::uint32_t i = 0; i < threads.size(); ++i)
+  const std::size_t numberOfSteps = 300000;
+  const std::size_t stride = numberOfSteps / numThreads;
+  for (std::size_t i = 0; i < threads.size(); ++i)
   {
-    std::size_t startIdx = i * stride;
-    std::size_t endIdx = startIdx + stride;
-    threads[i] = std::thread(add_spiral_lines, startIdx, endIdx);
+    const std::size_t startIdx = i * stride;
+    const std::size_t endIdx = startIdx + stride;
+    threads[i] = std::thread(addSpiralLines, startIdx, endIdx);
   }
 
   for (auto& thread: threads)

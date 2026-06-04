@@ -20,7 +20,7 @@ void OpenGLSceneRenderer::reset_programs() noexcept
   m_programManager.reset();
 }
 
-void OpenGLSceneRenderer::begin_frame(const Color& backgroundColor, const Viewport& viewport) const
+void OpenGLSceneRenderer::begin_frame(const Color& backgroundColor, const Viewport& viewport)
 {
   opengl::begin_frame(opengl::ClearColor{backgroundColor[0], backgroundColor[1], backgroundColor[2], backgroundColor[3]},
                       opengl::ViewportRect{static_cast<int>(viewport.get_xpos()),
@@ -100,9 +100,9 @@ void OpenGLSceneRenderer::create_point_drawable(const Scene& scene)
   }
 
   m_drawablesManager.add_point_drawable(pointBuffer.get_points(),
-                                        pointBuffer.get_point_dimension(),
+                                        PointBuffer::get_point_dimension(),
                                         pointBuffer.get_point_colors(),
-                                        pointBuffer.get_color_dimension(),
+                                        PointBuffer::get_color_dimension(),
                                         pointBuffer.get_point_indices(),
                                         scene.get_point_size(),
                                         opengl::BufferAccessPattern::STATIC_DRAW);
@@ -117,10 +117,10 @@ void OpenGLSceneRenderer::create_line_drawable(const Scene& scene)
   }
 
   m_drawablesManager.add_line_drawable(lineBuffer.get_lines(),
-                                       lineBuffer.get_point_dimension(),
+                                       LineBuffer::get_point_dimension(),
                                        lineBuffer.get_line_indices(),
                                        lineBuffer.get_line_colors(),
-                                       lineBuffer.get_color_dimension(),
+                                       LineBuffer::get_color_dimension(),
                                        m_lineType,
                                        scene.get_line_width(),
                                        scene.get_point_size(),

@@ -406,7 +406,7 @@ void Context::run_event_loop()
     }
 
     const auto& viewport = m_cameraInteractor->get_viewport();
-    m_renderer->begin_frame(m_backgroundColor, viewport);
+    OpenGLSceneRenderer::begin_frame(m_backgroundColor, viewport);
 
     sync_scene_and_auto_fit();
 
