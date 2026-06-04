@@ -111,7 +111,7 @@ void write_float_vector(std::ostream& stream, const std::vector<float>& values)
 
 std::vector<float> read_float_vector(std::istream& stream)
 {
-  const std::uint64_t count = read_pod<std::uint64_t>(stream);
+  const auto count = read_pod<std::uint64_t>(stream);
   if (count > std::numeric_limits<std::size_t>::max())
   {
     throw std::runtime_error("GeoQik message vector is too large");
