@@ -1,5 +1,7 @@
 #include "InputState.hpp"
 
+#include <unordered_map>
+
 namespace geoqik
 {
 
@@ -24,6 +26,12 @@ struct WindowCallbacks
 
 void set_window_callbacks(GLFWwindow* glfwWindow);
 
+std::unordered_map<GLFWwindow*, WindowCallbacks>& window_callbacks_storage()
+{
+  static std::unordered_map<GLFWwindow*, WindowCallbacks> callbacks; // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
+  return callbacks;
+}
+
 WindowCallbacks* get_window_callbacks(GLFWwindow* glfwWindow)
 {
   CORE_ASSERT(glfwWindow);
@@ -32,64 +40,66 @@ WindowCallbacks* get_window_callbacks(GLFWwindow* glfwWindow)
     return wCallbacks;
   }
 
-  auto* newWindowCallbacks = new WindowCallbacks{};
-  glfwSetWindowUserPointer(glfwWindow, newWindowCallbacks);
+  auto& callbacks = window_callbacks_storage();
+  auto result = callbacks.try_emplace(glfwWindow);
+  auto* windowCallbacks = &result.first->second;
+  glfwSetWindowUserPointer(glfwWindow, windowCallbacks);
   set_window_callbacks(glfwWindow);
-  return newWindowCallbacks;
+  return windowCallbacks;
 }
 
 } // namespace detail
 
-static void keyT(GLFWwindow* glfwWindow, int key, int sc, int act, int mods)
+static void key_callback_trampoline(GLFWwindow* glfwWindow, int key, int sc, int act, int mods)
 {
   if (auto* wCallbacks = detail::get_window_callbacks(glfwWindow); wCallbacks->key)
   {
     wCallbacks->key(static_cast<Key>(key), Scancode(sc), static_cast<Action>(act), static_cast<Mods>(mods));
   }
 }
-static void charT(GLFWwindow* glfwWindow, unsigned int cp)
+static void char_callback_trampoline(GLFWwindow* glfwWindow, unsigned int cp)
 {
   if (auto* wCallbacks = detail::get_window_callbacks(glfwWindow); wCallbacks->ch)
   {
     wCallbacks->ch(cp);
   }
 }
-static void charModsT(GLFWwindow* glfwWindow, unsigned int cp, int mods)
+static void char_mods_callback_trampoline(GLFWwindow* glfwWindow, unsigned int cp, int mods)
 {
   if (auto* wCallbacks = detail::get_window_callbacks(glfwWindow); wCallbacks->chMods)
   {
     wCallbacks->chMods(cp, static_cast<Mods>(mods));
   }
 }
-static void mouseBtnT(GLFWwindow* glfwWindow, int btn, int act, int mods)
+static void mouse_button_callback_trampoline(GLFWwindow* glfwWindow, int btn, int act, int mods)
 {
   if (auto* wCallbacks = detail::get_window_callbacks(glfwWindow); wCallbacks->mouseBtn)
   {
     wCallbacks->mouseBtn(btn, static_cast<Action>(act), static_cast<Mods>(mods));
   }
 }
-static void cursorPosT(GLFWwindow* glfwWindow, double x, double y)
+static void cursor_pos_callback_trampoline(GLFWwindow* glfwWindow, double x, double y)
 {
   if (auto* wCallbacks = detail::get_window_callbacks(glfwWindow); wCallbacks->cursorPos)
   {
     wCallbacks->cursorPos(x, y);
   }
 }
-static void cursorEnterT(GLFWwindow* glfwWindow, int entered)
+static void cursor_enter_callback_trampoline(GLFWwindow* glfwWindow, int entered)
 {
   if (auto* wCallbacks = detail::get_window_callbacks(glfwWindow); wCallbacks->cursorEnter)
   {
     wCallbacks->cursorEnter(entered != 0);
   }
 }
-static void scrollT(GLFWwindow* glfwWindow, double xo, double yo)
+static void scroll_callback_trampoline(GLFWwindow* glfwWindow, double xo, double yo)
 {
   if (auto* wCallbacks = detail::get_window_callbacks(glfwWindow); wCallbacks->scroll)
   {
     wCallbacks->scroll(xo, yo);
   }
 }
-static void dropT(GLFWwindow* glfwWindow, int cnt, const char** paths)
+static void drop_callback_trampoline(GLFWwindow* glfwWindow, int cnt, const char** paths)
 {
   if (auto* wCallbacks = detail::get_window_callbacks(glfwWindow); wCallbacks->drop)
   {
@@ -97,7 +107,7 @@ static void dropT(GLFWwindow* glfwWindow, int cnt, const char** paths)
   }
 }
 
-static void framebufferSizeT(GLFWwindow* glfwWindow, int width, int height)
+static void framebuffer_size_callback_trampoline(GLFWwindow* glfwWindow, int width, int height)
 {
   if (auto* wCallbacks = detail::get_window_callbacks(glfwWindow); wCallbacks->framebufferSizeCB)
   {
@@ -111,16 +121,16 @@ namespace detail
 void set_window_callbacks(GLFWwindow* glfwWindow)
 {
   CORE_ASSERT(glfwWindow);
-  glfwSetKeyCallback(glfwWindow, keyT);
-  glfwSetCharCallback(glfwWindow, charT);
-  glfwSetCharModsCallback(glfwWindow, charModsT);
-  glfwSetMouseButtonCallback(glfwWindow, mouseBtnT);
-  glfwSetCursorPosCallback(glfwWindow, cursorPosT);
-  glfwSetCursorEnterCallback(glfwWindow, cursorEnterT);
-  glfwSetScrollCallback(glfwWindow, scrollT);
-  glfwSetDropCallback(glfwWindow, dropT);
+  glfwSetKeyCallback(glfwWindow, key_callback_trampoline);
+  glfwSetCharCallback(glfwWindow, char_callback_trampoline);
+  glfwSetCharModsCallback(glfwWindow, char_mods_callback_trampoline);
+  glfwSetMouseButtonCallback(glfwWindow, mouse_button_callback_trampoline);
+  glfwSetCursorPosCallback(glfwWindow, cursor_pos_callback_trampoline);
+  glfwSetCursorEnterCallback(glfwWindow, cursor_enter_callback_trampoline);
+  glfwSetScrollCallback(glfwWindow, scroll_callback_trampoline);
+  glfwSetDropCallback(glfwWindow, drop_callback_trampoline);
 
-  glfwSetFramebufferSizeCallback(glfwWindow, framebufferSizeT);
+  glfwSetFramebufferSizeCallback(glfwWindow, framebuffer_size_callback_trampoline);
 }
 
 } // namespace detail
@@ -181,10 +191,7 @@ void set_framebuffer_size_callback(GLFWwindow* glfwWindow, FramebufferSizeCB cb)
 void clear_callbacks(GLFWwindow* glfwWindow)
 {
   CORE_ASSERT(glfwWindow);
-  if (auto* wCallbacks = static_cast<detail::WindowCallbacks*>(glfwGetWindowUserPointer(glfwWindow)))
-  {
-    delete wCallbacks;
-  }
+  detail::window_callbacks_storage().erase(glfwWindow);
   glfwSetWindowUserPointer(glfwWindow, nullptr);
 }
 

@@ -6,6 +6,18 @@
 namespace opengl
 {
 
+namespace
+{
+
+template <typename Drawable>
+std::optional<Drawable> make_failed_drawable()
+{
+  CORE_ASSERT(false);
+  return std::nullopt;
+}
+
+} // namespace
+
 PointDrawable::PointDrawable(PointProgram& program,
                              VertexArray vertexArray,
                              VertexBuffer vertexBuffer,
@@ -167,24 +179,20 @@ std::optional<PointDrawable> make_point_drawable(PointProgram& program,
                                                  float pointSize,
                                                  BufferAccessPattern accessPattern)
 {
-  // clang-format off
   auto vertexArray = opengl::VertexArray::create();
   if (!vertexArray.has_value())
   {
-    CORE_ASSERT(false);
-    return {};
+    return make_failed_drawable<PointDrawable>();
   }
   auto vertexBuffer = opengl::VertexBuffer::create(vertices, vertexDimension, program.get_pos_location(), accessPattern);
   if (!vertexBuffer.has_value())
   {
-    CORE_ASSERT(false);
-    return {};
+    return make_failed_drawable<PointDrawable>();
   }
   auto colorBuffer = opengl::VertexBuffer::create(colors, colorDimension, program.get_color_location(), accessPattern);
   if (!colorBuffer.has_value())
   {
-    CORE_ASSERT(false);
-    return {};
+    return make_failed_drawable<PointDrawable>();
   }
   auto vertexPositions = make_vertex_sort_positions(vertices, vertexDimension);
   auto vertexTranslucency = make_vertex_translucency_flags(colors, colorDimension);
@@ -194,16 +202,13 @@ std::optional<PointDrawable> make_point_drawable(PointProgram& program,
   auto opaqueIndexBuffer = opengl::IndexBuffer::create(split.opaqueIndices, accessPattern);
   if (!opaqueIndexBuffer.has_value())
   {
-    CORE_ASSERT(false);
-    return {};
+    return make_failed_drawable<PointDrawable>();
   }
   auto translucentIndexBuffer = opengl::IndexBuffer::create(translucentIndices, accessPattern);
   if (!translucentIndexBuffer.has_value())
   {
-    CORE_ASSERT(false);
-    return {};
+    return make_failed_drawable<PointDrawable>();
   }
-  // clang-format on
   return PointDrawable{program,
                        std::move(vertexArray.value()),
                        std::move(vertexBuffer.value()),

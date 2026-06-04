@@ -37,6 +37,11 @@ enum class SerializedMessageType : std::uint32_t // NOLINT(performance-enum-size
   UpdateLinesWithOpts = 17
 };
 
+constexpr auto serialized_message_type_value(SerializedMessageType type)
+{
+  return static_cast<std::underlying_type_t<SerializedMessageType>>(type);
+}
+
 template <typename T>
 void write_pod(std::ostream& stream, const T& value)
 {
@@ -298,23 +303,24 @@ MessageReader::MessageReader(std::istream& stream)
 
 GeoQikLogEntry MessageReader::read()
 {
-  switch (read_pod<SerializedMessageType>(m_stream))
+  const auto messageType = read_pod<std::underlying_type_t<SerializedMessageType>>(m_stream);
+  switch (messageType)
   {
-  case SerializedMessageType::AddPointWithOpts:
+  case serialized_message_type_value(SerializedMessageType::AddPointWithOpts):
     return AddPointWithOpts{read_pod<float>(m_stream), read_pod<float>(m_stream), read_pod<float>(m_stream), read_common_data(m_stream)};
-  case SerializedMessageType::AddPointsWithOpts: return AddPointsWithOpts{read_float_vector(m_stream), read_common_data(m_stream)};
-  case SerializedMessageType::UpdatePointWithOpts:
+  case serialized_message_type_value(SerializedMessageType::AddPointsWithOpts): return AddPointsWithOpts{read_float_vector(m_stream), read_common_data(m_stream)};
+  case serialized_message_type_value(SerializedMessageType::UpdatePointWithOpts):
     return UpdatePointWithOpts{read_uuid(m_stream),
                                read_pod<float>(m_stream),
                                read_pod<float>(m_stream),
                                read_pod<float>(m_stream),
                                read_float_vector(m_stream)};
-  case SerializedMessageType::UpdatePointsWithOpts:
+  case serialized_message_type_value(SerializedMessageType::UpdatePointsWithOpts):
     return UpdatePointsWithOpts{read_uuid(m_stream), read_float_vector(m_stream), read_float_vector(m_stream)};
-  case SerializedMessageType::RemovePoint: return RemovePoint{read_uuid(m_stream)};
-  case SerializedMessageType::SetPointSize: return SetPointSize{read_pod<float>(m_stream)};
-  case SerializedMessageType::SetPointColor: return SetPointColor{read_color(m_stream)};
-  case SerializedMessageType::AddLineWithOpts:
+  case serialized_message_type_value(SerializedMessageType::RemovePoint): return RemovePoint{read_uuid(m_stream)};
+  case serialized_message_type_value(SerializedMessageType::SetPointSize): return SetPointSize{read_pod<float>(m_stream)};
+  case serialized_message_type_value(SerializedMessageType::SetPointColor): return SetPointColor{read_color(m_stream)};
+  case serialized_message_type_value(SerializedMessageType::AddLineWithOpts):
     return AddLineWithOpts{read_pod<float>(m_stream),
                            read_pod<float>(m_stream),
                            read_pod<float>(m_stream),
@@ -322,8 +328,8 @@ GeoQikLogEntry MessageReader::read()
                            read_pod<float>(m_stream),
                            read_pod<float>(m_stream),
                            read_common_data(m_stream)};
-  case SerializedMessageType::AddLinesWithOpts: return AddLinesWithOpts{read_float_vector(m_stream), read_common_data(m_stream)};
-  case SerializedMessageType::UpdateLineWithOpts:
+  case serialized_message_type_value(SerializedMessageType::AddLinesWithOpts): return AddLinesWithOpts{read_float_vector(m_stream), read_common_data(m_stream)};
+  case serialized_message_type_value(SerializedMessageType::UpdateLineWithOpts):
     return UpdateLineWithOpts{read_uuid(m_stream),
                               read_pod<float>(m_stream),
                               read_pod<float>(m_stream),
@@ -332,15 +338,15 @@ GeoQikLogEntry MessageReader::read()
                               read_pod<float>(m_stream),
                               read_pod<float>(m_stream),
                               read_float_vector(m_stream)};
-  case SerializedMessageType::UpdateLinesWithOpts:
+  case serialized_message_type_value(SerializedMessageType::UpdateLinesWithOpts):
     return UpdateLinesWithOpts{read_uuid(m_stream), read_float_vector(m_stream), read_float_vector(m_stream)};
-  case SerializedMessageType::RemoveLine: return RemoveLine{read_uuid(m_stream)};
-  case SerializedMessageType::SetLineWidth: return SetLineWidth{read_pod<float>(m_stream)};
-  case SerializedMessageType::SetLineColor: return SetLineColor{read_color(m_stream)};
-  case SerializedMessageType::RemoveAllGeometry: return RemoveAllGeometry{};
-  case SerializedMessageType::TranslateGeometry:
+  case serialized_message_type_value(SerializedMessageType::RemoveLine): return RemoveLine{read_uuid(m_stream)};
+  case serialized_message_type_value(SerializedMessageType::SetLineWidth): return SetLineWidth{read_pod<float>(m_stream)};
+  case serialized_message_type_value(SerializedMessageType::SetLineColor): return SetLineColor{read_color(m_stream)};
+  case serialized_message_type_value(SerializedMessageType::RemoveAllGeometry): return RemoveAllGeometry{};
+  case serialized_message_type_value(SerializedMessageType::TranslateGeometry):
     return TranslateGeometry{read_uuid(m_stream), read_pod<float>(m_stream), read_pod<float>(m_stream), read_pod<float>(m_stream)};
-  case SerializedMessageType::RotateGeometry:
+  case serialized_message_type_value(SerializedMessageType::RotateGeometry):
     return RotateGeometry{read_uuid(m_stream),
                           read_pod<float>(m_stream),
                           read_pod<float>(m_stream),

@@ -1,6 +1,7 @@
 #include "OpenGL/Uniform.hpp"
-#include <Core/Assert.hpp>
+
 #include "OpenGL/FmtIncludeHelper.hpp"
+#include <Core/Assert.hpp>
 
 namespace opengl
 {

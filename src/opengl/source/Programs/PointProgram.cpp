@@ -1,7 +1,8 @@
 #include "OpenGL/Programs/PointProgram.hpp"
+
+#include "OpenGL/FmtIncludeHelper.hpp"
 #include "OpenGL/Programs/CreateProgram.hpp"
 #include "OpenGL/ShaderSources.hpp"
-#include "OpenGL/FmtIncludeHelper.hpp"
 #include <Core/Assert.hpp>
 #include <string>
 #include <utility>

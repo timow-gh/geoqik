@@ -6,6 +6,18 @@
 namespace opengl
 {
 
+namespace
+{
+
+template <typename Drawable>
+std::optional<Drawable> make_failed_drawable()
+{
+  CORE_ASSERT(false);
+  return std::nullopt;
+}
+
+} // namespace
+
 MeshDrawable::MeshDrawable(MeshProgram& program,
                            VertexArray vertexArray,
                            VertexBuffer vertexBuffer,
@@ -95,44 +107,39 @@ void MeshDrawable::draw(const linal::hmatf& modelMatrix,
 }
 
 std::optional<MeshDrawable> make_mesh_soup(MeshProgram& program,
-                            std::span<const float> vertices,
-                            std::int32_t vertexDimension,
-                            std::span<const float> normals,
-                            std::span<const float> colors,
-                            std::int32_t colorDimension,
-                            std::span<const std::uint32_t> triangleIndices,
-                            BufferAccessPattern accessPattern)
+                                           std::span<const float> vertices,
+                                           std::int32_t vertexDimension,
+                                           std::span<const float> normals,
+                                           std::span<const float> colors,
+                                           std::int32_t colorDimension,
+                                           std::span<const std::uint32_t> triangleIndices,
+                                           BufferAccessPattern accessPattern)
 {
   // Order of creation matters! Create the vertex array first, then the buffers.
   auto vertexArray = VertexArray::create();
   if (!vertexArray.has_value())
   {
-    CORE_ASSERT(false);
-    return std::nullopt;
+    return make_failed_drawable<MeshDrawable>();
   }
   auto vertexBuffer = VertexBuffer::create(vertices, vertexDimension, program.get_pos_location(), accessPattern);
   if (!vertexBuffer.has_value())
   {
-    CORE_ASSERT(false);
-    return std::nullopt;
+    return make_failed_drawable<MeshDrawable>();
   }
   auto vertexNormalsBuffer = VertexBuffer::create(normals, vertexDimension, program.get_normal_location(), accessPattern);
   if (!vertexNormalsBuffer.has_value())
   {
-    CORE_ASSERT(false);
-    return std::nullopt;
+    return make_failed_drawable<MeshDrawable>();
   }
   auto colorBuffer = VertexBuffer::create(colors, colorDimension, program.get_color_location(), accessPattern);
   if (!colorBuffer.has_value())
   {
-    CORE_ASSERT(false);
-    return std::nullopt;
+    return make_failed_drawable<MeshDrawable>();
   }
-  auto triangleIndicesBuffer = IndexBuffer::create(triangleIndices.data(), static_cast<GLsizei>(triangleIndices.size()), accessPattern);
+  auto triangleIndicesBuffer = IndexBuffer::create(triangleIndices, accessPattern);
   if (!triangleIndicesBuffer.has_value())
   {
-    CORE_ASSERT(false);
-    return std::nullopt;
+    return make_failed_drawable<MeshDrawable>();
   }
   return MeshDrawable{program,
                       std::move(vertexArray.value()),

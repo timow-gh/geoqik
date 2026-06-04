@@ -33,8 +33,6 @@ public:
 
   void reset() noexcept;
 
-  static std::optional<IndexBuffer> create(const unsigned int indices[], GLsizei indexCount, BufferAccessPattern accessPattern);
-
   static std::optional<IndexBuffer> create(std::span<const std::uint32_t> indices, BufferAccessPattern accessPattern);
 
   [[nodiscard]] const BufferId& get_buffer_id() const;
@@ -43,12 +41,12 @@ public:
   void set_index_count(GLsizei indexCount) { m_indexCount = indexCount; }
 
   void bind() const;
-  void unbind() const;
+  static void unbind();
 
   void update_indices_buffer(std::span<const std::uint32_t> indices, BufferAccessPattern accessPattern);
 
-  private:
-    IndexBuffer(BufferId id, GLsizei indexCount);
+private:
+  IndexBuffer(BufferId id, GLsizei indexCount);
 };
 
 } // namespace opengl

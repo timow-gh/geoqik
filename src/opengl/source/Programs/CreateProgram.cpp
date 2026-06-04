@@ -1,43 +1,52 @@
 #include "OpenGL/Programs/CreateProgram.hpp"
+
 #include "Core/ScopedAction.hpp"
 #include "OpenGL/FmtIncludeHelper.hpp"
 #include <Core/Assert.hpp>
+#include <array>
 
 namespace opengl
 {
 
+namespace
+{
+
+constexpr GLsizei shaderInfoLogSize = 512;
+
+} // namespace
+
 ProgramHandle create_program(const char* vertexShaderSource, const char* fragmentShaderSource)
 {
   // compile vertex shader
-  unsigned int vertexShader = glCreateShader(GL_VERTEX_SHADER);
+  GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);
   core::ScopedAction vertexSaderDeleter = core::make_scoped_action([&vertexShader]() { glDeleteShader(vertexShader); });
-  glShaderSource(vertexShader, 1, &vertexShaderSource, NULL);
+  glShaderSource(vertexShader, 1, &vertexShaderSource, nullptr);
   glCompileShader(vertexShader);
 
   // check vertex shader compile errors
-  int success;
-  char infoLog[512];
+  GLint success{GL_FALSE};
+  std::array<GLchar, shaderInfoLogSize> infoLog{};
   glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &success);
-  if (!success)
+  if (success == GL_FALSE)
   {
-    glGetShaderInfoLog(vertexShader, 512, NULL, infoLog);
-    fmt::print("Vertex shader compilation failed:\n{}\n", infoLog);
+    glGetShaderInfoLog(vertexShader, shaderInfoLogSize, nullptr, infoLog.data());
+    fmt::print("Vertex shader compilation failed:\n{}\n", infoLog.data());
     CORE_ASSERT(success == GL_TRUE);
     return ProgramHandle{};
   }
 
   // compile fragment shader
-  unsigned int fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
+  GLuint fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
   core::ScopedAction fragmentShaderDeleter = core::make_scoped_action([&fragmentShader]() { glDeleteShader(fragmentShader); });
-  glShaderSource(fragmentShader, 1, &fragmentShaderSource, NULL);
+  glShaderSource(fragmentShader, 1, &fragmentShaderSource, nullptr);
   glCompileShader(fragmentShader);
 
   // check fragment shader compile errors
   glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &success);
-  if (!success)
+  if (success == GL_FALSE)
   {
-    glGetShaderInfoLog(fragmentShader, 512, NULL, infoLog);
-    fmt::print("Fragment shader compilation failed:\n{}\n", infoLog);
+    glGetShaderInfoLog(fragmentShader, shaderInfoLogSize, nullptr, infoLog.data());
+    fmt::print("Fragment shader compilation failed:\n{}\n", infoLog.data());
     CORE_ASSERT(success == GL_TRUE);
     return ProgramHandle{};
   }
@@ -50,11 +59,11 @@ ProgramHandle create_program(const char* vertexShaderSource, const char* fragmen
 
   // check shader program link errors
   glGetProgramiv(programId, GL_LINK_STATUS, &success);
-  if (!success)
+  if (success == GL_FALSE)
   {
-    glGetProgramInfoLog(programId, 512, NULL, infoLog);
+    glGetProgramInfoLog(programId, shaderInfoLogSize, nullptr, infoLog.data());
     glDeleteProgram(programId);
-    fmt::print("Shader program link failed:\n{}\n", infoLog);
+    fmt::print("Shader program link failed:\n{}\n", infoLog.data());
     CORE_ASSERT(success == GL_TRUE);
     return ProgramHandle{};
   }

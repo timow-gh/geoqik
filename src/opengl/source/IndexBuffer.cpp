@@ -1,6 +1,7 @@
 #include "OpenGL/IndexBuffer.hpp"
 
 #include <Core/Assert.hpp>
+#include <cstdint>
 #include <utility>
 
 namespace opengl
@@ -39,7 +40,7 @@ void IndexBuffer::reset() noexcept
   m_indexCount = 0;
 }
 
-std::optional<IndexBuffer> IndexBuffer::create(const unsigned int indices[], GLsizei indexCount, BufferAccessPattern accessPattern)
+std::optional<IndexBuffer> IndexBuffer::create(std::span<const std::uint32_t> indices, BufferAccessPattern accessPattern)
 {
   BufferId id;
   glGenBuffers(1, &id.get_value());
@@ -49,17 +50,12 @@ std::optional<IndexBuffer> IndexBuffer::create(const unsigned int indices[], GLs
     return std::nullopt;
   }
 
-  IndexBuffer buffer{std::move(id), indexCount};
+  IndexBuffer buffer{id, static_cast<GLsizei>(indices.size())};
   buffer.bind();
-  const auto size = static_cast<GLsizeiptr>(static_cast<std::uint64_t>(indexCount) * sizeof(unsigned int));
-  glBufferData(GL_ELEMENT_ARRAY_BUFFER, size, indices, get_enum_value(accessPattern));
+  const auto size = static_cast<GLsizeiptr>(static_cast<std::uint64_t>(indices.size()) * sizeof(std::uint32_t));
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, size, indices.data(), get_enum_value(accessPattern));
 
   return std::optional<IndexBuffer>{std::move(buffer)};
-}
-
-std::optional<IndexBuffer> IndexBuffer::create(std::span<const std::uint32_t> indices, BufferAccessPattern accessPattern)
-{
-  return create(indices.data(), static_cast<GLsizei>(indices.size()), accessPattern);
 }
 
 const BufferId& IndexBuffer::get_buffer_id() const
@@ -74,7 +70,7 @@ void IndexBuffer::bind() const
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_id.value().get_value());
 }
 
-void IndexBuffer::unbind() const
+void IndexBuffer::unbind()
 {
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 }
@@ -82,14 +78,14 @@ void IndexBuffer::unbind() const
 void IndexBuffer::update_indices_buffer(std::span<const std::uint32_t> indices, BufferAccessPattern accessPattern)
 {
   bind();
-  const GLsizeiptr size = static_cast<GLsizeiptr>(indices.size() * sizeof(std::uint32_t));
+  const auto size = static_cast<GLsizeiptr>(indices.size() * sizeof(std::uint32_t));
   glBufferData(GL_ELEMENT_ARRAY_BUFFER, size, nullptr, get_enum_value(accessPattern));
   glBufferData(GL_ELEMENT_ARRAY_BUFFER, size, indices.data(), get_enum_value(accessPattern));
   set_index_count(static_cast<GLsizei>(indices.size()));
 }
 
 IndexBuffer::IndexBuffer(BufferId id, GLsizei indexCount)
-    : m_id(std::move(id))
+    : m_id(id)
     , m_indexCount(indexCount)
 {
 }

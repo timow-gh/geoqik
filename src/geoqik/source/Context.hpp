@@ -69,9 +69,7 @@ class Context
   std::unique_ptr<OpenGLSceneRenderer> m_renderer;
   bool m_isDrawing{false};
   std::size_t m_frameCount{0};
-  std::size_t m_drawAtEveryNGeometryChanges{10};
   std::size_t m_geometryMessagesProcessedThisFrame{0};
-  float m_drawAtEveryNPercentOfMessages{10.0f};
   std::vector<GeoQikLogEntry> m_messageLog;
   std::vector<GeoQikLogEntry> m_replayEntries;
   std::vector<ReplayUndoFrame> m_replayUndoStack;

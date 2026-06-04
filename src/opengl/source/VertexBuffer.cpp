@@ -66,7 +66,7 @@ VertexBuffer::create(std::span<const float> vectors, GLsizei vectorDimension, Lo
                         GL_FLOAT,
                         GL_FALSE,
                         stride,
-                        static_cast<void*>(0));
+                        nullptr);
 
   return VertexBuffer{BufferId{bufferId}, vectorDimension, stride, bufferLocation};
 }
@@ -87,10 +87,10 @@ void VertexBuffer::bind() const
                         GL_FLOAT,
                         GL_FALSE,
                         m_stride,
-                        static_cast<void*>(0));
+                        nullptr);
 }
 
-void VertexBuffer::unbind() const
+void VertexBuffer::unbind()
 {
   glBindBuffer(GL_ARRAY_BUFFER, 0);
 }

@@ -38,7 +38,7 @@ public:
 
   void bind() const;
 
-  void unbind() const;
+  static void unbind();
 
   void update_buffer(std::span<const float> vertices, BufferAccessPattern accessPattern);
 
