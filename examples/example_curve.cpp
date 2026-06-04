@@ -28,12 +28,23 @@ constexpr float opaque = 1.0F;
 
 void add_float3_with_color(const linal::float3& point)
 {
-  geoqik_add_point_with_color(point[0], point[1], point[2], 0.0F, opaque, 0.0F, opaque);
+  geoqik_add_point_with_color(
+    static_cast<double>(point[0]), static_cast<double>(point[1]), static_cast<double>(point[2]), 0.0F, opaque, 0.0F, opaque);
 }
 
 void add_line_with_color(const linal::float3& start, const linal::float3& end)
 {
-  geoqik_add_line_with_color(start[0], start[1], start[2], end[0], end[1], end[2], 0.0F, opaque, 0.0F, opaque);
+  geoqik_add_line_with_color(
+    static_cast<double>(start[0]),
+    static_cast<double>(start[1]),
+    static_cast<double>(start[2]),
+    static_cast<double>(end[0]),
+    static_cast<double>(end[1]),
+    static_cast<double>(end[2]),
+    0.0F,
+    opaque,
+    0.0F,
+    opaque);
 }
 
 void draw_curve_points(const std::array<linal::float3, curveControlPointCount>& startPoints, std::size_t approxSteps)

@@ -13,16 +13,28 @@ struct Point
   double x, y, z;
 };
 
+namespace
+{
+
+constexpr float pointSize = 5.0F;
+constexpr float lineWidth = 2.0F;
+constexpr float cyanRed = 0.0F;
+constexpr float cyanGreen = 0.7F;
+constexpr float cyanBlue = 1.0F;
+constexpr float opaque = 1.0F;
+
+} // namespace
+
 int main()
 {
   geoqik_init();
 
-  geoqik_set_point_size(5.0f);
-  geoqik_set_line_width(2.0f);
+  geoqik_set_point_size(pointSize);
+  geoqik_set_line_width(lineWidth);
 
   geoqik_draw();
   geoqik::examples::draw_origin(1.0);
-  geoqik_set_point_color(0.0f, 0.7f, 1.0f, 1.0f); // Cyan
+  geoqik_set_point_color(cyanRed, cyanGreen, cyanBlue, opaque); // Cyan
 
   constexpr double radius = 15.0;
   constexpr int latitudeDivisions = 10;  // Number of horizontal rings
