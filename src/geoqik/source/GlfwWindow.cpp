@@ -5,6 +5,18 @@
 namespace geoqik
 {
 
+namespace
+{
+
+void* load_glfw_proc(const char* procName)
+{
+  // GLAD v1 expects void* while GLFW returns an opaque function pointer.
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+  return reinterpret_cast<void*>(glfwGetProcAddress(procName));
+}
+
+} // namespace
+
 GlfwWindow::~GlfwWindow()
 {
   destroy();
@@ -50,7 +62,7 @@ bool GlfwWindow::create(const WindowSettings& settings)
   }
 
   make_context_current();
-  if (gladLoadGLLoader(reinterpret_cast<GLADloadproc>(glfwGetProcAddress)) == 0)
+  if (gladLoadGLLoader(load_glfw_proc) == 0)
   {
     fmt::print("Failed to initialize OpenGL context\n");
     destroy();
@@ -63,7 +75,7 @@ bool GlfwWindow::create(const WindowSettings& settings)
 
 void GlfwWindow::destroy()
 {
-  if (!m_window)
+  if (m_window == nullptr)
   {
     return;
   }
@@ -80,7 +92,7 @@ void GlfwWindow::make_context_current() const
   glfwMakeContextCurrent(m_window);
 }
 
-void GlfwWindow::poll_events() const
+void GlfwWindow::poll_events()
 {
   glfwPollEvents();
 }

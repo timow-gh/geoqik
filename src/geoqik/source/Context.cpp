@@ -398,7 +398,7 @@ void Context::run_event_loop()
     linal::hmatf mvp;
     mvp = m_cameraInteractor->get_current_MVP();
 
-    m_window->poll_events();
+    GlfwWindow::poll_events();
     update_camera_interaction_state();
     if (should_close_event_loop())
     {

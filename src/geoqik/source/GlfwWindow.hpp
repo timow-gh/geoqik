@@ -26,7 +26,7 @@ public:
   [[nodiscard]] bool is_initialized() const { return m_window != nullptr; }
 
   void make_context_current() const;
-  void poll_events() const;
+  static void poll_events();
   void swap_buffers() const;
 
   [[nodiscard]] bool should_close() const;
