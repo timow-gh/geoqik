@@ -19,10 +19,10 @@ constexpr double replayEntriesPerSecond = 240.0;
 constexpr double replaySpeedMultiplier = 4.0;
 constexpr double gridExtent = 10.0;
 constexpr double replayDelaySeconds = 1.0;
-constexpr float translationX = 15.0F;
-constexpr float translationZ = 8.0F;
-constexpr float rotationAngleDegrees = 260.0F;
-constexpr float opaque = 1.0F;
+constexpr double translationX = 15.0;
+constexpr double translationZ = 8.0;
+constexpr double rotationAngleDegrees = 260.0;
+constexpr double opaque = 1.0;
 
 } // namespace
 
