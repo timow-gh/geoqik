@@ -16,6 +16,8 @@ A lightweight C++ library for visualizing 3D geometry during debugging. Add poin
 - A C++20 compiler (MSVC, GCC, Clang)
 - [vcpkg](https://vcpkg.io)
 
+Windows builds are tested with the x64 MSVC/MSBuild toolchain. CI runs the MSVC presets on GitHub Actions `windows-latest` after `microsoft/setup-msbuild@v2`; Visual Studio 2022 Build Tools with the MSVC v143 toolset is the expected local setup.
+
 ## Integration
 
 GeoQik is distributed as a shared library (`geoqik.dll` / `libgeoqik.so`). Consumers need no additional dependencies — everything is absorbed into the library.
@@ -81,7 +83,7 @@ The build requires vcpkg — set `VCPKG_ROOT` to your vcpkg installation directo
 sudo apt install libgl1-mesa-dev xorg-dev
 ```
 
-**Windows (MSVC)**
+**Windows (MSVC / Visual Studio 2022 Build Tools)**
 ```
 cmake --workflow --preset workflow-test-msvc-release
 ```
