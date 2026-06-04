@@ -26,28 +26,17 @@ constexpr float opaque = 1.0F;
 
 } // namespace
 
-void add_float3_with_color(const linal::float3& point)
+void add_float3_with_color(const linal::double3& point)
 {
-  geoqik_add_point_with_color(
-    static_cast<double>(point[0]), static_cast<double>(point[1]), static_cast<double>(point[2]), 0.0F, opaque, 0.0F, opaque);
+  geoqik_add_point_with_color(point[0], point[1], point[2], 0.0F, opaque, 0.0F, opaque);
 }
 
-void add_line_with_color(const linal::float3& start, const linal::float3& end)
+void add_line_with_color(const linal::double3& start, const linal::double3& end)
 {
-  geoqik_add_line_with_color(
-    static_cast<double>(start[0]),
-    static_cast<double>(start[1]),
-    static_cast<double>(start[2]),
-    static_cast<double>(end[0]),
-    static_cast<double>(end[1]),
-    static_cast<double>(end[2]),
-    0.0F,
-    opaque,
-    0.0F,
-    opaque);
+  geoqik_add_line_with_color(start[0], start[1], start[2], end[0], end[1], end[2], 0.0F, opaque, 0.0F, opaque);
 }
 
-void draw_curve_points(const std::array<linal::float3, curveControlPointCount>& startPoints, std::size_t approxSteps)
+void draw_curve_points(const std::array<linal::double3, curveControlPointCount>& startPoints, std::size_t approxSteps)
 {
   bool initialized = false;
   geoqik_is_api_initialized(&initialized);
@@ -55,30 +44,30 @@ void draw_curve_points(const std::array<linal::float3, curveControlPointCount>& 
 
   std::for_each(startPoints.begin(), startPoints.end(), add_float3_with_color);
 
-  const linal::float3 translationA{translationX, 0.0F, 0.0F};
-  const linal::float3 translationB{0.0F, 0.0F, translationZ};
-  const float angle = linal::degrees_to_radians(rotationAngleDegrees);
-  std::array<linal::float3, curveControlPointCount> prevPoints{};
+  const linal::double3 translationA{translationX, 0.0, 0.0};
+  const linal::double3 translationB{0.0, 0.0, translationZ};
+  const double angle = linal::degrees_to_radians(rotationAngleDegrees);
+  std::array<linal::double3, curveControlPointCount> prevPoints{};
   prevPoints = startPoints;
   for (std::size_t i = 1; i < approxSteps; ++i)
   {
-    std::array<linal::float3, curveControlPointCount> transformedPoint{};
+    std::array<linal::double3, curveControlPointCount> transformedPoint{};
     transformedPoint = startPoints;
 
-    auto translationStep = static_cast<float>(i) / static_cast<float>(approxSteps - 1) * translationA;
+    auto translationStep = static_cast<double>(i) / static_cast<double>(approxSteps - 1) * translationA;
     for (auto& point : transformedPoint)
     {
       point += translationStep;
     }
 
-    translationStep = static_cast<float>(i) / static_cast<float>(approxSteps - 1) * translationB;
+    translationStep = static_cast<double>(i) / static_cast<double>(approxSteps - 1) * translationB;
     for (auto& point : transformedPoint)
     {
       point += translationStep;
     }
 
-    linal::float33 rot{};
-    const auto angleStep = static_cast<float>(i) / static_cast<float>(approxSteps - 1) * angle;
+    linal::double33 rot{};
+    const auto angleStep = static_cast<double>(i) / static_cast<double>(approxSteps - 1) * angle;
     linal::rot_z(rot, angleStep);
     for (auto& point : transformedPoint)
     {
@@ -117,17 +106,17 @@ int main()
 
   geoqik_draw();
 
-  std::array<linal::float3, curveControlPointCount> startPoints{
-    linal::float3{0.0F, 0.0F, 0.0F},
-    linal::float3{opaque, 0.0F, 0.0F},
-    linal::float3{opaque, 0.0F, opaque},
-    linal::float3{0.0F, 0.0F, opaque}
+  std::array<linal::double3, curveControlPointCount> startPoints{
+    linal::double3{0.0, 0.0, 0.0},
+    linal::double3{opaque, 0.0, 0.0},
+    linal::double3{opaque, 0.0, opaque},
+    linal::double3{0.0, 0.0, opaque}
   };
   draw_curve_points(startPoints, curveStepCount);
 
   for (auto& point : startPoints)
   {
-    point += linal::float3{translationX, 0.0F, 0.0F};
+    point += linal::double3{translationX, 0.0, 0.0};
   }
   draw_curve_points(startPoints, translatedCurveStepCount);
 
