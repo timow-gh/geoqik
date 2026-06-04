@@ -8,6 +8,10 @@ inputs:
     description: 'Additional tools to install (space-separated list: lcov, clang-tidy, cppcheck)'
     required: false
     default: ''
+  build_native_args:
+    description: 'Additional native build-tool arguments passed after cmake --build --'
+    required: false
+    default: ''
 
 runs:
   using: "composite"
@@ -50,7 +54,11 @@ runs:
     
     - name: Build
       run: |
-        cmake --build --preset ${{ steps.preset.outputs.build }}
+        if [ -n "${{ inputs.build_native_args }}" ]; then
+          cmake --build --preset ${{ steps.preset.outputs.build }} -- ${{ inputs.build_native_args }}
+        else
+          cmake --build --preset ${{ steps.preset.outputs.build }}
+        fi
       shell: bash
     
     - name: Test
