@@ -7,9 +7,30 @@ class TestGeoQikApi_Points : public ::testing::Test
 {
 };
 
+namespace
+{
+
+geoqik_error_code_t init_hidden_geoqik(const geoqik_settings_t* settings = nullptr)
+{
+  geoqik_window_settings_t windowSettings;
+  geoqik_init_default_window_settings(&windowSettings);
+  windowSettings.visible = 0;
+
+  if (settings != nullptr)
+  {
+    return geoqik_init_with_settings(settings, &windowSettings);
+  }
+
+  geoqik_settings_t defaultSettings;
+  geoqik_create_default_settings(&defaultSettings);
+  return geoqik_init_with_settings(&defaultSettings, &windowSettings);
+}
+
+} // namespace
+
 TEST_F(TestGeoQikApi_Points, AddPoint)
 {
-  geoqik_init();
+  ASSERT_EQ(GEOQIK_SUCCESS, init_hidden_geoqik());
 
   geoqik_result_t result1 = geoqik_add_point(0.0, 0.0, 0.0);
   geoqik_result_t result2 = geoqik_add_point(1.0, 0.0, 0.0);
@@ -30,7 +51,7 @@ TEST_F(TestGeoQikApi_Points, AddPoint)
 
 TEST_F(TestGeoQikApi_Points, AddPointWithHandle)
 {
-  geoqik_init();
+  ASSERT_EQ(GEOQIK_SUCCESS, init_hidden_geoqik());
 
   geoqik_draw();
 
@@ -51,7 +72,7 @@ TEST_F(TestGeoQikApi_Points, CheckMaximumPointsCapacity)
   geoqik_create_default_settings(&settings);
   settings.initialPointCapacity = 3;
 
-  geoqik_init_with_settings(&settings, nullptr);
+  ASSERT_EQ(GEOQIK_SUCCESS, init_hidden_geoqik(&settings));
 
   for (int i = 0; i < settings.initialPointCapacity; ++i)
   {
@@ -65,7 +86,7 @@ TEST_F(TestGeoQikApi_Points, CheckMaximumPointsCapacity)
 
 TEST_F(TestGeoQikApi_Points, PointSizeGetSet)
 {
-  geoqik_init();
+  ASSERT_EQ(GEOQIK_SUCCESS, init_hidden_geoqik());
 
   float initialSize;
   geoqik_get_point_size(&initialSize);
@@ -82,7 +103,7 @@ TEST_F(TestGeoQikApi_Points, PointSizeGetSet)
 
 TEST_F(TestGeoQikApi_Points, PointColorGetSet)
 {
-  geoqik_init();
+  ASSERT_EQ(GEOQIK_SUCCESS, init_hidden_geoqik());
 
   float initialR;
   float initialG;
@@ -108,7 +129,7 @@ TEST_F(TestGeoQikApi_Points, PointColorGetSet)
 
 TEST_F(TestGeoQikApi_Points, AddPointWithColor)
 {
-  geoqik_init();
+  ASSERT_EQ(GEOQIK_SUCCESS, init_hidden_geoqik());
 
   const float r = 0.5f, g = 0.6f, b = 0.7f, a = 0.8f;
 
@@ -155,7 +176,7 @@ TEST_F(TestGeoQikApi_Points, UpdatePointValidation)
 
 TEST_F(TestGeoQikApi_Points, UpdatePointEnqueues)
 {
-  geoqik_init();
+  ASSERT_EQ(GEOQIK_SUCCESS, init_hidden_geoqik());
 
   geoqik_result_t result = geoqik_add_point(0.0, 0.0, 0.0);
   ASSERT_EQ(result.err, GEOQIK_SUCCESS);

@@ -7,7 +7,6 @@
 #include "WindowSettings.hpp"
 #include <array>
 #include <atomic>
-#include <barrier>
 #include <cmath>
 #include <future>
 #include <initializer_list>
@@ -477,31 +476,48 @@ static auto execute_if_not_initialized(Func&& func) -> std::invoke_result_t<Func
 
 static geoqik_error_code_t run_render_thread(const geoqik::GeoQikSettings& geoqikSettings,
                                              const geoqik::WindowSettings& settings,
-                                             const std::shared_ptr<std::barrier<>>& initBarrier)
+                                             const std::shared_ptr<std::promise<geoqik_error_code_t>>& initResult)
 {
+  auto setInitResult = [&initResult](geoqik_error_code_t result)
+  {
+    try
+    {
+      initResult->set_value(result);
+    }
+    catch (const std::future_error&)
+    {
+    }
+  };
+
   try
   {
     auto context = std::make_unique<Context>();
-    context->init_window(geoqikSettings, settings);
+    if (!context->init_window(geoqikSettings, settings))
+    {
+      setInitResult(GEOQIK_ERROR_UNKNOWN);
+      return GEOQIK_ERROR_UNKNOWN;
+    }
 
-    initBarrier->arrive_and_wait(); // Synchronize with the calling thread, calls to the GeoQik API aren't allowed before this point.
-
+    setInitResult(GEOQIK_SUCCESS);
     context->run_event_loop();
     return GEOQIK_SUCCESS;
   }
   catch (const std::bad_alloc&)
   {
+    setInitResult(GEOQIK_ERROR_MEMORY_ALLOCATION);
     return GEOQIK_ERROR_MEMORY_ALLOCATION;
   }
   catch (const std::exception& e)
   {
     std::cerr << "Exception in GeoQik render thread: " << e.what() << '\n';
+    setInitResult(GEOQIK_ERROR_UNKNOWN);
     return GEOQIK_ERROR_UNKNOWN;
   }
   catch (...)
   {
     get_message_queue().clear();
     api_is_initialized_storage().store(false, std::memory_order_release);
+    setInitResult(GEOQIK_ERROR_UNKNOWN);
     return GEOQIK_ERROR_UNKNOWN;
   }
 }
@@ -520,9 +536,19 @@ static geoqik_error_code_t start_geoqik_thread(const geoqik::GeoQikSettings& geo
     auto& renderThread = get_render_thread();
     if (!renderThread.joinable())
     {
-      std::shared_ptr<std::barrier<>> initBarrier = std::make_shared<std::barrier<>>(2);
-      renderThread = std::thread(run_render_thread, geoqikSettings, settings, initBarrier);
-      initBarrier->arrive_and_wait(); // Ensure the thread is initialized before proceeding
+      auto initPromise = std::make_shared<std::promise<geoqik_error_code_t>>();
+      std::future<geoqik_error_code_t> initFuture = initPromise->get_future();
+      renderThread = std::thread(run_render_thread, geoqikSettings, settings, initPromise);
+
+      const geoqik_error_code_t initResult = initFuture.get();
+      if (initResult != GEOQIK_SUCCESS)
+      {
+        if (renderThread.joinable())
+        {
+          renderThread.join();
+        }
+        return initResult;
+      }
     }
     return GEOQIK_SUCCESS;
   }
@@ -595,8 +621,12 @@ geoqik_error_code_t geoqik_init()
         try
         {
           init_message_queue(ConcurrentQueue<GeoQikMessage>(defaultGeoQikSettings.maxMessageQueueSize));
-          geoqik_internal::start_geoqik_thread(defaultGeoQikSettings, defaultWindowSettings);
-          return GEOQIK_SUCCESS;
+          geoqik_error_code_t result = geoqik_internal::start_geoqik_thread(defaultGeoQikSettings, defaultWindowSettings);
+          if (result != GEOQIK_SUCCESS)
+          {
+            api_is_initialized_storage().store(false, std::memory_order_release);
+          }
+          return result;
         }
         catch (...)
         {
@@ -639,8 +669,12 @@ geoqik_error_code_t geoqik_init_with_settings(const geoqik_settings_t* geoqikSet
         try
         {
           init_message_queue(ConcurrentQueue<GeoQikMessage>(cppGeoQikSettings.maxMessageQueueSize));
-          geoqik_internal::start_geoqik_thread(cppGeoQikSettings, cppWindowSettings);
-          return GEOQIK_SUCCESS;
+          geoqik_error_code_t result = geoqik_internal::start_geoqik_thread(cppGeoQikSettings, cppWindowSettings);
+          if (result != GEOQIK_SUCCESS)
+          {
+            api_is_initialized_storage().store(false, std::memory_order_release);
+          }
+          return result;
         }
         catch (...)
         {

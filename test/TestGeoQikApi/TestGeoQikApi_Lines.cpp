@@ -6,10 +6,31 @@ class GeoQikTest_Lines : public ::testing::Test
 {
 };
 
+namespace
+{
+
+geoqik_error_code_t init_hidden_geoqik(const geoqik_settings_t* settings = nullptr)
+{
+  geoqik_window_settings_t windowSettings;
+  geoqik_init_default_window_settings(&windowSettings);
+  windowSettings.visible = 0;
+
+  if (settings != nullptr)
+  {
+    return geoqik_init_with_settings(settings, &windowSettings);
+  }
+
+  geoqik_settings_t defaultSettings;
+  geoqik_create_default_settings(&defaultSettings);
+  return geoqik_init_with_settings(&defaultSettings, &windowSettings);
+}
+
+} // namespace
+
 
 TEST_F(GeoQikTest_Lines, AddLine)
 {
-  geoqik_init();
+  ASSERT_EQ(GEOQIK_SUCCESS, init_hidden_geoqik());
 
   geoqik_add_line(0.0, 0.0, 0.0, 1.0, 0.0, 0.0);
   geoqik_add_line(0.0, 0.0, 0.0, 0.0, 1.0, 0.0);
@@ -25,7 +46,7 @@ TEST_F(GeoQikTest_Lines, CheckMaximumLinesCapacity)
   geoqik_create_default_settings(&settings);
   settings.initialLineCapacity = 3;
 
-  geoqik_init_with_settings(&settings, nullptr);
+  ASSERT_EQ(GEOQIK_SUCCESS, init_hidden_geoqik(&settings));
 
   for (int i = 0; i < settings.initialLineCapacity; ++i)
   {
@@ -44,7 +65,7 @@ TEST_F(GeoQikTest_Lines, CheckMaximumLinesCapacity)
 
 TEST_F(GeoQikTest_Lines, LineWidthGetSet)
 {
-  geoqik_init();
+  ASSERT_EQ(GEOQIK_SUCCESS, init_hidden_geoqik());
 
   float initialWidth;
   geoqik_get_line_width(&initialWidth);
@@ -60,7 +81,7 @@ TEST_F(GeoQikTest_Lines, LineWidthGetSet)
 
 TEST_F(GeoQikTest_Lines, LineColorGetSet)
 {
-  geoqik_init();
+  ASSERT_EQ(GEOQIK_SUCCESS, init_hidden_geoqik());
 
   float initialR;
   float initialG;
@@ -89,7 +110,7 @@ TEST_F(GeoQikTest_Lines, LineColorGetSet)
 
 TEST_F(GeoQikTest_Lines, AddLineWithColor)
 {
-  geoqik_init();
+  ASSERT_EQ(GEOQIK_SUCCESS, init_hidden_geoqik());
 
   geoqik_add_line_with_color(0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0f, 0.0f, 0.0f, 1.0f); // Red line
   geoqik_add_line_with_color(1.0, 1.0, 1.0, 2.0, 1.0, 1.0, 0.0f, 1.0f, 0.0f, 1.0f); // Green line
@@ -100,7 +121,7 @@ TEST_F(GeoQikTest_Lines, AddLineWithColor)
 
 TEST_F(GeoQikTest_Lines, AddLineWithIdempotency)
 {
-  geoqik_init();
+  ASSERT_EQ(GEOQIK_SUCCESS, init_hidden_geoqik());
 
   geoqik_uuid_t key;
   geoqik_generate_uuid(&key);
@@ -120,7 +141,7 @@ TEST_F(GeoQikTest_Lines, AddLineWithIdempotency)
 
 TEST_F(GeoQikTest_Lines, AddLineWithColorOpts)
 {
-  geoqik_init();
+  ASSERT_EQ(GEOQIK_SUCCESS, init_hidden_geoqik());
 
   const float color[4] = {0.0f, 0.0f, 1.0f, 1.0f}; // Blue
   geoqik_add_line_opts_t opts{};
@@ -136,7 +157,7 @@ TEST_F(GeoQikTest_Lines, AddLineWithColorOpts)
 
 TEST_F(GeoQikTest_Lines, AddLinesWithOpts)
 {
-  geoqik_init();
+  ASSERT_EQ(GEOQIK_SUCCESS, init_hidden_geoqik());
 
   // Three lines, each with 6 doubles (x1,y1,z1, x2,y2,z2)
   const double lines[] = {
@@ -191,7 +212,7 @@ TEST_F(GeoQikTest_Lines, UpdateLineValidation)
 
 TEST_F(GeoQikTest_Lines, UpdateLineEnqueues)
 {
-  geoqik_init();
+  ASSERT_EQ(GEOQIK_SUCCESS, init_hidden_geoqik());
 
   geoqik_result_t result = geoqik_add_line_opts(0.0, 0.0, 0.0, 1.0, 1.0, 1.0, nullptr);
   ASSERT_EQ(result.err, GEOQIK_SUCCESS);

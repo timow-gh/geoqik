@@ -36,7 +36,6 @@ bool GlfwWindow::create(const WindowSettings& settings)
     const char* description = nullptr;
     glfwGetError(&description);
     fmt::print("Error: {}\n", description);
-    CORE_ASSERT(false);
     return false;
   }
 
@@ -57,7 +56,6 @@ bool GlfwWindow::create(const WindowSettings& settings)
     glfwGetError(&description);
     fmt::print("Error: {}\n", description);
     glfwTerminate();
-    CORE_ASSERT(false);
     return false;
   }
 
@@ -66,7 +64,6 @@ bool GlfwWindow::create(const WindowSettings& settings)
   {
     fmt::print("Failed to initialize OpenGL context\n");
     destroy();
-    CORE_ASSERT(false);
     return false;
   }
 
