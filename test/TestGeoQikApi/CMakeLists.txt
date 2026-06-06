@@ -2,6 +2,7 @@ function(create_api_test testName)
     add_executable(${testName} ${testName}.cpp)
     target_link_libraries(${testName} PRIVATE gtest_main geoqik::geoqik)
     add_test(NAME geoqik.${testName} COMMAND ${testName})
+    set_property(GLOBAL APPEND PROPERTY ${PROJECT_NAME}_COVERAGE_TESTS ${testName})
 endfunction()
 
 create_api_test(TestGeoQikApi)
