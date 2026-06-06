@@ -7,6 +7,8 @@ endfunction()
 
 create_geoqik_internal_test(BufferTest)
 create_geoqik_internal_test(CameraAutoFitTest)
+create_geoqik_internal_test(CameraInteractorTest)
+create_geoqik_internal_test(CameraTest)
 create_geoqik_internal_test(ConcurrentQueueTest)
 create_geoqik_internal_test(GeometryBufferTest)
 create_geoqik_internal_test(SceneTest)
