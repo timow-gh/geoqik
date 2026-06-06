@@ -142,6 +142,15 @@ TEST_F(TestGeoQikApi_Points, UpdatePointValidation)
   opts.color = invalidColors;
   opts.colorCount = 3;
   EXPECT_EQ(geoqik_update_points_opts(&id, validPoints, 3, &opts), GEOQIK_ERROR_WRONG_COLOR_SIZE);
+
+  const float outOfRangeColor[] = {0.0f, 1.1f, 0.0f, 1.0f};
+  opts.color = outOfRangeColor;
+  opts.colorCount = 4;
+  EXPECT_EQ(geoqik_update_points_opts(&id, validPoints, 3, &opts), GEOQIK_ERROR_INVALID_PARAMETER);
+
+  opts.color = nullptr;
+  opts.colorCount = 4;
+  EXPECT_EQ(geoqik_update_point_opts(&id, 1.0, 2.0, 3.0, &opts), GEOQIK_ERROR_INVALID_PARAMETER);
 }
 
 TEST_F(TestGeoQikApi_Points, UpdatePointEnqueues)

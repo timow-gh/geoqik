@@ -76,6 +76,27 @@ TEST(GeoQikReplayUndoTest, AddGeometryUndoRespectsIdempotency)
   EXPECT_TRUE(std::holds_alternative<std::monostate>(knownLineFrame.action));
 }
 
+TEST(GeoQikReplayUndoTest, AddGeometryUndoForNilIdempotencyStillCreatesUndo)
+{
+  auto scene = geoqik::Scene::create(make_scene_settings());
+  geoqik::IdempotencySet idempotencySet;
+  geoqik::ReplayUndoContext context{scene, idempotencySet};
+
+  geoqik::GeoQikMessageCommonData pointCommonData{make_uuid(40), {}, {}};
+  const auto pointFrame = geoqik::make_replay_undo_frame(geoqik::AddPointsWithOpts{{1.0f, 2.0f, 3.0f}, pointCommonData}, context);
+  const auto* removePoint = get_log_action<geoqik::RemovePoint>(pointFrame);
+  ASSERT_NE(nullptr, removePoint);
+  EXPECT_EQ(pointCommonData.geometryId, removePoint->handle);
+  EXPECT_TRUE(pointFrame.idempotencyKeyToErase.is_nil());
+
+  geoqik::GeoQikMessageCommonData lineCommonData{make_uuid(41), {}, {}};
+  const auto lineFrame = geoqik::make_replay_undo_frame(geoqik::AddLinesWithOpts{{0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f}, lineCommonData}, context);
+  const auto* removeLine = get_log_action<geoqik::RemoveLine>(lineFrame);
+  ASSERT_NE(nullptr, removeLine);
+  EXPECT_EQ(lineCommonData.geometryId, removeLine->handle);
+  EXPECT_TRUE(lineFrame.idempotencyKeyToErase.is_nil());
+}
+
 TEST(GeoQikReplayUndoTest, RemoveGeometryUndoCapturesExistingGeometryAndIgnoresMissingGeometry)
 {
   auto scene = geoqik::Scene::create(make_scene_settings());
@@ -224,6 +245,34 @@ TEST(GeoQikReplayUndoTest, UpdateGeometryUndoCapturesPreviousGeometry)
   EXPECT_EQ(lines, updateLines->lines);
   EXPECT_EQ(lineColors, updateLines->rgba);
 
+  const auto updateLinesFrame = geoqik::make_replay_undo_frame(geoqik::UpdateLinesWithOpts{lineId, {8.0f, 9.0f, 10.0f, 11.0f, 12.0f, 13.0f}, {}}, context);
+  const auto* previousLines = get_log_action<geoqik::UpdateLinesWithOpts>(updateLinesFrame);
+  ASSERT_NE(nullptr, previousLines);
+  EXPECT_EQ(lineId, previousLines->handle);
+  EXPECT_EQ(lines, previousLines->lines);
+  EXPECT_EQ(lineColors, previousLines->rgba);
+
   const auto missingFrame = geoqik::make_replay_undo_frame(geoqik::UpdatePointWithOpts{make_uuid(32), 1.0f, 2.0f, 3.0f, {}}, context);
   EXPECT_TRUE(std::holds_alternative<std::monostate>(missingFrame.action));
+
+  const auto missingLineFrame = geoqik::make_replay_undo_frame(geoqik::UpdateLinesWithOpts{make_uuid(33), {1.0f, 2.0f, 3.0f}, {}}, context);
+  EXPECT_TRUE(std::holds_alternative<std::monostate>(missingLineFrame.action));
+}
+
+TEST(GeoQikReplayUndoTest, CreateReplayUndoFrameDispatchesVariantEntries)
+{
+  auto scene = geoqik::Scene::create(make_scene_settings());
+  geoqik::IdempotencySet idempotencySet;
+  geoqik::ReplayUndoContext context{scene, idempotencySet};
+
+  const auto geometryId = make_uuid(50);
+  const geoqik::GeoQikLogEntry entry = geoqik::TranslateGeometry{geometryId, 3.0f, 4.0f, 5.0f};
+  const auto frame = geoqik::create_replay_undo_frame(entry, context);
+  const auto* translate = get_log_action<geoqik::TranslateGeometry>(frame);
+
+  ASSERT_NE(nullptr, translate);
+  EXPECT_EQ(geometryId, translate->handle);
+  EXPECT_FLOAT_EQ(-3.0f, translate->dx);
+  EXPECT_FLOAT_EQ(-4.0f, translate->dy);
+  EXPECT_FLOAT_EQ(-5.0f, translate->dz);
 }

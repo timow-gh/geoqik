@@ -1,6 +1,7 @@
 #ifndef RAYPLANEINTERSECTION_HPP
 #define RAYPLANEINTERSECTION_HPP
 
+#include <Core/Assert.hpp>
 #include <linal/linal.hpp>
 #include <Geometry/Plane.hpp>
 

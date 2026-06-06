@@ -268,6 +268,22 @@ TEST_F(GeoQikTestApi, ReplayLogValidation)
   EXPECT_EQ(GEOQIK_ERROR_INVALID_PARAMETER, geoqik_replay_log("", GEOQIK_LOG_FORMAT_BINARY, nullptr));
   EXPECT_EQ(GEOQIK_ERROR_INVALID_PARAMETER, geoqik_replay_log(validPath.string().c_str(), static_cast<geoqik_log_format_t>(42), nullptr));
   EXPECT_EQ(GEOQIK_ERROR_INVALID_PARAMETER, geoqik_replay_log(validPath.string().c_str(), GEOQIK_LOG_FORMAT_BINARY, &invalidOptions));
+  invalidOptions.entriesPerSecond = INFINITY;
+  EXPECT_EQ(GEOQIK_ERROR_INVALID_PARAMETER, geoqik_replay_log(validPath.string().c_str(), GEOQIK_LOG_FORMAT_BINARY, &invalidOptions));
+  invalidOptions.entriesPerSecond = 0.0;
+  invalidOptions.speedMultiplier = INFINITY;
+  EXPECT_EQ(GEOQIK_ERROR_INVALID_PARAMETER, geoqik_replay_log(validPath.string().c_str(), GEOQIK_LOG_FORMAT_BINARY, &invalidOptions));
+  invalidOptions.speedMultiplier = 1.0;
+  invalidOptions.stepKeys = nullptr;
+  invalidOptions.stepKeyCount = 1;
+  EXPECT_EQ(GEOQIK_ERROR_INVALID_PARAMETER, geoqik_replay_log(validPath.string().c_str(), GEOQIK_LOG_FORMAT_BINARY, &invalidOptions));
+
+  geoqik_key_t invalidKey = GEOQIK_KEY_UNKNOWN;
+  invalidOptions.stepKeys = &invalidKey;
+  invalidOptions.stepKeyCount = 1;
+  EXPECT_EQ(GEOQIK_ERROR_INVALID_PARAMETER, geoqik_replay_log(validPath.string().c_str(), GEOQIK_LOG_FORMAT_BINARY, &invalidOptions));
+  invalidOptions.stepKeys = nullptr;
+  invalidOptions.stepKeyCount = 0;
   EXPECT_EQ(GEOQIK_ERROR_NOT_INITIALIZED, geoqik_replay_log(validPath.string().c_str(), GEOQIK_LOG_FORMAT_BINARY, nullptr));
   EXPECT_EQ(GEOQIK_ERROR_NOT_INITIALIZED, geoqik_replay_current_log(nullptr));
   EXPECT_EQ(GEOQIK_ERROR_NOT_INITIALIZED, geoqik_cancel_replay());

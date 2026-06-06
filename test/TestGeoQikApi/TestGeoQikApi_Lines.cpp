@@ -178,6 +178,15 @@ TEST_F(GeoQikTest_Lines, UpdateLineValidation)
   opts.color = invalidColors;
   opts.colorCount = 3;
   EXPECT_EQ(geoqik_update_lines_opts(&id, validLines, 6, &opts), GEOQIK_ERROR_WRONG_COLOR_SIZE);
+
+  const float outOfRangeColor[] = {0.0f, -0.1f, 0.0f, 1.0f};
+  opts.color = outOfRangeColor;
+  opts.colorCount = 4;
+  EXPECT_EQ(geoqik_update_lines_opts(&id, validLines, 6, &opts), GEOQIK_ERROR_INVALID_PARAMETER);
+
+  opts.color = nullptr;
+  opts.colorCount = 4;
+  EXPECT_EQ(geoqik_update_line_opts(&id, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, &opts), GEOQIK_ERROR_INVALID_PARAMETER);
 }
 
 TEST_F(GeoQikTest_Lines, UpdateLineEnqueues)
