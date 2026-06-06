@@ -18,6 +18,28 @@ if(NOT GENHTML_PATH)
     return()
 endif()
 
+# The coverage-report target re-runs CTest to collect coverage data.  On
+# headless CI runners (e.g. GitHub Actions ubuntu-latest) there is no real
+# display server, so glfwInit() / XOpenDisplay() fail and every test that
+# opens an OpenGL window aborts immediately.
+#
+# xvfb-run starts a throwaway X Virtual Framebuffer for the duration of the
+# command, giving GLFW a valid display to connect to (rendered in software by
+# Mesa/llvmpipe).  --auto-servernum picks a free display number automatically,
+# which avoids conflicts when multiple CI jobs share the same host.
+#
+# On machines that already have a display (developer workstations, Windows/macOS
+# cross-compilation targets) xvfb-run is typically absent, so we fall back to
+# running CTest directly.
+find_program(XVFB_RUN_PATH xvfb-run)
+if(XVFB_RUN_PATH)
+    set(COVERAGE_CTEST_COMMAND ${XVFB_RUN_PATH} --auto-servernum ${CMAKE_CTEST_COMMAND})
+    message(STATUS "  xvfb-run: ${XVFB_RUN_PATH} (will be used to run tests headlessly)")
+else()
+    set(COVERAGE_CTEST_COMMAND ${CMAKE_CTEST_COMMAND})
+    message(STATUS "  xvfb-run: not found (tests requiring a display may fail)")
+endif()
+
 message(STATUS "Coverage report generation enabled")
 message(STATUS "  lcov: ${LCOV_PATH}")
 message(STATUS "  genhtml: ${GENHTML_PATH}")
@@ -55,7 +77,7 @@ add_custom_target(coverage-report
         --ignore-errors mismatch
     
     # Run tests to generate coverage data
-    COMMAND ${CMAKE_CTEST_COMMAND}
+    COMMAND ${COVERAGE_CTEST_COMMAND}
         --output-on-failure
         --no-tests=error
     
