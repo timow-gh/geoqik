@@ -47,6 +47,9 @@ message(STATUS "  genhtml: ${GENHTML_PATH}")
 set(COVERAGE_OUTPUT_DIR "${CMAKE_BINARY_DIR}/coverage_html")
 set(COVERAGE_INFO_FILE "${CMAKE_BINARY_DIR}/coverage.info")
 set(COVERAGE_INFO_FILTERED "${CMAKE_BINARY_DIR}/coverage_filtered.info")
+set(COVERAGE_SOURCE_PATTERNS
+    "${PROJECT_SOURCE_DIR}/src/*/source/*"
+    "${PROJECT_SOURCE_DIR}/src/*/include/*")
 
 # Get all registered test targets
 # The coverage expects that all relevant tests are part of the list named: <PROJECT_NAME>_COVERAGE_TESTS
@@ -73,7 +76,7 @@ add_custom_target(coverage-report
         --initial
         --directory ${CMAKE_BINARY_DIR}
         --output-file ${CMAKE_BINARY_DIR}/coverage_base.info
-        --rc lcov_branch_coverage=1
+        --rc branch_coverage=1
         --ignore-errors mismatch
     
     # Run tests to generate coverage data
@@ -86,7 +89,7 @@ add_custom_target(coverage-report
         --capture
         --directory ${CMAKE_BINARY_DIR}
         --output-file ${CMAKE_BINARY_DIR}/coverage_test.info
-        --rc lcov_branch_coverage=1
+        --rc branch_coverage=1
         --ignore-errors mismatch
     
     # Combine baseline and test coverage to include zero-coverage files
@@ -94,16 +97,15 @@ add_custom_target(coverage-report
         --add-tracefile ${CMAKE_BINARY_DIR}/coverage_base.info
         --add-tracefile ${CMAKE_BINARY_DIR}/coverage_test.info
         --output-file ${COVERAGE_INFO_FILE}
-        --rc lcov_branch_coverage=1
+        --rc branch_coverage=1
         --ignore-errors empty,mismatch
     
     # Filter to keep only project source files (positive filtering)
     COMMAND ${LCOV_PATH}
         --extract ${COVERAGE_INFO_FILE}
-        ${PROJECT_SOURCE_DIR}/src/source/*
-        ${PROJECT_SOURCE_DIR}/src/include/*
+        ${COVERAGE_SOURCE_PATTERNS}
         --output-file ${COVERAGE_INFO_FILTERED}
-        --rc lcov_branch_coverage=1
+        --rc branch_coverage=1
         --ignore-errors empty,unused
     
     # Generate HTML report
@@ -114,7 +116,7 @@ add_custom_target(coverage-report
         --num-spaces 4
         --legend
         --demangle-cpp
-        --rc genhtml_branch_coverage=1
+        --rc branch_coverage=1
     
     # Display coverage summary in terminal
     COMMAND ${CMAKE_COMMAND} -E echo ""
@@ -123,7 +125,7 @@ add_custom_target(coverage-report
     COMMAND ${CMAKE_COMMAND} -E echo "======================================"
     COMMAND ${LCOV_PATH}
         --summary ${COVERAGE_INFO_FILTERED}
-        --rc lcov_branch_coverage=1
+        --rc branch_coverage=1
     
     # Print summary
     COMMAND ${CMAKE_COMMAND} -E echo ""
