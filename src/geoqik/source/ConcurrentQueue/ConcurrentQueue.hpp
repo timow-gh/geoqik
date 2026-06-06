@@ -75,11 +75,39 @@ public:
   void enqueue(value_type&& message)
   {
     m_slotsFree.acquire();
+    try
     {
       std::scoped_lock lock(m_mutex);
       m_queue.push(std::move(message));
     }
+    catch (...)
+    {
+      m_slotsFree.release();
+      throw;
+    }
     m_slotsUsed.release();
+  }
+
+  bool try_enqueue(value_type&& message)
+  {
+    if (!m_slotsFree.try_acquire())
+    {
+      return false;
+    }
+
+    try
+    {
+      std::scoped_lock lock(m_mutex);
+      m_queue.push(std::move(message));
+    }
+    catch (...)
+    {
+      m_slotsFree.release();
+      throw;
+    }
+
+    m_slotsUsed.release();
+    return true;
   }
 
   std::optional<value_type> dequeue()
