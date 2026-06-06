@@ -50,4 +50,9 @@ add_custom_target(test_geoqik_install_clean
 # subdirectory build tree (out/build/<preset>/test/TestInstall/), which has no
 # build.ninja. cmake --build then calls ninja in the wrong directory and fails
 # immediately with "ninja: error: loading 'build.ninja': No such file or directory".
-add_test(NAME TestGeoqikInstall COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target test_geoqik_install)
+option(${PROJECT_NAME}_INSTALL_SMOKE_TEST "Register installed package smoke test with CTest." ON)
+if (${PROJECT_NAME}_INSTALL_SMOKE_TEST)
+    add_test(NAME TestGeoqikInstall COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target test_geoqik_install)
+else ()
+    message(STATUS "Skipping TestGeoqikInstall CTest registration because ${PROJECT_NAME}_INSTALL_SMOKE_TEST=OFF")
+endif ()
