@@ -25,7 +25,7 @@ public:
   OpenGLSceneRenderer& operator=(const OpenGLSceneRenderer&) = delete;
   OpenGLSceneRenderer(OpenGLSceneRenderer&&) = delete;
   OpenGLSceneRenderer& operator=(OpenGLSceneRenderer&&) = delete;
-  ~OpenGLSceneRenderer() = default;
+  ~OpenGLSceneRenderer();
 
   void compile_programs();
   void reset_programs() noexcept;

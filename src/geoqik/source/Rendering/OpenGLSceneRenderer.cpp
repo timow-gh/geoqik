@@ -1,6 +1,7 @@
 #include "Rendering/OpenGLSceneRenderer.hpp"
 #include <OpenGL/BufferAccessPattern.hpp>
 #include <OpenGL/FrameState.hpp>
+#include <OpenGL/OpenGL.hpp>
 
 namespace geoqik
 {
@@ -8,6 +9,14 @@ namespace geoqik
 OpenGLSceneRenderer::OpenGLSceneRenderer()
     : m_drawablesManager(&m_programManager.get_point_program(), &m_programManager.get_line_program())
 {
+}
+
+OpenGLSceneRenderer::~OpenGLSceneRenderer()
+{
+  glFinish();
+  clear_drawables();
+  reset_programs();
+  glFinish();
 }
 
 void OpenGLSceneRenderer::compile_programs()

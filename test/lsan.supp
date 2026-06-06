@@ -1,0 +1,4 @@
+# Suppress known leaks in third-party OpenGL/GLX stacks used by headless
+# sanitizer tests.  The allocations are inside GLFW/Mesa/llvmpipe and are
+# reported when tests repeatedly create and destroy hidden OpenGL contexts.
+leak:extensionSupportedGLX

@@ -813,6 +813,14 @@
       }
     },
     {
+      "name": "test-asan-common",
+      "description": "Common AddressSanitizer/LeakSanitizer suppressions for test presets",
+      "hidden": true,
+      "environment": {
+        "LSAN_OPTIONS": "suppressions=${sourceDir}/test/lsan.supp:print_suppressions=0"
+      }
+    },
+    {
       "name": "test-msvc-common",
       "displayName": "Strict",
       "description": "Enable output and stop on failure",
@@ -1005,6 +1013,7 @@
       "description": "Tests with AddressSanitizer enabled",
       "inherits": [
         "test-unix-common",
+        "test-asan-common",
         "test-debug"
       ],
       "configurePreset": "conf-gcc-debug-asan"
@@ -1036,6 +1045,7 @@
       "description": "Tests with AddressSanitizer enabled",
       "inherits": [
         "test-unix-common",
+        "test-asan-common",
         "test-debug"
       ],
       "configurePreset": "conf-clang-debug-asan"
@@ -1067,6 +1077,7 @@
       "description": "Tests with AddressSanitizer enabled",
       "inherits": [
         "test-unix-common",
+        "test-asan-common",
         "test-relwithdebinfo"
       ],
       "configurePreset": "conf-gcc-relwithdebinfo-asan"
@@ -1098,6 +1109,7 @@
       "description": "Tests with AddressSanitizer enabled",
       "inherits": [
         "test-unix-common",
+        "test-asan-common",
         "test-relwithdebinfo"
       ],
       "configurePreset": "conf-clang-relwithdebinfo-asan"
