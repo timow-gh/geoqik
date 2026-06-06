@@ -100,6 +100,10 @@ cmake --workflow --preset workflow-test-clang-release
 
 These presets configure, build, and run the test suite. All available presets are listed in `CMakePresets.json`.
 
+## Contributing and releases
+
+Commit-message and release-note conventions are documented in [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ## License
 
 Public domain — see [License](License).
