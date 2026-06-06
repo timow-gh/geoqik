@@ -1,8 +1,17 @@
 #include "GeometryBuffers/LineBuffer.hpp"
 #include "GeometryBuffers/PointBuffer.hpp"
 #include "Core/UUID.hpp"
+#include <array>
 #include <cmath>
 #include <gtest/gtest.h>
+#include <span>
+#include <vector>
+
+template <class T>
+std::vector<T> to_vector(std::span<const T> values)
+{
+  return {values.begin(), values.end()};
+}
 
 class GeometryBufferTest : public ::testing::Test
 {
@@ -882,6 +891,196 @@ TEST_F(GeometryBufferTest, PointUpdateCountMismatchDoesNotMutate)
   EXPECT_FALSE(buffer->has_changed());
 }
 
+TEST_F(GeometryBufferTest, PointBufferSnapshotRestoreRoundTripsDataAndHandles)
+{
+  m_settings.initialPointCapacity = 4;
+  m_settings.defaultPointColor = {0.1f, 0.2f, 0.3f, 0.4f};
+  auto buffer = geoqik::PointBuffer::create(m_settings);
+  ASSERT_TRUE(buffer != nullptr);
+
+  const core::UUID singleId = core::UUID::generate();
+  const core::UUID bulkId = core::UUID::generate();
+  buffer->add_point(1.0f, 2.0f, 3.0f, &singleId);
+  const std::vector<float> bulkPoints{4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f};
+  const std::vector<float> bulkColors{0.5f, 0.6f, 0.7f, 0.8f, 0.9f, 1.0f, 0.1f, 0.2f};
+  buffer->add_points(bulkPoints, bulkColors, &bulkId);
+  const auto snapshot = buffer->create_snapshot();
+
+  buffer->clear();
+  buffer->set_default_point_color(1.0f, 1.0f, 1.0f, 1.0f);
+  buffer->restore_snapshot(snapshot);
+
+  EXPECT_EQ(to_vector(buffer->get_points()), snapshot.points);
+  EXPECT_EQ(to_vector(buffer->get_point_colors()), snapshot.pointColors);
+  EXPECT_EQ(to_vector(buffer->get_point_indices()), snapshot.pointIndices);
+  EXPECT_TRUE(buffer->has_changed());
+
+  const auto defaultColor = buffer->get_default_point_color();
+  EXPECT_FLOAT_EQ(defaultColor[0], 0.1f);
+  EXPECT_FLOAT_EQ(defaultColor[1], 0.2f);
+  EXPECT_FLOAT_EQ(defaultColor[2], 0.3f);
+  EXPECT_FLOAT_EQ(defaultColor[3], 0.4f);
+
+  const auto singleGeometry = buffer->get_geometry(singleId);
+  ASSERT_TRUE(singleGeometry.has_value());
+  EXPECT_EQ(singleGeometry->points, (std::vector<float>{1.0f, 2.0f, 3.0f}));
+  EXPECT_EQ(singleGeometry->colors, (std::vector<float>{0.1f, 0.2f, 0.3f, 0.4f}));
+
+  const auto bulkGeometry = buffer->get_geometry(bulkId);
+  ASSERT_TRUE(bulkGeometry.has_value());
+  EXPECT_EQ(bulkGeometry->points, bulkPoints);
+  EXPECT_EQ(bulkGeometry->colors, bulkColors);
+  EXPECT_FALSE(buffer->get_geometry(core::UUID::generate()).has_value());
+}
+
+TEST_F(GeometryBufferTest, PointBufferCreateFromEmptyPreservesDefaultsWithoutMarkingChanged)
+{
+  m_settings.initialPointCapacity = 3;
+  m_settings.defaultPointColor = {0.2f, 0.3f, 0.4f, 0.5f};
+  auto buffer = geoqik::PointBuffer::create(m_settings);
+  ASSERT_TRUE(buffer != nullptr);
+
+  auto grownBuffer = geoqik::PointBuffer::create_from(*buffer, 4);
+  ASSERT_TRUE(grownBuffer != nullptr);
+
+  EXPECT_TRUE(grownBuffer->empty());
+  EXPECT_FALSE(grownBuffer->has_changed());
+  EXPECT_EQ(grownBuffer->get_point_capacity(), geoqik::GeoQikSettings{}.initialPointCapacity);
+  const auto defaultColor = grownBuffer->get_default_point_color();
+  EXPECT_FLOAT_EQ(defaultColor[0], 0.2f);
+  EXPECT_FLOAT_EQ(defaultColor[1], 0.3f);
+  EXPECT_FLOAT_EQ(defaultColor[2], 0.4f);
+  EXPECT_FLOAT_EQ(defaultColor[3], 0.5f);
+}
+
+TEST_F(GeometryBufferTest, AddPointNotEnoughSpaceThrowsWithoutMutating)
+{
+  m_settings.initialPointCapacity = 1;
+  auto buffer = geoqik::PointBuffer::create(m_settings);
+  ASSERT_TRUE(buffer != nullptr);
+
+  buffer->add_point(1.0f, 2.0f, 3.0f);
+  buffer->reset_changed_flag();
+
+  EXPECT_THROW(buffer->add_point(4.0f, 5.0f, 6.0f), std::runtime_error);
+  EXPECT_EQ(to_vector(buffer->get_points()), (std::vector<float>{1.0f, 2.0f, 3.0f}));
+  EXPECT_FALSE(buffer->has_changed());
+}
+
+TEST_F(GeometryBufferTest, AddPointsNilHandleThrowsWithoutMutating)
+{
+  auto buffer = geoqik::PointBuffer::create(m_settings);
+  ASSERT_TRUE(buffer != nullptr);
+
+  const std::vector<float> points{1.0f, 2.0f, 3.0f};
+  const std::vector<float> colors;
+  const core::UUID nilHandle = core::UUID::nil();
+
+  EXPECT_THROW(buffer->add_points(points, colors, &nilHandle), std::runtime_error);
+  EXPECT_TRUE(buffer->empty());
+  EXPECT_FALSE(buffer->has_changed());
+}
+
+TEST_F(GeometryBufferTest, PointUpdateFailurePathsDoNotMutate)
+{
+  auto buffer = geoqik::PointBuffer::create(m_settings);
+  ASSERT_TRUE(buffer != nullptr);
+
+  const core::UUID pointId = core::UUID::generate();
+  buffer->add_point(1.0f, 2.0f, 3.0f, &pointId);
+  buffer->reset_changed_flag();
+
+  const std::vector<float> invalidColor{0.1f, 0.2f};
+  EXPECT_FALSE(buffer->update_point(core::UUID::nil(), 4.0f, 5.0f, 6.0f));
+  EXPECT_FALSE(buffer->update_point(core::UUID::generate(), 4.0f, 5.0f, 6.0f));
+  EXPECT_FALSE(buffer->update_point(pointId, 4.0f, 5.0f, 6.0f, invalidColor));
+  EXPECT_EQ(to_vector(buffer->get_points()), (std::vector<float>{1.0f, 2.0f, 3.0f}));
+  EXPECT_FALSE(buffer->has_changed());
+}
+
+TEST_F(GeometryBufferTest, UpdatePointsCoversSingleHandleAndSharedBulkColor)
+{
+  m_settings.initialPointCapacity = 4;
+  auto buffer = geoqik::PointBuffer::create(m_settings);
+  ASSERT_TRUE(buffer != nullptr);
+
+  const core::UUID singleId = core::UUID::generate();
+  const core::UUID bulkId = core::UUID::generate();
+  buffer->add_point(1.0f, 2.0f, 3.0f, &singleId);
+  const std::vector<float> originalBulk{4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f};
+  const std::vector<float> noColors;
+  buffer->add_points(originalBulk, noColors, &bulkId);
+  buffer->reset_changed_flag();
+
+  const std::vector<float> invalidPointCount{10.0f, 11.0f};
+  EXPECT_THROW({ static_cast<void>(buffer->update_points(singleId, invalidPointCount, noColors)); }, std::runtime_error);
+
+  const std::vector<float> wrongSingleCount{10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f};
+  EXPECT_FALSE(buffer->update_points(singleId, wrongSingleCount, noColors));
+  EXPECT_FALSE(buffer->update_points(core::UUID::nil(), originalBulk, noColors));
+  EXPECT_FALSE(buffer->update_points(core::UUID::generate(), originalBulk, noColors));
+
+  const std::vector<float> singlePoint{10.0f, 11.0f, 12.0f};
+  const std::vector<float> singleColor{0.1f, 0.2f, 0.3f, 0.4f};
+  EXPECT_TRUE(buffer->update_points(singleId, singlePoint, singleColor));
+
+  const std::vector<float> updatedBulk{13.0f, 14.0f, 15.0f, 16.0f, 17.0f, 18.0f};
+  const std::vector<float> sharedColor{0.5f, 0.6f, 0.7f, 0.8f};
+  EXPECT_TRUE(buffer->update_points(bulkId, updatedBulk, sharedColor));
+
+  EXPECT_EQ(to_vector(buffer->get_points()), (std::vector<float>{10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f, 16.0f, 17.0f, 18.0f}));
+  EXPECT_EQ(to_vector(buffer->get_point_colors()),
+            (std::vector<float>{0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f, 0.5f, 0.6f, 0.7f, 0.8f}));
+}
+
+TEST_F(GeometryBufferTest, PointBulkTransformsAffectOnlyMatchingHandle)
+{
+  m_settings.initialPointCapacity = 4;
+  auto buffer = geoqik::PointBuffer::create(m_settings);
+  ASSERT_TRUE(buffer != nullptr);
+
+  const core::UUID bulkId = core::UUID::generate();
+  const core::UUID otherId = core::UUID::generate();
+  const std::vector<float> bulkPoints{1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f};
+  const std::vector<float> noColors;
+  buffer->add_points(bulkPoints, noColors, &bulkId);
+  buffer->add_point(10.0f, 20.0f, 30.0f, &otherId);
+  buffer->reset_changed_flag();
+
+  buffer->translate_geometry(bulkId, 1.0f, 2.0f, 3.0f);
+  EXPECT_EQ(to_vector(buffer->get_points()), (std::vector<float>{2.0f, 2.0f, 3.0f, 1.0f, 3.0f, 3.0f, 10.0f, 20.0f, 30.0f}));
+
+  buffer->rotate_geometry(bulkId, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f);
+  EXPECT_EQ(to_vector(buffer->get_points()), (std::vector<float>{2.0f, 2.0f, 3.0f, 1.0f, 3.0f, 3.0f, 10.0f, 20.0f, 30.0f}));
+  EXPECT_TRUE(buffer->has_changed());
+}
+
+TEST_F(GeometryBufferTest, PointRemovalUpdatesFollowingMixedMappings)
+{
+  m_settings.initialPointCapacity = 5;
+  auto buffer = geoqik::PointBuffer::create(m_settings);
+  ASSERT_TRUE(buffer != nullptr);
+
+  const core::UUID firstSingleId = core::UUID::generate();
+  const core::UUID bulkId = core::UUID::generate();
+  const core::UUID followingSingleId = core::UUID::generate();
+  const std::vector<float> noColors;
+  buffer->add_point(1.0f, 2.0f, 3.0f, &firstSingleId);
+  buffer->add_points(std::vector<float>{4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f}, noColors, &bulkId);
+  buffer->add_point(10.0f, 11.0f, 12.0f, &followingSingleId);
+
+  buffer->remove_point(firstSingleId);
+  auto bulkGeometry = buffer->get_geometry(bulkId);
+  ASSERT_TRUE(bulkGeometry.has_value());
+  EXPECT_EQ(bulkGeometry->points, (std::vector<float>{4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f}));
+
+  buffer->remove_point(bulkId);
+  auto singleGeometry = buffer->get_geometry(followingSingleId);
+  ASSERT_TRUE(singleGeometry.has_value());
+  EXPECT_EQ(singleGeometry->points, (std::vector<float>{10.0f, 11.0f, 12.0f}));
+  EXPECT_EQ(to_vector(buffer->get_point_indices()), (std::vector<std::uint32_t>{0u}));
+}
+
 TEST_F(GeometryBufferTest, UpdateSingleAndBulkLines)
 {
   m_settings.initialLineCapacity = 4;
@@ -933,4 +1132,179 @@ TEST_F(GeometryBufferTest, LineUpdateCountMismatchDoesNotMutate)
   EXPECT_FALSE(buffer->update_lines(bulkId, wrongCount, noColors));
   EXPECT_EQ(std::vector<float>(buffer->get_lines().begin(), buffer->get_lines().end()), original);
   EXPECT_FALSE(buffer->has_changed());
+}
+
+TEST_F(GeometryBufferTest, LineBufferSnapshotRestoreRoundTripsDataAndHandles)
+{
+  m_settings.initialLineCapacity = 4;
+  m_settings.defaultLineColor = {0.1f, 0.2f, 0.3f, 0.4f};
+  auto buffer = geoqik::LineBuffer::create(m_settings);
+  ASSERT_TRUE(buffer != nullptr);
+
+  const core::UUID singleId = core::UUID::generate();
+  const core::UUID bulkId = core::UUID::generate();
+  buffer->add_line(1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, &singleId);
+  const std::vector<float> bulkLines{7.0f, 8.0f, 9.0f, 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f, 16.0f, 17.0f, 18.0f};
+  const std::vector<float> bulkColors{0.5f, 0.6f, 0.7f, 0.8f, 0.9f, 1.0f, 0.1f, 0.2f};
+  buffer->add_lines(bulkLines, bulkColors, &bulkId);
+  const auto snapshot = buffer->create_snapshot();
+
+  buffer->clear();
+  buffer->set_default_color(1.0f, 1.0f, 1.0f, 1.0f);
+  buffer->restore_snapshot(snapshot);
+
+  EXPECT_EQ(to_vector(buffer->get_lines()), snapshot.lines);
+  EXPECT_EQ(to_vector(buffer->get_line_colors()), snapshot.lineColors);
+  EXPECT_EQ(to_vector(buffer->get_line_indices()), snapshot.lineIndices);
+  EXPECT_TRUE(buffer->has_changed());
+
+  const auto defaultColor = buffer->get_default_color();
+  EXPECT_FLOAT_EQ(defaultColor[0], 0.1f);
+  EXPECT_FLOAT_EQ(defaultColor[1], 0.2f);
+  EXPECT_FLOAT_EQ(defaultColor[2], 0.3f);
+  EXPECT_FLOAT_EQ(defaultColor[3], 0.4f);
+
+  const auto singleGeometry = buffer->get_geometry(singleId);
+  ASSERT_TRUE(singleGeometry.has_value());
+  EXPECT_EQ(singleGeometry->lines, (std::vector<float>{1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f}));
+  EXPECT_EQ(singleGeometry->colors, (std::vector<float>{0.1f, 0.2f, 0.3f, 0.4f}));
+
+  const auto bulkGeometry = buffer->get_geometry(bulkId);
+  ASSERT_TRUE(bulkGeometry.has_value());
+  EXPECT_EQ(bulkGeometry->lines, bulkLines);
+  EXPECT_EQ(bulkGeometry->colors, bulkColors);
+  EXPECT_FALSE(buffer->get_geometry(core::UUID::generate()).has_value());
+}
+
+TEST_F(GeometryBufferTest, LineBufferCreateFromEmptyPreservesDefaultsWithoutMarkingChanged)
+{
+  m_settings.initialLineCapacity = 3;
+  m_settings.defaultLineColor = {0.2f, 0.3f, 0.4f, 0.5f};
+  auto buffer = geoqik::LineBuffer::create(m_settings);
+  ASSERT_TRUE(buffer != nullptr);
+
+  auto grownBuffer = geoqik::LineBuffer::create_from(*buffer, 4);
+  ASSERT_TRUE(grownBuffer != nullptr);
+
+  EXPECT_TRUE(grownBuffer->empty());
+  EXPECT_FALSE(grownBuffer->has_changed());
+  EXPECT_EQ(grownBuffer->get_line_capacity(), geoqik::GeoQikSettings{}.initialLineCapacity);
+  const auto defaultColor = grownBuffer->get_default_color();
+  EXPECT_FLOAT_EQ(defaultColor[0], 0.2f);
+  EXPECT_FLOAT_EQ(defaultColor[1], 0.3f);
+  EXPECT_FLOAT_EQ(defaultColor[2], 0.4f);
+  EXPECT_FLOAT_EQ(defaultColor[3], 0.5f);
+}
+
+TEST_F(GeometryBufferTest, LineUpdateFailurePathsDoNotMutate)
+{
+  auto buffer = geoqik::LineBuffer::create(m_settings);
+  ASSERT_TRUE(buffer != nullptr);
+
+  const core::UUID lineId = core::UUID::generate();
+  buffer->add_line(1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, &lineId);
+  buffer->reset_changed_flag();
+
+  const std::vector<float> invalidColor{0.1f, 0.2f};
+  EXPECT_FALSE(buffer->update_line(core::UUID::nil(), 7.0f, 8.0f, 9.0f, 10.0f, 11.0f, 12.0f));
+  EXPECT_FALSE(buffer->update_line(core::UUID::generate(), 7.0f, 8.0f, 9.0f, 10.0f, 11.0f, 12.0f));
+  EXPECT_FALSE(buffer->update_line(lineId, 7.0f, 8.0f, 9.0f, 10.0f, 11.0f, 12.0f, invalidColor));
+  EXPECT_EQ(to_vector(buffer->get_lines()), (std::vector<float>{1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f}));
+  EXPECT_FALSE(buffer->has_changed());
+}
+
+TEST_F(GeometryBufferTest, UpdateLinesCoversSingleHandleAndSharedBulkColor)
+{
+  m_settings.initialLineCapacity = 4;
+  auto buffer = geoqik::LineBuffer::create(m_settings);
+  ASSERT_TRUE(buffer != nullptr);
+
+  const core::UUID singleId = core::UUID::generate();
+  const core::UUID bulkId = core::UUID::generate();
+  buffer->add_line(1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, &singleId);
+  const std::vector<float> originalBulk{7.0f, 8.0f, 9.0f, 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f, 16.0f, 17.0f, 18.0f};
+  const std::vector<float> noColors;
+  buffer->add_lines(originalBulk, noColors, &bulkId);
+  buffer->reset_changed_flag();
+
+  const std::vector<float> invalidLineCount{19.0f, 20.0f};
+  EXPECT_THROW({ static_cast<void>(buffer->update_lines(singleId, invalidLineCount, noColors)); }, std::runtime_error);
+
+  const std::vector<float> wrongSingleCount{19.0f, 20.0f, 21.0f, 22.0f, 23.0f, 24.0f, 25.0f, 26.0f, 27.0f, 28.0f, 29.0f, 30.0f};
+  EXPECT_FALSE(buffer->update_lines(singleId, wrongSingleCount, noColors));
+  EXPECT_FALSE(buffer->update_lines(core::UUID::nil(), originalBulk, noColors));
+  EXPECT_FALSE(buffer->update_lines(core::UUID::generate(), originalBulk, noColors));
+
+  const std::vector<float> singleLine{19.0f, 20.0f, 21.0f, 22.0f, 23.0f, 24.0f};
+  const std::vector<float> singleColor{0.1f, 0.2f, 0.3f, 0.4f};
+  EXPECT_TRUE(buffer->update_lines(singleId, singleLine, singleColor));
+
+  const std::vector<float> updatedBulk{25.0f, 26.0f, 27.0f, 28.0f, 29.0f, 30.0f, 31.0f, 32.0f, 33.0f, 34.0f, 35.0f, 36.0f};
+  const std::vector<float> sharedColor{0.5f, 0.6f, 0.7f, 0.8f};
+  EXPECT_TRUE(buffer->update_lines(bulkId, updatedBulk, sharedColor));
+
+  EXPECT_EQ(to_vector(buffer->get_lines()),
+            (std::vector<float>{19.0f, 20.0f, 21.0f, 22.0f, 23.0f, 24.0f, 25.0f, 26.0f, 27.0f, 28.0f, 29.0f, 30.0f, 31.0f, 32.0f, 33.0f, 34.0f, 35.0f, 36.0f}));
+  EXPECT_EQ(to_vector(buffer->get_line_colors()),
+            (std::vector<float>{0.1f, 0.2f, 0.3f, 0.4f,
+                                0.1f, 0.2f, 0.3f, 0.4f,
+                                0.5f, 0.6f, 0.7f, 0.8f,
+                                0.5f, 0.6f, 0.7f, 0.8f,
+                                0.5f, 0.6f, 0.7f, 0.8f,
+                                0.5f, 0.6f, 0.7f, 0.8f}));
+}
+
+TEST_F(GeometryBufferTest, LineBulkTransformsAffectOnlyMatchingHandle)
+{
+  m_settings.initialLineCapacity = 4;
+  auto buffer = geoqik::LineBuffer::create(m_settings);
+  ASSERT_TRUE(buffer != nullptr);
+
+  const core::UUID bulkId = core::UUID::generate();
+  const core::UUID otherId = core::UUID::generate();
+  const std::vector<float> bulkLines{1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 2.0f, 0.0f, 0.0f, 0.0f, 2.0f, 0.0f};
+  const std::vector<float> noColors;
+  buffer->add_lines(bulkLines, noColors, &bulkId);
+  buffer->add_line(10.0f, 20.0f, 30.0f, 40.0f, 50.0f, 60.0f, &otherId);
+  buffer->reset_changed_flag();
+
+  buffer->translate_geometry(bulkId, 1.0f, 2.0f, 3.0f);
+  EXPECT_EQ(to_vector(buffer->get_lines()),
+            (std::vector<float>{2.0f, 2.0f, 3.0f, 1.0f, 3.0f, 3.0f, 3.0f, 2.0f, 3.0f,
+                                1.0f, 4.0f, 3.0f, 10.0f, 20.0f, 30.0f, 40.0f, 50.0f, 60.0f}));
+
+  buffer->rotate_geometry(bulkId, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f);
+  EXPECT_EQ(to_vector(buffer->get_lines()),
+            (std::vector<float>{2.0f, 2.0f, 3.0f, 1.0f, 3.0f, 3.0f, 3.0f, 2.0f, 3.0f,
+                                1.0f, 4.0f, 3.0f, 10.0f, 20.0f, 30.0f, 40.0f, 50.0f, 60.0f}));
+  EXPECT_TRUE(buffer->has_changed());
+}
+
+TEST_F(GeometryBufferTest, BulkLineRemovalUpdatesFollowingMappings)
+{
+  m_settings.initialLineCapacity = 5;
+  auto buffer = geoqik::LineBuffer::create(m_settings);
+  ASSERT_TRUE(buffer != nullptr);
+
+  const core::UUID firstBulkId = core::UUID::generate();
+  const core::UUID followingSingleId = core::UUID::generate();
+  const core::UUID followingBulkId = core::UUID::generate();
+  const std::vector<float> noColors;
+  buffer->add_lines(std::vector<float>{1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f,
+                                       7.0f, 8.0f, 9.0f, 10.0f, 11.0f, 12.0f},
+                    noColors,
+                    &firstBulkId);
+  buffer->add_line(13.0f, 14.0f, 15.0f, 16.0f, 17.0f, 18.0f, &followingSingleId);
+  buffer->add_lines(std::vector<float>{19.0f, 20.0f, 21.0f, 22.0f, 23.0f, 24.0f}, noColors, &followingBulkId);
+
+  buffer->remove_line(firstBulkId);
+
+  auto singleGeometry = buffer->get_geometry(followingSingleId);
+  ASSERT_TRUE(singleGeometry.has_value());
+  EXPECT_EQ(singleGeometry->lines, (std::vector<float>{13.0f, 14.0f, 15.0f, 16.0f, 17.0f, 18.0f}));
+
+  auto bulkGeometry = buffer->get_geometry(followingBulkId);
+  ASSERT_TRUE(bulkGeometry.has_value());
+  EXPECT_EQ(bulkGeometry->lines, (std::vector<float>{19.0f, 20.0f, 21.0f, 22.0f, 23.0f, 24.0f}));
+  EXPECT_EQ(to_vector(buffer->get_line_indices()), (std::vector<std::uint32_t>{0u, 1u, 2u, 3u}));
 }
