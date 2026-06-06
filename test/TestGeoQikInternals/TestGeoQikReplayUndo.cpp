@@ -128,15 +128,18 @@ TEST(GeoQikReplayUndoTest, StyleUndoCapturesCurrentSceneValues)
   ASSERT_NE(nullptr, get_log_action<geoqik::SetPointSize>(pointSizeFrame));
   EXPECT_FLOAT_EQ(9.0f, get_log_action<geoqik::SetPointSize>(pointSizeFrame)->size);
 
-  const auto* pointColor = get_log_action<geoqik::SetPointColor>(geoqik::make_replay_undo_frame(geoqik::SetPointColor{}, context));
+  const auto pointColorFrame = geoqik::make_replay_undo_frame(geoqik::SetPointColor{}, context);
+  const auto* pointColor = get_log_action<geoqik::SetPointColor>(pointColorFrame);
   ASSERT_NE(nullptr, pointColor);
   EXPECT_EQ((geoqik::Color{0.2f, 0.3f, 0.4f, 1.0f}), pointColor->color);
 
-  const auto* lineWidth = get_log_action<geoqik::SetLineWidth>(geoqik::make_replay_undo_frame(geoqik::SetLineWidth{}, context));
+  const auto lineWidthFrame = geoqik::make_replay_undo_frame(geoqik::SetLineWidth{}, context);
+  const auto* lineWidth = get_log_action<geoqik::SetLineWidth>(lineWidthFrame);
   ASSERT_NE(nullptr, lineWidth);
   EXPECT_FLOAT_EQ(7.0f, lineWidth->width);
 
-  const auto* lineColor = get_log_action<geoqik::SetLineColor>(geoqik::make_replay_undo_frame(geoqik::SetLineColor{}, context));
+  const auto lineColorFrame = geoqik::make_replay_undo_frame(geoqik::SetLineColor{}, context);
+  const auto* lineColor = get_log_action<geoqik::SetLineColor>(lineColorFrame);
   ASSERT_NE(nullptr, lineColor);
   EXPECT_EQ((geoqik::Color{0.5f, 0.6f, 0.7f, 1.0f}), lineColor->color);
 }
