@@ -785,6 +785,14 @@
       "inherits": "test-common"
     },
     {
+      "name": "test-tsan-common",
+      "description": "Common ThreadSanitizer suppressions for test presets",
+      "hidden": true,
+      "environment": {
+        "TSAN_OPTIONS": "suppressions=${sourceDir}/test/tsan.supp"
+      }
+    },
+    {
       "name": "test-msvc-common",
       "displayName": "Strict",
       "description": "Enable output and stop on failure",
@@ -987,6 +995,7 @@
       "description": "Tests with ThreadSanitizer enabled",
       "inherits": [
         "test-unix-common",
+        "test-tsan-common",
         "test-debug"
       ],
       "configurePreset": "conf-gcc-debug-tsan"
@@ -1017,6 +1026,7 @@
       "description": "Tests with ThreadSanitizer enabled",
       "inherits": [
         "test-unix-common",
+        "test-tsan-common",
         "test-debug"
       ],
       "configurePreset": "conf-clang-debug-tsan"
@@ -1047,6 +1057,7 @@
       "description": "Tests with ThreadSanitizer enabled",
       "inherits": [
         "test-unix-common",
+        "test-tsan-common",
         "test-relwithdebinfo"
       ],
       "configurePreset": "conf-gcc-relwithdebinfo-tsan"
@@ -1077,6 +1088,7 @@
       "description": "Tests with ThreadSanitizer enabled",
       "inherits": [
         "test-unix-common",
+        "test-tsan-common",
         "test-relwithdebinfo"
       ],
       "configurePreset": "conf-clang-relwithdebinfo-tsan"
