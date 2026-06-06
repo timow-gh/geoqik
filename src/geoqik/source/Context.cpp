@@ -81,7 +81,13 @@ CameraAutoFitInput make_camera_auto_fit_input(const CameraInteractor& cameraInte
 
 Context::Context() = default;
 
-Context::~Context() = default;
+Context::~Context()
+{
+  if (m_window && m_window->is_initialized())
+  {
+    cleanup();
+  }
+}
 
 bool Context::init_window(const GeoQikSettings& geoqikSettings, const WindowSettings& settings)
 {
@@ -534,14 +540,7 @@ bool Context::cleanup()
   }
 
   m_window->make_context_current();
-
-  if (m_renderer)
-  {
-    m_renderer->clear_drawables();
-    m_renderer->reset_programs();
-    m_renderer.reset();
-  }
-
+  m_renderer.reset();
   m_window->destroy();
   m_window.reset();
 

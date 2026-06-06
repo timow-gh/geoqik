@@ -18,6 +18,28 @@ if(NOT GENHTML_PATH)
     return()
 endif()
 
+# The coverage-report target re-runs CTest to collect coverage data.  On
+# headless CI runners (e.g. GitHub Actions ubuntu-latest) there is no real
+# display server, so glfwInit() / XOpenDisplay() fail and every test that
+# opens an OpenGL window aborts immediately.
+#
+# xvfb-run starts a throwaway X Virtual Framebuffer for the duration of the
+# command, giving GLFW a valid display to connect to (rendered in software by
+# Mesa/llvmpipe).  --auto-servernum picks a free display number automatically,
+# which avoids conflicts when multiple CI jobs share the same host.
+#
+# On machines that already have a display (developer workstations, Windows/macOS
+# cross-compilation targets) xvfb-run is typically absent, so we fall back to
+# running CTest directly.
+find_program(XVFB_RUN_PATH xvfb-run)
+if(XVFB_RUN_PATH)
+    set(COVERAGE_CTEST_COMMAND ${XVFB_RUN_PATH} --auto-servernum ${CMAKE_CTEST_COMMAND})
+    message(STATUS "  xvfb-run: ${XVFB_RUN_PATH} (will be used to run tests headlessly)")
+else()
+    set(COVERAGE_CTEST_COMMAND ${CMAKE_CTEST_COMMAND})
+    message(STATUS "  xvfb-run: not found (tests requiring a display may fail)")
+endif()
+
 message(STATUS "Coverage report generation enabled")
 message(STATUS "  lcov: ${LCOV_PATH}")
 message(STATUS "  genhtml: ${GENHTML_PATH}")
@@ -25,6 +47,9 @@ message(STATUS "  genhtml: ${GENHTML_PATH}")
 set(COVERAGE_OUTPUT_DIR "${CMAKE_BINARY_DIR}/coverage_html")
 set(COVERAGE_INFO_FILE "${CMAKE_BINARY_DIR}/coverage.info")
 set(COVERAGE_INFO_FILTERED "${CMAKE_BINARY_DIR}/coverage_filtered.info")
+set(COVERAGE_SOURCE_PATTERNS
+    "${PROJECT_SOURCE_DIR}/src/*/source/*"
+    "${PROJECT_SOURCE_DIR}/src/*/include/*")
 
 # Get all registered test targets
 # The coverage expects that all relevant tests are part of the list named: <PROJECT_NAME>_COVERAGE_TESTS
@@ -51,11 +76,11 @@ add_custom_target(coverage-report
         --initial
         --directory ${CMAKE_BINARY_DIR}
         --output-file ${CMAKE_BINARY_DIR}/coverage_base.info
-        --rc lcov_branch_coverage=1
+        --rc branch_coverage=1
         --ignore-errors mismatch
     
     # Run tests to generate coverage data
-    COMMAND ${CMAKE_CTEST_COMMAND}
+    COMMAND ${COVERAGE_CTEST_COMMAND}
         --output-on-failure
         --no-tests=error
     
@@ -64,7 +89,7 @@ add_custom_target(coverage-report
         --capture
         --directory ${CMAKE_BINARY_DIR}
         --output-file ${CMAKE_BINARY_DIR}/coverage_test.info
-        --rc lcov_branch_coverage=1
+        --rc branch_coverage=1
         --ignore-errors mismatch
     
     # Combine baseline and test coverage to include zero-coverage files
@@ -72,16 +97,15 @@ add_custom_target(coverage-report
         --add-tracefile ${CMAKE_BINARY_DIR}/coverage_base.info
         --add-tracefile ${CMAKE_BINARY_DIR}/coverage_test.info
         --output-file ${COVERAGE_INFO_FILE}
-        --rc lcov_branch_coverage=1
+        --rc branch_coverage=1
         --ignore-errors empty,mismatch
     
     # Filter to keep only project source files (positive filtering)
     COMMAND ${LCOV_PATH}
         --extract ${COVERAGE_INFO_FILE}
-        ${PROJECT_SOURCE_DIR}/src/source/*
-        ${PROJECT_SOURCE_DIR}/src/include/*
+        ${COVERAGE_SOURCE_PATTERNS}
         --output-file ${COVERAGE_INFO_FILTERED}
-        --rc lcov_branch_coverage=1
+        --rc branch_coverage=1
         --ignore-errors empty,unused
     
     # Generate HTML report
@@ -92,7 +116,7 @@ add_custom_target(coverage-report
         --num-spaces 4
         --legend
         --demangle-cpp
-        --rc genhtml_branch_coverage=1
+        --rc branch_coverage=1
     
     # Display coverage summary in terminal
     COMMAND ${CMAKE_COMMAND} -E echo ""
@@ -101,7 +125,7 @@ add_custom_target(coverage-report
     COMMAND ${CMAKE_COMMAND} -E echo "======================================"
     COMMAND ${LCOV_PATH}
         --summary ${COVERAGE_INFO_FILTERED}
-        --rc lcov_branch_coverage=1
+        --rc branch_coverage=1
     
     # Print summary
     COMMAND ${CMAKE_COMMAND} -E echo ""

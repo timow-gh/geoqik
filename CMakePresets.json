@@ -306,10 +306,21 @@
       ]
     },
     {
+      "name": "conf-no-install-smoke-test",
+      "description": "Do not register the installed package smoke test",
+      "hidden": true,
+      "cacheVariables": {
+        "geoqik_INSTALL_SMOKE_TEST": "OFF"
+      }
+    },
+    {
       "name": "conf-asan-common",
       "description": "Common AddressSanitizer settings for Unix-like OS",
       "hidden": true,
-      "inherits": "conf-unix-common",
+      "inherits": [
+        "conf-unix-common",
+        "conf-no-install-smoke-test"
+      ],
       "cacheVariables": {
         "CMAKE_CXX_FLAGS": "-fsanitize=address -fno-omit-frame-pointer -g",
         "CMAKE_C_FLAGS": "-fsanitize=address -fno-omit-frame-pointer -g",
@@ -323,7 +334,10 @@
       "name": "conf-tsan-common",
       "description": "Common ThreadSanitizer settings for Unix-like OS",
       "hidden": true,
-      "inherits": "conf-unix-common",
+      "inherits": [
+        "conf-unix-common",
+        "conf-no-install-smoke-test"
+      ],
       "cacheVariables": {
         "CMAKE_CXX_FLAGS": "-fsanitize=thread -g",
         "CMAKE_C_FLAGS": "-fsanitize=thread -g",
@@ -337,7 +351,10 @@
       "name": "conf-ubsan-common",
       "description": "Common UndefinedBehaviorSanitizer settings for Unix-like OS",
       "hidden": true,
-      "inherits": "conf-unix-common",
+      "inherits": [
+        "conf-unix-common",
+        "conf-no-install-smoke-test"
+      ],
       "cacheVariables": {
         "CMAKE_CXX_FLAGS": "-fsanitize=undefined -fno-omit-frame-pointer -g",
         "CMAKE_C_FLAGS": "-fsanitize=undefined -fno-omit-frame-pointer -g",
@@ -351,7 +368,10 @@
       "name": "conf-coverage-common",
       "description": "Common code coverage settings for Unix-like OS with GCC",
       "hidden": true,
-      "inherits": "conf-gcc-common",
+      "inherits": [
+        "conf-gcc-common",
+        "conf-no-install-smoke-test"
+      ],
       "cacheVariables": {
         "CMAKE_CXX_FLAGS": "--coverage -O0 -g",
         "CMAKE_C_FLAGS": "--coverage -O0 -g",
@@ -785,6 +805,22 @@
       "inherits": "test-common"
     },
     {
+      "name": "test-tsan-common",
+      "description": "Common ThreadSanitizer suppressions for test presets",
+      "hidden": true,
+      "environment": {
+        "TSAN_OPTIONS": "suppressions=${sourceDir}/test/tsan.supp"
+      }
+    },
+    {
+      "name": "test-asan-common",
+      "description": "Common AddressSanitizer/LeakSanitizer suppressions for test presets",
+      "hidden": true,
+      "environment": {
+        "LSAN_OPTIONS": "suppressions=${sourceDir}/test/lsan.supp:print_suppressions=0"
+      }
+    },
+    {
       "name": "test-msvc-common",
       "displayName": "Strict",
       "description": "Enable output and stop on failure",
@@ -977,6 +1013,7 @@
       "description": "Tests with AddressSanitizer enabled",
       "inherits": [
         "test-unix-common",
+        "test-asan-common",
         "test-debug"
       ],
       "configurePreset": "conf-gcc-debug-asan"
@@ -987,6 +1024,7 @@
       "description": "Tests with ThreadSanitizer enabled",
       "inherits": [
         "test-unix-common",
+        "test-tsan-common",
         "test-debug"
       ],
       "configurePreset": "conf-gcc-debug-tsan"
@@ -1007,6 +1045,7 @@
       "description": "Tests with AddressSanitizer enabled",
       "inherits": [
         "test-unix-common",
+        "test-asan-common",
         "test-debug"
       ],
       "configurePreset": "conf-clang-debug-asan"
@@ -1017,6 +1056,7 @@
       "description": "Tests with ThreadSanitizer enabled",
       "inherits": [
         "test-unix-common",
+        "test-tsan-common",
         "test-debug"
       ],
       "configurePreset": "conf-clang-debug-tsan"
@@ -1037,6 +1077,7 @@
       "description": "Tests with AddressSanitizer enabled",
       "inherits": [
         "test-unix-common",
+        "test-asan-common",
         "test-relwithdebinfo"
       ],
       "configurePreset": "conf-gcc-relwithdebinfo-asan"
@@ -1047,6 +1088,7 @@
       "description": "Tests with ThreadSanitizer enabled",
       "inherits": [
         "test-unix-common",
+        "test-tsan-common",
         "test-relwithdebinfo"
       ],
       "configurePreset": "conf-gcc-relwithdebinfo-tsan"
@@ -1067,6 +1109,7 @@
       "description": "Tests with AddressSanitizer enabled",
       "inherits": [
         "test-unix-common",
+        "test-asan-common",
         "test-relwithdebinfo"
       ],
       "configurePreset": "conf-clang-relwithdebinfo-asan"
@@ -1077,6 +1120,7 @@
       "description": "Tests with ThreadSanitizer enabled",
       "inherits": [
         "test-unix-common",
+        "test-tsan-common",
         "test-relwithdebinfo"
       ],
       "configurePreset": "conf-clang-relwithdebinfo-tsan"

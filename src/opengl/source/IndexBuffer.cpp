@@ -52,7 +52,7 @@ std::optional<IndexBuffer> IndexBuffer::create(std::span<const std::uint32_t> in
 
   IndexBuffer buffer{id, static_cast<GLsizei>(indices.size())};
   buffer.bind();
-  const auto size = static_cast<GLsizeiptr>(static_cast<std::uint64_t>(indices.size()) * sizeof(std::uint32_t));
+  const auto size = static_cast<GLsizeiptr>(indices.size() * sizeof(std::uint32_t));
   glBufferData(GL_ELEMENT_ARRAY_BUFFER, size, indices.data(), get_enum_value(accessPattern));
 
   return std::optional<IndexBuffer>{std::move(buffer)};

@@ -81,6 +81,12 @@ if (${PROJECT_NAME}_TESTS)
     include(CTest)
     enable_testing()
     add_subdirectory(test)
+
+    # Include coverage report generation if coverage flags are enabled
+    if(CMAKE_CXX_FLAGS MATCHES "--coverage")
+        message(STATUS "Coverage enabled - adding coverage-report target")
+        include(${PROJECT_SOURCE_DIR}/cmake/coverage.cmake)
+    endif()
 endif ()
 
 if (${PROJECT_NAME}_INSTALL)
