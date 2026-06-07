@@ -4,7 +4,9 @@
 #include "Rendering/OpenGLSceneRenderer.hpp"
 #include <Core/Assert.hpp>
 #include <algorithm>
+#include <filesystem>
 #include <fmt/format.h>
+#include <system_error>
 #include <type_traits>
 #include <utility>
 
@@ -27,6 +29,12 @@ std::atomic<bool>& replay_cancel_requested_storage()
 {
   static std::atomic<bool> replayCancelRequested{false}; // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
   return replayCancelRequested;
+}
+
+bool is_existing_regular_file(const char* path)
+{
+  std::error_code ec;
+  return std::filesystem::is_regular_file(path, ec);
 }
 
 } // namespace
@@ -578,6 +586,11 @@ geoqik_error_code_t Context::load_log(const char* path, geoqik_log_format_t form
 
   try
   {
+    if (!is_existing_regular_file(path))
+    {
+      return GEOQIK_ERROR_UNKNOWN;
+    }
+
     std::vector<GeoQikLogEntry> loadedEntries = load_log_binary(path);
     remove_all_geometry();
     m_idempotencySet.clear();
@@ -604,6 +617,11 @@ geoqik_error_code_t Context::replay_log(const char* path, geoqik_log_format_t fo
 
   try
   {
+    if (!is_existing_regular_file(path))
+    {
+      return GEOQIK_ERROR_UNKNOWN;
+    }
+
     std::vector<GeoQikLogEntry> loadedEntries = load_log_binary(path);
     start_replay(std::move(loadedEntries), options);
     return GEOQIK_SUCCESS;

@@ -1345,12 +1345,12 @@ geoqik_error_code_t geoqik_save_log(const char* path, geoqik_log_format_t format
   return geoqik_internal::execute_if_initialized(
       [&]() -> geoqik_error_code_t
       {
-        std::promise<geoqik_error_code_t> promise;
-        std::future<geoqik_error_code_t> future = promise.get_future();
+        auto promise = std::make_shared<std::promise<geoqik_error_code_t>>();
+        std::future<geoqik_error_code_t> future = promise->get_future();
         std::string pathCopy(path);
 
         auto enqueueResult = enqueue(GeoQikMessage{
-            SaveLog{[&promise, path = std::move(pathCopy), format](Context& context) { promise.set_value(context.save_log(path.c_str(), format)); }}});
+            SaveLog{[promise, path = std::move(pathCopy), format](Context& context) { promise->set_value(context.save_log(path.c_str(), format)); }}});
         if (enqueueResult != GEOQIK_SUCCESS)
         {
           return enqueueResult;
@@ -1370,12 +1370,12 @@ geoqik_error_code_t geoqik_load_log(const char* path, geoqik_log_format_t format
   return geoqik_internal::execute_if_initialized(
       [&]() -> geoqik_error_code_t
       {
-        std::promise<geoqik_error_code_t> promise;
-        std::future<geoqik_error_code_t> future = promise.get_future();
+        auto promise = std::make_shared<std::promise<geoqik_error_code_t>>();
+        std::future<geoqik_error_code_t> future = promise->get_future();
         std::string pathCopy(path);
 
         auto enqueueResult = enqueue(GeoQikMessage{
-            LoadLog{[&promise, path = std::move(pathCopy), format](Context& context) { promise.set_value(context.load_log(path.c_str(), format)); }}});
+            LoadLog{[promise, path = std::move(pathCopy), format](Context& context) { promise->set_value(context.load_log(path.c_str(), format)); }}});
         if (enqueueResult != GEOQIK_SUCCESS)
         {
           return enqueueResult;
@@ -1401,13 +1401,13 @@ geoqik_error_code_t geoqik_replay_log(const char* path, geoqik_log_format_t form
   return geoqik_internal::execute_if_initialized(
       [&]() -> geoqik_error_code_t
       {
-        std::promise<geoqik_error_code_t> promise;
-        std::future<geoqik_error_code_t> future = promise.get_future();
+        auto promise = std::make_shared<std::promise<geoqik_error_code_t>>();
+        std::future<geoqik_error_code_t> future = promise->get_future();
         std::string pathCopy(path);
 
         auto enqueueResult = enqueue(GeoQikMessage{
-            ReplayLog{[&promise, path = std::move(pathCopy), format, replayOptions](Context& context)
-                      { promise.set_value(context.replay_log(path.c_str(), format, replayOptions)); }}});
+            ReplayLog{[promise, path = std::move(pathCopy), format, replayOptions](Context& context)
+                      { promise->set_value(context.replay_log(path.c_str(), format, replayOptions)); }}});
         if (enqueueResult != GEOQIK_SUCCESS)
         {
           return enqueueResult;
@@ -1428,11 +1428,11 @@ geoqik_error_code_t geoqik_replay_current_log(const geoqik_replay_options_t* opt
   return geoqik_internal::execute_if_initialized(
       [&]() -> geoqik_error_code_t
       {
-        std::promise<geoqik_error_code_t> promise;
-        std::future<geoqik_error_code_t> future = promise.get_future();
+        auto promise = std::make_shared<std::promise<geoqik_error_code_t>>();
+        std::future<geoqik_error_code_t> future = promise->get_future();
 
         auto enqueueResult = enqueue(GeoQikMessage{
-            ReplayCurrentLog{[&promise, replayOptions](Context& context) { promise.set_value(context.replay_current_log(replayOptions)); }}});
+            ReplayCurrentLog{[promise, replayOptions](Context& context) { promise->set_value(context.replay_current_log(replayOptions)); }}});
         if (enqueueResult != GEOQIK_SUCCESS)
         {
           return enqueueResult;
@@ -1506,11 +1506,11 @@ geoqik_error_code_t geoqik_get_replay_state(geoqik_replay_state_t* state)
   return geoqik_internal::execute_if_initialized(
       [&]() -> geoqik_error_code_t
       {
-        std::promise<geoqik_replay_state_t> promise;
-        std::future<geoqik_replay_state_t> future = promise.get_future();
+        auto promise = std::make_shared<std::promise<geoqik_replay_state_t>>();
+        std::future<geoqik_replay_state_t> future = promise->get_future();
 
         auto enqueueResult =
-            enqueue(GeoQikMessage{GetReplayState{[&promise](Context& context) { promise.set_value(context.get_replay_state()); }}});
+            enqueue(GeoQikMessage{GetReplayState{[promise](Context& context) { promise->set_value(context.get_replay_state()); }}});
         if (enqueueResult != GEOQIK_SUCCESS)
         {
           return enqueueResult;
@@ -1531,11 +1531,11 @@ geoqik_error_code_t geoqik_get_replay_progress(size_t* currentEntry, size_t* tot
   return geoqik_internal::execute_if_initialized(
       [&]() -> geoqik_error_code_t
       {
-        std::promise<std::pair<std::size_t, std::size_t>> promise;
-        std::future<std::pair<std::size_t, std::size_t>> future = promise.get_future();
+        auto promise = std::make_shared<std::promise<std::pair<std::size_t, std::size_t>>>();
+        std::future<std::pair<std::size_t, std::size_t>> future = promise->get_future();
 
         auto enqueueResult =
-            enqueue(GeoQikMessage{GetReplayProgress{[&promise](Context& context) { promise.set_value(context.get_replay_progress()); }}});
+            enqueue(GeoQikMessage{GetReplayProgress{[promise](Context& context) { promise->set_value(context.get_replay_progress()); }}});
         if (enqueueResult != GEOQIK_SUCCESS)
         {
           return enqueueResult;
@@ -1569,10 +1569,10 @@ geoqik_error_code_t geoqik_get_point_size(float* result)
   return geoqik_internal::execute_if_initialized(
       [&]() -> geoqik_error_code_t
       {
-        std::promise<float> promise;
-        std::future<float> future = promise.get_future();
+        auto promise = std::make_shared<std::promise<float>>();
+        std::future<float> future = promise->get_future();
 
-        auto enqueueResult = enqueue(GeoQikMessage{GetPointSize{[&promise](Context& context) { promise.set_value(context.get_point_size()); }}});
+        auto enqueueResult = enqueue(GeoQikMessage{GetPointSize{[promise](Context& context) { promise->set_value(context.get_point_size()); }}});
         if (enqueueResult != GEOQIK_SUCCESS)
         {
           return enqueueResult;
@@ -1607,11 +1607,11 @@ geoqik_error_code_t geoqik_get_point_color(float* r, float* g, float* b, float* 
   return geoqik_internal::execute_if_initialized(
       [&]() -> geoqik_error_code_t
       {
-        std::promise<Color> promise;
-        std::future<Color> future = promise.get_future();
+        auto promise = std::make_shared<std::promise<Color>>();
+        std::future<Color> future = promise->get_future();
 
         auto enqueueResult =
-            enqueue(GeoQikMessage{GetPointColor{[&promise](Context& context) { promise.set_value(context.get_point_color()); }}});
+            enqueue(GeoQikMessage{GetPointColor{[promise](Context& context) { promise->set_value(context.get_point_color()); }}});
         if (enqueueResult != GEOQIK_SUCCESS)
         {
           return enqueueResult;
@@ -1647,10 +1647,10 @@ geoqik_error_code_t geoqik_get_line_width(float* result)
   return geoqik_internal::execute_if_initialized(
       [&]() -> geoqik_error_code_t
       {
-        std::promise<float> promise;
-        std::future<float> future = promise.get_future();
+        auto promise = std::make_shared<std::promise<float>>();
+        std::future<float> future = promise->get_future();
 
-        auto enqueueResult = enqueue(GeoQikMessage{GetLineWidth{[&promise](Context& context) { promise.set_value(context.get_line_width()); }}});
+        auto enqueueResult = enqueue(GeoQikMessage{GetLineWidth{[promise](Context& context) { promise->set_value(context.get_line_width()); }}});
         if (enqueueResult != GEOQIK_SUCCESS)
         {
           return enqueueResult;
@@ -1686,11 +1686,11 @@ geoqik_error_code_t geoqik_get_line_color(float* r, float* g, float* b, float* a
   return geoqik_internal::execute_if_initialized(
       [&]() -> geoqik_error_code_t
       {
-        std::promise<Color> promise;
-        std::future<Color> future = promise.get_future();
+        auto promise = std::make_shared<std::promise<Color>>();
+        std::future<Color> future = promise->get_future();
 
         auto enqueueResult =
-            enqueue(GeoQikMessage{GetLineColor{[&promise](Context& context) { promise.set_value(context.get_line_color()); }}});
+            enqueue(GeoQikMessage{GetLineColor{[promise](Context& context) { promise->set_value(context.get_line_color()); }}});
         if (enqueueResult != GEOQIK_SUCCESS)
         {
           return enqueueResult;
