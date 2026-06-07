@@ -8,7 +8,7 @@ on:
 
 jobs:
   ubuntu-static-analysis:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     name: Static Analysis - Clang-Tidy
     steps:
       - uses: actions/checkout@v4
@@ -17,7 +17,7 @@ jobs:
       - uses: ./.github/actions/ubuntu-build-steps
         with:
           cmake_workflow: workflow-test-clang-debug
-          install_tools: clang-tidy
+          install_tools: clang-tidy-18
           # Ninja -k 0 keeps building independent targets after failures, so
           # clang-tidy reports as many compile and analysis issues as possible.
           build_native_args: "-k 0"
