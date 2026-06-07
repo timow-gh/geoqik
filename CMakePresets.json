@@ -452,7 +452,7 @@
         "conf-asan-common"
       ],
       "cacheVariables": {
-        "CMAKE_CXX_FLAGS": "-stdlib=libc++ -fsanitize=address -fno-omit-frame-pointer -g"
+        "CMAKE_CXX_FLAGS": "-fsanitize=address -fno-omit-frame-pointer -g"
       }
     },
     {
@@ -464,7 +464,7 @@
         "conf-tsan-common"
       ],
       "cacheVariables": {
-        "CMAKE_CXX_FLAGS": "-stdlib=libc++ -fsanitize=thread -g"
+        "CMAKE_CXX_FLAGS": "-fsanitize=thread -g"
       }
     },
     {
@@ -476,7 +476,7 @@
         "conf-ubsan-common"
       ],
       "cacheVariables": {
-        "CMAKE_CXX_FLAGS": "-stdlib=libc++ -fsanitize=undefined -fno-omit-frame-pointer -g"
+        "CMAKE_CXX_FLAGS": "-fsanitize=undefined -fno-omit-frame-pointer -g"
       }
     },
     {
@@ -488,7 +488,7 @@
         "conf-asan-common"
       ],
       "cacheVariables": {
-        "CMAKE_CXX_FLAGS": "-stdlib=libc++ -fsanitize=address -fno-omit-frame-pointer -g"
+        "CMAKE_CXX_FLAGS": "-fsanitize=address -fno-omit-frame-pointer -g"
       }
     },
     {
@@ -500,7 +500,7 @@
         "conf-tsan-common"
       ],
       "cacheVariables": {
-        "CMAKE_CXX_FLAGS": "-stdlib=libc++ -fsanitize=thread -g"
+        "CMAKE_CXX_FLAGS": "-fsanitize=thread -g"
       }
     },
     {
@@ -512,7 +512,7 @@
         "conf-ubsan-common"
       ],
       "cacheVariables": {
-        "CMAKE_CXX_FLAGS": "-stdlib=libc++ -fsanitize=undefined -fno-omit-frame-pointer -g"
+        "CMAKE_CXX_FLAGS": "-fsanitize=undefined -fno-omit-frame-pointer -g"
       }
     }
   ],
