@@ -449,9 +449,9 @@
       "hidden": true,
       "cacheVariables": {
         "CMAKE_CXX_FLAGS": "-stdlib=libc++ -fsanitize=address -fno-omit-frame-pointer -g",
-        "CMAKE_EXE_LINKER_FLAGS": "-stdlib=libc++ -rtlib=compiler-rt -unwindlib=libunwind -fsanitize=address",
-        "CMAKE_SHARED_LINKER_FLAGS": "-stdlib=libc++ -rtlib=compiler-rt -unwindlib=libunwind -fsanitize=address",
-        "CMAKE_MODULE_LINKER_FLAGS": "-stdlib=libc++ -rtlib=compiler-rt -unwindlib=libunwind -fsanitize=address"
+        "CMAKE_EXE_LINKER_FLAGS": "-stdlib=libc++ -rtlib=compiler-rt -unwindlib=libunwind -lc++abi -fsanitize=address",
+        "CMAKE_SHARED_LINKER_FLAGS": "-stdlib=libc++ -rtlib=compiler-rt -unwindlib=libunwind -lc++abi -fsanitize=address",
+        "CMAKE_MODULE_LINKER_FLAGS": "-stdlib=libc++ -rtlib=compiler-rt -unwindlib=libunwind -lc++abi -fsanitize=address"
       }
     },
     {
@@ -460,9 +460,9 @@
       "hidden": true,
       "cacheVariables": {
         "CMAKE_CXX_FLAGS": "-stdlib=libc++ -fsanitize=thread -g",
-        "CMAKE_EXE_LINKER_FLAGS": "-stdlib=libc++ -rtlib=compiler-rt -unwindlib=libunwind -fsanitize=thread",
-        "CMAKE_SHARED_LINKER_FLAGS": "-stdlib=libc++ -rtlib=compiler-rt -unwindlib=libunwind -fsanitize=thread",
-        "CMAKE_MODULE_LINKER_FLAGS": "-stdlib=libc++ -rtlib=compiler-rt -unwindlib=libunwind -fsanitize=thread"
+        "CMAKE_EXE_LINKER_FLAGS": "-stdlib=libc++ -rtlib=compiler-rt -unwindlib=libunwind -lc++abi -fsanitize=thread",
+        "CMAKE_SHARED_LINKER_FLAGS": "-stdlib=libc++ -rtlib=compiler-rt -unwindlib=libunwind -lc++abi -fsanitize=thread",
+        "CMAKE_MODULE_LINKER_FLAGS": "-stdlib=libc++ -rtlib=compiler-rt -unwindlib=libunwind -lc++abi -fsanitize=thread"
       }
     },
     {
@@ -471,9 +471,9 @@
       "hidden": true,
       "cacheVariables": {
         "CMAKE_CXX_FLAGS": "-stdlib=libc++ -fsanitize=undefined -fno-omit-frame-pointer -g",
-        "CMAKE_EXE_LINKER_FLAGS": "-stdlib=libc++ -rtlib=compiler-rt -unwindlib=libunwind -fsanitize=undefined",
-        "CMAKE_SHARED_LINKER_FLAGS": "-stdlib=libc++ -rtlib=compiler-rt -unwindlib=libunwind -fsanitize=undefined",
-        "CMAKE_MODULE_LINKER_FLAGS": "-stdlib=libc++ -rtlib=compiler-rt -unwindlib=libunwind -fsanitize=undefined"
+        "CMAKE_EXE_LINKER_FLAGS": "-stdlib=libc++ -rtlib=compiler-rt -unwindlib=libunwind -lc++abi -fsanitize=undefined",
+        "CMAKE_SHARED_LINKER_FLAGS": "-stdlib=libc++ -rtlib=compiler-rt -unwindlib=libunwind -lc++abi -fsanitize=undefined",
+        "CMAKE_MODULE_LINKER_FLAGS": "-stdlib=libc++ -rtlib=compiler-rt -unwindlib=libunwind -lc++abi -fsanitize=undefined"
       }
     },
     {
