@@ -6,7 +6,6 @@
 #include <Core/Assert.hpp>
 #include <string>
 #include <utility>
-#include <fmt/format.h>
 
 namespace opengl
 {

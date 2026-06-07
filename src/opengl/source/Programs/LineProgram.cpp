@@ -1,10 +1,10 @@
 #include "OpenGL/Programs/LineProgram.hpp"
+#include "OpenGL/FmtIncludeHelper.hpp"
 #include "OpenGL/Programs/CreateProgram.hpp"
 #include "OpenGL/ShaderSources.hpp"
 #include <Core/Assert.hpp>
 #include <string>
 #include <utility>
-#include <fmt/format.h>
 
 namespace opengl
 {
