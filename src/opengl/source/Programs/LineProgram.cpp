@@ -35,11 +35,12 @@ opengl::LineProgram make_line_program() {
     fmt::print(stderr,
                "Error category: '{}';Error code: '{}'; Error message: '{}'\n",
                program.error().category().name(),
-               static_cast<int>(program.error().value()),
+               program.error().value(),
                program.error().message());
     CORE_ASSERT(false);
     return {};
   }
+  
   ProgramId id = program->get_id();
   CORE_ASSERT(id.get_value() != 0);
   Uniform mvpLocation = make_uniform("u_MVP", id);

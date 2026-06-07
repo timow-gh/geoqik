@@ -37,7 +37,7 @@ PointProgram make_point_program() {
     fmt::print(stderr,
                "Error category: '{}';Error code: '{}'; Error message: '{}'\n",
                program.error().category().name(),
-               static_cast<int>(program.error().value()),
+               program.error().value(),
                program.error().message());
     CORE_ASSERT(false);
     return {};

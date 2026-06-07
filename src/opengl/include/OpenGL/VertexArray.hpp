@@ -26,7 +26,7 @@ public:
   [[nodiscard]] static std::optional<VertexArray> create();
 
   void bind() const;
-  void unbind() const;
+  static void unbind();
 };
 
 } // namespace opengl
