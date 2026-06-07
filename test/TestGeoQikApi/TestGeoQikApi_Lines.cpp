@@ -208,6 +208,8 @@ TEST_F(GeoQikTest_Lines, UpdateLineValidation)
   opts.color = nullptr;
   opts.colorCount = 4;
   EXPECT_EQ(geoqik_update_line_opts(&id, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, &opts), GEOQIK_ERROR_INVALID_PARAMETER);
+
+  EXPECT_EQ(geoqik_remove_line(nullptr), GEOQIK_ERROR_INVALID_PARAMETER);
 }
 
 TEST_F(GeoQikTest_Lines, UpdateLineEnqueues)
@@ -219,6 +221,35 @@ TEST_F(GeoQikTest_Lines, UpdateLineEnqueues)
 
   EXPECT_EQ(geoqik_update_line(&result.geometryId, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0), GEOQIK_SUCCESS);
   EXPECT_EQ(geoqik_update_line_with_color(&result.geometryId, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 0.1f, 0.2f, 0.3f, 1.0f), GEOQIK_SUCCESS);
+
+  geoqik_cleanup();
+}
+
+TEST_F(GeoQikTest_Lines, UpdateLinesAndRemoveLineEnqueue)
+{
+  ASSERT_EQ(GEOQIK_SUCCESS, init_hidden_geoqik());
+
+  const double initialLines[] = {
+      0.0, 0.0, 0.0,  1.0, 0.0, 0.0,
+      0.0, 0.0, 0.0,  0.0, 1.0, 0.0,
+  };
+  geoqik_result_t result = geoqik_add_lines_opts(initialLines, sizeof(initialLines) / sizeof(initialLines[0]), nullptr);
+  ASSERT_EQ(result.err, GEOQIK_SUCCESS);
+
+  const double updatedLines[] = {
+      1.0, 1.0, 1.0,  2.0, 1.0, 1.0,
+      1.0, 1.0, 1.0,  1.0, 2.0, 1.0,
+  };
+  const float updatedColors[] = {
+      1.0f, 0.0f, 0.0f, 1.0f,
+      0.0f, 1.0f, 0.0f, 1.0f,
+  };
+  geoqik_update_line_opts_t opts{};
+  opts.color = updatedColors;
+  opts.colorCount = sizeof(updatedColors) / sizeof(updatedColors[0]);
+
+  EXPECT_EQ(geoqik_update_lines_opts(&result.geometryId, updatedLines, sizeof(updatedLines) / sizeof(updatedLines[0]), &opts), GEOQIK_SUCCESS);
+  EXPECT_EQ(geoqik_remove_line(&result.geometryId), GEOQIK_SUCCESS);
 
   geoqik_cleanup();
 }

@@ -24,12 +24,19 @@ TEST(CameraInteractorTest, AppliesProjectionAndClippingSettings)
   geoqik::InputState inputState;
   geoqik::CameraInteractor interactor = make_interactor(inputState);
 
+  EXPECT_EQ(interactor.get_default_position(), (linal::double3{0.0, -10.0, 10.0}));
+  EXPECT_EQ(interactor.get_default_target(), (linal::double3{0.0, 0.0, 0.0}));
+  EXPECT_EQ(interactor.get_default_up(), (linal::double3{0.0, 0.0, 1.0}));
+
   interactor.set_near_plane(0.5);
   interactor.set_far_plane(500.0);
+  interactor.set_zoom_factor(0.3);
   EXPECT_DOUBLE_EQ(interactor.get_near_plane(), 0.5);
   EXPECT_DOUBLE_EQ(interactor.get_far_plane(), 500.0);
+  (void)interactor.get_projection_matrix();
 
   interactor.set_projection_type(geoqik::CameraProjectionType::ORTHOGRAPHIC);
+  interactor.set_zoom_factor(0.1);
   interactor.set_near_plane(0.25);
   interactor.set_far_plane(250.0);
   EXPECT_EQ(interactor.get_projection_type(), geoqik::CameraProjectionType::ORTHOGRAPHIC);
@@ -41,6 +48,23 @@ TEST(CameraInteractorTest, AppliesProjectionAndClippingSettings)
   (void)interactor.get_projection_matrix();
   (void)interactor.get_current_MVP();
   (void)interactor.get_normal_matrix();
+}
+
+TEST(CameraInteractorTest, MoveTransfersInteractiveState)
+{
+  geoqik::InputState inputState;
+  geoqik::CameraInteractor interactor = make_interactor(inputState);
+  inputState.cursorPosState = geoqik::CursorPosState{400.0, 300.0};
+  interactor.on_scroll(0.0, 1.0);
+  const linal::double3 scrolledPosition = interactor.get_position();
+
+  geoqik::CameraInteractor moved(std::move(interactor));
+  EXPECT_EQ(moved.get_position(), scrolledPosition);
+
+  geoqik::InputState otherInputState;
+  geoqik::CameraInteractor assigned = make_interactor(otherInputState);
+  assigned = std::move(moved);
+  EXPECT_EQ(assigned.get_position(), scrolledPosition);
 }
 
 TEST(CameraInteractorTest, AppliesAutoFitResultToOrthographicCamera)
@@ -97,6 +121,20 @@ TEST(CameraInteractorTest, ScrollZoomsOrthographicCamera)
   EXPECT_LT(interactor.get_orthographic_params().width, initialWidth);
 }
 
+TEST(CameraInteractorTest, ScrollDoesNotBlockWhenGroundPlaneIsNotHit)
+{
+  geoqik::InputState inputState;
+  geoqik::CameraInteractor interactor = make_interactor(inputState);
+  inputState.cursorPosState = geoqik::CursorPosState{400.0, 300.0};
+  interactor.set_ground_plane(Geometry::Planed{linal::double3{0.0, 0.0, 100.0}, linal::double3{1.0, 0.0, 0.0}});
+
+  const linal::double3 initialPosition = interactor.get_position();
+  interactor.on_scroll(0.0, 1.0);
+
+  EXPECT_FALSE(interactor.get_was_blocking());
+  EXPECT_EQ(interactor.get_position(), initialPosition);
+}
+
 TEST(CameraInteractorTest, MiddleMouseDragPansCamera)
 {
   geoqik::InputState inputState;
@@ -113,6 +151,35 @@ TEST(CameraInteractorTest, MiddleMouseDragPansCamera)
   EXPECT_TRUE(interactor.get_was_blocking());
   EXPECT_NE(interactor.get_position(), initialPosition);
   EXPECT_NE(interactor.get_target(), initialTarget);
+}
+
+TEST(CameraInteractorTest, MiddleMouseDragPansOrthographicCamera)
+{
+  geoqik::InputState inputState;
+  geoqik::CameraInteractor interactor = make_interactor(inputState);
+  interactor.set_projection_type(geoqik::CameraProjectionType::ORTHOGRAPHIC);
+
+  interactor.on_cursor_position(400.0, 300.0);
+  const linal::double3 initialPosition = interactor.get_position();
+
+  interactor.on_mouse_button(GLFW_MOUSE_BUTTON_MIDDLE, geoqik::Action::PRESS, geoqik::Mods::MOD_NONE);
+  interactor.on_cursor_position(460.0, 300.0);
+  interactor.on_mouse_button(GLFW_MOUSE_BUTTON_MIDDLE, geoqik::Action::RELEASE, geoqik::Mods::MOD_NONE);
+
+  EXPECT_TRUE(interactor.get_was_blocking());
+  EXPECT_NE(interactor.get_position(), initialPosition);
+}
+
+TEST(CameraInteractorTest, TinyCursorMoveDoesNotBlock)
+{
+  geoqik::InputState inputState;
+  geoqik::CameraInteractor interactor = make_interactor(inputState);
+
+  interactor.on_cursor_position(400.0, 300.0);
+  interactor.on_mouse_button(GLFW_MOUSE_BUTTON_MIDDLE, geoqik::Action::PRESS, geoqik::Mods::MOD_NONE);
+  interactor.on_cursor_position(400.0001, 300.0001);
+
+  EXPECT_FALSE(interactor.get_was_blocking());
 }
 
 TEST(CameraInteractorTest, RightMouseDragOrbitsCamera)
@@ -140,4 +207,15 @@ TEST(CameraInteractorTest, UnsupportedMouseButtonDoesNotBlock)
   interactor.on_mouse_button(GLFW_MOUSE_BUTTON_LEFT, geoqik::Action::PRESS, geoqik::Mods::MOD_NONE);
 
   EXPECT_FALSE(interactor.get_was_blocking());
+}
+
+TEST(CameraInteractorTest, FramebufferResizeUpdatesViewport)
+{
+  geoqik::InputState inputState;
+  geoqik::CameraInteractor interactor = make_interactor(inputState);
+
+  interactor.on_framebuffer_size(1024, 512);
+
+  EXPECT_EQ(interactor.get_viewport().get_width(), 1024);
+  EXPECT_EQ(interactor.get_viewport().get_height(), 512);
 }

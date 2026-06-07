@@ -186,3 +186,25 @@ TEST_F(TestGeoQikApi_Points, UpdatePointEnqueues)
 
   geoqik_cleanup();
 }
+
+TEST_F(TestGeoQikApi_Points, UpdatePointsEnqueues)
+{
+  ASSERT_EQ(GEOQIK_SUCCESS, init_hidden_geoqik());
+
+  const double initialPoints[] = {0.0, 0.0, 0.0, 1.0, 1.0, 1.0};
+  geoqik_result_t result = geoqik_add_points_opts(initialPoints, sizeof(initialPoints) / sizeof(initialPoints[0]), nullptr);
+  ASSERT_EQ(result.err, GEOQIK_SUCCESS);
+
+  const double updatedPoints[] = {2.0, 3.0, 4.0, 5.0, 6.0, 7.0};
+  const float updatedColors[] = {
+      1.0f, 0.0f, 0.0f, 1.0f,
+      0.0f, 1.0f, 0.0f, 1.0f,
+  };
+  geoqik_update_points_options_t opts{};
+  opts.color = updatedColors;
+  opts.colorCount = sizeof(updatedColors) / sizeof(updatedColors[0]);
+
+  EXPECT_EQ(geoqik_update_points_opts(&result.geometryId, updatedPoints, sizeof(updatedPoints) / sizeof(updatedPoints[0]), &opts), GEOQIK_SUCCESS);
+
+  geoqik_cleanup();
+}
