@@ -444,76 +444,97 @@
       ]
     },
     {
+      "name": "conf-clang-asan-runtime-common",
+      "description": "Common Clang libc++ AddressSanitizer runtime settings",
+      "hidden": true,
+      "cacheVariables": {
+        "CMAKE_CXX_FLAGS": "-stdlib=libc++ -fsanitize=address -fno-omit-frame-pointer -g",
+        "CMAKE_EXE_LINKER_FLAGS": "-stdlib=libc++ -rtlib=compiler-rt -unwindlib=libunwind -fsanitize=address",
+        "CMAKE_SHARED_LINKER_FLAGS": "-stdlib=libc++ -rtlib=compiler-rt -unwindlib=libunwind -fsanitize=address",
+        "CMAKE_MODULE_LINKER_FLAGS": "-stdlib=libc++ -rtlib=compiler-rt -unwindlib=libunwind -fsanitize=address"
+      }
+    },
+    {
+      "name": "conf-clang-tsan-runtime-common",
+      "description": "Common Clang libc++ ThreadSanitizer runtime settings",
+      "hidden": true,
+      "cacheVariables": {
+        "CMAKE_CXX_FLAGS": "-stdlib=libc++ -fsanitize=thread -g",
+        "CMAKE_EXE_LINKER_FLAGS": "-stdlib=libc++ -rtlib=compiler-rt -unwindlib=libunwind -fsanitize=thread",
+        "CMAKE_SHARED_LINKER_FLAGS": "-stdlib=libc++ -rtlib=compiler-rt -unwindlib=libunwind -fsanitize=thread",
+        "CMAKE_MODULE_LINKER_FLAGS": "-stdlib=libc++ -rtlib=compiler-rt -unwindlib=libunwind -fsanitize=thread"
+      }
+    },
+    {
+      "name": "conf-clang-ubsan-runtime-common",
+      "description": "Common Clang libc++ UndefinedBehaviorSanitizer runtime settings",
+      "hidden": true,
+      "cacheVariables": {
+        "CMAKE_CXX_FLAGS": "-stdlib=libc++ -fsanitize=undefined -fno-omit-frame-pointer -g",
+        "CMAKE_EXE_LINKER_FLAGS": "-stdlib=libc++ -rtlib=compiler-rt -unwindlib=libunwind -fsanitize=undefined",
+        "CMAKE_SHARED_LINKER_FLAGS": "-stdlib=libc++ -rtlib=compiler-rt -unwindlib=libunwind -fsanitize=undefined",
+        "CMAKE_MODULE_LINKER_FLAGS": "-stdlib=libc++ -rtlib=compiler-rt -unwindlib=libunwind -fsanitize=undefined"
+      }
+    },
+    {
       "name": "conf-clang-debug-asan",
       "displayName": "clang Debug + AddressSanitizer",
       "description": "Debug build with AddressSanitizer for memory error detection",
       "inherits": [
+        "conf-clang-asan-runtime-common",
         "conf-clang-debug",
         "conf-asan-common"
-      ],
-      "cacheVariables": {
-        "CMAKE_CXX_FLAGS": "-fsanitize=address -fno-omit-frame-pointer -g"
-      }
+      ]
     },
     {
       "name": "conf-clang-debug-tsan",
       "displayName": "clang Debug + ThreadSanitizer",
       "description": "Debug build with ThreadSanitizer for data race detection",
       "inherits": [
+        "conf-clang-tsan-runtime-common",
         "conf-clang-debug",
         "conf-tsan-common"
-      ],
-      "cacheVariables": {
-        "CMAKE_CXX_FLAGS": "-fsanitize=thread -g"
-      }
+      ]
     },
     {
       "name": "conf-clang-debug-ubsan",
       "displayName": "clang Debug + UndefinedBehaviorSanitizer",
       "description": "Debug build with UndefinedBehaviorSanitizer for undefined behavior detection",
       "inherits": [
+        "conf-clang-ubsan-runtime-common",
         "conf-clang-debug",
         "conf-ubsan-common"
-      ],
-      "cacheVariables": {
-        "CMAKE_CXX_FLAGS": "-fsanitize=undefined -fno-omit-frame-pointer -g"
-      }
+      ]
     },
     {
       "name": "conf-clang-relwithdebinfo-asan",
       "displayName": "clang RelWithDebInfo + AddressSanitizer",
       "description": "RelWithDebInfo build with AddressSanitizer for memory error detection",
       "inherits": [
+        "conf-clang-asan-runtime-common",
         "conf-clang-relwithdebinfo",
         "conf-asan-common"
-      ],
-      "cacheVariables": {
-        "CMAKE_CXX_FLAGS": "-fsanitize=address -fno-omit-frame-pointer -g"
-      }
+      ]
     },
     {
       "name": "conf-clang-relwithdebinfo-tsan",
       "displayName": "clang RelWithDebInfo + ThreadSanitizer",
       "description": "RelWithDebInfo build with ThreadSanitizer for data race detection",
       "inherits": [
+        "conf-clang-tsan-runtime-common",
         "conf-clang-relwithdebinfo",
         "conf-tsan-common"
-      ],
-      "cacheVariables": {
-        "CMAKE_CXX_FLAGS": "-fsanitize=thread -g"
-      }
+      ]
     },
     {
       "name": "conf-clang-relwithdebinfo-ubsan",
       "displayName": "clang RelWithDebInfo + UndefinedBehaviorSanitizer",
       "description": "RelWithDebInfo build with UndefinedBehaviorSanitizer for undefined behavior detection",
       "inherits": [
+        "conf-clang-ubsan-runtime-common",
         "conf-clang-relwithdebinfo",
         "conf-ubsan-common"
-      ],
-      "cacheVariables": {
-        "CMAKE_CXX_FLAGS": "-fsanitize=undefined -fno-omit-frame-pointer -g"
-      }
+      ]
     }
   ],
   "buildPresets": [
