@@ -1,5 +1,6 @@
 #include "OpenGL/Programs/ProgramId.hpp"
 
+#include "ProgramOpenGL.hpp"
 #include <Core/Assert.hpp>
 #include <utility>
 
@@ -40,7 +41,7 @@ void ProgramHandle::reset() noexcept
 {
   if (m_id.has_value())
   {
-    glDeleteProgram(m_id->get_value());
+    program_opengl::delete_program(m_id->get_value());
     m_id = std::nullopt;
   }
 }

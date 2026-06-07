@@ -6,6 +6,7 @@
 #include <Core/Assert.hpp>
 #include <string>
 #include <utility>
+#include <fmt/format.h>
 
 namespace opengl
 {
@@ -31,18 +32,23 @@ PointProgram make_point_program() {
   const std::string vertexShaderSource = point_color_vertex_shader_source();
   const std::string fragmentShaderSource = point_color_fragment_shader_source();
 
-  ProgramHandle program = create_program(vertexShaderSource.c_str(), fragmentShaderSource.c_str());
-  if (!program.is_valid())
+  ProgramCreationResult program = create_program(vertexShaderSource.c_str(), fragmentShaderSource.c_str());
+  if (!program.has_value())
   {
+    fmt::print(stderr,
+               "Error category: '{}';Error code: '{}'; Error message: '{}'\n",
+               program.error().category().name(),
+               static_cast<int>(program.error().value()),
+               program.error().message());
     CORE_ASSERT(false);
     return {};
   }
-  ProgramId programId = program.get_id();
+  ProgramId programId = program->get_id();
   Uniform mvpLocation = make_uniform("u_MVP", programId);
   Attribute vertexLocation = make_attribute("a_vertex", programId);
   Attribute colorLocation = make_attribute("a_color", programId);
 
-  return PointProgram{std::move(program), mvpLocation, vertexLocation, colorLocation};
+  return PointProgram{std::move(*program), mvpLocation, vertexLocation, colorLocation};
 }
 
 } // namespace opengl

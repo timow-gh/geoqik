@@ -32,10 +32,12 @@ set(opengl_SOURCE_FILES
         source/IndexBuffer.cpp
         source/FrameState.cpp
         source/Programs/CreateProgram.cpp
+        source/Programs/ProgramOpenGL.cpp
         source/Programs/LineProgram.cpp
         source/Programs/MeshProgram.cpp
         source/Programs/PointProgram.cpp
         source/Programs/ProgramId.cpp
+        source/Programs/ProgramOpenGL.hpp
         source/Programs/ProgramManager.cpp
         source/VertexArray.cpp
         source/VertexBuffer.cpp
@@ -83,6 +85,7 @@ set_target_properties(
         DEBUG_POSTFIX d)
 
 add_warnings_and_compile_options(${TARGET_NAME} OFF)
+target_compile_features(${TARGET_NAME} PUBLIC cxx_std_23)
 if (${PROJECT_NAME}_STATIC_ANALYSIS)
     enable_static_analysis(${TARGET_NAME} OFF)
 endif ()
