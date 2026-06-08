@@ -124,7 +124,7 @@
       "cacheVariables": {
         "CMAKE_C_COMPILER": "clang-18",
         "CMAKE_CXX_COMPILER": "clang++-18",
-        "CMAKE_CXX_FLAGS": "-stdlib=libc++"
+        "CMAKE_CXX_FLAGS": "-stdlib=libstdc++"
       }
     },
     {
@@ -445,35 +445,35 @@
     },
     {
       "name": "conf-clang-asan-runtime-common",
-      "description": "Common Clang libc++ AddressSanitizer runtime settings",
+      "description": "Common Clang AddressSanitizer runtime settings",
       "hidden": true,
       "cacheVariables": {
-        "CMAKE_CXX_FLAGS": "-stdlib=libc++ -fsanitize=address -fno-omit-frame-pointer -g",
-        "CMAKE_EXE_LINKER_FLAGS": "-stdlib=libc++ -rtlib=compiler-rt -unwindlib=libunwind -lc++abi -fsanitize=address",
-        "CMAKE_SHARED_LINKER_FLAGS": "-stdlib=libc++ -rtlib=compiler-rt -unwindlib=libunwind -lc++abi -fsanitize=address",
-        "CMAKE_MODULE_LINKER_FLAGS": "-stdlib=libc++ -rtlib=compiler-rt -unwindlib=libunwind -lc++abi -fsanitize=address"
+        "CMAKE_CXX_FLAGS": "-stdlib=libstdc++ -fsanitize=address -fno-omit-frame-pointer -g",
+        "CMAKE_EXE_LINKER_FLAGS": "-stdlib=libstdc++ -fsanitize=address",
+        "CMAKE_SHARED_LINKER_FLAGS": "-stdlib=libstdc++ -fsanitize=address",
+        "CMAKE_MODULE_LINKER_FLAGS": "-stdlib=libstdc++ -fsanitize=address"
       }
     },
     {
       "name": "conf-clang-tsan-runtime-common",
-      "description": "Common Clang libc++ ThreadSanitizer runtime settings",
+      "description": "Common Clang ThreadSanitizer runtime settings",
       "hidden": true,
       "cacheVariables": {
-        "CMAKE_CXX_FLAGS": "-stdlib=libc++ -fsanitize=thread -g",
-        "CMAKE_EXE_LINKER_FLAGS": "-stdlib=libc++ -rtlib=compiler-rt -unwindlib=libunwind -lc++abi -fsanitize=thread",
-        "CMAKE_SHARED_LINKER_FLAGS": "-stdlib=libc++ -rtlib=compiler-rt -unwindlib=libunwind -lc++abi -fsanitize=thread",
-        "CMAKE_MODULE_LINKER_FLAGS": "-stdlib=libc++ -rtlib=compiler-rt -unwindlib=libunwind -lc++abi -fsanitize=thread"
+        "CMAKE_CXX_FLAGS": "-stdlib=libstdc++ -fsanitize=thread -g",
+        "CMAKE_EXE_LINKER_FLAGS": "-stdlib=libstdc++ -fsanitize=thread",
+        "CMAKE_SHARED_LINKER_FLAGS": "-stdlib=libstdc++ -fsanitize=thread",
+        "CMAKE_MODULE_LINKER_FLAGS": "-stdlib=libstdc++ -fsanitize=thread"
       }
     },
     {
       "name": "conf-clang-ubsan-runtime-common",
-      "description": "Common Clang libc++ UndefinedBehaviorSanitizer runtime settings",
+      "description": "Common Clang UndefinedBehaviorSanitizer runtime settings",
       "hidden": true,
       "cacheVariables": {
-        "CMAKE_CXX_FLAGS": "-stdlib=libc++ -fsanitize=undefined -fno-omit-frame-pointer -g",
-        "CMAKE_EXE_LINKER_FLAGS": "-stdlib=libc++ -rtlib=compiler-rt -unwindlib=libunwind -lc++abi -fsanitize=undefined",
-        "CMAKE_SHARED_LINKER_FLAGS": "-stdlib=libc++ -rtlib=compiler-rt -unwindlib=libunwind -lc++abi -fsanitize=undefined",
-        "CMAKE_MODULE_LINKER_FLAGS": "-stdlib=libc++ -rtlib=compiler-rt -unwindlib=libunwind -lc++abi -fsanitize=undefined"
+        "CMAKE_CXX_FLAGS": "-stdlib=libstdc++ -fsanitize=undefined -fno-omit-frame-pointer -g",
+        "CMAKE_EXE_LINKER_FLAGS": "-stdlib=libstdc++ -fsanitize=undefined",
+        "CMAKE_SHARED_LINKER_FLAGS": "-stdlib=libstdc++ -fsanitize=undefined",
+        "CMAKE_MODULE_LINKER_FLAGS": "-stdlib=libstdc++ -fsanitize=undefined"
       }
     },
     {

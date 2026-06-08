@@ -24,9 +24,7 @@ runs:
       run: |
         sudo apt-get update
         # gcc-13/g++-13 and clang-18/clang++-18: compilers used by the presets.
-        # libc++-18-dev/libc++abi-18-dev/libunwind-18-dev/libclang-rt-18-dev:
-        #   C++23 standard library and matching LLVM sanitizer/runtime support for clang,
-        #   including std::expected.
+        # libclang-rt-18-dev: clang sanitizer runtime (ASan/TSan/UBSan)
         # ninja-build: fast build backend used by the CMake presets
         # uuid-dev: required by the stduuid dependency
         # libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev: X11 headers needed to build GLFW
@@ -36,13 +34,7 @@ runs:
         #   display that call fails and every test that opens a window aborts immediately.
         #   xvfb-run (see Test step) starts a temporary in-process display so glfwInit()
         #   and glfwCreateWindow() succeed against the system Mesa/llvmpipe renderer.
-        sudo apt-get install -y gcc-13 g++-13 clang-18 libc++-18-dev libc++abi-18-dev libc++1-18 libc++abi1-18 libunwind-18-dev libclang-rt-18-dev ninja-build uuid-dev libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libgl-dev xvfb ${{ inputs.install_tools }}
-        # Force the symlink to the v18 file using the exact path reported by dpkg.
-        LIBABI18=$(dpkg -L libc++abi1-18 | grep 'libc++abi' | grep -E '\.so\.[0-9]+$' | head -1)
-        if [ -n "$LIBABI18" ] && [ -f "$LIBABI18" ]; then
-          sudo ln -sf "$LIBABI18" /usr/lib/x86_64-linux-gnu/libc++abi.so.1
-          sudo ldconfig
-        fi
+        sudo apt-get install -y gcc-13 g++-13 clang-18 libclang-rt-18-dev ninja-build uuid-dev libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libgl-dev xvfb ${{ inputs.install_tools }}
       shell: bash
     
     - name: Extract preset names
