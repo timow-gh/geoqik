@@ -57,7 +57,11 @@ void ImGuiOverlay::draw_controls(bool& autoZoomEnabled, CameraProjectionType& pr
 void ImGuiOverlay::render() // NOLINT(readability-convert-member-functions-to-static)
 {
   ImGui::Render();
-  ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+  ImDrawData* drawData = ImGui::GetDrawData();
+  if (drawData != nullptr && drawData->Valid)
+  {
+    ImGui_ImplOpenGL3_RenderDrawData(drawData);
+  }
 }
 
 bool ImGuiOverlay::wants_keyboard() const // NOLINT(readability-convert-member-functions-to-static)
