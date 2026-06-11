@@ -25,6 +25,7 @@ public:
   void new_frame();
   void draw_controls(bool& autoZoomEnabled, CameraProjectionType& projectionType);
   void render();
+  void end_frame();
 
   [[nodiscard]] bool wants_keyboard() const;
   [[nodiscard]] bool handle_cursor_position(double xpos, double ypos);

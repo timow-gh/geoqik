@@ -467,6 +467,7 @@ void Context::run_event_loop()
     update_camera_interaction_state();
     if (should_close_event_loop())
     {
+      m_imguiOverlay->end_frame();
       break;
     }
 

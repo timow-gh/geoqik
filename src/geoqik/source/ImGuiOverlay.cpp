@@ -64,6 +64,11 @@ void ImGuiOverlay::render() // NOLINT(readability-convert-member-functions-to-st
   }
 }
 
+void ImGuiOverlay::end_frame() // NOLINT(readability-convert-member-functions-to-static)
+{
+  ImGui::EndFrame();
+}
+
 bool ImGuiOverlay::wants_keyboard() const // NOLINT(readability-convert-member-functions-to-static)
 {
   return ImGui::GetIO().WantCaptureKeyboard;
