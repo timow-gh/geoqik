@@ -1,6 +1,6 @@
 #include "GlfwWindow.hpp"
+#include "Core/FmtIncludeHelper.hpp"
 #include <Core/Assert.hpp>
-#include <fmt/format.h>
 
 namespace geoqik
 {

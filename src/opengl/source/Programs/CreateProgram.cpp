@@ -1,7 +1,7 @@
 #include "OpenGL/Programs/CreateProgram.hpp"
+#include "Core/FmtIncludeHelper.hpp"
 #include "Core/ScopedAction.hpp"
 #include "ProgramOpenGL.hpp"
-#include <fmt/format.h>
 #include <utility>
 
 namespace opengl

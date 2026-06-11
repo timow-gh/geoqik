@@ -12,7 +12,6 @@ set(opengl_HEADER_FILES
         include/OpenGL/Drawable/DrawableTransparencyInfo.hpp
         include/OpenGL/VertexBuffer.hpp
         include/OpenGL/BufferId.hpp
-        include/OpenGL/FmtIncludeHelper.hpp
         include/OpenGL/FrameState.hpp
         include/OpenGL/BufferAccessPattern.hpp
         include/OpenGL/IndexBuffer.hpp
@@ -94,6 +93,5 @@ target_link_libraries(${TARGET_NAME}
         PRIVATE
         geoqik::core
         glad::glad
-        fmt::fmt
         $<BUILD_LOCAL_INTERFACE:linal::linal>
 )

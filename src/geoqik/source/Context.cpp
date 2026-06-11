@@ -1,11 +1,11 @@
 #include "Context.hpp"
+#include "Core/FmtIncludeHelper.hpp"
 #include "GeoQikMessages.hpp"
 #include "GlfwWindow.hpp"
 #include "Rendering/OpenGLSceneRenderer.hpp"
 #include <Core/Assert.hpp>
 #include <algorithm>
 #include <filesystem>
-#include <fmt/format.h>
 #include <system_error>
 #include <type_traits>
 #include <utility>
