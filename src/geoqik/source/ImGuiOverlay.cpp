@@ -38,10 +38,16 @@ void ImGuiOverlay::new_frame()
   ImGui::NewFrame();
 }
 
-void ImGuiOverlay::draw_controls(bool& autoZoomEnabled)
+void ImGuiOverlay::draw_controls(bool& autoZoomEnabled, CameraProjectionType& projectionType)
 {
   ImGui::Begin("Camera");
   ImGui::Checkbox("Auto Zoom", &autoZoomEnabled);
+
+  const char* projectionItems[] = {"Perspective", "Orthographic"};
+  int currentItem = static_cast<int>(projectionType);
+  if (ImGui::Combo("Projection", &currentItem, projectionItems, 2))
+    projectionType = static_cast<CameraProjectionType>(currentItem);
+
   ImGui::End();
 }
 

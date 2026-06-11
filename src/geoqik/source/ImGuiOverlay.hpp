@@ -1,6 +1,7 @@
 #ifndef IMGUIOVERLAY_HPP
 #define IMGUIOVERLAY_HPP
 
+#include "CameraProjectionType.hpp"
 #include "InputCaptureState.hpp"
 #include <cstdint>
 
@@ -23,7 +24,7 @@ public:
   ~ImGuiOverlay();
 
   void new_frame();
-  void draw_controls(bool& autoZoomEnabled);
+  void draw_controls(bool& autoZoomEnabled, CameraProjectionType& projectionType);
   void render();
 
   [[nodiscard]] bool wants_keyboard() const;

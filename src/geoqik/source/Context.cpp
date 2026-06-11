@@ -469,7 +469,10 @@ void Context::run_event_loop()
 
     mvp = m_cameraInteractor->get_current_MVP();
     m_renderer->draw(mvp, m_cameraInteractor->get_position());
-    m_imguiOverlay->draw_controls(m_geoqikSettings.autoFitCameraEnabled);
+    CameraProjectionType projType = m_cameraInteractor->get_projection_type();
+    m_imguiOverlay->draw_controls(m_geoqikSettings.autoFitCameraEnabled, projType);
+    if (projType != m_cameraInteractor->get_projection_type())
+      m_cameraInteractor->set_projection_type(projType);
     m_imguiOverlay->render();
     m_window->swap_buffers();
 
