@@ -1,7 +1,7 @@
 #include "ImGuiOverlay.hpp"
 #include "Core/Warnings.hpp"
-#include <array>
 #include <Core/Assert.hpp>
+#include <array>
 
 DISABLE_ALL_WARNINGS
 #include <imgui.h>
