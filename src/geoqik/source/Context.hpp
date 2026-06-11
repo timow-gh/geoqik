@@ -163,6 +163,7 @@ public:
   bool cleanup();
 
 private:
+  void setup_window_callbacks();
   [[nodiscard]] bool is_replaying() const;
   [[nodiscard]] static bool is_control_message(const GeoQikMessage& message);
   void on_key(Key key, Scancode scancode, Action action, Mods mods);

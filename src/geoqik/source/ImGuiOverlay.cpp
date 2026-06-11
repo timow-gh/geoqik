@@ -1,5 +1,6 @@
 #include "ImGuiOverlay.hpp"
 #include "Core/Warnings.hpp"
+#include <array>
 #include <Core/Assert.hpp>
 
 DISABLE_ALL_WARNINGS
@@ -31,33 +32,35 @@ ImGuiOverlay::~ImGuiOverlay()
   ImGui::DestroyContext();
 }
 
-void ImGuiOverlay::new_frame()
+void ImGuiOverlay::new_frame() // NOLINT(readability-convert-member-functions-to-static)
 {
   ImGui_ImplOpenGL3_NewFrame();
   ImGui_ImplGlfw_NewFrame();
   ImGui::NewFrame();
 }
 
-void ImGuiOverlay::draw_controls(bool& autoZoomEnabled, CameraProjectionType& projectionType)
+void ImGuiOverlay::draw_controls(bool& autoZoomEnabled, CameraProjectionType& projectionType) // NOLINT(readability-convert-member-functions-to-static)
 {
   ImGui::Begin("Camera");
   ImGui::Checkbox("Auto Zoom", &autoZoomEnabled);
 
-  const char* projectionItems[] = {"Perspective", "Orthographic"};
+  constexpr std::array<const char*, 2> projectionItems = {"Perspective", "Orthographic"}; // NOLINT(modernize-avoid-c-arrays)
   int currentItem = static_cast<int>(projectionType);
-  if (ImGui::Combo("Projection", &currentItem, projectionItems, 2))
+  if (ImGui::Combo("Projection", &currentItem, projectionItems.data(), static_cast<int>(projectionItems.size())))
+  {
     projectionType = static_cast<CameraProjectionType>(currentItem);
+  }
 
   ImGui::End();
 }
 
-void ImGuiOverlay::render()
+void ImGuiOverlay::render() // NOLINT(readability-convert-member-functions-to-static)
 {
   ImGui::Render();
   ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 }
 
-bool ImGuiOverlay::wants_keyboard() const
+bool ImGuiOverlay::wants_keyboard() const // NOLINT(readability-convert-member-functions-to-static)
 {
   return ImGui::GetIO().WantCaptureKeyboard;
 }

@@ -142,6 +142,13 @@ bool Context::init_window(const GeoQikSettings& geoqikSettings, const WindowSett
   m_cameraInteractor = std::make_unique<CameraInteractor>(m_window->get_input_state(), cameraSettings);
   m_imguiOverlay = std::make_unique<ImGuiOverlay>(m_window->get_native_handle());
 
+  setup_window_callbacks();
+
+  return true;
+}
+
+void Context::setup_window_callbacks()
+{
   m_window->set_cursor_pos_callback(
       [this](double xpos, double ypos)
       {
@@ -169,7 +176,10 @@ bool Context::init_window(const GeoQikSettings& geoqikSettings, const WindowSett
         }
         m_cameraInteractor->on_mouse_button(button, action, mods);
       });
-  m_window->set_framebuffer_size_callback([this](std::uint32_t width, std::uint32_t height) { m_cameraInteractor->on_framebuffer_size(width, height); });
+  m_window->set_framebuffer_size_callback([this](std::uint32_t width, std::uint32_t height)
+  {
+    m_cameraInteractor->on_framebuffer_size(width, height);
+  });
   m_window->set_key_callback(
       [this](Key key, Scancode scancode, Action action, Mods mods)
       {
@@ -187,8 +197,6 @@ bool Context::init_window(const GeoQikSettings& geoqikSettings, const WindowSett
           m_imguiOverlay->handle_char(codepoint);
         }
       });
-
-  return true;
 }
 
 float Context::get_point_size()
@@ -472,7 +480,9 @@ void Context::run_event_loop()
     CameraProjectionType projType = m_cameraInteractor->get_projection_type();
     m_imguiOverlay->draw_controls(m_geoqikSettings.autoFitCameraEnabled, projType);
     if (projType != m_cameraInteractor->get_projection_type())
+    {
       m_cameraInteractor->set_projection_type(projType);
+    }
     m_imguiOverlay->render();
     m_window->swap_buffers();
 
