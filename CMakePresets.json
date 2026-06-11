@@ -829,6 +829,9 @@
       "name": "test-tsan-common",
       "description": "Common ThreadSanitizer suppressions for test presets",
       "hidden": true,
+      "execution": {
+        "jobs": 1
+      },
       "environment": {
         "TSAN_OPTIONS": "suppressions=${sourceDir}/test/tsan.supp"
       }
