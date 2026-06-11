@@ -1,6 +1,6 @@
 #include "OpenGL/Attribute.hpp"
 
-#include "OpenGL/FmtIncludeHelper.hpp"
+#include "Core/FmtIncludeHelper.hpp"
 #include <Core/Assert.hpp>
 #include <cstdlib>
 

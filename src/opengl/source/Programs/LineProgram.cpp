@@ -1,5 +1,5 @@
 #include "OpenGL/Programs/LineProgram.hpp"
-#include "OpenGL/FmtIncludeHelper.hpp"
+#include "Core/FmtIncludeHelper.hpp"
 #include "OpenGL/Programs/CreateProgram.hpp"
 #include "OpenGL/ShaderSources.hpp"
 #include <Core/Assert.hpp>
