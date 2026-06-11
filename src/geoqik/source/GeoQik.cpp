@@ -7,6 +7,7 @@
 #include "WindowSettings.hpp"
 #include <array>
 #include <atomic>
+#include <chrono>
 #include <cmath>
 #include <future>
 #include <initializer_list>
@@ -40,6 +41,7 @@ constexpr double defaultAutoFitTargetViewportOccupancy = 0.65;
 constexpr std::size_t defaultAutoFitSuppressAfterUserCameraInteractionMs = 1000;
 constexpr std::size_t defaultFrameProcessingTimeMs = 16;
 constexpr std::size_t defaultUpdateSceneFrequency = 5;
+constexpr auto renderThreadInitTimeout = std::chrono::seconds{30};
 
 constexpr std::uint32_t defaultWindowWidth = 1280;
 constexpr std::uint32_t defaultWindowHeight = 720;
@@ -474,19 +476,43 @@ static auto execute_if_not_initialized(Func&& func) -> std::invoke_result_t<Func
       });
 }
 
+enum class RenderThreadInitStatus
+{
+  pending,
+  completed,
+  timedOut,
+};
+
+struct RenderThreadInitState
+{
+  std::promise<geoqik_error_code_t> resultPromise;
+  std::atomic<RenderThreadInitStatus> status{RenderThreadInitStatus::pending};
+};
+
 static geoqik_error_code_t run_render_thread(const geoqik::GeoQikSettings& geoqikSettings,
                                              const geoqik::WindowSettings& settings,
-                                             const std::shared_ptr<std::promise<geoqik_error_code_t>>& initResult)
+                                             const std::shared_ptr<RenderThreadInitState>& initState)
 {
-  auto setInitResult = [&initResult](geoqik_error_code_t result)
+  auto completeInit = [&initState](geoqik_error_code_t result)
   {
+    RenderThreadInitStatus expected = RenderThreadInitStatus::pending;
+    if (!initState->status.compare_exchange_strong(expected,
+                                                   RenderThreadInitStatus::completed,
+                                                   std::memory_order_acq_rel,
+                                                   std::memory_order_acquire))
+    {
+      return false;
+    }
+
     try
     {
-      initResult->set_value(result);
+      initState->resultPromise.set_value(result);
     }
     catch (const std::future_error&)
     {
     }
+
+    return true;
   };
 
   try
@@ -494,30 +520,38 @@ static geoqik_error_code_t run_render_thread(const geoqik::GeoQikSettings& geoqi
     auto context = std::make_unique<Context>();
     if (!context->init_window(geoqikSettings, settings))
     {
-      setInitResult(GEOQIK_ERROR_UNKNOWN);
+      std::cerr << "GeoQik render thread failed to initialize the window\n";
+      (void)completeInit(GEOQIK_ERROR_UNKNOWN);
       return GEOQIK_ERROR_UNKNOWN;
     }
 
-    setInitResult(GEOQIK_SUCCESS);
+    if (!completeInit(GEOQIK_SUCCESS))
+    {
+      std::cerr << "GeoQik render thread initialization completed after timing out; exiting render thread\n";
+      return GEOQIK_ERROR_UNKNOWN;
+    }
+
     context->run_event_loop();
     return GEOQIK_SUCCESS;
   }
   catch (const std::bad_alloc&)
   {
-    setInitResult(GEOQIK_ERROR_MEMORY_ALLOCATION);
+    (void)completeInit(GEOQIK_ERROR_MEMORY_ALLOCATION);
     return GEOQIK_ERROR_MEMORY_ALLOCATION;
   }
   catch (const std::exception& e)
   {
     std::cerr << "Exception in GeoQik render thread: " << e.what() << '\n';
-    setInitResult(GEOQIK_ERROR_UNKNOWN);
+    (void)completeInit(GEOQIK_ERROR_UNKNOWN);
     return GEOQIK_ERROR_UNKNOWN;
   }
   catch (...)
   {
-    get_message_queue().clear();
-    api_is_initialized_storage().store(false, std::memory_order_release);
-    setInitResult(GEOQIK_ERROR_UNKNOWN);
+    if (completeInit(GEOQIK_ERROR_UNKNOWN))
+    {
+      get_message_queue().clear();
+      api_is_initialized_storage().store(false, std::memory_order_release);
+    }
     return GEOQIK_ERROR_UNKNOWN;
   }
 }
@@ -536,9 +570,28 @@ static geoqik_error_code_t start_geoqik_thread(const geoqik::GeoQikSettings& geo
     auto& renderThread = get_render_thread();
     if (!renderThread.joinable())
     {
-      auto initPromise = std::make_shared<std::promise<geoqik_error_code_t>>();
-      std::future<geoqik_error_code_t> initFuture = initPromise->get_future();
-      renderThread = std::thread(run_render_thread, geoqikSettings, settings, initPromise);
+      auto initState = std::make_shared<RenderThreadInitState>();
+      std::future<geoqik_error_code_t> initFuture = initState->resultPromise.get_future();
+      renderThread = std::thread(run_render_thread, geoqikSettings, settings, initState);
+
+      if (initFuture.wait_for(renderThreadInitTimeout) != std::future_status::ready)
+      {
+        RenderThreadInitStatus expected = RenderThreadInitStatus::pending;
+        if (initState->status.compare_exchange_strong(expected,
+                                                      RenderThreadInitStatus::timedOut,
+                                                      std::memory_order_acq_rel,
+                                                      std::memory_order_acquire))
+        {
+          std::cerr << "GeoQik render thread initialization timed out after "
+                    << renderThreadInitTimeout.count() << " seconds\n";
+          if (renderThread.joinable())
+          {
+            renderThread.detach();
+          }
+          get_message_queue().clear();
+          return GEOQIK_ERROR_UNKNOWN;
+        }
+      }
 
       const geoqik_error_code_t initResult = initFuture.get();
       if (initResult != GEOQIK_SUCCESS)
