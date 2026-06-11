@@ -3,6 +3,7 @@
 
 find_program(LCOV_PATH lcov)
 find_program(GENHTML_PATH genhtml)
+set(GCOV_TOOL "")
 
 if(NOT LCOV_PATH)
     message(FATAL_ERROR "Coverage enabled but 'lcov' not found!\n"
@@ -15,6 +16,31 @@ if(NOT GENHTML_PATH)
     message(FATAL_ERROR "Coverage enabled but 'genhtml' not found!\n"
             "  Install with: sudo apt install lcov\n"
             "  Or use a non-coverage preset.")
+    return()
+endif()
+
+if(DEFINED ENV{GCOV} AND NOT "$ENV{GCOV}" STREQUAL "")
+    if(IS_ABSOLUTE "$ENV{GCOV}" AND EXISTS "$ENV{GCOV}")
+        set(GCOV_TOOL "$ENV{GCOV}")
+    else()
+        find_program(GCOV_TOOL NAMES "$ENV{GCOV}")
+    endif()
+endif()
+
+if(NOT GCOV_TOOL AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    string(REGEX MATCH "^[0-9]+" GCC_MAJOR_VERSION "${CMAKE_CXX_COMPILER_VERSION}")
+    if(GCC_MAJOR_VERSION)
+        find_program(GCOV_TOOL NAMES gcov-${GCC_MAJOR_VERSION} gcov)
+    endif()
+endif()
+
+if(NOT GCOV_TOOL)
+    find_program(GCOV_TOOL NAMES gcov)
+endif()
+
+if(NOT GCOV_TOOL)
+    message(FATAL_ERROR "Coverage enabled but 'gcov' not found!\n"
+            "  Install the gcov version matching the coverage compiler.")
     return()
 endif()
 
@@ -43,6 +69,7 @@ endif()
 message(STATUS "Coverage report generation enabled")
 message(STATUS "  lcov: ${LCOV_PATH}")
 message(STATUS "  genhtml: ${GENHTML_PATH}")
+message(STATUS "  gcov: ${GCOV_TOOL}")
 
 set(COVERAGE_OUTPUT_DIR "${CMAKE_BINARY_DIR}/coverage_html")
 set(COVERAGE_INFO_FILE "${CMAKE_BINARY_DIR}/coverage.info")
@@ -73,6 +100,7 @@ add_custom_target(coverage-report
     # Capture baseline coverage (before running tests)
     COMMAND ${LCOV_PATH}
         --capture
+        --gcov-tool ${GCOV_TOOL}
         --initial
         --directory ${CMAKE_BINARY_DIR}
         --output-file ${CMAKE_BINARY_DIR}/coverage_base.info
@@ -87,6 +115,7 @@ add_custom_target(coverage-report
     # Capture coverage data (after running tests)
     COMMAND ${LCOV_PATH}
         --capture
+        --gcov-tool ${GCOV_TOOL}
         --directory ${CMAKE_BINARY_DIR}
         --output-file ${CMAKE_BINARY_DIR}/coverage_test.info
         --rc branch_coverage=1
