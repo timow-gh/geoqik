@@ -13,7 +13,6 @@ class ImGuiOverlay
 {
   GLFWwindow* m_window{nullptr};
   InputCaptureState m_inputCaptureState;
-  bool m_showDemoWindow{true};
 
 public:
   explicit ImGuiOverlay(GLFWwindow* window);
@@ -24,7 +23,7 @@ public:
   ~ImGuiOverlay();
 
   void new_frame();
-  void draw_demo_window();
+  void draw_controls(bool& autoZoomEnabled);
   void render();
 
   [[nodiscard]] bool wants_keyboard() const;

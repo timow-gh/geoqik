@@ -38,12 +38,11 @@ void ImGuiOverlay::new_frame()
   ImGui::NewFrame();
 }
 
-void ImGuiOverlay::draw_demo_window()
+void ImGuiOverlay::draw_controls(bool& autoZoomEnabled)
 {
-  if (m_showDemoWindow)
-  {
-    ImGui::ShowDemoWindow(&m_showDemoWindow);
-  }
+  ImGui::Begin("Camera");
+  ImGui::Checkbox("Auto Zoom", &autoZoomEnabled);
+  ImGui::End();
 }
 
 void ImGuiOverlay::render()

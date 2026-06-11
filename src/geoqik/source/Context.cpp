@@ -469,7 +469,7 @@ void Context::run_event_loop()
 
     mvp = m_cameraInteractor->get_current_MVP();
     m_renderer->draw(mvp, m_cameraInteractor->get_position());
-    m_imguiOverlay->draw_demo_window();
+    m_imguiOverlay->draw_controls(m_geoqikSettings.autoFitCameraEnabled);
     m_imguiOverlay->render();
     m_window->swap_buffers();
 
