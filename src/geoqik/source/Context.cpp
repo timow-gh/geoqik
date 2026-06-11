@@ -614,10 +614,6 @@ bool Context::cleanup()
   }
 
   m_window->make_context_current();
-  if (m_imguiOverlay)
-  {
-    m_imguiOverlay->shutdown();
-  }
   m_imguiOverlay.reset();
   m_renderer.reset();
   m_window->destroy();

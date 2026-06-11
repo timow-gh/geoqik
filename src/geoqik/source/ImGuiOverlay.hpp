@@ -22,8 +22,6 @@ public:
   ImGuiOverlay(ImGuiOverlay&&) = delete;
   ImGuiOverlay& operator=(ImGuiOverlay&&) = delete;
   ~ImGuiOverlay();
-
-  void shutdown();
   void new_frame();
   void draw_controls(bool& autoZoomEnabled, CameraProjectionType& projectionType);
   void render();
