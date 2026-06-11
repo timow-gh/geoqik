@@ -7,6 +7,10 @@
     "glfw3",
     "glm",
     {
+      "name": "imgui",
+      "features": [ "glfw-binding", "opengl3-binding" ]
+    },
+    {
       "name": "stduuid",
       "features": [ "system-gen" ]
     }

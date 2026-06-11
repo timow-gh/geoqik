@@ -30,8 +30,11 @@ set(geoqik_SOURCE_FILES
         source/GlfwWindow.cpp
         source/GlfwWindow.hpp
         source/IdempotencyData.hpp
+        source/ImGuiOverlay.cpp
+        source/ImGuiOverlay.hpp
         source/InputState.hpp
         source/InputState.cpp
+        source/InputCaptureState.hpp
         source/MathConstants.hpp
         source/PickRay.hpp
         source/RayPlaneIntersection.hpp
@@ -90,6 +93,7 @@ target_link_libraries(${TARGET_NAME}
         $<BUILD_LOCAL_INTERFACE:geoqik::opengl>
         $<BUILD_LOCAL_INTERFACE:glfw>
         $<BUILD_LOCAL_INTERFACE:glad::glad>
+        $<BUILD_LOCAL_INTERFACE:imgui::imgui>
         $<BUILD_LOCAL_INTERFACE:fmt::fmt>
         $<BUILD_LOCAL_INTERFACE:linal::linal>
         $<BUILD_LOCAL_INTERFACE:Geometry::Geometry>
