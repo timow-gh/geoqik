@@ -27,6 +27,11 @@ ImGuiOverlay::ImGuiOverlay(GLFWwindow* window)
 
 ImGuiOverlay::~ImGuiOverlay()
 {
+  shutdown();
+}
+
+void ImGuiOverlay::shutdown()
+{
   ImGui_ImplOpenGL3_Shutdown();
   ImGui_ImplGlfw_Shutdown();
   ImGui::DestroyContext();
