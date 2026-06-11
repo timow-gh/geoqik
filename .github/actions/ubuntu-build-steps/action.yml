@@ -49,27 +49,6 @@ runs:
         echo "test=test-${BASE_NAME}" >> $GITHUB_OUTPUT
       shell: bash
 
-    - name: Probe std::expected support
-      run: |
-        cat > "$RUNNER_TEMP/std_expected_probe.cpp" <<'EOF'
-        #include <expected>
-
-        int main()
-        {
-          std::expected<int, int> value = 1;
-          return value.value() == 1 ? 0 : 1;
-        }
-        EOF
-
-        if [[ "${{ inputs.cmake_workflow }}" == *"-clang-"* ]]; then
-          clang++-20 -std=c++23 -stdlib=libstdc++ "$RUNNER_TEMP/std_expected_probe.cpp" -o "$RUNNER_TEMP/std_expected_probe"
-        else
-          g++-14 -std=c++23 "$RUNNER_TEMP/std_expected_probe.cpp" -o "$RUNNER_TEMP/std_expected_probe"
-        fi
-
-        "$RUNNER_TEMP/std_expected_probe"
-      shell: bash
-    
     - name: Configure
       run: |
         cmake --preset ${{ steps.preset.outputs.configure }} -DBUILD_SHARED_LIBS=ON
