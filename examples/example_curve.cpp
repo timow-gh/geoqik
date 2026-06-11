@@ -26,17 +26,17 @@ constexpr double opaque = 1.0;
 
 } // namespace
 
-void add_float3_with_color(const linal::double3& point)
+static void add_float3_with_color(const linal::double3& point)
 {
   geoqik_add_point_with_color(point[0], point[1], point[2], 0.0F, opaque, 0.0F, opaque);
 }
 
-void add_line_with_color(const linal::double3& start, const linal::double3& end)
+static void add_line_with_color(const linal::double3& start, const linal::double3& end)
 {
   geoqik_add_line_with_color(start[0], start[1], start[2], end[0], end[1], end[2], 0.0F, opaque, 0.0F, opaque);
 }
 
-void draw_curve_points(const std::array<linal::double3, curveControlPointCount>& startPoints, std::size_t approxSteps)
+static void draw_curve_points(const std::array<linal::double3, curveControlPointCount>& startPoints, std::size_t approxSteps)
 {
   bool initialized = false;
   geoqik_is_api_initialized(&initialized);
@@ -82,7 +82,7 @@ void draw_curve_points(const std::array<linal::double3, curveControlPointCount>&
   }
 }
 
-void replay_current_log()
+static void replay_current_log()
 {
   geoqik_replay_options_t replayOptions{};
   replayOptions.entriesPerSecond = replayEntriesPerSecond;

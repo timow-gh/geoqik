@@ -54,7 +54,7 @@ void request_replay_cancel()
   replay_cancel_requested_storage().store(true, std::memory_order_release);
 }
 
-CameraAutoFitSettings make_camera_auto_fit_settings(const GeoQikSettings& settings)
+static CameraAutoFitSettings make_camera_auto_fit_settings(const GeoQikSettings& settings)
 {
   CameraAutoFitSettings autoFitSettings;
   autoFitSettings.enabled = settings.autoFitCameraEnabled;
@@ -66,9 +66,9 @@ CameraAutoFitSettings make_camera_auto_fit_settings(const GeoQikSettings& settin
   return autoFitSettings;
 }
 
-CameraAutoFitInput make_camera_auto_fit_input(const CameraInteractor& cameraInteractor,
-                                              const GeoQikSettings& settings,
-                                              bool suppressZoomIn)
+static CameraAutoFitInput make_camera_auto_fit_input(const CameraInteractor& cameraInteractor,
+                                                     const GeoQikSettings& settings,
+                                                     bool suppressZoomIn)
 {
   const auto orthographicParams = cameraInteractor.get_orthographic_params();
   CameraAutoFitInput input;

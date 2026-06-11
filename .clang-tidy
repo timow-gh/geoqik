@@ -62,6 +62,7 @@ modernize-use-transparent-functors,
 modernize-use-uncaught-exceptions,	
 modernize-use-using,
 clang-analyzer-*,
+-clang-analyzer-optin.cplusplus.UninitializedObject,
 -misc-const-correctness,-misc-unused-parameters,-misc-non-private-member-variables-in-classes,-misc-no-recursion,-misc-use-anonymous-namespace,-misc-include-cleaner,readability-identifier-naming,-readability-identifier-length'
 
 # cppcoreguidelines-pro-bounds-pointer-arithmetic

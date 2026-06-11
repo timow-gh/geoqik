@@ -24,15 +24,15 @@ struct WindowCallbacks
   FramebufferSizeCB framebufferSizeCB;
 };
 
-void set_window_callbacks(GLFWwindow* glfwWindow);
+static void set_window_callbacks(GLFWwindow* glfwWindow);
 
-std::unordered_map<GLFWwindow*, WindowCallbacks>& window_callbacks_storage()
+static std::unordered_map<GLFWwindow*, WindowCallbacks>& window_callbacks_storage()
 {
   static std::unordered_map<GLFWwindow*, WindowCallbacks> callbacks; // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
   return callbacks;
 }
 
-WindowCallbacks* get_window_callbacks(GLFWwindow* glfwWindow)
+static WindowCallbacks* get_window_callbacks(GLFWwindow* glfwWindow)
 {
   CORE_ASSERT(glfwWindow);
   if (auto* wCallbacks = static_cast<WindowCallbacks*>(glfwGetWindowUserPointer(glfwWindow)); wCallbacks)
@@ -118,7 +118,7 @@ static void framebuffer_size_callback_trampoline(GLFWwindow* glfwWindow, int wid
 namespace detail
 {
 
-void set_window_callbacks(GLFWwindow* glfwWindow)
+static void set_window_callbacks(GLFWwindow* glfwWindow)
 {
   CORE_ASSERT(glfwWindow);
   glfwSetKeyCallback(glfwWindow, key_callback_trampoline);

@@ -10,7 +10,7 @@ bool ReplayUndoContext::has_known_idempotency_key(const core::UUID& key) const
   {
     return false;
   }
-  return idempotencySet.find(IdempotencyData{key, {}}) != idempotencySet.end();
+  return idempotencySet.contains(IdempotencyData{key, {}});
 }
 
 ReplayUndoFrame make_replay_undo_frame(const AddPointWithOpts& message, const ReplayUndoContext& context)

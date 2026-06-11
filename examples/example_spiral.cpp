@@ -75,18 +75,18 @@ int main()
       const double theta = static_cast<double>(i) * thetaStep;
 
       // Calculate point on the spiral
-      const double r = a + b * theta;
+      const double r = a + (b * theta);
       const double spiralX = r * std::cos(theta);
       const double spiralY = r * std::sin(theta);
       const double spiralZ = c * theta;
 
       // Calculate tangent vector (derivative of the spiral)
-      const double dxdtheta = b * std::cos(theta) - r * std::sin(theta);
-      const double dydtheta = b * std::sin(theta) + r * std::cos(theta);
+      const double dxdtheta = (b * std::cos(theta)) - (r * std::sin(theta));
+      const double dydtheta = (b * std::sin(theta)) + (r * std::cos(theta));
       const double dzdtheta = c;
 
       // Normalize tangent vector
-      const double tangentMagnitude = std::sqrt(dxdtheta * dxdtheta + dydtheta * dydtheta + dzdtheta * dzdtheta);
+      const double tangentMagnitude = std::sqrt((dxdtheta * dxdtheta) + (dydtheta * dydtheta) + (dzdtheta * dzdtheta));
       const double tx = dxdtheta / tangentMagnitude;
       const double ty = dydtheta / tangentMagnitude;
       const double tz = dzdtheta / tangentMagnitude;
@@ -96,12 +96,12 @@ int main()
       double nz = 0.0;
 
       // Make normal vector perpendicular to tangent
-      const double dot = nx * tx + ny * ty + nz * tz;
+      const double dot = (nx * tx) + (ny * ty) + (nz * tz);
       nx -= dot * tx;
       ny -= dot * ty;
       nz -= dot * tz;
 
-      const double normalMagnitude = std::sqrt(nx * nx + ny * ny + nz * nz);
+      const double normalMagnitude = std::sqrt((nx * nx) + (ny * ny) + (nz * nz));
       nx /= normalMagnitude;
       ny /= normalMagnitude;
       nz /= normalMagnitude;
@@ -115,9 +115,9 @@ int main()
       constexpr float colorOffset = 0.5F;
       constexpr float colorScale = 0.5F;
       constexpr float piApprox = 3.14F;
-      geoqik_set_line_color(colorOffset + std::sin(static_cast<float>(theta)) * colorScale,
-                             colorOffset + std::cos(static_cast<float>(theta)) * colorScale,
-                             colorOffset + std::sin(static_cast<float>(theta) + piApprox) * colorScale,
+      geoqik_set_line_color(colorOffset + (std::sin(static_cast<float>(theta)) * colorScale),
+                             colorOffset + (std::cos(static_cast<float>(theta)) * colorScale),
+                             colorOffset + (std::sin(static_cast<float>(theta) + piApprox) * colorScale),
                              colorMax);
 
       // Draw the discretized spiral by connecting consecutive points
@@ -128,7 +128,12 @@ int main()
       firstPoint = false;
 
       // Draw line from spiral point outward along normal vector (torsion-free sweep)
-      geoqik_add_line(spiralX, spiralY, spiralZ, spiralX - nx * lineLength, spiralY - ny * lineLength, spiralZ - nz * lineLength);
+      geoqik_add_line(spiralX,
+                      spiralY,
+                      spiralZ,
+                      spiralX - (nx * lineLength),
+                      spiralY - (ny * lineLength),
+                      spiralZ - (nz * lineLength));
 
       prevX = spiralX;
       prevY = spiralY;
