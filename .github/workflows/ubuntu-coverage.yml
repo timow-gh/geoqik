@@ -8,11 +8,13 @@ on:
 
 jobs:
   ubuntu-coverage:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     name: Code Coverage
     permissions:
       contents: read
       pull-requests: write
+    env:
+      GCOV: /usr/bin/gcov-14
     steps:
       - uses: actions/checkout@v4
       # ubuntu-build-steps installs build deps (including xvfb for headless OpenGL)
@@ -24,6 +26,7 @@ jobs:
       
       - name: Generate coverage report
         run: |
+          command -v "$GCOV"
           cmake --build --preset build-gcc-coverage-report
         shell: bash
       

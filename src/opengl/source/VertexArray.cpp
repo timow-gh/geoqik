@@ -62,9 +62,8 @@ void VertexArray::bind() const
   glBindVertexArray(m_id.value());
 }
 
-void VertexArray::unbind() const
+void VertexArray::unbind()
 {
-  CORE_ASSERT(m_id.has_value());
   glBindVertexArray(0);
 }
 

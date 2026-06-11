@@ -97,36 +97,36 @@ int main()
 
     // x points
     xyPoints[i * coordinateDimension] = coord;
-    xyPoints[i * coordinateDimension + 1] = 0.0;
-    xyPoints[i * coordinateDimension + 2] = 0.0;
+    xyPoints[(i * coordinateDimension) + 1] = 0.0;
+    xyPoints[(i * coordinateDimension) + 2] = 0.0;
 
     // x colors (red)
     xyColors[i * colorDimension] = opaque;
-    xyColors[i * colorDimension + 1] = 0.0F;
-    xyColors[i * colorDimension + 2] = 0.0F;
-    xyColors[i * colorDimension + 3] = opaque;
+    xyColors[(i * colorDimension) + 1] = 0.0F;
+    xyColors[(i * colorDimension) + 2] = 0.0F;
+    xyColors[(i * colorDimension) + 3] = opaque;
 
     // y points
-    xyPoints[yCoordinateOffset + i * coordinateDimension] = 0.0;
-    xyPoints[yCoordinateOffset + i * coordinateDimension + 1] = coord;
-    xyPoints[yCoordinateOffset + i * coordinateDimension + 2] = 0.0;
+    xyPoints[yCoordinateOffset + (i * coordinateDimension)] = 0.0;
+    xyPoints[yCoordinateOffset + (i * coordinateDimension) + 1] = coord;
+    xyPoints[yCoordinateOffset + (i * coordinateDimension) + 2] = 0.0;
 
     // y colors (green)
-    xyColors[yColorOffset + i * colorDimension] = 0.0F;
-    xyColors[yColorOffset + i * colorDimension + 1] = opaque;
-    xyColors[yColorOffset + i * colorDimension + 2] = 0.0F;
-    xyColors[yColorOffset + i * colorDimension + 3] = opaque;
+    xyColors[yColorOffset + (i * colorDimension)] = 0.0F;
+    xyColors[yColorOffset + (i * colorDimension) + 1] = opaque;
+    xyColors[yColorOffset + (i * colorDimension) + 2] = 0.0F;
+    xyColors[yColorOffset + (i * colorDimension) + 3] = opaque;
 
     // z points
     zPoints[i * coordinateDimension] = 0.0;
-    zPoints[i * coordinateDimension + 1] = 0.0;
-    zPoints[i * coordinateDimension + 2] = coord;
+    zPoints[(i * coordinateDimension) + 1] = 0.0;
+    zPoints[(i * coordinateDimension) + 2] = coord;
 
     // z colors (translucent blue)
     zColors[i * colorDimension] = 0.0F;
-    zColors[i * colorDimension + 1] = 0.0F;
-    zColors[i * colorDimension + 2] = opaque;
-    zColors[i * colorDimension + 3] = transparentPointAlpha;
+    zColors[(i * colorDimension) + 1] = 0.0F;
+    zColors[(i * colorDimension) + 2] = opaque;
+    zColors[(i * colorDimension) + 3] = transparentPointAlpha;
   }
 
   geoqik_add_points_options_t xyOptions{};

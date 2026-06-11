@@ -12,7 +12,6 @@ set(opengl_HEADER_FILES
         include/OpenGL/Drawable/DrawableTransparencyInfo.hpp
         include/OpenGL/VertexBuffer.hpp
         include/OpenGL/BufferId.hpp
-        include/OpenGL/FmtIncludeHelper.hpp
         include/OpenGL/FrameState.hpp
         include/OpenGL/BufferAccessPattern.hpp
         include/OpenGL/IndexBuffer.hpp
@@ -32,10 +31,12 @@ set(opengl_SOURCE_FILES
         source/IndexBuffer.cpp
         source/FrameState.cpp
         source/Programs/CreateProgram.cpp
+        source/Programs/ProgramOpenGL.cpp
         source/Programs/LineProgram.cpp
         source/Programs/MeshProgram.cpp
         source/Programs/PointProgram.cpp
         source/Programs/ProgramId.cpp
+        source/Programs/ProgramOpenGL.hpp
         source/Programs/ProgramManager.cpp
         source/VertexArray.cpp
         source/VertexBuffer.cpp
@@ -83,6 +84,7 @@ set_target_properties(
         DEBUG_POSTFIX d)
 
 add_warnings_and_compile_options(${TARGET_NAME} OFF)
+target_compile_features(${TARGET_NAME} PUBLIC cxx_std_23)
 if (${PROJECT_NAME}_STATIC_ANALYSIS)
     enable_static_analysis(${TARGET_NAME} OFF)
 endif ()
@@ -91,6 +93,5 @@ target_link_libraries(${TARGET_NAME}
         PRIVATE
         geoqik::core
         glad::glad
-        fmt::fmt
         $<BUILD_LOCAL_INTERFACE:linal::linal>
 )

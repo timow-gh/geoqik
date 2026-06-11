@@ -1,10 +1,12 @@
 #include "Context.hpp"
+#include "Core/FmtIncludeHelper.hpp"
 #include "GeoQikMessages.hpp"
 #include "GlfwWindow.hpp"
 #include "Rendering/OpenGLSceneRenderer.hpp"
 #include <Core/Assert.hpp>
 #include <algorithm>
-#include <fmt/format.h>
+#include <filesystem>
+#include <system_error>
 #include <type_traits>
 #include <utility>
 
@@ -29,6 +31,12 @@ std::atomic<bool>& replay_cancel_requested_storage()
   return replayCancelRequested;
 }
 
+bool is_existing_regular_file(const char* path)
+{
+  std::error_code ec;
+  return std::filesystem::is_regular_file(path, ec);
+}
+
 } // namespace
 
 void init_message_queue(ConcurrentQueue<GeoQikMessage>&& messageQueue)
@@ -46,7 +54,7 @@ void request_replay_cancel()
   replay_cancel_requested_storage().store(true, std::memory_order_release);
 }
 
-CameraAutoFitSettings make_camera_auto_fit_settings(const GeoQikSettings& settings)
+static CameraAutoFitSettings make_camera_auto_fit_settings(const GeoQikSettings& settings)
 {
   CameraAutoFitSettings autoFitSettings;
   autoFitSettings.enabled = settings.autoFitCameraEnabled;
@@ -58,9 +66,9 @@ CameraAutoFitSettings make_camera_auto_fit_settings(const GeoQikSettings& settin
   return autoFitSettings;
 }
 
-CameraAutoFitInput make_camera_auto_fit_input(const CameraInteractor& cameraInteractor,
-                                              const GeoQikSettings& settings,
-                                              bool suppressZoomIn)
+static CameraAutoFitInput make_camera_auto_fit_input(const CameraInteractor& cameraInteractor,
+                                                     const GeoQikSettings& settings,
+                                                     bool suppressZoomIn)
 {
   const auto orthographicParams = cameraInteractor.get_orthographic_params();
   CameraAutoFitInput input;
@@ -578,6 +586,11 @@ geoqik_error_code_t Context::load_log(const char* path, geoqik_log_format_t form
 
   try
   {
+    if (!is_existing_regular_file(path))
+    {
+      return GEOQIK_ERROR_UNKNOWN;
+    }
+
     std::vector<GeoQikLogEntry> loadedEntries = load_log_binary(path);
     remove_all_geometry();
     m_idempotencySet.clear();
@@ -604,6 +617,11 @@ geoqik_error_code_t Context::replay_log(const char* path, geoqik_log_format_t fo
 
   try
   {
+    if (!is_existing_regular_file(path))
+    {
+      return GEOQIK_ERROR_UNKNOWN;
+    }
+
     std::vector<GeoQikLogEntry> loadedEntries = load_log_binary(path);
     start_replay(std::move(loadedEntries), options);
     return GEOQIK_SUCCESS;

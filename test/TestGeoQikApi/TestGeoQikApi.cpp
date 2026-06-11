@@ -113,6 +113,45 @@ TEST_F(GeoQikTestApi, generate_uuid)
   EXPECT_FALSE(areEqual);
 }
 
+TEST_F(GeoQikTestApi, InitializationStatusAndErrorStrings)
+{
+  bool isInitialized = true;
+  EXPECT_EQ(GEOQIK_ERROR_INVALID_PARAMETER, geoqik_is_api_initialized(nullptr));
+  ASSERT_EQ(GEOQIK_SUCCESS, geoqik_is_api_initialized(&isInitialized));
+  EXPECT_FALSE(isInitialized);
+
+  EXPECT_STREQ("Success", geoqik_get_error_string(GEOQIK_SUCCESS));
+  EXPECT_STREQ("GeoQik not initialized", geoqik_get_error_string(GEOQIK_ERROR_NOT_INITIALIZED));
+  EXPECT_STREQ("GeoQik already initialized", geoqik_get_error_string(GEOQIK_ERROR_ALREADY_INITIALIZED));
+  EXPECT_STREQ("Invalid parameter", geoqik_get_error_string(GEOQIK_ERROR_INVALID_PARAMETER));
+  EXPECT_STREQ("Wrong RGBA color size", geoqik_get_error_string(GEOQIK_ERROR_WRONG_COLOR_SIZE));
+  EXPECT_STREQ("Memory allocation error", geoqik_get_error_string(GEOQIK_ERROR_MEMORY_ALLOCATION));
+  EXPECT_STREQ("Unknown error", geoqik_get_error_string(GEOQIK_ERROR_UNKNOWN));
+  EXPECT_STREQ("Invalid error code", geoqik_get_error_string(static_cast<geoqik_error_code_t>(42)));
+
+  init_hidden_geoqik();
+  ASSERT_EQ(GEOQIK_SUCCESS, geoqik_is_api_initialized(&isInitialized));
+  EXPECT_TRUE(isInitialized);
+  geoqik_cleanup();
+
+  ASSERT_EQ(GEOQIK_SUCCESS, geoqik_is_api_initialized(&isInitialized));
+  EXPECT_FALSE(isInitialized);
+}
+
+TEST_F(GeoQikTestApi, InitWhileInitializedReturnsAlreadyInitialized)
+{
+  init_hidden_geoqik();
+
+  geoqik_settings_t geoSettings;
+  geoqik_create_default_settings(&geoSettings);
+  geoqik_window_settings_t windowSettings;
+  geoqik_init_default_window_settings(&windowSettings);
+  windowSettings.visible = 0;
+
+  EXPECT_EQ(GEOQIK_ERROR_ALREADY_INITIALIZED, geoqik_init_with_settings(&geoSettings, &windowSettings));
+  geoqik_cleanup();
+}
+
 TEST_F(GeoQikTestApi, CombinedOperations)
 {
   geoqik_init();
@@ -268,6 +307,49 @@ TEST_F(GeoQikTestApi, ReplayLogValidation)
   EXPECT_EQ(GEOQIK_ERROR_INVALID_PARAMETER, geoqik_replay_log("", GEOQIK_LOG_FORMAT_BINARY, nullptr));
   EXPECT_EQ(GEOQIK_ERROR_INVALID_PARAMETER, geoqik_replay_log(validPath.string().c_str(), static_cast<geoqik_log_format_t>(42), nullptr));
   EXPECT_EQ(GEOQIK_ERROR_INVALID_PARAMETER, geoqik_replay_log(validPath.string().c_str(), GEOQIK_LOG_FORMAT_BINARY, &invalidOptions));
+  invalidOptions.entriesPerSecond = INFINITY;
+  EXPECT_EQ(GEOQIK_ERROR_INVALID_PARAMETER, geoqik_replay_log(validPath.string().c_str(), GEOQIK_LOG_FORMAT_BINARY, &invalidOptions));
+  invalidOptions.entriesPerSecond = 0.0;
+  invalidOptions.speedMultiplier = INFINITY;
+  EXPECT_EQ(GEOQIK_ERROR_INVALID_PARAMETER, geoqik_replay_log(validPath.string().c_str(), GEOQIK_LOG_FORMAT_BINARY, &invalidOptions));
+  invalidOptions.speedMultiplier = 1.0;
+  invalidOptions.stepKeys = nullptr;
+  invalidOptions.stepKeyCount = 1;
+  EXPECT_EQ(GEOQIK_ERROR_INVALID_PARAMETER, geoqik_replay_log(validPath.string().c_str(), GEOQIK_LOG_FORMAT_BINARY, &invalidOptions));
+
+  geoqik_key_t invalidKey = GEOQIK_KEY_UNKNOWN;
+  invalidOptions.stepKeys = &invalidKey;
+  invalidOptions.stepKeyCount = 1;
+  EXPECT_EQ(GEOQIK_ERROR_INVALID_PARAMETER, geoqik_replay_log(validPath.string().c_str(), GEOQIK_LOG_FORMAT_BINARY, &invalidOptions));
+  invalidOptions.stepKeys = nullptr;
+  invalidOptions.stepKeyCount = 0;
+
+  geoqik_key_t customStepKey = GEOQIK_KEY_J;
+  geoqik_key_t customBackwardStepKey = GEOQIK_KEY_K;
+  geoqik_key_t customResumeKey = GEOQIK_KEY_L;
+  geoqik_key_t customPauseKey = GEOQIK_KEY_M;
+  geoqik_key_t customIncreaseKey = GEOQIK_KEY_N;
+  geoqik_key_t customDecreaseKey = GEOQIK_KEY_O;
+  geoqik_replay_options_t customKeyOptions{};
+  customKeyOptions.entriesPerSecond = 30.0;
+  customKeyOptions.speedMultiplier = 2.0;
+  customKeyOptions.maxEntriesPerFrame = 3;
+  customKeyOptions.startPaused = 1;
+  customKeyOptions.entriesPerStep = 2;
+  customKeyOptions.stepKeys = &customStepKey;
+  customKeyOptions.stepKeyCount = 1;
+  customKeyOptions.backwardStepKeys = &customBackwardStepKey;
+  customKeyOptions.backwardStepKeyCount = 1;
+  customKeyOptions.resumeKeys = &customResumeKey;
+  customKeyOptions.resumeKeyCount = 1;
+  customKeyOptions.pauseKeys = &customPauseKey;
+  customKeyOptions.pauseKeyCount = 1;
+  customKeyOptions.increaseEntriesPerStepKeys = &customIncreaseKey;
+  customKeyOptions.increaseEntriesPerStepKeyCount = 1;
+  customKeyOptions.decreaseEntriesPerStepKeys = &customDecreaseKey;
+  customKeyOptions.decreaseEntriesPerStepKeyCount = 1;
+  EXPECT_EQ(GEOQIK_ERROR_NOT_INITIALIZED, geoqik_replay_log(validPath.string().c_str(), GEOQIK_LOG_FORMAT_BINARY, &customKeyOptions));
+
   EXPECT_EQ(GEOQIK_ERROR_NOT_INITIALIZED, geoqik_replay_log(validPath.string().c_str(), GEOQIK_LOG_FORMAT_BINARY, nullptr));
   EXPECT_EQ(GEOQIK_ERROR_NOT_INITIALIZED, geoqik_replay_current_log(nullptr));
   EXPECT_EQ(GEOQIK_ERROR_NOT_INITIALIZED, geoqik_cancel_replay());

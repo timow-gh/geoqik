@@ -26,12 +26,13 @@ void MeshProgram::use() const
 }
 
 MeshProgram make_mesh_program() {
-  ProgramHandle program = create_program(mesh_vertex_shader_source().data(), mesh_fragment_shader_source().data());
-  if (!program.is_valid())
+  ProgramCreationResult programCreation = create_program(mesh_vertex_shader_source().data(), mesh_fragment_shader_source().data());
+  if (!programCreation.has_value())
   {
     CORE_ASSERT(false);
     return {};
   }
+  ProgramHandle program = std::move(programCreation).value();
   ProgramId id = program.get_id();
   CORE_ASSERT(id.get_value() != 0);
 

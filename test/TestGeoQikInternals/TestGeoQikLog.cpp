@@ -2,6 +2,7 @@
 #include "GeoQikMessageSerialization.hpp"
 #include <array>
 #include <filesystem>
+#include <fstream>
 #include <gtest/gtest.h>
 #include <sstream>
 #include <stdexcept>
@@ -22,6 +23,12 @@ core::UUID make_uuid(std::uint8_t seed)
 std::filesystem::path make_temp_path(const char* name)
 {
   return std::filesystem::temp_directory_path() / name;
+}
+
+template <typename T>
+void write_binary_value(std::ostream& stream, const T& value)
+{
+  stream.write(reinterpret_cast<const char*>(&value), sizeof(T));
 }
 
 } // namespace
@@ -110,4 +117,42 @@ TEST(GeoQikLogTest, BinaryLoadRejectsMissingFile)
         (void)entries;
       },
       std::runtime_error);
+}
+
+TEST(GeoQikLogTest, CreateLogEntryFiltersNonLogMessages)
+{
+  EXPECT_TRUE(geoqik::create_log_entry(geoqik::GeoQikMessage{geoqik::SetPointSize{3.0f}}).has_value());
+  EXPECT_FALSE(geoqik::create_log_entry(geoqik::GeoQikMessage{geoqik::Draw{}}).has_value());
+  EXPECT_FALSE(geoqik::create_log_entry(geoqik::GeoQikMessage{geoqik::StopDraw{}}).has_value());
+  EXPECT_FALSE(geoqik::create_log_entry(geoqik::GeoQikMessage{geoqik::Cleanup{}}).has_value());
+}
+
+TEST(GeoQikLogTest, BinaryLoadRejectsCorruptHeadersAndVersion)
+{
+  const std::filesystem::path badHeaderPath = make_temp_path("geoqik_bad_header.gqklog");
+  {
+    std::ofstream stream(badHeaderPath, std::ios::binary);
+    stream.write("not-log", 7);
+  }
+  EXPECT_THROW((void)geoqik::load_log_binary(badHeaderPath), std::runtime_error);
+
+  const std::filesystem::path badVersionPath = make_temp_path("geoqik_bad_version.gqklog");
+  {
+    std::ofstream stream(badVersionPath, std::ios::binary);
+    stream.write("GQKLOG01", 8);
+    write_binary_value<std::uint32_t>(stream, 99);
+    write_binary_value<std::uint64_t>(stream, 0);
+  }
+  EXPECT_THROW((void)geoqik::load_log_binary(badVersionPath), std::runtime_error);
+
+  const std::filesystem::path truncatedPath = make_temp_path("geoqik_truncated.gqklog");
+  {
+    std::ofstream stream(truncatedPath, std::ios::binary);
+    stream.write("GQKLOG01", 8);
+  }
+  EXPECT_THROW((void)geoqik::load_log_binary(truncatedPath), std::runtime_error);
+
+  (void)std::filesystem::remove(badHeaderPath);
+  (void)std::filesystem::remove(badVersionPath);
+  (void)std::filesystem::remove(truncatedPath);
 }

@@ -14,7 +14,7 @@
       "installDir": "${sourceDir}/out/install/${presetName}",
       "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
       "cacheVariables": {
-        "CMAKE_CXX_STANDARD": "20",
+        "CMAKE_CXX_STANDARD": "23",
         "CMAKE_CXX_EXTENSIONS": "OFF",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
       }
@@ -122,8 +122,8 @@
       "hidden": true,
       "inherits": "conf-unix-common",
       "cacheVariables": {
-        "CMAKE_C_COMPILER": "clang",
-        "CMAKE_CXX_COMPILER": "clang++",
+        "CMAKE_C_COMPILER": "clang-20",
+        "CMAKE_CXX_COMPILER": "clang++-20",
         "CMAKE_CXX_FLAGS": "-stdlib=libstdc++"
       }
     },
@@ -133,8 +133,8 @@
       "hidden": true,
       "inherits": "conf-unix-common",
       "cacheVariables": {
-        "CMAKE_C_COMPILER": "gcc",
-        "CMAKE_CXX_COMPILER": "g++"
+        "CMAKE_C_COMPILER": "gcc-14",
+        "CMAKE_CXX_COMPILER": "g++-14"
       }
     },
     {
@@ -444,76 +444,97 @@
       ]
     },
     {
+      "name": "conf-clang-asan-runtime-common",
+      "description": "Common Clang AddressSanitizer runtime settings",
+      "hidden": true,
+      "cacheVariables": {
+        "CMAKE_CXX_FLAGS": "-stdlib=libstdc++ -fsanitize=address -fno-omit-frame-pointer -g",
+        "CMAKE_EXE_LINKER_FLAGS": "-stdlib=libstdc++ -fsanitize=address",
+        "CMAKE_SHARED_LINKER_FLAGS": "-stdlib=libstdc++ -fsanitize=address",
+        "CMAKE_MODULE_LINKER_FLAGS": "-stdlib=libstdc++ -fsanitize=address"
+      }
+    },
+    {
+      "name": "conf-clang-tsan-runtime-common",
+      "description": "Common Clang ThreadSanitizer runtime settings",
+      "hidden": true,
+      "cacheVariables": {
+        "CMAKE_CXX_FLAGS": "-stdlib=libstdc++ -fsanitize=thread -g",
+        "CMAKE_EXE_LINKER_FLAGS": "-stdlib=libstdc++ -fsanitize=thread",
+        "CMAKE_SHARED_LINKER_FLAGS": "-stdlib=libstdc++ -fsanitize=thread",
+        "CMAKE_MODULE_LINKER_FLAGS": "-stdlib=libstdc++ -fsanitize=thread"
+      }
+    },
+    {
+      "name": "conf-clang-ubsan-runtime-common",
+      "description": "Common Clang UndefinedBehaviorSanitizer runtime settings",
+      "hidden": true,
+      "cacheVariables": {
+        "CMAKE_CXX_FLAGS": "-stdlib=libstdc++ -fsanitize=undefined -fno-omit-frame-pointer -g",
+        "CMAKE_EXE_LINKER_FLAGS": "-stdlib=libstdc++ -fsanitize=undefined",
+        "CMAKE_SHARED_LINKER_FLAGS": "-stdlib=libstdc++ -fsanitize=undefined",
+        "CMAKE_MODULE_LINKER_FLAGS": "-stdlib=libstdc++ -fsanitize=undefined"
+      }
+    },
+    {
       "name": "conf-clang-debug-asan",
       "displayName": "clang Debug + AddressSanitizer",
       "description": "Debug build with AddressSanitizer for memory error detection",
       "inherits": [
+        "conf-clang-asan-runtime-common",
         "conf-clang-debug",
         "conf-asan-common"
-      ],
-      "cacheVariables": {
-        "CMAKE_CXX_FLAGS": "-stdlib=libstdc++ -fsanitize=address -fno-omit-frame-pointer -g"
-      }
+      ]
     },
     {
       "name": "conf-clang-debug-tsan",
       "displayName": "clang Debug + ThreadSanitizer",
       "description": "Debug build with ThreadSanitizer for data race detection",
       "inherits": [
+        "conf-clang-tsan-runtime-common",
         "conf-clang-debug",
         "conf-tsan-common"
-      ],
-      "cacheVariables": {
-        "CMAKE_CXX_FLAGS": "-stdlib=libstdc++ -fsanitize=thread -g"
-      }
+      ]
     },
     {
       "name": "conf-clang-debug-ubsan",
       "displayName": "clang Debug + UndefinedBehaviorSanitizer",
       "description": "Debug build with UndefinedBehaviorSanitizer for undefined behavior detection",
       "inherits": [
+        "conf-clang-ubsan-runtime-common",
         "conf-clang-debug",
         "conf-ubsan-common"
-      ],
-      "cacheVariables": {
-        "CMAKE_CXX_FLAGS": "-stdlib=libstdc++ -fsanitize=undefined -fno-omit-frame-pointer -g"
-      }
+      ]
     },
     {
       "name": "conf-clang-relwithdebinfo-asan",
       "displayName": "clang RelWithDebInfo + AddressSanitizer",
       "description": "RelWithDebInfo build with AddressSanitizer for memory error detection",
       "inherits": [
+        "conf-clang-asan-runtime-common",
         "conf-clang-relwithdebinfo",
         "conf-asan-common"
-      ],
-      "cacheVariables": {
-        "CMAKE_CXX_FLAGS": "-stdlib=libstdc++ -fsanitize=address -fno-omit-frame-pointer -g"
-      }
+      ]
     },
     {
       "name": "conf-clang-relwithdebinfo-tsan",
       "displayName": "clang RelWithDebInfo + ThreadSanitizer",
       "description": "RelWithDebInfo build with ThreadSanitizer for data race detection",
       "inherits": [
+        "conf-clang-tsan-runtime-common",
         "conf-clang-relwithdebinfo",
         "conf-tsan-common"
-      ],
-      "cacheVariables": {
-        "CMAKE_CXX_FLAGS": "-stdlib=libstdc++ -fsanitize=thread -g"
-      }
+      ]
     },
     {
       "name": "conf-clang-relwithdebinfo-ubsan",
       "displayName": "clang RelWithDebInfo + UndefinedBehaviorSanitizer",
       "description": "RelWithDebInfo build with UndefinedBehaviorSanitizer for undefined behavior detection",
       "inherits": [
+        "conf-clang-ubsan-runtime-common",
         "conf-clang-relwithdebinfo",
         "conf-ubsan-common"
-      ],
-      "cacheVariables": {
-        "CMAKE_CXX_FLAGS": "-stdlib=libstdc++ -fsanitize=undefined -fno-omit-frame-pointer -g"
-      }
+      ]
     }
   ],
   "buildPresets": [
@@ -808,6 +829,9 @@
       "name": "test-tsan-common",
       "description": "Common ThreadSanitizer suppressions for test presets",
       "hidden": true,
+      "execution": {
+        "jobs": 1
+      },
       "environment": {
         "TSAN_OPTIONS": "suppressions=${sourceDir}/test/tsan.supp"
       }

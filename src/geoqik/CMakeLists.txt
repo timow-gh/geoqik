@@ -125,13 +125,15 @@ add_library(geoqik_internals INTERFACE)
 # This following include dir paths need to be paths with the project as its root, since the test projects rely on them.
 target_include_directories(geoqik_internals INTERFACE ${CMAKE_SOURCE_DIR}/src/geoqik/source)
 target_sources(geoqik_internals INTERFACE
+        ${CMAKE_SOURCE_DIR}/src/geoqik/source/Camera.cpp
         ${CMAKE_SOURCE_DIR}/src/geoqik/source/Scene.cpp
         ${CMAKE_SOURCE_DIR}/src/geoqik/source/CameraAutoFit.cpp
         ${CMAKE_SOURCE_DIR}/src/geoqik/source/GeoQikLog.cpp
         ${CMAKE_SOURCE_DIR}/src/geoqik/source/GeoQikMessageSerialization.cpp
-        ${CMAKE_SOURCE_DIR}/src/geoqik/source/GeoQikReplayUndo.cpp)
+        ${CMAKE_SOURCE_DIR}/src/geoqik/source/GeoQikReplayUndo.cpp
+        ${CMAKE_SOURCE_DIR}/src/geoqik/source/InputState.cpp)
 target_link_libraries(geoqik_internals INTERFACE
-        stduuid linal::linal Geometry::Geometry geoqik::core)
+        stduuid linal::linal Geometry::Geometry geoqik::core glfw)
 target_include_directories(geoqik_internals INTERFACE
         $<TARGET_PROPERTY:geoqik_core,INTERFACE_INCLUDE_DIRECTORIES>
         $<TARGET_PROPERTY:geoqik_opengl,INTERFACE_INCLUDE_DIRECTORIES>)

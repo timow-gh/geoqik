@@ -1,4 +1,5 @@
 #include "OpenGL/Programs/LineProgram.hpp"
+#include "Core/FmtIncludeHelper.hpp"
 #include "OpenGL/Programs/CreateProgram.hpp"
 #include "OpenGL/ShaderSources.hpp"
 #include <Core/Assert.hpp>
@@ -28,18 +29,24 @@ void LineProgram::use() const
 opengl::LineProgram make_line_program() {
   const std::string vertexShaderSource = line_vertex_shader_source();
   const std::string fragmentShaderSource = line_fragment_shader_source();
-  ProgramHandle program = create_program(vertexShaderSource.c_str(), fragmentShaderSource.c_str());
-  if (!program.is_valid())
+  ProgramCreationResult program = create_program(vertexShaderSource.c_str(), fragmentShaderSource.c_str());
+  if (!program)
   {
+    fmt::print(stderr,
+               "Error category: '{}';Error code: '{}'; Error message: '{}'\n",
+               program.error().category().name(),
+               program.error().value(),
+               program.error().message());
     CORE_ASSERT(false);
     return {};
   }
-  ProgramId id = program.get_id();
+  
+  ProgramId id = program->get_id();
   CORE_ASSERT(id.get_value() != 0);
   Uniform mvpLocation = make_uniform("u_MVP", id);
   Attribute vertexLocation = make_attribute("a_vertex", id);
   Attribute colorLocation = make_attribute("a_color", id);
-  return LineProgram{std::move(program), mvpLocation, vertexLocation, colorLocation};
+  return LineProgram{std::move(*program), mvpLocation, vertexLocation, colorLocation};
 }
 
 } // namespace opengl

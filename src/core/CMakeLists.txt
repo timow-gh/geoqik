@@ -2,6 +2,7 @@ set(core_HEADERS
         include/Core/Assert.hpp
         include/Core/Compiler.hpp
         include/Core/DLLWarnings.hpp
+        include/Core/FmtIncludeHelper.hpp
         include/Core/Handle.hpp
         include/Core/ScopedAction.hpp
         include/Core/UUID.hpp
@@ -24,6 +25,7 @@ target_compile_definitions(${TARGET_NAME} PUBLIC CORE_STATIC_DEFINE)
 target_link_libraries(${TARGET_NAME}
         PUBLIC
         stduuid
+        fmt::fmt
 )
 
 include(GenerateExportHeader)

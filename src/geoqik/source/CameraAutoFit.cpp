@@ -107,11 +107,11 @@ void add_vertices_to_bounds(CameraSpaceBounds& bounds,
   double requiredDelta = nearPlane - bounds.minZ + nearPlane;
   if (maxAbsX > epsilon)
   {
-    requiredDelta = std::max(requiredDelta, maxAbsX * padding / tanHalfHorizontalFov - bounds.minZ);
+    requiredDelta = std::max(requiredDelta, (maxAbsX * padding / tanHalfHorizontalFov) - bounds.minZ);
   }
   if (maxAbsY > epsilon)
   {
-    requiredDelta = std::max(requiredDelta, maxAbsY * padding / tanHalfVerticalFov - bounds.minZ);
+    requiredDelta = std::max(requiredDelta, (maxAbsY * padding / tanHalfVerticalFov) - bounds.minZ);
   }
   return std::max(0.0, requiredDelta);
 }
