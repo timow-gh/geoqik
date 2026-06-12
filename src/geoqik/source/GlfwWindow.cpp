@@ -135,6 +135,12 @@ void GlfwWindow::set_key_callback(KeyCB cb)
   geoqik::set_key_callback(m_window, std::move(cb));
 }
 
+void GlfwWindow::set_char_callback(CharCB cb)
+{
+  CORE_ASSERT(m_window);
+  geoqik::set_char_callback(m_window, std::move(cb));
+}
+
 void GlfwWindow::set_cursor_pos_callback(CursorPosCB cb)
 {
   CORE_ASSERT(m_window);

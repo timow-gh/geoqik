@@ -27,6 +27,7 @@ namespace geoqik
 {
 
 class GlfwWindow;
+class ImGuiOverlay;
 class OpenGLSceneRenderer;
 
 void init_message_queue(ConcurrentQueue<GeoQikMessage>&& messageQueue);
@@ -60,6 +61,7 @@ class Context
   std::atomic<bool> m_windowShouldClose{false};
 
   std::unique_ptr<CameraInteractor> m_cameraInteractor;
+  std::unique_ptr<ImGuiOverlay> m_imguiOverlay;
 
   Color m_backgroundColor{0.1f, 0.1f, 0.1f, 1.0f}; // Default background color
 
@@ -161,6 +163,7 @@ public:
   bool cleanup();
 
 private:
+  void setup_window_callbacks();
   [[nodiscard]] bool is_replaying() const;
   [[nodiscard]] static bool is_control_message(const GeoQikMessage& message);
   void on_key(Key key, Scancode scancode, Action action, Mods mods);

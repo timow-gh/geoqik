@@ -24,6 +24,7 @@ public:
   void destroy();
 
   [[nodiscard]] bool is_initialized() const { return m_window != nullptr; }
+  [[nodiscard]] GLFWwindow* get_native_handle() const { return m_window; }
 
   void make_context_current() const;
   static void poll_events();
@@ -36,6 +37,7 @@ public:
   [[nodiscard]] InputState& get_input_state() const;
 
   void set_key_callback(KeyCB cb);
+  void set_char_callback(CharCB cb);
   void set_cursor_pos_callback(CursorPosCB cb);
   void set_scroll_callback(ScrollCB cb);
   void set_mouse_button_callback(MouseBtnCB cb);

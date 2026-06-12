@@ -2,6 +2,7 @@
 #include "Core/FmtIncludeHelper.hpp"
 #include "GeoQikMessages.hpp"
 #include "GlfwWindow.hpp"
+#include "ImGuiOverlay.hpp"
 #include "Rendering/OpenGLSceneRenderer.hpp"
 #include <Core/Assert.hpp>
 #include <algorithm>
@@ -139,14 +140,63 @@ bool Context::init_window(const GeoQikSettings& geoqikSettings, const WindowSett
   cameraSettings.m_camera.set_viewport(0, 0, static_cast<std::uint32_t>(framebufferWidth), static_cast<std::uint32_t>(framebufferHeight));
 
   m_cameraInteractor = std::make_unique<CameraInteractor>(m_window->get_input_state(), cameraSettings);
+  m_imguiOverlay = std::make_unique<ImGuiOverlay>(m_window->get_native_handle());
 
-  m_window->set_cursor_pos_callback([this](double xpos, double ypos) { m_cameraInteractor->on_cursor_position(xpos, ypos); });
-  m_window->set_scroll_callback([this](double xoff, double yoff) { m_cameraInteractor->on_scroll(xoff, yoff); });
-  m_window->set_mouse_button_callback([this](int button, Action action, Mods mods) { m_cameraInteractor->on_mouse_button(button, action, mods); });
-  m_window->set_framebuffer_size_callback([this](std::uint32_t width, std::uint32_t height) { m_cameraInteractor->on_framebuffer_size(width, height); });
-  m_window->set_key_callback([this](Key key, Scancode scancode, Action action, Mods mods) { on_key(key, scancode, action, mods); });
+  setup_window_callbacks();
 
   return true;
+}
+
+void Context::setup_window_callbacks()
+{
+  m_window->set_cursor_pos_callback(
+      [this](double xpos, double ypos)
+      {
+        if (m_imguiOverlay && !m_imguiOverlay->handle_cursor_position(xpos, ypos))
+        {
+          return;
+        }
+        m_cameraInteractor->on_cursor_position(xpos, ypos);
+      });
+  m_window->set_scroll_callback(
+      [this](double xoff, double yoff)
+      {
+        if (m_imguiOverlay && !m_imguiOverlay->handle_scroll(xoff, yoff))
+        {
+          return;
+        }
+        m_cameraInteractor->on_scroll(xoff, yoff);
+      });
+  m_window->set_mouse_button_callback(
+      [this](int button, Action action, Mods mods)
+      {
+        if (m_imguiOverlay && !m_imguiOverlay->handle_mouse_button(button, action, mods))
+        {
+          return;
+        }
+        m_cameraInteractor->on_mouse_button(button, action, mods);
+      });
+  m_window->set_framebuffer_size_callback([this](std::uint32_t width, std::uint32_t height)
+  {
+    m_cameraInteractor->on_framebuffer_size(width, height);
+  });
+  m_window->set_key_callback(
+      [this](Key key, Scancode scancode, Action action, Mods mods)
+      {
+        if (m_imguiOverlay && !m_imguiOverlay->handle_key(key, scancode, action, mods))
+        {
+          return;
+        }
+        on_key(key, scancode, action, mods);
+      });
+  m_window->set_char_callback(
+      [this](std::uint32_t codepoint)
+      {
+        if (m_imguiOverlay)
+        {
+          m_imguiOverlay->handle_char(codepoint);
+        }
+      });
 }
 
 float Context::get_point_size()
@@ -413,9 +463,11 @@ void Context::run_event_loop()
     mvp = m_cameraInteractor->get_current_MVP();
 
     GlfwWindow::poll_events();
+    m_imguiOverlay->new_frame();
     update_camera_interaction_state();
     if (should_close_event_loop())
     {
+      m_imguiOverlay->end_frame();
       break;
     }
 
@@ -426,6 +478,13 @@ void Context::run_event_loop()
 
     mvp = m_cameraInteractor->get_current_MVP();
     m_renderer->draw(mvp, m_cameraInteractor->get_position());
+    CameraProjectionType projType = m_cameraInteractor->get_projection_type();
+    m_imguiOverlay->draw_controls(m_geoqikSettings.autoFitCameraEnabled, projType);
+    if (projType != m_cameraInteractor->get_projection_type())
+    {
+      m_cameraInteractor->set_projection_type(projType);
+    }
+    m_imguiOverlay->render();
     m_window->swap_buffers();
 
     process_replay_entries(std::chrono::high_resolution_clock::now());
@@ -451,11 +510,19 @@ void Context::run_event_loop()
 
 bool Context::should_close_event_loop()
 {
-  if (m_window->is_escape_pressed() || m_window->should_close())
+  if (m_window->should_close())
   {
     m_windowShouldClose.store(true);
     return true;
   }
+
+  const bool keyboardCaptured = m_imguiOverlay && m_imguiOverlay->wants_keyboard();
+  if (!keyboardCaptured && m_window->is_escape_pressed())
+  {
+    m_windowShouldClose.store(true);
+    return true;
+  }
+
   return false;
 }
 
@@ -548,6 +615,7 @@ bool Context::cleanup()
   }
 
   m_window->make_context_current();
+  m_imguiOverlay.reset();
   m_renderer.reset();
   m_window->destroy();
   m_window.reset();
