@@ -5,3 +5,4 @@ leak:extensionSupportedGLX
 leak:opengl::PointDrawable::draw_index_buffer
 leak:opengl::LineDrawable::draw_index_buffer
 leak:opengl::MeshDrawable::draw
+leak:ImGui_ImplOpenGL3_RenderDrawData
