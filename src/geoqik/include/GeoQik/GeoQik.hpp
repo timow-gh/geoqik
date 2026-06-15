@@ -58,6 +58,14 @@ extern "C"
     size_t initialLineCapacity;          /* Initial capacity for the line buffer */
     size_t initialMeshCapacity;          /* Initial capacity for the mesh vertex buffer */
     float defaultMeshColor[4];           /* Default color for meshes (RGBA) */
+    float meshHeadLightColor[3];         /* Camera headlight color (RGB) */
+    float meshHeadLightIntensity;        /* Camera headlight intensity */
+    float meshFillLightDirection[3];     /* World-space direction from mesh surface toward the fill light */
+    float meshFillLightColor[3];         /* Directional fill light color (RGB) */
+    float meshFillLightIntensity;        /* Directional fill light intensity */
+    float meshAmbientColor[3];           /* Mesh ambient light color (RGB) */
+    float meshAmbientIntensity;          /* Mesh ambient light intensity */
+    float meshShininess;                 /* Mesh Phong specular exponent */
     size_t capacityGrowthFactor;         /* Growth factor for the geometry buffers */
     float defaultPointSize;              /* Default size for points */
     float defaultLineWidth;              /* Default width for lines */

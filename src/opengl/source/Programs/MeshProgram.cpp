@@ -46,6 +46,8 @@ MeshProgram make_mesh_program() {
                             .m_lightPos = make_uniform("u_lightPos", id),
                             .viewPos = make_uniform("u_viewPos", id),
                             .lightColor = make_uniform("u_lightColor", id),
+                            .fillLightDirection = make_uniform("u_fillLightDirection", id),
+                            .fillLightColor = make_uniform("u_fillLightColor", id),
                             .ambientColor = make_uniform("u_ambientColor", id),
                             .shininess = make_uniform("u_shininess", id)};
 

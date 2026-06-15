@@ -320,6 +320,8 @@ TEST_F(OpenGLDrawableTest, MeshDrawableUpdatesDrawsAndMoveAssigns)
                 linal::float3{0.0F, 0.0F, 1.0F},
                 linal::float3{0.0F, 0.0F, 2.0F},
                 linal::float3{1.0F, 1.0F, 1.0F},
+                linal::float3{-0.45F, 0.60F, 0.35F},
+                linal::float3{0.2F, 0.2F, 0.3F},
                 linal::float3{0.1F, 0.1F, 0.1F},
                 8.0F);
 
@@ -427,6 +429,8 @@ TEST_F(OpenGLDrawableTest, DrawablesManagerDrawsTransparentMeshesAndRestoresCull
                       linal::float3{0.0F, 0.0F, 1.0F},
                       linal::float3{0.0F, 0.0F, 0.0F},
                       linal::float3{1.0F, 1.0F, 1.0F},
+                      linal::float3{-0.45F, 0.60F, 0.35F},
+                      linal::float3{0.2F, 0.2F, 0.3F},
                       linal::float3{0.1F, 0.1F, 0.1F},
                       8.0F);
 

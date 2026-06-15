@@ -71,6 +71,22 @@ static geoqik_settings_t create_default_c_settings()
   settings.defaultMeshColor[1] = defaultColorChannel;
   settings.defaultMeshColor[2] = defaultColorChannel;
   settings.defaultMeshColor[3] = defaultColorChannel;
+  settings.meshHeadLightColor[0] = defaultColorChannel;
+  settings.meshHeadLightColor[1] = defaultColorChannel;
+  settings.meshHeadLightColor[2] = defaultColorChannel;
+  settings.meshHeadLightIntensity = 1.0F;
+  settings.meshFillLightDirection[0] = -0.45F;
+  settings.meshFillLightDirection[1] = 0.60F;
+  settings.meshFillLightDirection[2] = 0.35F;
+  settings.meshFillLightColor[0] = 0.70F;
+  settings.meshFillLightColor[1] = 0.78F;
+  settings.meshFillLightColor[2] = 1.0F;
+  settings.meshFillLightIntensity = 0.25F;
+  settings.meshAmbientColor[0] = defaultColorChannel;
+  settings.meshAmbientColor[1] = defaultColorChannel;
+  settings.meshAmbientColor[2] = defaultColorChannel;
+  settings.meshAmbientIntensity = 0.20F;
+  settings.meshShininess = 32.0F;
   settings.capacityGrowthFactor = defaultCapacityGrowthFactor;
   settings.defaultPointSize = defaultPointSize;
   settings.defaultLineWidth = defaultLineWidth;
@@ -152,6 +168,17 @@ static geoqik::GeoQikSettings convert_to_cpp_settings(const geoqik_settings_t& c
   cppSettings.initialMeshCapacity = cSettings.initialMeshCapacity;
   cppSettings.defaultMeshColor = Color{cSettings.defaultMeshColor[0], cSettings.defaultMeshColor[1],
                                        cSettings.defaultMeshColor[2], cSettings.defaultMeshColor[3]};
+  for (size_t i = 0; i < 3; ++i)
+  {
+    cppSettings.meshHeadLightColor[i] = cSettings.meshHeadLightColor[i];
+    cppSettings.meshFillLightDirection[i] = cSettings.meshFillLightDirection[i];
+    cppSettings.meshFillLightColor[i] = cSettings.meshFillLightColor[i];
+    cppSettings.meshAmbientColor[i] = cSettings.meshAmbientColor[i];
+  }
+  cppSettings.meshHeadLightIntensity = cSettings.meshHeadLightIntensity;
+  cppSettings.meshFillLightIntensity = cSettings.meshFillLightIntensity;
+  cppSettings.meshAmbientIntensity = cSettings.meshAmbientIntensity;
+  cppSettings.meshShininess = cSettings.meshShininess;
   cppSettings.capacityGrowthFactor = cSettings.capacityGrowthFactor;
   cppSettings.defaultPointSize = cSettings.defaultPointSize;
   cppSettings.defaultLineWidth = cSettings.defaultLineWidth;

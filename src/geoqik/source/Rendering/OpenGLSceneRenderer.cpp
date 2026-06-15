@@ -118,6 +118,8 @@ void OpenGLSceneRenderer::draw(const linal::hmatf& mvp, const linal::double3& vi
                                    meshParams.lightPosition,
                                    meshParams.viewPos,
                                    meshParams.lightColor,
+                                   meshParams.fillLightDirection,
+                                   meshParams.fillLightColor,
                                    meshParams.ambientColor,
                                    meshParams.shininess);
   }

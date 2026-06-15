@@ -22,6 +22,8 @@ struct MeshRenderParams
   linal::float3 lightPosition;
   linal::float3 viewPos;
   linal::float3 lightColor;
+  linal::float3 fillLightDirection;
+  linal::float3 fillLightColor;
   linal::float3 ambientColor;
   float shininess{32.0f};
 };

@@ -24,6 +24,8 @@ struct OPENGL_EXPORT MeshProgramInput
   Uniform m_lightPos; // Position of the light source
   Uniform viewPos;    // Position of the camera
   Uniform lightColor;
+  Uniform fillLightDirection;
+  Uniform fillLightColor;
   Uniform ambientColor;
   Uniform shininess;
 };
@@ -40,6 +42,8 @@ constexpr void assert_mesh_program_input([[maybe_unused]] const MeshProgramInput
   CORE_ASSERT(input.m_lightPos.get_location().get_value() != -1);
   CORE_ASSERT(input.viewPos.get_location().get_value() != -1);
   CORE_ASSERT(input.lightColor.get_location().get_value() != -1);
+  CORE_ASSERT(input.fillLightDirection.get_location().get_value() != -1);
+  CORE_ASSERT(input.fillLightColor.get_location().get_value() != -1);
   CORE_ASSERT(input.ambientColor.get_location().get_value() != -1);
   CORE_ASSERT(input.shininess.get_location().get_value() != -1);
 }
@@ -73,6 +77,8 @@ public:
   [[nodiscard]] constexpr Location get_light_pos_location() const noexcept { return m_input.m_lightPos.get_location(); }
   [[nodiscard]] constexpr Location get_view_pos_location() const noexcept { return m_input.viewPos.get_location(); }
   [[nodiscard]] constexpr Location get_light_color_location() const noexcept { return m_input.lightColor.get_location(); }
+  [[nodiscard]] constexpr Location get_fill_light_direction_location() const noexcept { return m_input.fillLightDirection.get_location(); }
+  [[nodiscard]] constexpr Location get_fill_light_color_location() const noexcept { return m_input.fillLightColor.get_location(); }
   [[nodiscard]] constexpr Location get_ambient_color_location() const noexcept { return m_input.ambientColor.get_location(); }
   [[nodiscard]] constexpr Location get_shininess_location() const noexcept { return m_input.shininess.get_location(); }
 

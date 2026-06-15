@@ -104,6 +104,8 @@ std::string mesh_fragment_shader_source() {
     // It is used to calculate the view direction in the fragment shader.
     uniform vec3 u_viewPos;
     uniform vec3 u_lightColor;
+    uniform vec3 u_fillLightDirection;
+    uniform vec3 u_fillLightColor;
     uniform vec3 u_ambientColor;
     uniform float u_shininess;
 
@@ -120,13 +122,19 @@ std::string mesh_fragment_shader_source() {
         float diff = max(dot(norm, lightDir), 0.0);
         vec3 diffuse = u_lightColor * diff * v_color.rgb;
 
+        // Directional fill lighting
+        float fillDirLength = length(u_fillLightDirection);
+        vec3 fillDir = fillDirLength > 0.0 ? u_fillLightDirection / fillDirLength : vec3(0.0);
+        float fillDiff = max(dot(norm, fillDir), 0.0);
+        vec3 fillDiffuse = u_fillLightColor * fillDiff * v_color.rgb;
+
         // Specular lighting
         vec3 reflectDir = reflect(-lightDir, norm);
         float spec = pow(max(dot(viewDir, reflectDir), 0.0), u_shininess);
         vec3 specular = u_lightColor * spec;
 
         // Combine results
-        vec3 result = ambient + diffuse + specular;
+        vec3 result = ambient + diffuse + fillDiffuse + specular;
         FragColor = vec4(result, v_color.a);
     })";
 }

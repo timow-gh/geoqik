@@ -88,6 +88,17 @@ static CameraAutoFitInput make_camera_auto_fit_input(const CameraInteractor& cam
   return input;
 }
 
+static linal::float3 scale_rgb(const std::array<float, 3>& color, float intensity)
+{
+  const float clampedIntensity = std::max(0.0f, intensity);
+  return linal::float3{color[0] * clampedIntensity, color[1] * clampedIntensity, color[2] * clampedIntensity};
+}
+
+static linal::float3 to_float3(const std::array<float, 3>& values)
+{
+  return linal::float3{values[0], values[1], values[2]};
+}
+
 Context::Context() = default;
 
 Context::~Context()
@@ -486,10 +497,12 @@ void Context::run_event_loop()
     meshParams.viewPos = linal::float3{static_cast<float>(camPos[0]),
                                        static_cast<float>(camPos[1]),
                                        static_cast<float>(camPos[2])};
-    meshParams.lightPosition  = meshParams.viewPos;
-    meshParams.lightColor     = linal::float3{1.0f, 1.0f, 1.0f};
-    meshParams.ambientColor   = linal::float3{0.2f, 0.2f, 0.2f};
-    meshParams.shininess      = 32.0f;
+    meshParams.lightPosition = meshParams.viewPos;
+    meshParams.lightColor = scale_rgb(m_geoqikSettings.meshHeadLightColor, m_geoqikSettings.meshHeadLightIntensity);
+    meshParams.fillLightDirection = to_float3(m_geoqikSettings.meshFillLightDirection);
+    meshParams.fillLightColor = scale_rgb(m_geoqikSettings.meshFillLightColor, m_geoqikSettings.meshFillLightIntensity);
+    meshParams.ambientColor = scale_rgb(m_geoqikSettings.meshAmbientColor, m_geoqikSettings.meshAmbientIntensity);
+    meshParams.shininess = std::max(0.0f, m_geoqikSettings.meshShininess);
     m_renderer->draw(mvp, m_cameraInteractor->get_position(), meshParams);
     CameraProjectionType projType = m_cameraInteractor->get_projection_type();
     m_imguiOverlay->draw_controls(m_geoqikSettings.autoFitCameraEnabled, projType);
