@@ -7,9 +7,19 @@ namespace
 class GlfwWindowFixture : public ::testing::Test
 {
 protected:
-  void SetUp() override
+  static void SetUpTestSuite()
   {
     ASSERT_EQ(GLFW_TRUE, glfwInit());
+  }
+
+  static void TearDownTestSuite()
+  {
+    glfwTerminate();
+  }
+
+  void SetUp() override
+  {
+    glfwDefaultWindowHints();
     glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
     m_window = glfwCreateWindow(64, 64, "GeoQik InputState test", nullptr, nullptr);
     ASSERT_NE(nullptr, m_window);
@@ -23,7 +33,6 @@ protected:
       glfwDestroyWindow(m_window);
       m_window = nullptr;
     }
-    glfwTerminate();
   }
 
   GLFWwindow* m_window{nullptr};
