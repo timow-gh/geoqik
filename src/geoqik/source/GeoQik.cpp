@@ -66,6 +66,11 @@ static geoqik_settings_t create_default_c_settings()
   settings.maxMessageQueueSize = defaultMaxMessageQueueSize;
   settings.initialPointCapacity = defaultInitialGeometryCapacity;
   settings.initialLineCapacity = defaultInitialGeometryCapacity;
+  settings.initialMeshCapacity = 10000;
+  settings.defaultMeshColor[0] = defaultColorChannel;
+  settings.defaultMeshColor[1] = defaultColorChannel;
+  settings.defaultMeshColor[2] = defaultColorChannel;
+  settings.defaultMeshColor[3] = defaultColorChannel;
   settings.capacityGrowthFactor = defaultCapacityGrowthFactor;
   settings.defaultPointSize = defaultPointSize;
   settings.defaultLineWidth = defaultLineWidth;
@@ -144,6 +149,9 @@ static geoqik::GeoQikSettings convert_to_cpp_settings(const geoqik_settings_t& c
   cppSettings.maxMessageQueueSize = cSettings.maxMessageQueueSize;
   cppSettings.initialPointCapacity = cSettings.initialPointCapacity;
   cppSettings.initialLineCapacity = cSettings.initialLineCapacity;
+  cppSettings.initialMeshCapacity = cSettings.initialMeshCapacity;
+  cppSettings.defaultMeshColor = Color{cSettings.defaultMeshColor[0], cSettings.defaultMeshColor[1],
+                                       cSettings.defaultMeshColor[2], cSettings.defaultMeshColor[3]};
   cppSettings.capacityGrowthFactor = cSettings.capacityGrowthFactor;
   cppSettings.defaultPointSize = cSettings.defaultPointSize;
   cppSettings.defaultLineWidth = cSettings.defaultLineWidth;
@@ -1273,6 +1281,84 @@ geoqik_error_code_t geoqik_remove_line(const geoqik_uuid_t* geometryId)
       {
         core::UUID handle = convert_to_core_uuid(*geometryId);
         return enqueue(GeoQikMessage{RemoveLine{handle}});
+      });
+}
+
+geoqik_result_t geoqik_add_mesh_opts(const float* vertices,
+                                     size_t vertexCount,
+                                     const uint32_t* triangleIndices,
+                                     size_t triangleCount,
+                                     geoqik_add_mesh_opts_t* options)
+{
+  if (vertices == nullptr || vertexCount == 0)
+  {
+    return geoqik_result_t{GEOQIK_ERROR_INVALID_PARAMETER, {}};
+  }
+  if (triangleIndices == nullptr || triangleCount == 0)
+  {
+    return geoqik_result_t{GEOQIK_ERROR_INVALID_PARAMETER, {}};
+  }
+
+  std::vector<float> verticesCopy(vertices, vertices + vertexCount * 3);
+  std::vector<std::uint32_t> indicesCopy(triangleIndices, triangleIndices + triangleCount * 3);
+  std::vector<float> normalsCopy;
+  std::vector<float> colorsCopy;
+
+  if (options != nullptr)
+  {
+    if (options->normalsCount > 0 && options->normals != nullptr)
+    {
+      normalsCopy.assign(options->normals, options->normals + options->normalsCount);
+    }
+    if (options->colorCount > 0 && options->color != nullptr)
+    {
+      if (!geoqik_internal::validate_color_values(options->color, options->colorCount))
+      {
+        return geoqik_result_t{GEOQIK_ERROR_INVALID_PARAMETER, {}};
+      }
+      colorsCopy.assign(options->color, options->color + options->colorCount);
+    }
+  }
+
+  return geoqik_internal::execute_if_initialized(
+      [&]() -> geoqik_result_t
+      {
+        core::UUID reqId = core::UUID::generate();
+        GeoQikMessageCommonData commonData;
+        commonData.geometryId = reqId;
+        commonData.rgba = std::move(colorsCopy);
+
+        if (options != nullptr)
+        {
+          if (core::UUID idem = convert_to_core_uuid(options->idempotencyKey); !idem.is_nil())
+          {
+            commonData.idempotencyId = idem;
+          }
+        }
+
+        geoqik::AddMeshWithOpts message;
+        message.vertices = std::move(verticesCopy);
+        message.normals = std::move(normalsCopy);
+        message.triangleIndices = std::move(indicesCopy);
+        message.commonData = std::move(commonData);
+
+        auto enqueueResult = enqueue(GeoQikMessage{std::move(message)});
+        return geoqik_result_t{enqueueResult, convert_to_geoqik_uuid(reqId)};
+      });
+}
+
+geoqik_error_code_t geoqik_remove_mesh(const geoqik_uuid_t* geometryId)
+{
+  if (geometryId == nullptr)
+  {
+    return GEOQIK_ERROR_INVALID_PARAMETER;
+  }
+
+  return geoqik_internal::execute_if_initialized(
+      [&]() -> geoqik_error_code_t
+      {
+        core::UUID handle = convert_to_core_uuid(*geometryId);
+        return enqueue(GeoQikMessage{geoqik::RemoveMesh{handle}});
       });
 }
 

@@ -70,3 +70,12 @@ add_custom_target(run-example-sphere
     COMMENT "Running example_sphere"
     VERBATIM
 )
+
+create_example_exe(example_mesh)
+add_custom_target(run-example-mesh
+    COMMAND $<TARGET_FILE:example_mesh> ${ARGS}
+    DEPENDS example_mesh
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    COMMENT "Running example_mesh"
+    VERBATIM
+)

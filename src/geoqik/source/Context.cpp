@@ -477,7 +477,20 @@ void Context::run_event_loop()
     sync_scene_and_auto_fit();
 
     mvp = m_cameraInteractor->get_current_MVP();
-    m_renderer->draw(mvp, m_cameraInteractor->get_position());
+    MeshRenderParams meshParams;
+    meshParams.modelMatrix      = m_cameraInteractor->get_model_matrix();
+    meshParams.viewMatrix       = m_cameraInteractor->get_view_matrix();
+    meshParams.projectionMatrix = m_cameraInteractor->get_projection_matrix();
+    meshParams.normalMatrix     = m_cameraInteractor->get_normal_matrix();
+    const linal::double3 camPos = m_cameraInteractor->get_position();
+    meshParams.viewPos = linal::float3{static_cast<float>(camPos[0]),
+                                       static_cast<float>(camPos[1]),
+                                       static_cast<float>(camPos[2])};
+    meshParams.lightPosition  = meshParams.viewPos;
+    meshParams.lightColor     = linal::float3{1.0f, 1.0f, 1.0f};
+    meshParams.ambientColor   = linal::float3{0.2f, 0.2f, 0.2f};
+    meshParams.shininess      = 32.0f;
+    m_renderer->draw(mvp, m_cameraInteractor->get_position(), meshParams);
     CameraProjectionType projType = m_cameraInteractor->get_projection_type();
     m_imguiOverlay->draw_controls(m_geoqikSettings.autoFitCameraEnabled, projType);
     if (projType != m_cameraInteractor->get_projection_type())
@@ -888,6 +901,31 @@ void Context::handle_message(const RotateGeometry& message)
                   message.axisY,
                   message.axisZ,
                   message.angle);
+}
+
+void Context::handle_message(const AddMeshWithOpts& message)
+{
+  if (is_known_idempotency_key(&message.commonData.idempotencyId)) return;
+  add_mesh_with_opts(message.vertices, message.normals, message.commonData.rgba,
+                     message.triangleIndices, message.commonData);
+  // Mesh messages not added to m_messageLog in this phase.
+}
+
+void Context::add_mesh_with_opts(std::span<const float> vertices,
+                                  std::span<const float> normals,
+                                  std::span<const float> colors,
+                                  std::span<const std::uint32_t> triangleIndices,
+                                  const GeoQikMessageCommonData& commonData)
+{
+  const core::UUID* handlePtr = commonData.geometryId.is_nil() ? nullptr : &commonData.geometryId;
+  m_scene.add_mesh(vertices, normals, colors, triangleIndices, handlePtr);
+  ++m_geometryMessagesProcessedThisFrame;
+}
+
+void Context::handle_message(const RemoveMesh& message)
+{
+  m_scene.remove_mesh(message.handle);
+  ++m_geometryMessagesProcessedThisFrame;
 }
 
 void Context::handle_message([[maybe_unused]] const Draw& message)

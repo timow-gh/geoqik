@@ -11,6 +11,7 @@ Scene Scene::create(const GeoQikSettings& geoqikSettings)
   Scene scene;
   scene.m_pointBuffer = PointBuffer::create(geoqikSettings);
   scene.m_lineBuffer = LineBuffer::create(geoqikSettings);
+  scene.m_meshBuffer = MeshBuffer::create(geoqikSettings);
   scene.m_geomBufferGrowthFactor = std::max<std::size_t>(2, geoqikSettings.capacityGrowthFactor);
   scene.m_pointSize = geoqikSettings.defaultPointSize;
   scene.m_lineWidth = geoqikSettings.defaultLineWidth;
@@ -110,6 +111,20 @@ void Scene::remove_line(core::UUID handle)
   m_lineBuffer->remove_line(handle);
 }
 
+void Scene::add_mesh(std::span<const float> vertices,
+                     std::span<const float> normals,
+                     std::span<const float> colors,
+                     std::span<const std::uint32_t> triangleIndices,
+                     const core::UUID* handle)
+{
+  m_meshBuffer->add_mesh(vertices, normals, colors, triangleIndices, handle);
+}
+
+void Scene::remove_mesh(core::UUID handle)
+{
+  m_meshBuffer->remove_mesh(handle);
+}
+
 void Scene::translate_geometry(core::UUID handle, float dx, float dy, float dz)
 {
   m_pointBuffer->translate_geometry(handle, dx, dy, dz);
@@ -126,6 +141,7 @@ void Scene::clear()
 {
   m_pointBuffer->clear();
   m_lineBuffer->clear();
+  m_meshBuffer->clear();
 }
 
 SceneSnapshot Scene::create_snapshot() const
@@ -190,6 +206,12 @@ Geometry::Sphere<float> Scene::calc_bounding_sphere(const linal::float3& center)
   if (!lines.empty())
   {
     calc_max_radius_squared(lines, center, maxRadiusSq);
+  }
+
+  std::span<const float> meshVertices = m_meshBuffer->get_vertices();
+  if (!meshVertices.empty())
+  {
+    calc_max_radius_squared(meshVertices, center, maxRadiusSq);
   }
 
   return Geometry::Sphere<float>{center, std::sqrt(maxRadiusSq)};

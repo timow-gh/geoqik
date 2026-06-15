@@ -1,5 +1,7 @@
 #include "Rendering/OpenGLSceneRenderer.hpp"
+#include "GeometryBuffers/MeshBuffer.hpp"
 #include <OpenGL/BufferAccessPattern.hpp>
+#include <OpenGL/Drawable/MeshDrawable.hpp>
 #include <OpenGL/FrameState.hpp>
 #include <OpenGL/OpenGL.hpp>
 
@@ -87,12 +89,38 @@ bool OpenGLSceneRenderer::sync_scene(Scene& scene)
     updateOccurred = true;
   }
 
+  auto& meshBuffer = scene.get_mesh_buffer();
+  if (!m_drawablesManager.has_mesh_drawables() && !meshBuffer.empty())
+  {
+    create_mesh_drawable(scene);
+    updateOccurred = true;
+  }
+  else if (meshBuffer.has_changed())
+  {
+    m_drawablesManager.clear_mesh_drawables();
+    create_mesh_drawable(scene);
+    meshBuffer.reset_changed_flag();
+    updateOccurred = true;
+  }
+
   return updateOccurred;
 }
 
-void OpenGLSceneRenderer::draw(const linal::hmatf& mvp, const linal::double3& viewPosition)
+void OpenGLSceneRenderer::draw(const linal::hmatf& mvp, const linal::double3& viewPosition, const MeshRenderParams& meshParams)
 {
   m_drawablesManager.draw_lines_and_points(mvp, viewPosition);
+  if (m_drawablesManager.has_mesh_drawables())
+  {
+    m_drawablesManager.draw_meshes(meshParams.modelMatrix,
+                                   meshParams.viewMatrix,
+                                   meshParams.projectionMatrix,
+                                   meshParams.normalMatrix,
+                                   meshParams.lightPosition,
+                                   meshParams.viewPos,
+                                   meshParams.lightColor,
+                                   meshParams.ambientColor,
+                                   meshParams.shininess);
+  }
 }
 
 void OpenGLSceneRenderer::clear_drawables()
@@ -134,6 +162,29 @@ void OpenGLSceneRenderer::create_line_drawable(const Scene& scene)
                                        scene.get_line_width(),
                                        scene.get_point_size(),
                                        opengl::BufferAccessPattern::STATIC_DRAW);
+}
+
+void OpenGLSceneRenderer::create_mesh_drawable(const Scene& scene)
+{
+  const auto& meshBuffer = scene.get_mesh_buffer();
+  if (meshBuffer.empty()) return;
+
+  auto drawable = opengl::make_mesh_soup(m_programManager.get_mesh_program(),
+                                         meshBuffer.get_vertices(),
+                                         MeshBuffer::get_vertex_dimension(),
+                                         meshBuffer.get_normals(),
+                                         meshBuffer.get_colors(),
+                                         MeshBuffer::get_color_dimension(),
+                                         meshBuffer.get_triangle_indices(),
+                                         opengl::BufferAccessPattern::STATIC_DRAW);
+  if (!drawable.has_value()) return;
+  m_drawablesManager.add_mesh_drawable(std::move(drawable.value()));
+}
+
+void OpenGLSceneRenderer::recreate_mesh_drawables(const Scene& scene)
+{
+  m_drawablesManager.clear_mesh_drawables();
+  create_mesh_drawable(scene);
 }
 
 } // namespace geoqik
