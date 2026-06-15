@@ -24,9 +24,19 @@ void* load_glfw_proc(const char* procName)
 class OpenGLDrawableTest : public ::testing::Test
 {
 protected:
-  void SetUp() override
+  static void SetUpTestSuite()
   {
     ASSERT_EQ(GLFW_TRUE, glfwInit());
+  }
+
+  static void TearDownTestSuite()
+  {
+    glfwTerminate();
+  }
+
+  void SetUp() override
+  {
+    glfwDefaultWindowHints();
     glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
@@ -45,7 +55,6 @@ protected:
       glfwDestroyWindow(m_window);
       m_window = nullptr;
     }
-    glfwTerminate();
   }
 
   GLFWwindow* m_window{nullptr};

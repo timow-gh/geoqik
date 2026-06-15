@@ -147,7 +147,7 @@ struct LineTransparencyIndexSplit
     return linal::float3{0.0F, 0.0F, 0.0F};
   }
 
-  return positions[positionIndex];
+  return *(positions.begin() + static_cast<std::ptrdiff_t>(positionIndex));
 }
 
 [[nodiscard]] inline bool is_vertex_translucent(std::span<const std::uint8_t> vertexTranslucency, std::uint32_t index) noexcept
