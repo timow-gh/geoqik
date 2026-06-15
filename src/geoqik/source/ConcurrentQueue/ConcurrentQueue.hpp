@@ -18,7 +18,7 @@ template <typename TMessage>
 class ConcurrentQueue
 {
 public:
-  using value_type = TMessage;
+  using value_type = std::decay_t<TMessage>;
 
 private:
   mutable std::mutex m_mutex;

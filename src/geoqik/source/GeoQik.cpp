@@ -504,12 +504,16 @@ static geoqik_error_code_t run_render_thread(const geoqik::GeoQikSettings& geoqi
   }
   catch (const std::bad_alloc&)
   {
+    get_message_queue().clear();
+    api_is_initialized_storage().store(false, std::memory_order_release);
     setInitResult(GEOQIK_ERROR_MEMORY_ALLOCATION);
     return GEOQIK_ERROR_MEMORY_ALLOCATION;
   }
   catch (const std::exception& e)
   {
     std::cerr << "Exception in GeoQik render thread: " << e.what() << '\n';
+    get_message_queue().clear();
+    api_is_initialized_storage().store(false, std::memory_order_release);
     setInitResult(GEOQIK_ERROR_UNKNOWN);
     return GEOQIK_ERROR_UNKNOWN;
   }
@@ -1726,7 +1730,7 @@ geoqik_error_code_t geoqik_cleanup()
   return geoqik_internal::execute_if_initialized(
       [&]() -> geoqik_error_code_t
       {
-        enqueue(GeoQikMessage{Cleanup{}});
+        get_message_queue().try_enqueue(GeoQikMessage{Cleanup{}});
 
         auto& renderThread = geoqik_internal::get_render_thread();
         if (renderThread.joinable())
