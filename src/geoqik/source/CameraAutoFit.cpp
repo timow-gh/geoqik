@@ -86,6 +86,7 @@ void add_vertices_to_bounds(CameraSpaceBounds& bounds,
   CameraSpaceBounds bounds;
   add_vertices_to_bounds(bounds, frame, cameraPosition, scene.get_point_buffer().get_points());
   add_vertices_to_bounds(bounds, frame, cameraPosition, scene.get_line_buffer().get_lines());
+  add_vertices_to_bounds(bounds, frame, cameraPosition, scene.get_mesh_buffer().get_vertices());
   return bounds;
 }
 
