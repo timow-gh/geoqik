@@ -49,9 +49,9 @@ int main()
   opts.color      = color;
   opts.colorCount = 4;
   geoqik_add_mesh_opts(vertices.data(),
-                        static_cast<size_t>(vertices.size() / 3),
+                        vertices.size() / 3,
                         indices.data(),
-                        static_cast<size_t>(indices.size() / 3),
+                        indices.size() / 3,
                         &opts);
 
   geoqik_wait_for_exit_and_cleanup();
