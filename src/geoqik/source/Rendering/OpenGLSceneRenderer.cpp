@@ -169,7 +169,10 @@ void OpenGLSceneRenderer::create_line_drawable(const Scene& scene)
 void OpenGLSceneRenderer::create_mesh_drawable(const Scene& scene)
 {
   const auto& meshBuffer = scene.get_mesh_buffer();
-  if (meshBuffer.empty()) return;
+  if (meshBuffer.empty())
+  {
+    return;
+  }
 
   auto drawable = opengl::make_mesh_soup(m_programManager.get_mesh_program(),
                                          meshBuffer.get_vertices(),
@@ -179,7 +182,10 @@ void OpenGLSceneRenderer::create_mesh_drawable(const Scene& scene)
                                          MeshBuffer::get_color_dimension(),
                                          meshBuffer.get_triangle_indices(),
                                          opengl::BufferAccessPattern::STATIC_DRAW);
-  if (!drawable.has_value()) return;
+  if (!drawable.has_value())
+  {
+    return;
+  }
   m_drawablesManager.add_mesh_drawable(std::move(drawable.value()));
 }
 

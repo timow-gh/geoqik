@@ -90,7 +90,7 @@ static CameraAutoFitInput make_camera_auto_fit_input(const CameraInteractor& cam
 
 static linal::float3 scale_rgb(const std::array<float, 3>& color, float intensity)
 {
-  const float clampedIntensity = std::max(0.0f, intensity);
+  const float clampedIntensity = std::max(0.0F, intensity);
   return linal::float3{color[0] * clampedIntensity, color[1] * clampedIntensity, color[2] * clampedIntensity};
 }
 
@@ -502,7 +502,7 @@ void Context::run_event_loop()
     meshParams.fillLightDirection = to_float3(m_geoqikSettings.meshFillLightDirection);
     meshParams.fillLightColor = scale_rgb(m_geoqikSettings.meshFillLightColor, m_geoqikSettings.meshFillLightIntensity);
     meshParams.ambientColor = scale_rgb(m_geoqikSettings.meshAmbientColor, m_geoqikSettings.meshAmbientIntensity);
-    meshParams.shininess = std::max(0.0f, m_geoqikSettings.meshShininess);
+    meshParams.shininess = std::max(0.0F, m_geoqikSettings.meshShininess);
     m_renderer->draw(mvp, m_cameraInteractor->get_position(), meshParams);
     CameraProjectionType projType = m_cameraInteractor->get_projection_type();
     m_imguiOverlay->draw_controls(m_geoqikSettings.autoFitCameraEnabled, projType);
@@ -918,7 +918,10 @@ void Context::handle_message(const RotateGeometry& message)
 
 void Context::handle_message(const AddMeshWithOpts& message)
 {
-  if (is_known_idempotency_key(&message.commonData.idempotencyId)) return;
+  if (is_known_idempotency_key(&message.commonData.idempotencyId))
+  {
+    return;
+  }
   add_mesh_with_opts(message.vertices, message.normals, message.commonData.rgba,
                      message.triangleIndices, message.commonData);
   // Mesh messages not added to m_messageLog in this phase.
