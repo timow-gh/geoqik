@@ -1,7 +1,7 @@
 #include "Context.hpp"
 #include "Core/FmtIncludeHelper.hpp"
 #include "GeoQikMessages.hpp"
-#include "GlfwWindow.hpp"
+#include <Renderer/GlfwWindow.hpp>
 #include "ImGuiOverlay.hpp"
 #include "Rendering/OpenGLSceneRenderer.hpp"
 #include <Core/Assert.hpp>

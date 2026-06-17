@@ -1,10 +1,10 @@
-#ifndef INPUTCAPTURESTATE_HPP
-#define INPUTCAPTURESTATE_HPP
+#ifndef RENDERER_INPUTCAPTURESTATE_HPP
+#define RENDERER_INPUTCAPTURESTATE_HPP
 
-#include "InputState.hpp"
+#include <Renderer/InputState.hpp>
 #include <cstdint>
 
-namespace geoqik
+namespace renderer
 {
 
 class InputCaptureState
@@ -90,6 +90,6 @@ private:
   }
 };
 
-} // namespace geoqik
+} // namespace renderer
 
-#endif // INPUTCAPTURESTATE_HPP
+#endif // RENDERER_INPUTCAPTURESTATE_HPP

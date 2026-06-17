@@ -48,7 +48,7 @@ set(opengl_SOURCE_FILES
         source/Uniform.cpp
 )
 
-set(TARGET_NAME geoqik_opengl)
+set(TARGET_NAME renderer_opengl)
 add_library(${TARGET_NAME} OBJECT ${opengl_SOURCE_FILES} ${opengl_HEADER_FILES})
 
 include(GenerateExportHeader)
@@ -68,7 +68,7 @@ target_include_directories(${TARGET_NAME}
 
 target_compile_definitions(${TARGET_NAME} PUBLIC OPENGL_STATIC_DEFINE)
 
-add_library(${PROJECT_NAME}::opengl ALIAS ${TARGET_NAME})
+add_library(renderer::opengl ALIAS ${TARGET_NAME})
 
 set(TARGET_EXPORT_NAME ${TARGET_NAME})
 set(${TARGET_NAME}_MAJOR 0)

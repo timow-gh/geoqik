@@ -4,7 +4,7 @@
 #include "Buffer.hpp"
 #include "Core/Assert.hpp"
 #include "Core/UUID.hpp"
-#include "GeoQikSettings.hpp"
+#include "../GeoQikSettings.hpp"
 #include "linal/linal.hpp"
 #include <algorithm>
 #include <cassert>

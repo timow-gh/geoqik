@@ -1,11 +1,11 @@
-#ifndef GEOQIK_WINDOW_HINTS_HPP
-#define GEOQIK_WINDOW_HINTS_HPP
+#ifndef RENDERER_WINDOWSETTINGS_HPP
+#define RENDERER_WINDOWSETTINGS_HPP
 
-#include "GeoQik/geoqik_export.h"
+#include "Renderer/renderer_export.h"
 #include <cstdint>
 #include <string>
 
-namespace geoqik
+namespace renderer
 {
 
 #ifdef _MSC_VER
@@ -14,7 +14,7 @@ namespace geoqik
 #pragma warning(disable : 4275) // non dll-interface class 'std::xxx' used as base
 #endif
 
-struct GEOQIK_EXPORT WindowSettings
+struct RENDERER_EXPORT WindowSettings
 {
   const char* title = "GeoQik Viewer";  ///< Title of the window.
   std::uint32_t width = 1280;           ///< Width of the window.
@@ -54,6 +54,6 @@ struct GEOQIK_EXPORT WindowSettings
 #pragma warning(pop)
 #endif
 
-} // namespace geoqik
+} // namespace renderer
 
-#endif // GEOQIK_WINDOW_HINTS_HPP
+#endif // RENDERER_WINDOWSETTINGS_HPP

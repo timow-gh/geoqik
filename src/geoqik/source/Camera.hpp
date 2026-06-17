@@ -1,9 +1,9 @@
 #ifndef CAMERA_HPP
 #define CAMERA_HPP
 
-#include "CameraProjectionType.hpp"
-#include "PickRay.hpp"
-#include "Viewport.hpp"
+#include <Renderer/CameraProjectionType.hpp>
+#include <Renderer/PickRay.hpp>
+#include <Renderer/Viewport.hpp>
 #include <Core/Assert.hpp>
 #include <cstdint>
 #include <glm/glm.hpp>
@@ -12,6 +12,10 @@
 
 namespace geoqik
 {
+
+using renderer::CameraProjectionType;
+using renderer::PickRay;
+using renderer::Viewport;
 
 inline auto to_glm(const linal::double3& vec)
 {

@@ -4,7 +4,7 @@
 #include "Core/UUID.hpp"
 #include "GeoQikMessages.hpp"
 #include "GeoQikSettings.hpp"
-#include "WindowSettings.hpp"
+#include <Renderer/WindowSettings.hpp>
 #include <array>
 #include <atomic>
 #include <cmath>

@@ -1,6 +1,6 @@
 #include "Camera.hpp"
 
-#include "PickRay.hpp"
+#include <Renderer/PickRay.hpp>
 #include <Core/Assert.hpp>
 #include <cmath>
 #include <glm/ext/vector_double3.hpp>

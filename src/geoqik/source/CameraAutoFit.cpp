@@ -165,7 +165,7 @@ void pan_bounds_to_scene_center(CameraSpaceBounds& bounds)
   const double centerX = (bounds.minX + bounds.maxX) * halfScale;
   const double centerY = (bounds.minY + bounds.maxY) * halfScale;
 
-  if (input.projectionType == CameraProjectionType::ORTHOGRAPHIC)
+  if (input.projectionType == renderer::CameraProjectionType::ORTHOGRAPHIC)
   {
     const double halfWidth = input.orthographicWidth * input.aspectRatio * halfScale;
     const double halfHeight = input.orthographicHeight * halfScale;
@@ -319,7 +319,7 @@ CameraAutoFitResult calculate_camera_auto_fit(const Scene& scene, const CameraAu
   const double farPadding = std::max(sceneRadius, 1.0) * input.farPlaneMultiplier;
 
   double movementDelta = 0.0;
-  if (input.projectionType == CameraProjectionType::PERSPECTIVE)
+  if (input.projectionType == renderer::CameraProjectionType::PERSPECTIVE)
   {
     apply_perspective_auto_fit(result, bounds, input, frame, sceneRadius, farPadding, movementDelta);
   }

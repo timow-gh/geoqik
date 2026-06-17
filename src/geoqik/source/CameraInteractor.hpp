@@ -2,9 +2,10 @@
 #define CAMERAINTERACTOR_HPP
 
 #include "Camera.hpp"
-#include "InputState.hpp"
+#include <Renderer/InputState.hpp>
 #include "CameraAutoFit.hpp"
-#include "PickRay.hpp"
+#include <Renderer/PickRay.hpp>
+#include <Renderer/CameraProjectionType.hpp>
 #include "RayPlaneIntersection.hpp"
 #include <Core/Warnings.hpp>
 #include <Geometry/Plane.hpp>
@@ -19,6 +20,14 @@ ENABLE_ALL_WARNINGS
 
 namespace geoqik
 {
+
+using renderer::InputState;
+using renderer::Action;
+using renderer::Key;
+using renderer::Mods;
+using renderer::CameraProjectionType;
+using renderer::PickRay;
+using renderer::Viewport;
 
 struct CameraSettings
 {

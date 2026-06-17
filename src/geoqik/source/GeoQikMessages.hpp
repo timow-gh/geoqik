@@ -1,7 +1,7 @@
 #ifndef GEOQIKMESSAGES_HPP
 #define GEOQIKMESSAGES_HPP
 
-#include "Color.hpp"
+#include <Renderer/Color.hpp>
 #include "Core/UUID.hpp"
 
 #include <functional>
@@ -10,6 +10,8 @@
 
 namespace geoqik
 {
+
+using renderer::Color;
 
 class Context;
 

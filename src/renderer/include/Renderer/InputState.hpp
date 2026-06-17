@@ -1,15 +1,14 @@
-#ifndef INPUTSTATE_HPP
-#define INPUTSTATE_HPP
+#ifndef RENDERER_INPUTSTATE_HPP
+#define RENDERER_INPUTSTATE_HPP
 
-#include "GeoQik_Glfw.hpp"
-#include "PickRay.hpp"
+#include <Renderer/RendererGlfw.hpp>
 #include <Core/Assert.hpp>
 #include <compare>
 #include <cstdint>
 #include <linal/linal.hpp>
 #include <functional>
 
-namespace geoqik
+namespace renderer
 {
 
 enum class Action
@@ -147,13 +146,13 @@ enum class Key
 
 enum class Mods
 {
-  MOD_NONE = 0,                       //!< No modifier keys pressed
-  MOD_SHIFT = GLFW_MOD_SHIFT,         //!< Shift key pressed
-  MOD_CONTROL = GLFW_MOD_CONTROL,     //!< Control key pressed
-  MOD_ALT = GLFW_MOD_ALT,             //!< Alt key pressed
-  MOD_SUPER = GLFW_MOD_SUPER,         //!< Super key pressed (Windows key on Windows, Command key on macOS)
-  MOD_CAPS_LOCK = GLFW_MOD_CAPS_LOCK, //!< Caps Lock key pressed
-  MOD_NUM_LOCK = GLFW_MOD_NUM_LOCK    //!< Num Lock key pressed
+  NONE = 0,                       //!< No modifier keys pressed
+  SHIFT = GLFW_MOD_SHIFT,         //!< Shift key pressed
+  CONTROL = GLFW_MOD_CONTROL,     //!< Control key pressed
+  ALT = GLFW_MOD_ALT,             //!< Alt key pressed
+  SUPER = GLFW_MOD_SUPER,         //!< Super key pressed (Windows key on Windows, Command key on macOS)
+  CAPS_LOCK = GLFW_MOD_CAPS_LOCK, //!< Caps Lock key pressed
+  NUM_LOCK = GLFW_MOD_NUM_LOCK    //!< Num Lock key pressed
 };
 
 class Scancode
@@ -183,7 +182,7 @@ struct KeyState
   Key key{Key::KEY_UNKNOWN};
   Scancode scancode;
   Action action{Action::UNDEFINED};
-  Mods mods{Mods::MOD_NONE};
+  Mods mods{Mods::NONE};
 };
 
 class Codepoint
@@ -211,14 +210,14 @@ public:
 struct CharModsState
 {
   Codepoint codepoint;
-  Mods mods{Mods::MOD_NONE};
+  Mods mods{Mods::NONE};
 };
 
 struct MouseButtonState
 {
   int button{0};
   Action action{Action::UNDEFINED};
-  Mods mods{Mods::MOD_NONE};
+  Mods mods{Mods::NONE};
 };
 
 struct CursorPosState
@@ -277,6 +276,6 @@ void set_framebuffer_size_callback(GLFWwindow* glfwWindow, FramebufferSizeCB cb)
 // Call before destroying the glfwWindow
 void clear_callbacks(GLFWwindow* glfwWindow);
 
-} // namespace geoqik
+} // namespace renderer
 
-#endif // INPUTSTATE_HPP
+#endif // RENDERER_INPUTSTATE_HPP

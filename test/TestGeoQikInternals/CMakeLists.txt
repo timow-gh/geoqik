@@ -10,7 +10,7 @@ function(create_geoqik_opengl_internal_test testName)
     target_link_libraries(${testName} PRIVATE
             gtest
             gtest_main
-            geoqik::opengl
+            renderer::opengl
             geoqik::core
             glad::glad
             glfw
@@ -20,15 +20,25 @@ function(create_geoqik_opengl_internal_test testName)
     set_property(GLOBAL APPEND PROPERTY ${PROJECT_NAME}_COVERAGE_TESTS ${testName})
 endfunction()
 
+function(create_renderer_test testName)
+    add_executable(${testName} ${testName}.cpp)
+    target_link_libraries(${testName} PRIVATE
+            gtest
+            gtest_main
+            renderer::renderer)
+    add_test(NAME geoqik.${testName} COMMAND ${testName})
+    set_property(GLOBAL APPEND PROPERTY ${PROJECT_NAME}_COVERAGE_TESTS ${testName})
+endfunction()
+
 function(create_geoqik_opengl_program_unit_test testName)
     add_executable(${testName}
             ${testName}.cpp
-            ${PROJECT_SOURCE_DIR}/src/opengl/source/Programs/CreateProgram.cpp
-            ${PROJECT_SOURCE_DIR}/src/opengl/source/Programs/ProgramId.cpp)
+            ${PROJECT_SOURCE_DIR}/src/renderer/opengl/source/Programs/CreateProgram.cpp
+            ${PROJECT_SOURCE_DIR}/src/renderer/opengl/source/Programs/ProgramId.cpp)
     target_include_directories(${testName} PRIVATE
-            ${PROJECT_SOURCE_DIR}/src/opengl/include
-            ${PROJECT_SOURCE_DIR}/src/opengl/source
-            ${PROJECT_BINARY_DIR}/src/opengl/export_header_includes)
+            ${PROJECT_SOURCE_DIR}/src/renderer/opengl/include
+            ${PROJECT_SOURCE_DIR}/src/renderer/opengl/source
+            ${PROJECT_BINARY_DIR}/src/renderer/opengl/export_header_includes)
     target_compile_definitions(${testName} PRIVATE OPENGL_STATIC_DEFINE)
     target_compile_features(${testName} PRIVATE cxx_std_23)
     target_link_libraries(${testName} PRIVATE
@@ -50,13 +60,13 @@ create_geoqik_internal_test(ConcurrentQueueTest)
 create_geoqik_opengl_internal_test(DrawableTest)
 create_geoqik_internal_test(GeometryBufferTest)
 create_geoqik_internal_test(MeshBufferTest)
-create_geoqik_internal_test(InputCaptureStateTest)
-create_geoqik_internal_test(InputStateTest)
+create_renderer_test(InputCaptureStateTest)
+create_renderer_test(InputStateTest)
 set_tests_properties(geoqik.InputStateTest PROPERTIES RESOURCE_LOCK geoqik_glfw)
+create_geoqik_internal_test(WindowSettingsTest)
 create_geoqik_opengl_program_unit_test(CreateProgramTest)
 create_geoqik_internal_test(RayPlaneIntersectionTest)
 create_geoqik_internal_test(SceneTest)
 create_geoqik_internal_test(TransparencySortingTest)
 create_geoqik_internal_test(TestGeoQikLog)
 create_geoqik_internal_test(TestGeoQikReplayUndo)
-create_geoqik_internal_test(WindowSettingsTest)

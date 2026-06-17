@@ -1,14 +1,22 @@
 #ifndef IMGUIOVERLAY_HPP
 #define IMGUIOVERLAY_HPP
 
-#include "CameraProjectionType.hpp"
-#include "InputCaptureState.hpp"
+#include <Renderer/CameraProjectionType.hpp>
+#include <Renderer/InputCaptureState.hpp>
+#include <Renderer/InputState.hpp>
 #include <cstdint>
 
 struct GLFWwindow;
 
 namespace geoqik
 {
+
+using renderer::InputCaptureState;
+using renderer::CameraProjectionType;
+using renderer::Action;
+using renderer::Key;
+using renderer::Mods;
+using renderer::Scancode;
 
 class ImGuiOverlay
 {

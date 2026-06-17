@@ -11,7 +11,7 @@
 #include "GeoQikSettings.hpp"
 #include "IdempotencyData.hpp"
 #include "Scene.hpp"
-#include "WindowSettings.hpp"
+#include <Renderer/WindowSettings.hpp>
 #include <Core/UUID.hpp>
 #include <atomic>
 #include <cassert>
@@ -22,11 +22,21 @@
 #include <utility>
 #include <variant>
 #include <vector>
+#include <Renderer/InputState.hpp>
+
+namespace renderer
+{
+class GlfwWindow;
+}
 
 namespace geoqik
 {
 
-class GlfwWindow;
+using renderer::GlfwWindow;
+using renderer::Key;
+using renderer::Scancode;
+using renderer::Action;
+using renderer::Mods;
 class ImGuiOverlay;
 class OpenGLSceneRenderer;
 

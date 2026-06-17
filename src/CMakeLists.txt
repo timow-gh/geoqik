@@ -1,7 +1,7 @@
 set(project_export_set_name "${PROJECT_NAME}TargetsExportSet")
 
 add_subdirectory(core)
-add_subdirectory(opengl)
+add_subdirectory(renderer)
 add_subdirectory(geoqik)
 
 if (${PROJECT_NAME}_INSTALL)

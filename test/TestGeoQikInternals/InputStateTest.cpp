@@ -1,5 +1,7 @@
-#include "InputState.hpp"
+#include <Renderer/InputState.hpp>
 #include <gtest/gtest.h>
+
+using namespace renderer;
 
 namespace
 {
@@ -29,7 +31,7 @@ protected:
   {
     if (m_window != nullptr)
     {
-      geoqik::clear_callbacks(m_window);
+      clear_callbacks(m_window);
       glfwDestroyWindow(m_window);
       m_window = nullptr;
     }
@@ -42,16 +44,16 @@ protected:
 
 TEST(InputStateTest, ValueWrappersExposeValidityAndOrdering)
 {
-  const geoqik::Scancode defaultScancode;
-  const geoqik::Scancode scancode{7};
+  const Scancode defaultScancode;
+  const Scancode scancode{7};
 
   EXPECT_FALSE(defaultScancode.is_valid());
   EXPECT_TRUE(scancode.is_valid());
   EXPECT_EQ(7, scancode.get_value());
   EXPECT_LT(defaultScancode, scancode);
 
-  const geoqik::Codepoint defaultCodepoint;
-  const geoqik::Codepoint codepoint{65};
+  const renderer::Codepoint defaultCodepoint;
+  const renderer::Codepoint codepoint{65};
 
   EXPECT_FALSE(defaultCodepoint.is_valid());
   EXPECT_TRUE(codepoint.is_valid());
@@ -61,13 +63,13 @@ TEST(InputStateTest, ValueWrappersExposeValidityAndOrdering)
 
 TEST_F(GlfwWindowFixture, TrampolinesForwardRegisteredCallbacks)
 {
-  geoqik::Key receivedKey = geoqik::Key::KEY_UNKNOWN;
-  geoqik::Scancode receivedScancode;
-  geoqik::Action receivedAction = geoqik::Action::UNDEFINED;
-  geoqik::Mods receivedKeyMods = geoqik::Mods::MOD_NONE;
-  geoqik::set_key_callback(
+  renderer::Key receivedKey = renderer::Key::KEY_UNKNOWN;
+  renderer::Scancode receivedScancode;
+  renderer::Action receivedAction = renderer::Action::UNDEFINED;
+  renderer::Mods receivedKeyMods = renderer::Mods::NONE;
+  renderer::set_key_callback(
       m_window,
-      [&](geoqik::Key key, geoqik::Scancode scancode, geoqik::Action action, geoqik::Mods mods)
+      [&](renderer::Key key, renderer::Scancode scancode, renderer::Action action, renderer::Mods mods)
       {
         receivedKey = key;
         receivedScancode = scancode;
@@ -77,23 +79,23 @@ TEST_F(GlfwWindowFixture, TrampolinesForwardRegisteredCallbacks)
   GLFWkeyfun keyCallback = glfwSetKeyCallback(m_window, nullptr);
   ASSERT_NE(nullptr, keyCallback);
   keyCallback(m_window, GLFW_KEY_A, 12, GLFW_PRESS, GLFW_MOD_SHIFT);
-  EXPECT_EQ(geoqik::Key::KEY_A, receivedKey);
+  EXPECT_EQ(renderer::Key::KEY_A, receivedKey);
   EXPECT_EQ(12, receivedScancode.get_value());
-  EXPECT_EQ(geoqik::Action::PRESS, receivedAction);
-  EXPECT_EQ(geoqik::Mods::MOD_SHIFT, receivedKeyMods);
+  EXPECT_EQ(renderer::Action::PRESS, receivedAction);
+  EXPECT_EQ(renderer::Mods::SHIFT, receivedKeyMods);
 
   std::uint32_t receivedChar = 0;
-  geoqik::set_char_callback(m_window, [&](std::uint32_t codepoint) { receivedChar = codepoint; });
+  renderer::set_char_callback(m_window, [&](std::uint32_t codepoint) { receivedChar = codepoint; });
   GLFWcharfun charCallback = glfwSetCharCallback(m_window, nullptr);
   ASSERT_NE(nullptr, charCallback);
   charCallback(m_window, 66);
   EXPECT_EQ(66U, receivedChar);
 
   std::uint32_t receivedCharModsCodepoint = 0;
-  geoqik::Mods receivedCharMods = geoqik::Mods::MOD_NONE;
-  geoqik::set_char_mods_callback(
+  renderer::Mods receivedCharMods = renderer::Mods::NONE;
+  renderer::set_char_mods_callback(
       m_window,
-      [&](std::uint32_t codepoint, geoqik::Mods mods)
+      [&](std::uint32_t codepoint, renderer::Mods mods)
       {
         receivedCharModsCodepoint = codepoint;
         receivedCharMods = mods;
@@ -102,14 +104,14 @@ TEST_F(GlfwWindowFixture, TrampolinesForwardRegisteredCallbacks)
   ASSERT_NE(nullptr, charModsCallback);
   charModsCallback(m_window, 67, GLFW_MOD_ALT);
   EXPECT_EQ(67U, receivedCharModsCodepoint);
-  EXPECT_EQ(geoqik::Mods::MOD_ALT, receivedCharMods);
+  EXPECT_EQ(renderer::Mods::ALT, receivedCharMods);
 
   int receivedButton = -1;
-  geoqik::Action receivedButtonAction = geoqik::Action::UNDEFINED;
-  geoqik::Mods receivedButtonMods = geoqik::Mods::MOD_NONE;
-  geoqik::set_mouse_button_callback(
+  renderer::Action receivedButtonAction = renderer::Action::UNDEFINED;
+  renderer::Mods receivedButtonMods = renderer::Mods::NONE;
+  renderer::set_mouse_button_callback(
       m_window,
-      [&](int button, geoqik::Action action, geoqik::Mods mods)
+      [&](int button, renderer::Action action, renderer::Mods mods)
       {
         receivedButton = button;
         receivedButtonAction = action;
@@ -119,11 +121,11 @@ TEST_F(GlfwWindowFixture, TrampolinesForwardRegisteredCallbacks)
   ASSERT_NE(nullptr, mouseButtonCallback);
   mouseButtonCallback(m_window, GLFW_MOUSE_BUTTON_RIGHT, GLFW_RELEASE, GLFW_MOD_CONTROL);
   EXPECT_EQ(GLFW_MOUSE_BUTTON_RIGHT, receivedButton);
-  EXPECT_EQ(geoqik::Action::RELEASE, receivedButtonAction);
-  EXPECT_EQ(geoqik::Mods::MOD_CONTROL, receivedButtonMods);
+  EXPECT_EQ(renderer::Action::RELEASE, receivedButtonAction);
+  EXPECT_EQ(renderer::Mods::CONTROL, receivedButtonMods);
 
   bool receivedCursorEnter = false;
-  geoqik::set_cursor_enter_callback(m_window, [&](bool entered) { receivedCursorEnter = entered; });
+  renderer::set_cursor_enter_callback(m_window, [&](bool entered) { receivedCursorEnter = entered; });
   GLFWcursorenterfun cursorEnterCallback = glfwSetCursorEnterCallback(m_window, nullptr);
   ASSERT_NE(nullptr, cursorEnterCallback);
   cursorEnterCallback(m_window, GLFW_TRUE);
@@ -131,7 +133,7 @@ TEST_F(GlfwWindowFixture, TrampolinesForwardRegisteredCallbacks)
 
   double receivedScrollX = 0.0;
   double receivedScrollY = 0.0;
-  geoqik::set_scroll_callback(
+  renderer::set_scroll_callback(
       m_window,
       [&](double xoff, double yoff)
       {
@@ -146,7 +148,7 @@ TEST_F(GlfwWindowFixture, TrampolinesForwardRegisteredCallbacks)
 
   int receivedDropCount = 0;
   const char** receivedDropPaths = nullptr;
-  geoqik::set_drop_callback(
+  renderer::set_drop_callback(
       m_window,
       [&](int count, const char** paths)
       {
@@ -162,7 +164,7 @@ TEST_F(GlfwWindowFixture, TrampolinesForwardRegisteredCallbacks)
 
   std::uint32_t framebufferWidth = 0;
   std::uint32_t framebufferHeight = 0;
-  geoqik::set_framebuffer_size_callback(
+  renderer::set_framebuffer_size_callback(
       m_window,
       [&](std::uint32_t width, std::uint32_t height)
       {
@@ -178,17 +180,17 @@ TEST_F(GlfwWindowFixture, TrampolinesForwardRegisteredCallbacks)
 
 TEST_F(GlfwWindowFixture, InputStateStoragePersistsUntilCleared)
 {
-  geoqik::InputState* firstState = geoqik::get_input_state(m_window);
+  renderer::InputState* firstState = renderer::get_input_state(m_window);
   ASSERT_NE(nullptr, firstState);
-  firstState->cursorPosState = geoqik::CursorPosState{10.0, 20.0};
+  firstState->cursorPosState = renderer::CursorPosState{10.0, 20.0};
 
-  geoqik::InputState* secondState = geoqik::get_input_state(m_window);
+  renderer::InputState* secondState = renderer::get_input_state(m_window);
   EXPECT_EQ(firstState, secondState);
   EXPECT_DOUBLE_EQ(10.0, secondState->cursorPosState.xpos);
   EXPECT_DOUBLE_EQ(20.0, secondState->cursorPosState.ypos);
 
-  geoqik::clear_callbacks(m_window);
-  geoqik::InputState* resetState = geoqik::get_input_state(m_window);
+  renderer::clear_callbacks(m_window);
+  renderer::InputState* resetState = renderer::get_input_state(m_window);
   ASSERT_NE(nullptr, resetState);
   EXPECT_DOUBLE_EQ(0.0, resetState->cursorPosState.xpos);
   EXPECT_DOUBLE_EQ(0.0, resetState->cursorPosState.ypos);
