@@ -1,5 +1,5 @@
 #include "Scene.hpp"
-#include "MathConstants.hpp"
+#include <Renderer/MathConstants.hpp>
 #include <gtest/gtest.h>
 #include <iterator>
 
@@ -162,8 +162,8 @@ TEST(SceneTest, RotatesPointAndLineGeometry)
   scene.add_point(1.0f, 0.0f, 0.0f, &pointId);
   scene.add_line(0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, &lineId);
 
-  scene.rotate_geometry(pointId, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, geoqik::PI_HALF_F);
-  scene.rotate_geometry(lineId, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, geoqik::PI_HALF_F);
+  scene.rotate_geometry(pointId, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, renderer::PI_HALF_F);
+  scene.rotate_geometry(lineId, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, renderer::PI_HALF_F);
 
   const auto points = scene.get_point_buffer().get_points();
   ASSERT_EQ(points.size(), 3);

@@ -1,7 +1,7 @@
-#ifndef MATHCONSTANTS_HPP
-#define MATHCONSTANTS_HPP
+#ifndef RENDERER_MATHCONSTANTS_HPP
+#define RENDERER_MATHCONSTANTS_HPP
 
-namespace geoqik
+namespace renderer
 {
 
 constexpr double PI = 3.1415926535897932384626433832795028841971693993751058209749445923;
@@ -12,6 +12,6 @@ constexpr float PI_F{static_cast<float>(PI)};
 constexpr float PI_2_F{static_cast<float>(PI_2)};
 constexpr float PI_HALF_F{static_cast<float>(PI_HALF)};
 
-} // namespace geoqik
+} // namespace renderer
 
-#endif // MATHCONSTANTS_HPP
+#endif // RENDERER_MATHCONSTANTS_HPP

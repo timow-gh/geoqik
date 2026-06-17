@@ -5,6 +5,7 @@ set(renderer_HEADER_FILES
         include/Renderer/InputCaptureState.hpp
         include/Renderer/GlfwWindow.hpp
         include/Renderer/CameraProjectionType.hpp
+        include/Renderer/MathConstants.hpp
         include/Renderer/PickRay.hpp
         include/Renderer/Color.hpp
         include/Renderer/Viewport.hpp
