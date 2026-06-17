@@ -1,9 +1,9 @@
 #ifndef CAMERAINTERACTOR_HPP
 #define CAMERAINTERACTOR_HPP
 
-#include "Camera.hpp"
+#include <Renderer/Camera.hpp>
 #include <Renderer/InputState.hpp>
-#include "CameraAutoFit.hpp"
+#include <Renderer/CameraAutoFit.hpp>
 #include <Renderer/PickRay.hpp>
 #include <Renderer/CameraProjectionType.hpp>
 #include "RayPlaneIntersection.hpp"
@@ -28,6 +28,11 @@ using renderer::Mods;
 using renderer::CameraProjectionType;
 using renderer::PickRay;
 using renderer::Viewport;
+using renderer::Camera;
+using renderer::CameraAutoFitResult;
+using renderer::CursorPosState;
+using renderer::to_glm;
+using renderer::to_linal;
 
 struct CameraSettings
 {

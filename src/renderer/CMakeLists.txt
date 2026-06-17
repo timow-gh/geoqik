@@ -9,11 +9,15 @@ set(renderer_HEADER_FILES
         include/Renderer/PickRay.hpp
         include/Renderer/Color.hpp
         include/Renderer/Viewport.hpp
+        include/Renderer/Camera.hpp
+        include/Renderer/CameraAutoFit.hpp
 )
 
 set(renderer_SOURCE_FILES
         source/InputState.cpp
         source/GlfwWindow.cpp
+        source/Camera.cpp
+        source/CameraAutoFit.cpp
 )
 
 set(TARGET_NAME renderer_renderer)
@@ -49,6 +53,7 @@ target_link_libraries(${TARGET_NAME}
         glad::glad
         glfw
         $<BUILD_LOCAL_INTERFACE:linal::linal>
+        Geometry::Geometry
 )
 
 add_warnings_and_compile_options(${TARGET_NAME} "${${PROJECT_NAME}_WARNINGS_AS_ERRORS}")

@@ -1,5 +1,5 @@
-#ifndef CAMERA_HPP
-#define CAMERA_HPP
+#ifndef RENDERER_CAMERA_HPP
+#define RENDERER_CAMERA_HPP
 
 #include <Renderer/CameraProjectionType.hpp>
 #include <Renderer/PickRay.hpp>
@@ -10,12 +10,8 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <vector>
 
-namespace geoqik
+namespace renderer
 {
-
-using renderer::CameraProjectionType;
-using renderer::PickRay;
-using renderer::Viewport;
 
 inline auto to_glm(const linal::double3& vec)
 {
@@ -587,6 +583,6 @@ private:
   }
 };
 
-} // namespace geoqik
+} // namespace renderer
 
-#endif // CAMERA_HPP
+#endif // RENDERER_CAMERA_HPP

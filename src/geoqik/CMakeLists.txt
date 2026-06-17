@@ -4,10 +4,6 @@ set(geoqik_HEADER_FILES
 
 set(geoqik_SOURCE_FILES
         source/ConcurrentQueue/ConcurrentQueue.hpp
-        source/Camera.cpp
-        source/CameraAutoFit.cpp
-        source/CameraAutoFit.hpp
-        source/Camera.hpp
         source/CameraInteractor.hpp
         source/Context.hpp
         source/Context.cpp
@@ -114,9 +110,7 @@ add_library(geoqik_internals INTERFACE)
 # This following include dir paths need to be paths with the project as its root, since the test projects rely on them.
 target_include_directories(geoqik_internals INTERFACE ${CMAKE_SOURCE_DIR}/src/geoqik/source)
 target_sources(geoqik_internals INTERFACE
-        ${CMAKE_SOURCE_DIR}/src/geoqik/source/Camera.cpp
         ${CMAKE_SOURCE_DIR}/src/geoqik/source/Scene.cpp
-        ${CMAKE_SOURCE_DIR}/src/geoqik/source/CameraAutoFit.cpp
         ${CMAKE_SOURCE_DIR}/src/geoqik/source/GeoQikLog.cpp
         ${CMAKE_SOURCE_DIR}/src/geoqik/source/GeoQikMessageSerialization.cpp
         ${CMAKE_SOURCE_DIR}/src/geoqik/source/GeoQikReplayUndo.cpp)

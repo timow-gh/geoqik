@@ -2,10 +2,12 @@
 #include "Core/FmtIncludeHelper.hpp"
 #include "GeoQikMessages.hpp"
 #include <Renderer/GlfwWindow.hpp>
+#include <Renderer/CameraAutoFit.hpp>
 #include "ImGuiOverlay.hpp"
 #include "Rendering/OpenGLSceneRenderer.hpp"
 #include <Core/Assert.hpp>
 #include <algorithm>
+#include <array>
 #include <filesystem>
 #include <system_error>
 #include <type_traits>
@@ -13,6 +15,13 @@
 
 namespace geoqik
 {
+
+using renderer::Camera;
+using renderer::CameraAutoFitSettings;
+using renderer::CameraAutoFitInput;
+using renderer::CameraAutoFitResult;
+using renderer::CameraProjectionType;
+using renderer::Viewport;
 
 namespace
 {
@@ -577,7 +586,8 @@ void Context::sync_scene_and_auto_fit()
 
   const CameraAutoFitInput autoFitInput =
       make_camera_auto_fit_input(*m_cameraInteractor, m_geoqikSettings, hasRecentCameraInteraction);
-  const CameraAutoFitResult autoFitResult = calculate_camera_auto_fit(m_scene, autoFitInput);
+  const std::array<std::span<const float>, 2> vertexPositionBuffers{m_scene.get_point_buffer().get_points(), m_scene.get_line_buffer().get_lines()};
+  const CameraAutoFitResult autoFitResult = renderer::calculate_camera_auto_fit(std::span<const std::span<const float>>{vertexPositionBuffers}, autoFitInput);
   if (autoFitResult.hasGeometry)
   {
     m_cameraInteractor->apply_auto_fit_result(autoFitResult);

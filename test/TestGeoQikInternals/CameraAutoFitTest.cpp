@@ -1,27 +1,17 @@
-#include "CameraAutoFit.hpp"
+#include <Renderer/CameraAutoFit.hpp>
 #include <gtest/gtest.h>
 #include <cstdint>
+#include <vector>
+#include <array>
+#include <span>
 #include <vector>
 
 namespace
 {
 
-geoqik::GeoQikSettings make_settings()
+renderer::CameraAutoFitInput make_input()
 {
-  geoqik::GeoQikSettings settings;
-  settings.initialPointCapacity = 8;
-  settings.initialLineCapacity = 8;
-  return settings;
-}
-
-geoqik::Scene make_scene()
-{
-  return geoqik::Scene::create(make_settings());
-}
-
-geoqik::CameraAutoFitInput make_input()
-{
-  geoqik::CameraAutoFitInput input;
+  renderer::CameraAutoFitInput input;
   input.position = linal::double3{0.0, 0.0, 10.0};
   input.target = linal::double3{0.0, 0.0, 0.0};
   input.vertical = linal::double3{0.0, 1.0, 0.0};
@@ -36,11 +26,11 @@ geoqik::CameraAutoFitInput make_input()
 
 TEST(CameraAutoFitTest, ZoomsOutWhenGeometryIsOutsideHorizontalFrustum)
 {
-  auto scene = make_scene();
-  scene.add_line(-100.0f, 0.0f, 0.0f, 100.0f, 0.0f, 0.0f);
+  const std::vector<float> lineVertices{-100.0f, 0.0f, 0.0f, 100.0f, 0.0f, 0.0f};
+  const std::array<std::span<const float>, 1> vertexPositionBuffers{std::span<const float>{lineVertices}};
 
-  const geoqik::CameraAutoFitInput input = make_input();
-  const geoqik::CameraAutoFitResult result = geoqik::calculate_camera_auto_fit(scene, input);
+  const renderer::CameraAutoFitInput input = make_input();
+  const renderer::CameraAutoFitResult result = renderer::calculate_camera_auto_fit(std::span<const std::span<const float>>{vertexPositionBuffers}, input);
 
   EXPECT_TRUE(result.hasGeometry);
   EXPECT_TRUE(result.zoomedOut);
@@ -51,11 +41,11 @@ TEST(CameraAutoFitTest, ZoomsOutWhenGeometryIsOutsideHorizontalFrustum)
 
 TEST(CameraAutoFitTest, RepositionsSafelyWhenGeometryStartsBehindCamera)
 {
-  auto scene = make_scene();
-  scene.add_point(0.0f, 0.0f, 20.0f);
+  const std::vector<float> pointVertices{0.0f, 0.0f, 20.0f};
+  const std::array<std::span<const float>, 1> vertexPositionBuffers{std::span<const float>{pointVertices}};
 
-  const geoqik::CameraAutoFitInput input = make_input();
-  const geoqik::CameraAutoFitResult result = geoqik::calculate_camera_auto_fit(scene, input);
+  const renderer::CameraAutoFitInput input = make_input();
+  const renderer::CameraAutoFitResult result = renderer::calculate_camera_auto_fit(std::span<const std::span<const float>>{vertexPositionBuffers}, input);
 
   EXPECT_TRUE(result.hasGeometry);
   EXPECT_TRUE(result.zoomedOut);
@@ -66,14 +56,14 @@ TEST(CameraAutoFitTest, RepositionsSafelyWhenGeometryStartsBehindCamera)
 
 TEST(CameraAutoFitTest, ZoomsInWhenSceneOccupiesTooLittleViewport)
 {
-  auto scene = make_scene();
-  scene.add_line(-1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f);
+  const std::vector<float> lineVertices{-1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f};
+  const std::array<std::span<const float>, 1> vertexPositionBuffers{std::span<const float>{lineVertices}};
 
-  geoqik::CameraAutoFitInput input = make_input();
+  renderer::CameraAutoFitInput input = make_input();
   input.position = linal::double3{0.0, 0.0, 100.0};
   input.target = linal::double3{0.0, 0.0, 0.0};
 
-  const geoqik::CameraAutoFitResult result = geoqik::calculate_camera_auto_fit(scene, input);
+  const renderer::CameraAutoFitResult result = renderer::calculate_camera_auto_fit(std::span<const std::span<const float>>{vertexPositionBuffers}, input);
 
   EXPECT_TRUE(result.hasGeometry);
   EXPECT_TRUE(result.zoomedIn);
@@ -83,24 +73,14 @@ TEST(CameraAutoFitTest, ZoomsInWhenSceneOccupiesTooLittleViewport)
 
 TEST(CameraAutoFitTest, MeshOnlySceneContributesToBounds)
 {
-  auto scene = make_scene();
-  const std::vector<float> vertices = {
-    -1.0f, -1.0f, 0.0f,
-     1.0f, -1.0f, 0.0f,
-     1.0f,  1.0f, 0.0f,
-    -1.0f,  1.0f, 0.0f,
-  };
-  const std::vector<std::uint32_t> indices = {
-    0U, 1U, 2U,
-    2U, 3U, 0U,
-  };
-  scene.add_mesh(vertices, {}, {}, indices, nullptr);
+  const std::vector<float> lineVertices{-1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f};
+  const std::array<std::span<const float>, 1> vertexPositionBuffers{std::span<const float>{lineVertices}};
 
-  geoqik::CameraAutoFitInput input = make_input();
+  renderer::CameraAutoFitInput input = make_input();
   input.position = linal::double3{0.0, 0.0, 100.0};
   input.target = linal::double3{0.0, 0.0, 0.0};
 
-  const geoqik::CameraAutoFitResult result = geoqik::calculate_camera_auto_fit(scene, input);
+  const renderer::CameraAutoFitResult result = renderer::calculate_camera_auto_fit(std::span<const std::span<const float>>{vertexPositionBuffers}, input);
 
   EXPECT_TRUE(result.hasGeometry);
   EXPECT_TRUE(result.zoomedIn);
@@ -110,15 +90,15 @@ TEST(CameraAutoFitTest, MeshOnlySceneContributesToBounds)
 
 TEST(CameraAutoFitTest, SuppressesZoomInAfterRecentCameraInteraction)
 {
-  auto scene = make_scene();
-  scene.add_line(-1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f);
+  const std::vector<float> lineVertices{-1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f};
+  const std::array<std::span<const float>, 1> vertexPositionBuffers{std::span<const float>{lineVertices}};
 
-  geoqik::CameraAutoFitInput input = make_input();
+  renderer::CameraAutoFitInput input = make_input();
   input.position = linal::double3{0.0, 0.0, 100.0};
   input.target = linal::double3{0.0, 0.0, 0.0};
   input.suppressZoomIn = true;
 
-  const geoqik::CameraAutoFitResult result = geoqik::calculate_camera_auto_fit(scene, input);
+  const renderer::CameraAutoFitResult result = renderer::calculate_camera_auto_fit(std::span<const std::span<const float>>{vertexPositionBuffers}, input);
 
   EXPECT_TRUE(result.hasGeometry);
   EXPECT_FALSE(result.zoomedIn);
@@ -127,13 +107,13 @@ TEST(CameraAutoFitTest, SuppressesZoomInAfterRecentCameraInteraction)
 
 TEST(CameraAutoFitTest, SuppressionDoesNotBlockZoomOut)
 {
-  auto scene = make_scene();
-  scene.add_line(-100.0f, 0.0f, 0.0f, 100.0f, 0.0f, 0.0f);
+  const std::vector<float> lineVertices{-100.0f, 0.0f, 0.0f, 100.0f, 0.0f, 0.0f};
+  const std::array<std::span<const float>, 1> vertexPositionBuffers{std::span<const float>{lineVertices}};
 
-  geoqik::CameraAutoFitInput input = make_input();
+  renderer::CameraAutoFitInput input = make_input();
   input.suppressZoomIn = true;
 
-  const geoqik::CameraAutoFitResult result = geoqik::calculate_camera_auto_fit(scene, input);
+  const renderer::CameraAutoFitResult result = renderer::calculate_camera_auto_fit(std::span<const std::span<const float>>{vertexPositionBuffers}, input);
 
   EXPECT_TRUE(result.hasGeometry);
   EXPECT_TRUE(result.zoomedOut);
@@ -142,13 +122,13 @@ TEST(CameraAutoFitTest, SuppressionDoesNotBlockZoomOut)
 
 TEST(CameraAutoFitTest, ReturnsUnchangedResultWhenDisabled)
 {
-  auto scene = make_scene();
-  scene.add_point(100.0f, 0.0f, 0.0f);
+  const std::vector<float> pointVertices{100.0f, 0.0f, 0.0f};
+  const std::array<std::span<const float>, 1> vertexPositionBuffers{std::span<const float>{pointVertices}};
 
-  geoqik::CameraAutoFitInput input = make_input();
+  renderer::CameraAutoFitInput input = make_input();
   input.settings.enabled = false;
 
-  const geoqik::CameraAutoFitResult result = geoqik::calculate_camera_auto_fit(scene, input);
+  const renderer::CameraAutoFitResult result = renderer::calculate_camera_auto_fit(std::span<const std::span<const float>>{vertexPositionBuffers}, input);
 
   EXPECT_FALSE(result.hasGeometry);
   EXPECT_FALSE(result.changed);
@@ -158,10 +138,10 @@ TEST(CameraAutoFitTest, ReturnsUnchangedResultWhenDisabled)
 
 TEST(CameraAutoFitTest, ReturnsUnchangedResultForEmptyScene)
 {
-  const auto scene = make_scene();
-  const geoqik::CameraAutoFitInput input = make_input();
+  const std::array<std::span<const float>, 0> vertexPositionBuffers{};
+  const renderer::CameraAutoFitInput input = make_input();
 
-  const geoqik::CameraAutoFitResult result = geoqik::calculate_camera_auto_fit(scene, input);
+  const renderer::CameraAutoFitResult result = renderer::calculate_camera_auto_fit(std::span<const std::span<const float>>{vertexPositionBuffers}, input);
 
   EXPECT_FALSE(result.hasGeometry);
   EXPECT_FALSE(result.changed);
@@ -171,15 +151,15 @@ TEST(CameraAutoFitTest, ReturnsUnchangedResultForEmptyScene)
 
 TEST(CameraAutoFitTest, OrthographicZoomsOutWhenGeometryExceedsViewport)
 {
-  auto scene = make_scene();
-  scene.add_line(-100.0f, 0.0f, 0.0f, 100.0f, 0.0f, 0.0f);
+  const std::vector<float> lineVertices{-100.0f, 0.0f, 0.0f, 100.0f, 0.0f, 0.0f};
+  const std::array<std::span<const float>, 1> vertexPositionBuffers{std::span<const float>{lineVertices}};
 
-  geoqik::CameraAutoFitInput input = make_input();
-  input.projectionType = geoqik::CameraProjectionType::ORTHOGRAPHIC;
+  renderer::CameraAutoFitInput input = make_input();
+  input.projectionType = renderer::CameraProjectionType::ORTHOGRAPHIC;
   input.orthographicWidth = 10.0;
   input.orthographicHeight = 10.0;
 
-  const geoqik::CameraAutoFitResult result = geoqik::calculate_camera_auto_fit(scene, input);
+  const renderer::CameraAutoFitResult result = renderer::calculate_camera_auto_fit(std::span<const std::span<const float>>{vertexPositionBuffers}, input);
 
   EXPECT_TRUE(result.hasGeometry);
   EXPECT_TRUE(result.zoomedOut);
@@ -190,15 +170,15 @@ TEST(CameraAutoFitTest, OrthographicZoomsOutWhenGeometryExceedsViewport)
 
 TEST(CameraAutoFitTest, OrthographicZoomsInWhenSceneOccupiesTooLittleViewport)
 {
-  auto scene = make_scene();
-  scene.add_line(-1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f);
+  const std::vector<float> lineVertices{-1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f};
+  const std::array<std::span<const float>, 1> vertexPositionBuffers{std::span<const float>{lineVertices}};
 
-  geoqik::CameraAutoFitInput input = make_input();
-  input.projectionType = geoqik::CameraProjectionType::ORTHOGRAPHIC;
+  renderer::CameraAutoFitInput input = make_input();
+  input.projectionType = renderer::CameraProjectionType::ORTHOGRAPHIC;
   input.orthographicWidth = 100.0;
   input.orthographicHeight = 100.0;
 
-  const geoqik::CameraAutoFitResult result = geoqik::calculate_camera_auto_fit(scene, input);
+  const renderer::CameraAutoFitResult result = renderer::calculate_camera_auto_fit(std::span<const std::span<const float>>{vertexPositionBuffers}, input);
 
   EXPECT_TRUE(result.hasGeometry);
   EXPECT_TRUE(result.zoomedIn);
@@ -209,16 +189,16 @@ TEST(CameraAutoFitTest, OrthographicZoomsInWhenSceneOccupiesTooLittleViewport)
 
 TEST(CameraAutoFitTest, OrthographicSuppressesZoomInAfterRecentCameraInteraction)
 {
-  auto scene = make_scene();
-  scene.add_line(-1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f);
+  const std::vector<float> lineVertices{-1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f};
+  const std::array<std::span<const float>, 1> vertexPositionBuffers{std::span<const float>{lineVertices}};
 
-  geoqik::CameraAutoFitInput input = make_input();
-  input.projectionType = geoqik::CameraProjectionType::ORTHOGRAPHIC;
+  renderer::CameraAutoFitInput input = make_input();
+  input.projectionType = renderer::CameraProjectionType::ORTHOGRAPHIC;
   input.orthographicWidth = 100.0;
   input.orthographicHeight = 100.0;
   input.suppressZoomIn = true;
 
-  const geoqik::CameraAutoFitResult result = geoqik::calculate_camera_auto_fit(scene, input);
+  const renderer::CameraAutoFitResult result = renderer::calculate_camera_auto_fit(std::span<const std::span<const float>>{vertexPositionBuffers}, input);
 
   EXPECT_TRUE(result.hasGeometry);
   EXPECT_FALSE(result.zoomedIn);
@@ -228,15 +208,15 @@ TEST(CameraAutoFitTest, OrthographicSuppressesZoomInAfterRecentCameraInteraction
 
 TEST(CameraAutoFitTest, OrthographicPansToOffCenterGeometry)
 {
-  auto scene = make_scene();
-  scene.add_point(100.0f, 0.0f, 0.0f);
+  const std::vector<float> pointVertices{100.0f, 0.0f, 0.0f};
+  const std::array<std::span<const float>, 1> vertexPositionBuffers{std::span<const float>{pointVertices}};
 
-  geoqik::CameraAutoFitInput input = make_input();
-  input.projectionType = geoqik::CameraProjectionType::ORTHOGRAPHIC;
+  renderer::CameraAutoFitInput input = make_input();
+  input.projectionType = renderer::CameraProjectionType::ORTHOGRAPHIC;
   input.orthographicWidth = 50.0;
   input.orthographicHeight = 50.0;
 
-  const geoqik::CameraAutoFitResult result = geoqik::calculate_camera_auto_fit(scene, input);
+  const renderer::CameraAutoFitResult result = renderer::calculate_camera_auto_fit(std::span<const std::span<const float>>{vertexPositionBuffers}, input);
 
   EXPECT_TRUE(result.hasGeometry);
   EXPECT_TRUE(result.panned);

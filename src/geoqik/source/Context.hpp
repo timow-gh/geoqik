@@ -1,7 +1,7 @@
 #ifndef CONTEXT_HPP
 #define CONTEXT_HPP
 
-#include "Camera.hpp"
+#include <Renderer/Camera.hpp>
 #include "CameraInteractor.hpp"
 #include "ConcurrentQueue/ConcurrentQueue.hpp"
 #include "GeoQik/GeoQik.hpp"

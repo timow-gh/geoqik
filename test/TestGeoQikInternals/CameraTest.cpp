@@ -1,4 +1,4 @@
-#include "Camera.hpp"
+#include <Renderer/Camera.hpp>
 #include <gtest/gtest.h>
 #include <cmath>
 
@@ -15,9 +15,9 @@ void expect_near(const linal::double3& actual, const linal::double3& expected)
   }
 }
 
-geoqik::Camera make_camera()
+renderer::Camera make_camera()
 {
-  geoqik::Camera camera;
+  renderer::Camera camera;
   camera.look_at(glm::dvec3{0.0, 0.0, 10.0}, glm::dvec3{0.0, 0.0, 0.0}, glm::dvec3{0.0, 1.0, 0.0});
   camera.set_viewport(0, 0, 100, 100);
   return camera;
@@ -27,17 +27,17 @@ geoqik::Camera make_camera()
 
 TEST(CameraTest, CreatesPerspectiveRaysThroughViewport)
 {
-  geoqik::Camera camera = make_camera();
+  renderer::Camera camera = make_camera();
 
-  const geoqik::PickRay centerRay = camera.get_center_ray();
+  const renderer::PickRay centerRay = camera.get_center_ray();
   expect_near(centerRay.origin, linal::double3{0.0, 0.0, 10.0});
   expect_near(centerRay.direction, linal::double3{0.0, 0.0, -1.0});
 
-  const geoqik::PickRay ndcRay = camera.get_ray_from_ndc(0.0, 0.0);
+  const renderer::PickRay ndcRay = camera.get_ray_from_ndc(0.0, 0.0);
   expect_near(ndcRay.origin, centerRay.origin);
   expect_near(ndcRay.direction, centerRay.direction);
 
-  const geoqik::PickRay cornerRay = camera.create_perspective_ray(100.0, 100.0);
+  const renderer::PickRay cornerRay = camera.create_perspective_ray(100.0, 100.0);
   EXPECT_GT(cornerRay.direction[0], 0.0);
   EXPECT_GT(cornerRay.direction[1], 0.0);
   EXPECT_LT(cornerRay.direction[2], 0.0);
@@ -46,23 +46,23 @@ TEST(CameraTest, CreatesPerspectiveRaysThroughViewport)
 
 TEST(CameraTest, CreatesOrthographicRaysWithOffsetOrigins)
 {
-  geoqik::Camera camera = make_camera();
-  camera.set_projection_type(geoqik::CameraProjectionType::ORTHOGRAPHIC);
+  renderer::Camera camera = make_camera();
+  camera.set_projection_type(renderer::CameraProjectionType::ORTHOGRAPHIC);
   camera.set_orthographic_size(10.0, 10.0);
   camera.set_viewport(0, 0, 100, 50);
 
-  const geoqik::PickRay centerRay = camera.get_center_ray();
+  const renderer::PickRay centerRay = camera.get_center_ray();
   expect_near(centerRay.origin, linal::double3{0.0, 0.0, 10.0});
   expect_near(centerRay.direction, linal::double3{0.0, 0.0, -1.0});
 
-  const geoqik::PickRay cornerRay = camera.create_orthographic_ray(100.0, 50.0);
+  const renderer::PickRay cornerRay = camera.create_orthographic_ray(100.0, 50.0);
   expect_near(cornerRay.origin, linal::double3{10.0, 5.0, 10.0});
   expect_near(cornerRay.direction, centerRay.direction);
 }
 
 TEST(CameraTest, ConvertsScreenAndNormalizedCoordinates)
 {
-  geoqik::Camera camera = make_camera();
+  renderer::Camera camera = make_camera();
   camera.set_viewport(10, 20, 200, 100);
 
   const auto [ndcX, ndcY] = camera.screen_to_ndc(100.0, 50.0);
@@ -80,15 +80,15 @@ TEST(CameraTest, ConvertsScreenAndNormalizedCoordinates)
 
 TEST(CameraTest, UpdatesPerspectiveAndOrthographicParameters)
 {
-  geoqik::Camera camera = make_camera();
+  renderer::Camera camera = make_camera();
 
-  camera.set_perspective_params(geoqik::Camera::PerspectiveParams{45.0, 0.5, 500.0});
+  camera.set_perspective_params(renderer::Camera::PerspectiveParams{45.0, 0.5, 500.0});
   EXPECT_DOUBLE_EQ(camera.get_fov(), 45.0);
   EXPECT_DOUBLE_EQ(camera.get_near_plane(), 0.5);
   EXPECT_DOUBLE_EQ(camera.get_far_plane(), 500.0);
 
-  camera.set_projection_type(geoqik::CameraProjectionType::ORTHOGRAPHIC);
-  camera.set_orthographic_params(geoqik::Camera::OrthographicParams{20.0, 12.0, 0.25, 250.0});
+  camera.set_projection_type(renderer::CameraProjectionType::ORTHOGRAPHIC);
+  camera.set_orthographic_params(renderer::Camera::OrthographicParams{20.0, 12.0, 0.25, 250.0});
   EXPECT_DOUBLE_EQ(camera.get_near_plane(), 0.25);
   EXPECT_DOUBLE_EQ(camera.get_far_plane(), 250.0);
 
@@ -105,12 +105,12 @@ TEST(CameraTest, UpdatesPerspectiveAndOrthographicParameters)
 
 TEST(CameraTest, ZoomsPerspectiveAndOrthographicProjections)
 {
-  geoqik::Camera camera = make_camera();
+  renderer::Camera camera = make_camera();
 
   camera.zoom_perspective_projection(2.0);
   EXPECT_NEAR(camera.get_position().z, 8.0, tolerance);
 
-  camera.set_projection_type(geoqik::CameraProjectionType::ORTHOGRAPHIC);
+  camera.set_projection_type(renderer::CameraProjectionType::ORTHOGRAPHIC);
   camera.set_orthographic_size(10.0, 10.0);
   camera.zoom_ortho_projection(1.0);
   EXPECT_DOUBLE_EQ(camera.get_orthographic_params().width, 5.0);

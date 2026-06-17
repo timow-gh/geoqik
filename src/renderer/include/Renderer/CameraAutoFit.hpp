@@ -1,11 +1,12 @@
-#ifndef CAMERA_AUTOFIT_HPP
-#define CAMERA_AUTOFIT_HPP
+#ifndef RENDERER_CAMERAAUTOFIT_HPP
+#define RENDERER_CAMERAAUTOFIT_HPP
 
 #include <Renderer/CameraProjectionType.hpp>
-#include "Scene.hpp"
+#include <linal/linal.hpp>
+#include <span>
 #include <chrono>
 
-namespace geoqik
+namespace renderer
 {
 
 struct CameraAutoFitSettings
@@ -23,7 +24,7 @@ struct CameraAutoFitInput
   linal::double3 position{0.0};
   linal::double3 target{0.0};
   linal::double3 vertical{0.0, 0.0, 1.0};
-  renderer::CameraProjectionType projectionType{renderer::CameraProjectionType::PERSPECTIVE};
+  CameraProjectionType projectionType{CameraProjectionType::PERSPECTIVE};
   double verticalFovDegrees{30.0};
   double orthographicWidth{10.0};
   double orthographicHeight{10.0};
@@ -50,8 +51,9 @@ struct CameraAutoFitResult
   linal::double3 vertical{0.0, 0.0, 1.0};
 };
 
-[[nodiscard]] CameraAutoFitResult calculate_camera_auto_fit(const Scene& scene, const CameraAutoFitInput& input);
+[[nodiscard]] CameraAutoFitResult calculate_camera_auto_fit(std::span<const std::span<const float>> vertexPositionBuffers,
+                                                            const CameraAutoFitInput& input);
 
-} // namespace geoqik
+} // namespace renderer
 
-#endif // CAMERA_AUTOFIT_HPP
+#endif // RENDERER_CAMERAAUTOFIT_HPP
