@@ -72,6 +72,7 @@ add_custom_target(run-example-sphere
 )
 
 create_example_exe(example_mesh)
+set_target_properties(example_mesh PROPERTIES CXX_CLANG_TIDY "")
 add_custom_target(run-example-mesh
     COMMAND $<TARGET_FILE:example_mesh> ${ARGS}
     DEPENDS example_mesh
