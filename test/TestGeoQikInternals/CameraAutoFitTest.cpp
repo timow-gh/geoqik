@@ -1,5 +1,7 @@
 #include "CameraAutoFit.hpp"
 #include <gtest/gtest.h>
+#include <cstdint>
+#include <vector>
 
 namespace
 {
@@ -66,6 +68,33 @@ TEST(CameraAutoFitTest, ZoomsInWhenSceneOccupiesTooLittleViewport)
 {
   auto scene = make_scene();
   scene.add_line(-1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f);
+
+  geoqik::CameraAutoFitInput input = make_input();
+  input.position = linal::double3{0.0, 0.0, 100.0};
+  input.target = linal::double3{0.0, 0.0, 0.0};
+
+  const geoqik::CameraAutoFitResult result = geoqik::calculate_camera_auto_fit(scene, input);
+
+  EXPECT_TRUE(result.hasGeometry);
+  EXPECT_TRUE(result.zoomedIn);
+  EXPECT_TRUE(result.changed);
+  EXPECT_LT(result.position[2], input.position[2]);
+}
+
+TEST(CameraAutoFitTest, MeshOnlySceneContributesToBounds)
+{
+  auto scene = make_scene();
+  const std::vector<float> vertices = {
+    -1.0f, -1.0f, 0.0f,
+     1.0f, -1.0f, 0.0f,
+     1.0f,  1.0f, 0.0f,
+    -1.0f,  1.0f, 0.0f,
+  };
+  const std::vector<std::uint32_t> indices = {
+    0U, 1U, 2U,
+    2U, 3U, 0U,
+  };
+  scene.add_mesh(vertices, {}, {}, indices, nullptr);
 
   geoqik::CameraAutoFitInput input = make_input();
   input.position = linal::double3{0.0, 0.0, 100.0};

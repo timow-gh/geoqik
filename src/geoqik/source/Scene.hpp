@@ -2,6 +2,7 @@
 #define GEOQIK_SOURCE_SCENE_HPP
 
 #include "GeometryBuffers/LineBuffer.hpp"
+#include "GeometryBuffers/MeshBuffer.hpp"
 #include "GeometryBuffers/PointBuffer.hpp"
 #include "GeoQikSettings.hpp"
 #include <Geometry/Sphere.hpp>
@@ -19,12 +20,14 @@ struct SceneSnapshot
   LineBufferSnapshot lineBuffer;
   float pointSize{3.0f};
   float lineWidth{1.0f};
+  // Mesh buffer state is intentionally not included. The serialization follow-up plan must add MeshBufferSnapshot here.
 };
 
 class Scene
 {
   std::unique_ptr<PointBuffer> m_pointBuffer;
   std::unique_ptr<LineBuffer> m_lineBuffer;
+  std::unique_ptr<MeshBuffer> m_meshBuffer;
   std::size_t m_geomBufferGrowthFactor{2};
   float m_pointSize{3.0f};
   float m_lineWidth{1.0f};
@@ -62,6 +65,16 @@ public:
                                  std::span<const float> colors = {});
   [[nodiscard]] bool update_lines(core::UUID handle, std::span<const float> lines, std::span<const float> colors = {});
   void remove_line(core::UUID handle);
+
+  void add_mesh(std::span<const float> vertices,
+                std::span<const float> normals,
+                std::span<const float> colors,
+                std::span<const std::uint32_t> triangleIndices,
+                const core::UUID* handle = nullptr);
+  void remove_mesh(core::UUID handle);
+
+  [[nodiscard]] const MeshBuffer& get_mesh_buffer() const { return *m_meshBuffer; }
+  [[nodiscard]] MeshBuffer& get_mesh_buffer() { return *m_meshBuffer; }
 
   void translate_geometry(core::UUID handle, float dx, float dy, float dz);
   void rotate_geometry(core::UUID handle, float centerX, float centerY, float centerZ, float axisX, float axisY, float axisZ, float angle);

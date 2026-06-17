@@ -280,6 +280,8 @@ public:
                    const linal::float3& lightPosition,
                    const linal::float3& viewPos,
                    const linal::float3& lightColor,
+                   const linal::float3& fillLightDirection,
+                   const linal::float3& fillLightColor,
                    const linal::float3& ambientColor,
                    float shininess) const
   {
@@ -302,7 +304,7 @@ public:
       }
       else
       {
-        drawable.draw(modelMatrix, viewMatrix, projectionMatrix, normalMatrix, lightPosition, viewPos, lightColor, ambientColor, shininess);
+        drawable.draw(modelMatrix, viewMatrix, projectionMatrix, normalMatrix, lightPosition, viewPos, lightColor, fillLightDirection, fillLightColor, ambientColor, shininess);
       }
     }
 
@@ -319,7 +321,7 @@ public:
     const ScopedCullFaceDisabled cullFace;
     for (const auto& transparentMesh: transparentMeshes)
     {
-      m_meshDrawables[transparentMesh.index].draw(modelMatrix, viewMatrix, projectionMatrix, normalMatrix, lightPosition, viewPos, lightColor, ambientColor, shininess);
+      m_meshDrawables[transparentMesh.index].draw(modelMatrix, viewMatrix, projectionMatrix, normalMatrix, lightPosition, viewPos, lightColor, fillLightDirection, fillLightColor, ambientColor, shininess);
     }
   }
 };

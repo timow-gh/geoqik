@@ -56,6 +56,16 @@ extern "C"
     int64_t maxMessageQueueSize;         /* Maximum size of the message queue */
     size_t initialPointCapacity;         /* Initial capacity for the point buffer */
     size_t initialLineCapacity;          /* Initial capacity for the line buffer */
+    size_t initialMeshCapacity;          /* Initial capacity for the mesh vertex buffer */
+    float defaultMeshColor[4];           /* Default color for meshes (RGBA) */
+    float meshHeadLightColor[3];         /* Camera headlight color (RGB) */
+    float meshHeadLightIntensity;        /* Camera headlight intensity */
+    float meshFillLightDirection[3];     /* World-space direction from mesh surface toward the fill light */
+    float meshFillLightColor[3];         /* Directional fill light color (RGB) */
+    float meshFillLightIntensity;        /* Directional fill light intensity */
+    float meshAmbientColor[3];           /* Mesh ambient light color (RGB) */
+    float meshAmbientIntensity;          /* Mesh ambient light intensity */
+    float meshShininess;                 /* Mesh Phong specular exponent */
     size_t capacityGrowthFactor;         /* Growth factor for the geometry buffers */
     float defaultPointSize;              /* Default size for points */
     float defaultLineWidth;              /* Default width for lines */
@@ -389,6 +399,23 @@ extern "C"
   GEOQIK_EXPORT geoqik_error_code_t geoqik_update_lines_opts(const geoqik_uuid_t* geometryId, const double* lines, size_t size, geoqik_update_line_opts_t* options);
 
   GEOQIK_EXPORT geoqik_error_code_t geoqik_remove_line(const geoqik_uuid_t* geometryId);
+
+  typedef struct
+  {
+    geoqik_uuid_t idempotencyKey; /**< Optional idempotency key for the mesh, ignored if the uuid is zeroed. */
+    const float* normals;         /**< Optional per-vertex normals (XYZ interleaved), ignored if null. Size must be 0 or vertexCount*3. */
+    size_t normalsCount;          /**< Number of floats in the normals array. */
+    const float* color;           /**< Optional color (RGBA), ignored if null. Size must be 0, 4, or vertexCount*4. */
+    size_t colorCount;            /**< Number of floats in the color array. */
+  } geoqik_add_mesh_opts_t;
+
+  GEOQIK_EXPORT geoqik_result_t geoqik_add_mesh_opts(const float* vertices,
+                                                       size_t vertexCount,
+                                                       const uint32_t* triangleIndices,
+                                                       size_t triangleCount,
+                                                       geoqik_add_mesh_opts_t* options);
+
+  GEOQIK_EXPORT geoqik_error_code_t geoqik_remove_mesh(const geoqik_uuid_t* geometryId);
 
   GEOQIK_EXPORT geoqik_error_code_t geoqik_remove_all_geometry();
 

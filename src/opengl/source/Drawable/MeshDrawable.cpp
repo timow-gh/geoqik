@@ -82,6 +82,8 @@ void MeshDrawable::draw(const linal::hmatf& modelMatrix,
                         const linal::float3& lightPosition,
                         const linal::float3& viewPos,
                         const linal::float3& lightColor,
+                        const linal::float3& fillLightDirection,
+                        const linal::float3& fillLightColor,
                         const linal::float3& ambientColor,
                         float shininess) const
 {
@@ -97,6 +99,8 @@ void MeshDrawable::draw(const linal::hmatf& modelMatrix,
   glUniform3fv(prog.get_light_pos_location().get_value(), 1, lightPosition.data());
   glUniform3fv(prog.get_view_pos_location().get_value(), 1, viewPos.data());
   glUniform3fv(prog.get_light_color_location().get_value(), 1, lightColor.data());
+  glUniform3fv(prog.get_fill_light_direction_location().get_value(), 1, fillLightDirection.data());
+  glUniform3fv(prog.get_fill_light_color_location().get_value(), 1, fillLightColor.data());
   glUniform3fv(prog.get_ambient_color_location().get_value(), 1, ambientColor.data());
   glUniform1f(prog.get_shininess_location().get_value(), shininess);
 

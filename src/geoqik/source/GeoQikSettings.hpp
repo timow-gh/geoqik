@@ -21,7 +21,17 @@ struct GEOQIK_EXPORT GeoQikSettings
                                              // this should be large enough to handle the expected number of messages.
 
   std::size_t initialPointCapacity{100000};  // Initial number of points that can be stored in the point buffer. Exceeding this number will require to create a larger buffer and copy the existing data to it.
-  std::size_t initialLineCapacity{100000};   // Initial number of lines that can be stored in the line buffer. Exceeding this number will require to create a larger buffer and copy the existing data to it. 
+  std::size_t initialLineCapacity{100000};   // Initial number of lines that can be stored in the line buffer. Exceeding this number will require to create a larger buffer and copy the existing data to it.
+  std::size_t initialMeshCapacity{10000};    // Initial number of mesh vertices that can be stored in the mesh buffer.
+  Color defaultMeshColor{1.0f, 1.0f, 1.0f, 1.0f}; // Default color for meshes. If no other color is set using the GeoQik API, this color will be used.
+  std::array<float, 3> meshHeadLightColor{1.0f, 1.0f, 1.0f};
+  float meshHeadLightIntensity{1.0f};
+  std::array<float, 3> meshFillLightDirection{-0.45f, 0.60f, 0.35f};
+  std::array<float, 3> meshFillLightColor{0.70f, 0.78f, 1.0f};
+  float meshFillLightIntensity{0.25f};
+  std::array<float, 3> meshAmbientColor{1.0f, 1.0f, 1.0f};
+  float meshAmbientIntensity{0.20f};
+  float meshShininess{32.0f};
   std::size_t capacityGrowthFactor{2};       // Growth factor for the geometry buffers. Then new buffer will have a capacity of current_capacity * growth_factor.
 
   float defaultPointSize{4.0f};              // Default size for points. If not other size is set using the GeoQik API, this size will be used.

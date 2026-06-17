@@ -134,6 +134,24 @@ struct SetLineColor
   [[nodiscard]] bool operator==(const SetLineColor&) const = default;
 };
 
+struct AddMeshWithOpts
+{
+  std::vector<float> vertices;
+  std::vector<float> normals;
+  std::vector<float> colors;
+  std::vector<std::uint32_t> triangleIndices;
+  GeoQikMessageCommonData commonData;
+
+  [[nodiscard]] bool operator==(const AddMeshWithOpts&) const = default;
+};
+
+struct RemoveMesh
+{
+  core::UUID handle;
+
+  [[nodiscard]] bool operator==(const RemoveMesh&) const = default;
+};
+
 struct RemoveAllGeometry
 {
   [[nodiscard]] bool operator==(const RemoveAllGeometry&) const = default;
@@ -272,6 +290,8 @@ using GeoQikMessage = std::variant<AddPointWithOpts,
                                    RemoveAllGeometry,
                                    TranslateGeometry,
                                    RotateGeometry,
+                                   AddMeshWithOpts,
+                                   RemoveMesh,
                                    Draw,
                                    StopDraw,
                                    SaveLog,

@@ -28,11 +28,20 @@ constexpr std::size_t uuidByteCount = 16;
 
 constexpr std::size_t defaultMaxMessageQueueSize = 1'000'000;
 constexpr std::size_t defaultInitialGeometryCapacity = 100'000;
+constexpr std::size_t defaultInitialMeshCapacity = 10'000;
 constexpr std::size_t defaultCapacityGrowthFactor = 2;
 constexpr float defaultPointSize = 4.0F;
 constexpr float defaultLineWidth = 2.0F;
 constexpr float defaultColorChannel = 1.0F;
 constexpr float defaultBackgroundColorChannel = 0.1F;
+constexpr float defaultMeshFillLightDirectionX = -0.45F;
+constexpr float defaultMeshFillLightDirectionY = 0.60F;
+constexpr float defaultMeshFillLightDirectionZ = 0.35F;
+constexpr float defaultMeshFillLightColorRed = 0.70F;
+constexpr float defaultMeshFillLightColorGreen = 0.78F;
+constexpr float defaultMeshFillLightIntensity = 0.25F;
+constexpr float defaultMeshAmbientIntensity = 0.20F;
+constexpr float defaultMeshShininess = 32.0F;
 constexpr double defaultCameraFarPlaneMultiplier = 3.0;
 constexpr double defaultAutoFitZoomOutPadding = 1.15;
 constexpr double defaultAutoFitMinViewportOccupancy = 0.20;
@@ -66,6 +75,27 @@ static geoqik_settings_t create_default_c_settings()
   settings.maxMessageQueueSize = defaultMaxMessageQueueSize;
   settings.initialPointCapacity = defaultInitialGeometryCapacity;
   settings.initialLineCapacity = defaultInitialGeometryCapacity;
+  settings.initialMeshCapacity = defaultInitialMeshCapacity;
+  settings.defaultMeshColor[0] = defaultColorChannel;
+  settings.defaultMeshColor[1] = defaultColorChannel;
+  settings.defaultMeshColor[2] = defaultColorChannel;
+  settings.defaultMeshColor[3] = defaultColorChannel;
+  settings.meshHeadLightColor[0] = defaultColorChannel;
+  settings.meshHeadLightColor[1] = defaultColorChannel;
+  settings.meshHeadLightColor[2] = defaultColorChannel;
+  settings.meshHeadLightIntensity = 1.0F;
+  settings.meshFillLightDirection[0] = defaultMeshFillLightDirectionX;
+  settings.meshFillLightDirection[1] = defaultMeshFillLightDirectionY;
+  settings.meshFillLightDirection[2] = defaultMeshFillLightDirectionZ;
+  settings.meshFillLightColor[0] = defaultMeshFillLightColorRed;
+  settings.meshFillLightColor[1] = defaultMeshFillLightColorGreen;
+  settings.meshFillLightColor[2] = 1.0F;
+  settings.meshFillLightIntensity = defaultMeshFillLightIntensity;
+  settings.meshAmbientColor[0] = defaultColorChannel;
+  settings.meshAmbientColor[1] = defaultColorChannel;
+  settings.meshAmbientColor[2] = defaultColorChannel;
+  settings.meshAmbientIntensity = defaultMeshAmbientIntensity;
+  settings.meshShininess = defaultMeshShininess;
   settings.capacityGrowthFactor = defaultCapacityGrowthFactor;
   settings.defaultPointSize = defaultPointSize;
   settings.defaultLineWidth = defaultLineWidth;
@@ -144,6 +174,20 @@ static geoqik::GeoQikSettings convert_to_cpp_settings(const geoqik_settings_t& c
   cppSettings.maxMessageQueueSize = cSettings.maxMessageQueueSize;
   cppSettings.initialPointCapacity = cSettings.initialPointCapacity;
   cppSettings.initialLineCapacity = cSettings.initialLineCapacity;
+  cppSettings.initialMeshCapacity = cSettings.initialMeshCapacity;
+  cppSettings.defaultMeshColor = Color{cSettings.defaultMeshColor[0], cSettings.defaultMeshColor[1],
+                                       cSettings.defaultMeshColor[2], cSettings.defaultMeshColor[3]};
+  for (size_t i = 0; i < 3; ++i)
+  {
+    cppSettings.meshHeadLightColor[i] = cSettings.meshHeadLightColor[i];
+    cppSettings.meshFillLightDirection[i] = cSettings.meshFillLightDirection[i];
+    cppSettings.meshFillLightColor[i] = cSettings.meshFillLightColor[i];
+    cppSettings.meshAmbientColor[i] = cSettings.meshAmbientColor[i];
+  }
+  cppSettings.meshHeadLightIntensity = cSettings.meshHeadLightIntensity;
+  cppSettings.meshFillLightIntensity = cSettings.meshFillLightIntensity;
+  cppSettings.meshAmbientIntensity = cSettings.meshAmbientIntensity;
+  cppSettings.meshShininess = cSettings.meshShininess;
   cppSettings.capacityGrowthFactor = cSettings.capacityGrowthFactor;
   cppSettings.defaultPointSize = cSettings.defaultPointSize;
   cppSettings.defaultLineWidth = cSettings.defaultLineWidth;
@@ -1273,6 +1317,84 @@ geoqik_error_code_t geoqik_remove_line(const geoqik_uuid_t* geometryId)
       {
         core::UUID handle = convert_to_core_uuid(*geometryId);
         return enqueue(GeoQikMessage{RemoveLine{handle}});
+      });
+}
+
+geoqik_result_t geoqik_add_mesh_opts(const float* vertices,
+                                     size_t vertexCount,
+                                     const uint32_t* triangleIndices,
+                                     size_t triangleCount,
+                                     geoqik_add_mesh_opts_t* options)
+{
+  if (vertices == nullptr || vertexCount == 0)
+  {
+    return geoqik_result_t{GEOQIK_ERROR_INVALID_PARAMETER, {}};
+  }
+  if (triangleIndices == nullptr || triangleCount == 0)
+  {
+    return geoqik_result_t{GEOQIK_ERROR_INVALID_PARAMETER, {}};
+  }
+
+  std::vector<float> verticesCopy(vertices, vertices + vertexCount * 3);
+  std::vector<std::uint32_t> indicesCopy(triangleIndices, triangleIndices + triangleCount * 3);
+  std::vector<float> normalsCopy;
+  std::vector<float> colorsCopy;
+
+  if (options != nullptr)
+  {
+    if (options->normalsCount > 0 && options->normals != nullptr)
+    {
+      normalsCopy.assign(options->normals, options->normals + options->normalsCount);
+    }
+    if (options->colorCount > 0 && options->color != nullptr)
+    {
+      if (!geoqik_internal::validate_color_values(options->color, options->colorCount))
+      {
+        return geoqik_result_t{GEOQIK_ERROR_INVALID_PARAMETER, {}};
+      }
+      colorsCopy.assign(options->color, options->color + options->colorCount);
+    }
+  }
+
+  return geoqik_internal::execute_if_initialized(
+      [&]() -> geoqik_result_t
+      {
+        core::UUID reqId = core::UUID::generate();
+        GeoQikMessageCommonData commonData;
+        commonData.geometryId = reqId;
+        commonData.rgba = std::move(colorsCopy);
+
+        if (options != nullptr)
+        {
+          if (core::UUID idem = convert_to_core_uuid(options->idempotencyKey); !idem.is_nil())
+          {
+            commonData.idempotencyId = idem;
+          }
+        }
+
+        geoqik::AddMeshWithOpts message;
+        message.vertices = std::move(verticesCopy);
+        message.normals = std::move(normalsCopy);
+        message.triangleIndices = std::move(indicesCopy);
+        message.commonData = std::move(commonData);
+
+        auto enqueueResult = enqueue(GeoQikMessage{std::move(message)});
+        return geoqik_result_t{enqueueResult, convert_to_geoqik_uuid(reqId)};
+      });
+}
+
+geoqik_error_code_t geoqik_remove_mesh(const geoqik_uuid_t* geometryId)
+{
+  if (geometryId == nullptr)
+  {
+    return GEOQIK_ERROR_INVALID_PARAMETER;
+  }
+
+  return geoqik_internal::execute_if_initialized(
+      [&]() -> geoqik_error_code_t
+      {
+        core::UUID handle = convert_to_core_uuid(*geometryId);
+        return enqueue(GeoQikMessage{geoqik::RemoveMesh{handle}});
       });
 }
 
