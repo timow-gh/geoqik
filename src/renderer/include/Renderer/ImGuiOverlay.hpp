@@ -1,5 +1,5 @@
-#ifndef IMGUIOVERLAY_HPP
-#define IMGUIOVERLAY_HPP
+#ifndef RENDERER_IMGUIOVERLAY_HPP
+#define RENDERER_IMGUIOVERLAY_HPP
 
 #include <Renderer/CameraProjectionType.hpp>
 #include <Renderer/InputCaptureState.hpp>
@@ -8,15 +8,8 @@
 
 struct GLFWwindow;
 
-namespace geoqik
+namespace renderer
 {
-
-using renderer::InputCaptureState;
-using renderer::CameraProjectionType;
-using renderer::Action;
-using renderer::Key;
-using renderer::Mods;
-using renderer::Scancode;
 
 class ImGuiOverlay
 {
@@ -43,6 +36,6 @@ public:
   void handle_char(std::uint32_t codepoint);
 };
 
-} // namespace geoqik
+} // namespace renderer
 
-#endif // IMGUIOVERLAY_HPP
+#endif // RENDERER_IMGUIOVERLAY_HPP

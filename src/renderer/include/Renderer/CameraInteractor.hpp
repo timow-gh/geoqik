@@ -1,12 +1,12 @@
-#ifndef CAMERAINTERACTOR_HPP
-#define CAMERAINTERACTOR_HPP
+#ifndef RENDERER_CAMERAINTERACTOR_HPP
+#define RENDERER_CAMERAINTERACTOR_HPP
 
 #include <Renderer/Camera.hpp>
 #include <Renderer/InputState.hpp>
 #include <Renderer/CameraAutoFit.hpp>
 #include <Renderer/PickRay.hpp>
 #include <Renderer/CameraProjectionType.hpp>
-#include "RayPlaneIntersection.hpp"
+#include <Renderer/RayPlaneIntersection.hpp>
 #include <Core/Warnings.hpp>
 #include <Geometry/Plane.hpp>
 #include <algorithm>
@@ -18,21 +18,8 @@ ENABLE_ALL_WARNINGS
 #include <iostream>
 #include <linal/linal.hpp>
 
-namespace geoqik
+namespace renderer
 {
-
-using renderer::InputState;
-using renderer::Action;
-using renderer::Key;
-using renderer::Mods;
-using renderer::CameraProjectionType;
-using renderer::PickRay;
-using renderer::Viewport;
-using renderer::Camera;
-using renderer::CameraAutoFitResult;
-using renderer::CursorPosState;
-using renderer::to_glm;
-using renderer::to_linal;
 
 struct CameraSettings
 {
@@ -270,7 +257,7 @@ public:
 
         // Calculate pan distance based on camera-to-target distance
         const double cameraToTargetDistance = linal::length(cameraTarget - cameraPos);
-        
+
         double panSpeedFactor = 1.0;
         if (m_projectionType == CameraProjectionType::PERSPECTIVE)
         {
@@ -284,8 +271,8 @@ public:
             panSpeedFactor = orthParams.width * 0.5;
         }
 
-        const linal::double3 translation = 
-            cameraRight * (-ndcDeltaX * panSpeedFactor) + 
+        const linal::double3 translation =
+            cameraRight * (-ndcDeltaX * panSpeedFactor) +
             cameraUpNorm * (-ndcDeltaY * panSpeedFactor);
 
         // Apply translation to both camera position and target
@@ -459,6 +446,6 @@ private:
   }
 };
 
-} // namespace geoqik
+} // namespace renderer
 
-#endif // CAMERAINTERACTOR_HPP
+#endif // RENDERER_CAMERAINTERACTOR_HPP

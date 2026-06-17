@@ -1,11 +1,11 @@
-#ifndef RAYPLANEINTERSECTION_HPP
-#define RAYPLANEINTERSECTION_HPP
+#ifndef RENDERER_RAYPLANEINTERSECTION_HPP
+#define RENDERER_RAYPLANEINTERSECTION_HPP
 
 #include <Core/Assert.hpp>
 #include <linal/linal.hpp>
 #include <Geometry/Plane.hpp>
 
-namespace geoqik
+namespace renderer
 {
 
 /** @brief Computes the intersection of a ray with a plane.
@@ -44,6 +44,6 @@ namespace geoqik
   return true;
 }
 
-} // namespace geoqik
+} // namespace renderer
 
-#endif // RAYPLANEINTERSECTION_HPP
+#endif // RENDERER_RAYPLANEINTERSECTION_HPP

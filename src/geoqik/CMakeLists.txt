@@ -4,7 +4,6 @@ set(geoqik_HEADER_FILES
 
 set(geoqik_SOURCE_FILES
         source/ConcurrentQueue/ConcurrentQueue.hpp
-        source/CameraInteractor.hpp
         source/Context.hpp
         source/Context.cpp
         source/GeometryHelpers.hpp
@@ -20,9 +19,6 @@ set(geoqik_SOURCE_FILES
         source/GeoQikReplayUndo.hpp
         source/GeoQikSettings.hpp
         source/IdempotencyData.hpp
-        source/ImGuiOverlay.cpp
-        source/ImGuiOverlay.hpp
-        source/RayPlaneIntersection.hpp
         source/Rendering/OpenGLSceneRenderer.cpp
         source/Rendering/OpenGLSceneRenderer.hpp
         source/Scene.cpp

@@ -3,7 +3,7 @@
 #include "GeoQikMessages.hpp"
 #include <Renderer/GlfwWindow.hpp>
 #include <Renderer/CameraAutoFit.hpp>
-#include "ImGuiOverlay.hpp"
+#include <Renderer/ImGuiOverlay.hpp>
 #include "Rendering/OpenGLSceneRenderer.hpp"
 #include <Core/Assert.hpp>
 #include <algorithm>
@@ -22,6 +22,9 @@ using renderer::CameraAutoFitInput;
 using renderer::CameraAutoFitResult;
 using renderer::CameraProjectionType;
 using renderer::Viewport;
+using renderer::CameraInteractor;
+using renderer::CameraSettings;
+using renderer::ImGuiOverlay;
 
 namespace
 {

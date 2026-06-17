@@ -11,6 +11,9 @@ set(renderer_HEADER_FILES
         include/Renderer/Viewport.hpp
         include/Renderer/Camera.hpp
         include/Renderer/CameraAutoFit.hpp
+        include/Renderer/RayPlaneIntersection.hpp
+        include/Renderer/CameraInteractor.hpp
+        include/Renderer/ImGuiOverlay.hpp
 )
 
 set(renderer_SOURCE_FILES
@@ -18,6 +21,7 @@ set(renderer_SOURCE_FILES
         source/GlfwWindow.cpp
         source/Camera.cpp
         source/CameraAutoFit.cpp
+        source/ImGuiOverlay.cpp
 )
 
 set(TARGET_NAME renderer_renderer)
@@ -54,6 +58,8 @@ target_link_libraries(${TARGET_NAME}
         glfw
         $<BUILD_LOCAL_INTERFACE:linal::linal>
         Geometry::Geometry
+        PRIVATE
+        imgui::imgui
 )
 
 add_warnings_and_compile_options(${TARGET_NAME} "${${PROJECT_NAME}_WARNINGS_AS_ERRORS}")
