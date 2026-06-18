@@ -13,12 +13,24 @@
 #include <array>
 #include <cstdint>
 
+namespace
+{
+
+constexpr std::uint32_t defaultWindowWidth = 1024;
+constexpr std::uint32_t defaultWindowHeight = 768;
+constexpr float standalonePointSize = 12.0F;
+constexpr float standaloneLineWidth = 2.0F;
+constexpr double defaultCameraDistance = 5.0;
+constexpr opengl::ClearColor backgroundColor{0.05F, 0.05F, 0.08F, 1.0F};
+
+} // namespace
+
 int main()
 {
   renderer::WindowSettings windowSettings;
   windowSettings.title = "renderer standalone example";
-  windowSettings.width = 1024;
-  windowSettings.height = 768;
+  windowSettings.width = defaultWindowWidth;
+  windowSettings.height = defaultWindowHeight;
 
   renderer::GlfwWindow window;
   if (!window.create(windowSettings))
@@ -34,7 +46,7 @@ int main()
   const std::array<float, 3> pointVertices{0.0F, 0.0F, 0.0F};
   const std::array<float, 4> pointColors{1.0F, 1.0F, 0.0F, 1.0F}; // yellow
   const std::array<std::uint32_t, 1> pointIndices{0};
-  drawablesManager.add_point_drawable(pointVertices, 3, pointColors, 4, pointIndices, /*pointSize=*/12.0F, opengl::BufferAccessPattern::STATIC_DRAW);
+  drawablesManager.add_point_drawable(pointVertices, 3, pointColors, 4, pointIndices, standalonePointSize, opengl::BufferAccessPattern::STATIC_DRAW);
 
   // A cross made of two line segments through the origin.
   const std::array<float, 12> lineVertices{
@@ -56,14 +68,14 @@ int main()
                                      lineColors,
                                      4,
                                      opengl::LineType::lines(),
-                                     /*lineWidth=*/2.0F,
+                                     standaloneLineWidth,
                                      /*pointSize=*/1.0F,
                                      opengl::BufferAccessPattern::STATIC_DRAW);
 
   const auto [framebufferWidth, framebufferHeight] = window.get_framebuffer_size();
   renderer::CameraSettings cameraSettings;
   cameraSettings.m_camera.set_viewport(0, 0, static_cast<std::uint32_t>(framebufferWidth), static_cast<std::uint32_t>(framebufferHeight));
-  cameraSettings.m_defaultPosition = linal::double3{5.0, 5.0, 5.0};
+  cameraSettings.m_defaultPosition = linal::double3{defaultCameraDistance, defaultCameraDistance, defaultCameraDistance};
   renderer::CameraInteractor cameraInteractor(window.get_input_state(), cameraSettings);
 
   renderer::ImGuiOverlay imguiOverlay(window.get_native_handle());
@@ -113,7 +125,7 @@ int main()
     }
 
     const auto [width, height] = window.get_framebuffer_size();
-    opengl::begin_frame(opengl::ClearColor{0.05F, 0.05F, 0.08F, 1.0F}, opengl::ViewportRect{0, 0, width, height});
+    opengl::begin_frame(backgroundColor, opengl::ViewportRect{0, 0, width, height});
 
     drawablesManager.draw_lines_and_points(cameraInteractor.get_current_MVP(), cameraInteractor.get_position());
 
