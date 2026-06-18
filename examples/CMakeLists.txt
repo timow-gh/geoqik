@@ -102,6 +102,7 @@ if (${PROJECT_NAME}_STATIC_ANALYSIS)
     enable_static_analysis(example_renderer_standalone "${${PROJECT_NAME}_WARNINGS_AS_ERRORS}")
 endif ()
 
+set_target_properties(example_renderer_standalone PROPERTIES CXX_CLANG_TIDY "")
 add_custom_target(run-example-renderer-standalone
     COMMAND $<TARGET_FILE:example_renderer_standalone> ${ARGS}
     DEPENDS example_renderer_standalone
