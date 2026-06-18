@@ -1,4 +1,4 @@
-#include "GeoQikReplayUndo.hpp"
+﻿#include "GeoQikReplayUndo.hpp"
 #include <array>
 #include <gtest/gtest.h>
 #include <variant>
@@ -24,8 +24,8 @@ geoqik::GeoQikSettings make_scene_settings()
   settings.initialLineCapacity = 8;
   settings.defaultPointSize = 4.0f;
   settings.defaultLineWidth = 2.0f;
-  settings.defaultPointColor = geoqik::Color{0.1f, 0.2f, 0.3f, 1.0f};
-  settings.defaultLineColor = geoqik::Color{0.4f, 0.5f, 0.6f, 1.0f};
+  settings.defaultPointColor = renderer::Color{0.1f, 0.2f, 0.3f, 1.0f};
+  settings.defaultLineColor = renderer::Color{0.4f, 0.5f, 0.6f, 1.0f};
   return settings;
 }
 
@@ -152,7 +152,7 @@ TEST(GeoQikReplayUndoTest, StyleUndoCapturesCurrentSceneValues)
   const auto pointColorFrame = geoqik::make_replay_undo_frame(geoqik::SetPointColor{}, context);
   const auto* pointColor = get_log_action<geoqik::SetPointColor>(pointColorFrame);
   ASSERT_NE(nullptr, pointColor);
-  EXPECT_EQ((geoqik::Color{0.2f, 0.3f, 0.4f, 1.0f}), pointColor->color);
+  EXPECT_EQ((renderer::Color{0.2f, 0.3f, 0.4f, 1.0f}), pointColor->color);
 
   const auto lineWidthFrame = geoqik::make_replay_undo_frame(geoqik::SetLineWidth{}, context);
   const auto* lineWidth = get_log_action<geoqik::SetLineWidth>(lineWidthFrame);
@@ -162,7 +162,7 @@ TEST(GeoQikReplayUndoTest, StyleUndoCapturesCurrentSceneValues)
   const auto lineColorFrame = geoqik::make_replay_undo_frame(geoqik::SetLineColor{}, context);
   const auto* lineColor = get_log_action<geoqik::SetLineColor>(lineColorFrame);
   ASSERT_NE(nullptr, lineColor);
-  EXPECT_EQ((geoqik::Color{0.5f, 0.6f, 0.7f, 1.0f}), lineColor->color);
+  EXPECT_EQ((renderer::Color{0.5f, 0.6f, 0.7f, 1.0f}), lineColor->color);
 }
 
 TEST(GeoQikReplayUndoTest, RemoveAllGeometryUndoCapturesSceneSnapshot)

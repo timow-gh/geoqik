@@ -1,4 +1,4 @@
-#include "Scene.hpp"
+﻿#include "Scene.hpp"
 #include <Renderer/MathConstants.hpp>
 #include <gtest/gtest.h>
 #include <iterator>
@@ -14,8 +14,8 @@ geoqik::GeoQikSettings make_scene_test_settings()
   settings.capacityGrowthFactor = 5;
   settings.defaultPointSize = 7.0f;
   settings.defaultLineWidth = 3.0f;
-  settings.defaultPointColor = geoqik::Color{0.1f, 0.2f, 0.3f, 0.4f};
-  settings.defaultLineColor = geoqik::Color{0.5f, 0.6f, 0.7f, 0.8f};
+  settings.defaultPointColor = renderer::Color{0.1f, 0.2f, 0.3f, 0.4f};
+  settings.defaultLineColor = renderer::Color{0.5f, 0.6f, 0.7f, 0.8f};
   return settings;
 }
 
@@ -85,10 +85,10 @@ TEST(SceneTest, AddsBulkPointsAndLines)
   scene.add_lines(lines, lineColors);
 
   EXPECT_EQ(scene.get_point_buffer().get_points().size(), std::size(points));
-  EXPECT_EQ(scene.get_point_buffer().get_point_colors().size(), 2 * geoqik::ColorChannelCount);
+  EXPECT_EQ(scene.get_point_buffer().get_point_colors().size(), 2 * renderer::ColorChannelCount);
   EXPECT_EQ(scene.get_point_buffer().get_point_indices().size(), 2);
   EXPECT_EQ(scene.get_line_buffer().get_lines().size(), std::size(lines));
-  EXPECT_EQ(scene.get_line_buffer().get_line_colors().size(), 4 * geoqik::ColorChannelCount);
+  EXPECT_EQ(scene.get_line_buffer().get_line_colors().size(), 4 * renderer::ColorChannelCount);
   EXPECT_EQ(scene.get_line_buffer().get_line_indices().size(), 4);
 }
 

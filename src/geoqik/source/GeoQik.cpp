@@ -1,4 +1,4 @@
-#include "GeoQik/GeoQik.hpp"
+﻿#include "GeoQik/GeoQik.hpp"
 #include "ConcurrentQueue/ConcurrentQueue.hpp"
 #include "Context.hpp"
 #include "Core/UUID.hpp"
@@ -222,9 +222,9 @@ static geoqik::GeoQikSettings convert_to_cpp_settings(const geoqik_settings_t* c
   return convert_to_cpp_settings(create_default_c_settings());
 }
 
-static geoqik::WindowSettings convert_to_cpp_window_settings(const geoqik_window_settings_t& cSettings)
+static renderer::WindowSettings convert_to_cpp_window_settings(const geoqik_window_settings_t& cSettings)
 {
-  geoqik::WindowSettings cppSettings;
+  renderer::WindowSettings cppSettings;
   cppSettings.title = cSettings.title != nullptr ? cSettings.title : create_default_c_window_settings().title;
   cppSettings.width = cSettings.width;
   cppSettings.height = cSettings.height;
@@ -258,7 +258,7 @@ static geoqik::WindowSettings convert_to_cpp_window_settings(const geoqik_window
   return cppSettings;
 }
 
-static geoqik::WindowSettings convert_to_cpp_window_settings(const geoqik_window_settings_t* cSettings)
+static renderer::WindowSettings convert_to_cpp_window_settings(const geoqik_window_settings_t* cSettings)
 {
   if (cSettings != nullptr)
   {
@@ -519,7 +519,7 @@ static auto execute_if_not_initialized(Func&& func) -> std::invoke_result_t<Func
 }
 
 static geoqik_error_code_t run_render_thread(const geoqik::GeoQikSettings& geoqikSettings,
-                                             const geoqik::WindowSettings& settings,
+                                             const renderer::WindowSettings& settings,
                                              const std::shared_ptr<std::promise<geoqik_error_code_t>>& initResult)
 {
   auto setInitResult = [&initResult](geoqik_error_code_t result)
@@ -577,7 +577,7 @@ static std::thread& get_render_thread()
   return renderThread;
 }
 
-static geoqik_error_code_t start_geoqik_thread(const geoqik::GeoQikSettings& geoqikSettings, const geoqik::WindowSettings& settings)
+static geoqik_error_code_t start_geoqik_thread(const geoqik::GeoQikSettings& geoqikSettings, const renderer::WindowSettings& settings)
 {
   try
   {
@@ -663,7 +663,7 @@ geoqik_error_code_t geoqik_init()
       [&]() -> geoqik_error_code_t
       {
         geoqik::GeoQikSettings defaultGeoQikSettings = geoqik_internal::convert_to_cpp_settings(nullptr);
-        geoqik::WindowSettings defaultWindowSettings = geoqik_internal::convert_to_cpp_window_settings(nullptr);
+        renderer::WindowSettings defaultWindowSettings = geoqik_internal::convert_to_cpp_window_settings(nullptr);
 
         api_is_initialized_storage().store(true, std::memory_order_release);
         try
@@ -711,7 +711,7 @@ geoqik_error_code_t geoqik_init_with_settings(const geoqik_settings_t* geoqikSet
       {
         // Convert C structs to C++ structs
         geoqik::GeoQikSettings cppGeoQikSettings = geoqik_internal::convert_to_cpp_settings(geoqikSettings);
-        geoqik::WindowSettings cppWindowSettings = geoqik_internal::convert_to_cpp_window_settings(windowSettings);
+        renderer::WindowSettings cppWindowSettings = geoqik_internal::convert_to_cpp_window_settings(windowSettings);
 
         api_is_initialized_storage().store(true, std::memory_order_release);
         try
