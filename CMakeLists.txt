@@ -4,6 +4,11 @@ list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/cmake)
 
 include(detect_ninja)
 
+# No C++20/23 modules are used; disable scanning to avoid clang-scan-deps
+# lookup during compiler detection (project()) and the GCC + CMake 3.28
+# incompatibility where -MD and -fdeps-format=p1689r5 are passed together.
+set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
+
 project(geoqik
         VERSION 0.1.0
         LANGUAGES CXX)
