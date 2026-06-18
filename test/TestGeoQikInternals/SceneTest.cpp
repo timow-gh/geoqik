@@ -1,4 +1,4 @@
-﻿#include "Scene.hpp"
+#include "Scene.hpp"
 #include <Renderer/MathConstants.hpp>
 #include <gtest/gtest.h>
 #include <iterator>

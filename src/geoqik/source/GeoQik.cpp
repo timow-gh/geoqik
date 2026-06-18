@@ -1,4 +1,4 @@
-﻿#include "GeoQik/GeoQik.hpp"
+#include "GeoQik/GeoQik.hpp"
 #include "ConcurrentQueue/ConcurrentQueue.hpp"
 #include "Context.hpp"
 #include "Core/UUID.hpp"
