@@ -1,9 +1,11 @@
 # Build directories and binary files
 build/
 out/
+plans/
 cmake-build-*/
 conan-cache/
 
+.claude
 .cache
 compile_commands.json
 
