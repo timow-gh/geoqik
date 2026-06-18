@@ -1335,8 +1335,8 @@ geoqik_result_t geoqik_add_mesh_opts(const float* vertices,
     return geoqik_result_t{GEOQIK_ERROR_INVALID_PARAMETER, {}};
   }
 
-  std::vector<float> verticesCopy(vertices, vertices + vertexCount * 3);
-  std::vector<std::uint32_t> indicesCopy(triangleIndices, triangleIndices + triangleCount * 3);
+  std::vector<float> verticesCopy(vertices, vertices + (vertexCount * 3));
+  std::vector<std::uint32_t> indicesCopy(triangleIndices, triangleIndices + (triangleCount * 3));
   std::vector<float> normalsCopy;
   std::vector<float> colorsCopy;
 
