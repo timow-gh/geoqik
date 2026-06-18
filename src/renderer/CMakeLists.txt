@@ -26,7 +26,10 @@ set(renderer_SOURCE_FILES
 
 set(TARGET_NAME renderer_renderer)
 add_library(${TARGET_NAME} STATIC ${renderer_SOURCE_FILES} ${renderer_HEADER_FILES})
-set_target_properties(${TARGET_NAME} PROPERTIES LINKER_LANGUAGE CXX)
+set_target_properties(${TARGET_NAME}
+        PROPERTIES
+        LINKER_LANGUAGE CXX
+        POSITION_INDEPENDENT_CODE ON)
 
 include(GenerateExportHeader)
 set(EXPORT_HEADER_BASE_NAME "renderer")

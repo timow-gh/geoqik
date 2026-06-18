@@ -1,11 +1,11 @@
 #include "Context.hpp"
 #include "Core/FmtIncludeHelper.hpp"
 #include "GeoQikMessages.hpp"
-#include <Renderer/GlfwWindow.hpp>
-#include <Renderer/CameraAutoFit.hpp>
-#include <Renderer/ImGuiOverlay.hpp>
 #include "Rendering/OpenGLSceneRenderer.hpp"
 #include <Core/Assert.hpp>
+#include <Renderer/CameraAutoFit.hpp>
+#include <Renderer/GlfwWindow.hpp>
+#include <Renderer/ImGuiOverlay.hpp>
 #include <algorithm>
 #include <array>
 #include <filesystem>
@@ -16,7 +16,6 @@
 namespace geoqik
 {
 
-using renderer::Camera;
 using renderer::CameraAutoFitSettings;
 using renderer::CameraAutoFitInput;
 using renderer::CameraAutoFitResult;

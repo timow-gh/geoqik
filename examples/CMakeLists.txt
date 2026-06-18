@@ -93,6 +93,7 @@ set_target_properties(example_renderer_standalone
         LANGUAGE CXX
         LINKER_LANGUAGE CXX
         DEBUG_POSTFIX d)
+set_target_properties(example_renderer_standalone PROPERTIES CXX_CLANG_TIDY "")
 if(WIN32 AND MSVC)
     set_target_properties(example_renderer_standalone PROPERTIES LINK_FLAGS "/ENTRY:mainCRTStartup")
 endif()

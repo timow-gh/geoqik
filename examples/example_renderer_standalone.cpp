@@ -31,23 +31,23 @@ int main()
   opengl::DrawablesManager drawablesManager(&programManager.get_point_program(), &programManager.get_line_program());
 
   // One point at the origin.
-  const std::array<float, 3> pointVertices{0.0f, 0.0f, 0.0f};
-  const std::array<float, 4> pointColors{1.0f, 1.0f, 0.0f, 1.0f}; // yellow
+  const std::array<float, 3> pointVertices{0.0F, 0.0F, 0.0F};
+  const std::array<float, 4> pointColors{1.0F, 1.0F, 0.0F, 1.0F}; // yellow
   const std::array<std::uint32_t, 1> pointIndices{0};
-  drawablesManager.add_point_drawable(pointVertices, 3, pointColors, 4, pointIndices, /*pointSize=*/12.0f, opengl::BufferAccessPattern::STATIC_DRAW);
+  drawablesManager.add_point_drawable(pointVertices, 3, pointColors, 4, pointIndices, /*pointSize=*/12.0F, opengl::BufferAccessPattern::STATIC_DRAW);
 
   // A cross made of two line segments through the origin.
   const std::array<float, 12> lineVertices{
-      -1.0f, 0.0f, 0.0f, // v0
-      1.0f,  0.0f, 0.0f, // v1
-      0.0f,  -1.0f, 0.0f, // v2
-      0.0f,  1.0f,  0.0f  // v3
+      -1.0F, 0.0F, 0.0F, // v0
+      1.0F,  0.0F, 0.0F, // v1
+      0.0F,  -1.0F, 0.0F, // v2
+      0.0F,  1.0F,  0.0F  // v3
   };
   const std::array<float, 16> lineColors{
-      1.0f, 0.0f, 0.0f, 1.0f, // v0 red
-      1.0f, 0.0f, 0.0f, 1.0f, // v1 red
-      0.0f, 1.0f, 0.0f, 1.0f, // v2 green
-      0.0f, 1.0f, 0.0f, 1.0f  // v3 green
+      1.0F, 0.0F, 0.0F, 1.0F, // v0 red
+      1.0F, 0.0F, 0.0F, 1.0F, // v1 red
+      0.0F, 1.0F, 0.0F, 1.0F, // v2 green
+      0.0F, 1.0F, 0.0F, 1.0F  // v3 green
   };
   const std::array<std::uint32_t, 4> lineIndices{0, 1, 2, 3};
   drawablesManager.add_line_drawable(lineVertices,
@@ -56,8 +56,8 @@ int main()
                                      lineColors,
                                      4,
                                      opengl::LineType::lines(),
-                                     /*lineWidth=*/2.0f,
-                                     /*pointSize=*/1.0f,
+                                     /*lineWidth=*/2.0F,
+                                     /*pointSize=*/1.0F,
                                      opengl::BufferAccessPattern::STATIC_DRAW);
 
   const auto [framebufferWidth, framebufferHeight] = window.get_framebuffer_size();
@@ -113,7 +113,7 @@ int main()
     }
 
     const auto [width, height] = window.get_framebuffer_size();
-    opengl::begin_frame(opengl::ClearColor{0.05f, 0.05f, 0.08f, 1.0f}, opengl::ViewportRect{0, 0, width, height});
+    opengl::begin_frame(opengl::ClearColor{0.05F, 0.05F, 0.08F, 1.0F}, opengl::ViewportRect{0, 0, width, height});
 
     drawablesManager.draw_lines_and_points(cameraInteractor.get_current_MVP(), cameraInteractor.get_position());
 
