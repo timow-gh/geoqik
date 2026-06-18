@@ -1,8 +1,8 @@
 #ifndef CONTEXT_HPP
 #define CONTEXT_HPP
 
-#include "Camera.hpp"
-#include "CameraInteractor.hpp"
+#include <Renderer/Camera.hpp>
+#include <Renderer/CameraInteractor.hpp>
 #include "ConcurrentQueue/ConcurrentQueue.hpp"
 #include "GeoQik/GeoQik.hpp"
 #include "GeoQikLog.hpp"
@@ -11,7 +11,7 @@
 #include "GeoQikSettings.hpp"
 #include "IdempotencyData.hpp"
 #include "Scene.hpp"
-#include "WindowSettings.hpp"
+#include <Renderer/WindowSettings.hpp>
 #include <Core/UUID.hpp>
 #include <atomic>
 #include <cassert>
@@ -22,12 +22,23 @@
 #include <utility>
 #include <variant>
 #include <vector>
+#include <Renderer/InputState.hpp>
+
+namespace renderer
+{
+class GlfwWindow;
+class ImGuiOverlay;
+}
 
 namespace geoqik
 {
 
-class GlfwWindow;
-class ImGuiOverlay;
+using renderer::GlfwWindow;
+using renderer::Key;
+using renderer::Scancode;
+using renderer::Action;
+using renderer::Mods;
+using renderer::Viewport;
 class OpenGLSceneRenderer;
 
 void init_message_queue(ConcurrentQueue<GeoQikMessage>&& messageQueue);
@@ -60,8 +71,8 @@ class Context
   std::unique_ptr<GlfwWindow> m_window;
   std::atomic<bool> m_windowShouldClose{false};
 
-  std::unique_ptr<CameraInteractor> m_cameraInteractor;
-  std::unique_ptr<ImGuiOverlay> m_imguiOverlay;
+  std::unique_ptr<renderer::CameraInteractor> m_cameraInteractor;
+  std::unique_ptr<renderer::ImGuiOverlay> m_imguiOverlay;
 
   Color m_backgroundColor{0.1f, 0.1f, 0.1f, 1.0f}; // Default background color
 

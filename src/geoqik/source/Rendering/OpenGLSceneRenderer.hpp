@@ -1,9 +1,9 @@
 #ifndef GEOQIK_SOURCE_RENDERING_OPENGLSCENERENDERER_HPP
 #define GEOQIK_SOURCE_RENDERING_OPENGLSCENERENDERER_HPP
 
-#include "Color.hpp"
+#include <Renderer/Color.hpp>
 #include "Scene.hpp"
-#include "Viewport.hpp"
+#include <Renderer/Viewport.hpp>
 #include <OpenGL/Drawable/DrawablesManager.hpp>
 #include <OpenGL/LineType.hpp>
 #include <OpenGL/Programs/ProgramManager.hpp>
@@ -27,6 +27,9 @@ struct MeshRenderParams
   linal::float3 ambientColor;
   float shininess{32.0f};
 };
+
+using renderer::Color;
+using renderer::Viewport;
 
 class OpenGLSceneRenderer
 {

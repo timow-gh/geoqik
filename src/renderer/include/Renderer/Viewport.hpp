@@ -1,10 +1,10 @@
-#ifndef VIEWPORT_HPP
-#define VIEWPORT_HPP
+#ifndef RENDERER_VIEWPORT_HPP
+#define RENDERER_VIEWPORT_HPP
 
 #include <Core/Assert.hpp>
 #include <cstdint>
 
-namespace geoqik
+namespace renderer
 {
 
 class Viewport
@@ -43,6 +43,6 @@ public:
   [[nodiscard]] double get_aspect_ratio() const { return static_cast<double>(m_width) / m_height; }
 };
 
-} // namespace geoqik
+} // namespace renderer
 
-#endif // VIEWPORT_HPP
+#endif // RENDERER_VIEWPORT_HPP

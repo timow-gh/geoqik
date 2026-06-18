@@ -1,13 +1,13 @@
-#include "Camera.hpp"
+#include <Renderer/Camera.hpp>
 
-#include "PickRay.hpp"
 #include <Core/Assert.hpp>
+#include <Renderer/PickRay.hpp>
 #include <cmath>
 #include <glm/ext/vector_double3.hpp>
 #include <glm/geometric.hpp>
 #include <glm/trigonometric.hpp>
 
-namespace geoqik
+namespace renderer
 {
 
 [[maybe_unused]] static bool has_nan_value(const glm::dvec3& vec)
@@ -78,4 +78,4 @@ PickRay Camera::create_orthographic_ray(double screenX, double screenY) const {
   return {to_linal(rayOrigin), to_linal(cameraGaze)};
 }
 
-} // namespace geoqik
+} // namespace renderer

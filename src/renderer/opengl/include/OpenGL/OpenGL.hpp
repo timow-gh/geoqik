@@ -1,7 +1,7 @@
 #ifndef OPENGL_OPENGL_HPP
 #define OPENGL_OPENGL_HPP
 
-#include "OpenGL/opengl_export.h"
+#include <OpenGL/opengl_export.h>
 #include <Core/DLLWarnings.hpp>
 #include <glad/glad.h>
 #include <string_view>

@@ -1,4 +1,4 @@
-ColumnLimit: '140'
+ColumnLimit: '100'
 IndentWidth: '2'
 Language: Cpp
 AlignAfterOpenBracket: Align
@@ -10,6 +10,7 @@ AllowAllArgumentsOnNextLine: false
 AlwaysBreakBeforeMultilineStrings: true
 AlwaysBreakTemplateDeclarations: 'Yes'
 PackConstructorInitializers: Never
+PenaltyBreakBeforeMemberAccess: 0
 BinPackArguments: false
 BinPackParameters: false
 AllowAllParametersOfDeclarationOnNextLine: false

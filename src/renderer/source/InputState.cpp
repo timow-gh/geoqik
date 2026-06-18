@@ -1,8 +1,8 @@
-#include "InputState.hpp"
+#include <Renderer/InputState.hpp>
 
 #include <unordered_map>
 
-namespace geoqik
+namespace renderer
 {
 
 namespace detail
@@ -195,4 +195,4 @@ void clear_callbacks(GLFWwindow* glfwWindow)
   glfwSetWindowUserPointer(glfwWindow, nullptr);
 }
 
-} // namespace geoqik
+} // namespace renderer

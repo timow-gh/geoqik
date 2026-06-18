@@ -1,8 +1,9 @@
-#include "GlfwWindow.hpp"
 #include "Core/FmtIncludeHelper.hpp"
-#include <Core/Assert.hpp>
 
-namespace geoqik
+#include <Core/Assert.hpp>
+#include <Renderer/GlfwWindow.hpp>
+
+namespace renderer
 {
 
 namespace
@@ -126,43 +127,43 @@ std::pair<int, int> GlfwWindow::get_framebuffer_size() const
 InputState& GlfwWindow::get_input_state() const
 {
   CORE_ASSERT(m_window);
-  return *geoqik::get_input_state(m_window);
+  return *renderer::get_input_state(m_window);
 }
 
 void GlfwWindow::set_key_callback(KeyCB cb)
 {
   CORE_ASSERT(m_window);
-  geoqik::set_key_callback(m_window, std::move(cb));
+  renderer::set_key_callback(m_window, std::move(cb));
 }
 
 void GlfwWindow::set_char_callback(CharCB cb)
 {
   CORE_ASSERT(m_window);
-  geoqik::set_char_callback(m_window, std::move(cb));
+  renderer::set_char_callback(m_window, std::move(cb));
 }
 
 void GlfwWindow::set_cursor_pos_callback(CursorPosCB cb)
 {
   CORE_ASSERT(m_window);
-  geoqik::set_cursor_pos_callback(m_window, std::move(cb));
+  renderer::set_cursor_pos_callback(m_window, std::move(cb));
 }
 
 void GlfwWindow::set_scroll_callback(ScrollCB cb)
 {
   CORE_ASSERT(m_window);
-  geoqik::set_scroll_callback(m_window, std::move(cb));
+  renderer::set_scroll_callback(m_window, std::move(cb));
 }
 
 void GlfwWindow::set_mouse_button_callback(MouseBtnCB cb)
 {
   CORE_ASSERT(m_window);
-  geoqik::set_mouse_button_callback(m_window, std::move(cb));
+  renderer::set_mouse_button_callback(m_window, std::move(cb));
 }
 
 void GlfwWindow::set_framebuffer_size_callback(FramebufferSizeCB cb)
 {
   CORE_ASSERT(m_window);
-  geoqik::set_framebuffer_size_callback(m_window, std::move(cb));
+  renderer::set_framebuffer_size_callback(m_window, std::move(cb));
 }
 
 void GlfwWindow::set_window_hints(const WindowSettings& hints)
@@ -196,4 +197,4 @@ void GlfwWindow::set_window_hints(const WindowSettings& hints)
   glfwWindowHint(GLFW_SCALE_TO_MONITOR, window_hint_to_glfw_hint(hints.scale_to_monitor));
 }
 
-} // namespace geoqik
+} // namespace renderer

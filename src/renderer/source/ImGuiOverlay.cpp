@@ -1,6 +1,7 @@
-#include "ImGuiOverlay.hpp"
 #include "Core/Warnings.hpp"
+
 #include <Core/Assert.hpp>
+#include <Renderer/ImGuiOverlay.hpp>
 #include <array>
 
 DISABLE_ALL_WARNINGS
@@ -9,7 +10,7 @@ DISABLE_ALL_WARNINGS
 #include <imgui_impl_opengl3.h>
 ENABLE_ALL_WARNINGS
 
-namespace geoqik
+namespace renderer
 {
 
 ImGuiOverlay::ImGuiOverlay(GLFWwindow* window)
@@ -107,4 +108,4 @@ void ImGuiOverlay::handle_char(std::uint32_t codepoint)
   ImGui_ImplGlfw_CharCallback(m_window, codepoint);
 }
 
-} // namespace geoqik
+} // namespace renderer

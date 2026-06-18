@@ -4,20 +4,11 @@ set(geoqik_HEADER_FILES
 
 set(geoqik_SOURCE_FILES
         source/ConcurrentQueue/ConcurrentQueue.hpp
-        source/Buffer.hpp
-        source/Camera.cpp
-        source/CameraAutoFit.cpp
-        source/CameraAutoFit.hpp
-        source/Camera.hpp
-        source/CameraInteractor.hpp
-        source/CameraProjectionType.hpp
-        source/Color.hpp
         source/Context.hpp
         source/Context.cpp
         source/GeometryHelpers.hpp
         source/GeometryBuffers/LineBuffer.hpp
         source/GeometryBuffers/PointBuffer.hpp
-        source/GeoQik_Glfw.hpp
         source/GeoQik.cpp
         source/GeoQikLog.cpp
         source/GeoQikLog.hpp
@@ -27,23 +18,11 @@ set(geoqik_SOURCE_FILES
         source/GeoQikReplayUndo.cpp
         source/GeoQikReplayUndo.hpp
         source/GeoQikSettings.hpp
-        source/GlfwWindow.cpp
-        source/GlfwWindow.hpp
         source/IdempotencyData.hpp
-        source/ImGuiOverlay.cpp
-        source/ImGuiOverlay.hpp
-        source/InputState.hpp
-        source/InputState.cpp
-        source/InputCaptureState.hpp
-        source/MathConstants.hpp
-        source/PickRay.hpp
-        source/RayPlaneIntersection.hpp
         source/Rendering/OpenGLSceneRenderer.cpp
         source/Rendering/OpenGLSceneRenderer.hpp
         source/Scene.cpp
         source/Scene.hpp
-        source/Viewport.hpp
-        source/WindowSettings.hpp
 )
 
 set(TARGET_NAME geoqik)
@@ -90,9 +69,7 @@ endif ()
 target_link_libraries(${TARGET_NAME}
         PRIVATE
         $<BUILD_LOCAL_INTERFACE:geoqik::core>
-        $<BUILD_LOCAL_INTERFACE:geoqik::opengl>
-        $<BUILD_LOCAL_INTERFACE:glfw>
-        $<BUILD_LOCAL_INTERFACE:glad::glad>
+        $<BUILD_LOCAL_INTERFACE:renderer::renderer>
         $<BUILD_LOCAL_INTERFACE:imgui::imgui>
         $<BUILD_LOCAL_INTERFACE:fmt::fmt>
         $<BUILD_LOCAL_INTERFACE:linal::linal>
@@ -129,16 +106,13 @@ add_library(geoqik_internals INTERFACE)
 # This following include dir paths need to be paths with the project as its root, since the test projects rely on them.
 target_include_directories(geoqik_internals INTERFACE ${CMAKE_SOURCE_DIR}/src/geoqik/source)
 target_sources(geoqik_internals INTERFACE
-        ${CMAKE_SOURCE_DIR}/src/geoqik/source/Camera.cpp
         ${CMAKE_SOURCE_DIR}/src/geoqik/source/Scene.cpp
-        ${CMAKE_SOURCE_DIR}/src/geoqik/source/CameraAutoFit.cpp
         ${CMAKE_SOURCE_DIR}/src/geoqik/source/GeoQikLog.cpp
         ${CMAKE_SOURCE_DIR}/src/geoqik/source/GeoQikMessageSerialization.cpp
-        ${CMAKE_SOURCE_DIR}/src/geoqik/source/GeoQikReplayUndo.cpp
-        ${CMAKE_SOURCE_DIR}/src/geoqik/source/InputState.cpp)
+        ${CMAKE_SOURCE_DIR}/src/geoqik/source/GeoQikReplayUndo.cpp)
 target_link_libraries(geoqik_internals INTERFACE
-        stduuid linal::linal Geometry::Geometry geoqik::core glfw)
+        stduuid linal::linal Geometry::Geometry geoqik::core renderer::renderer)
 target_include_directories(geoqik_internals INTERFACE
         $<TARGET_PROPERTY:geoqik_core,INTERFACE_INCLUDE_DIRECTORIES>
-        $<TARGET_PROPERTY:geoqik_opengl,INTERFACE_INCLUDE_DIRECTORIES>)
+        $<TARGET_PROPERTY:renderer_opengl,INTERFACE_INCLUDE_DIRECTORIES>)
 add_library(geoqik::geoqik_internals ALIAS geoqik_internals)

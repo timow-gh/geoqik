@@ -80,3 +80,32 @@ add_custom_target(run-example-mesh
     COMMENT "Running example_mesh"
     VERBATIM
 )
+
+
+if (MSVC)
+    add_executable(example_renderer_standalone WIN32 example_renderer_standalone.cpp)
+else()
+    add_executable(example_renderer_standalone example_renderer_standalone.cpp)
+endif()
+target_link_libraries(example_renderer_standalone PRIVATE renderer::renderer linal::linal)
+set_target_properties(example_renderer_standalone
+        PROPERTIES
+        LANGUAGE CXX
+        LINKER_LANGUAGE CXX
+        DEBUG_POSTFIX d)
+set_target_properties(example_renderer_standalone PROPERTIES CXX_CLANG_TIDY "")
+if(WIN32 AND MSVC)
+    set_target_properties(example_renderer_standalone PROPERTIES LINK_FLAGS "/ENTRY:mainCRTStartup")
+endif()
+add_warnings_and_compile_options(example_renderer_standalone "${${PROJECT_NAME}_WARNINGS_AS_ERRORS}")
+if (${PROJECT_NAME}_STATIC_ANALYSIS)
+    enable_static_analysis(example_renderer_standalone "${${PROJECT_NAME}_WARNINGS_AS_ERRORS}")
+endif ()
+
+add_custom_target(run-example-renderer-standalone
+    COMMAND $<TARGET_FILE:example_renderer_standalone> ${ARGS}
+    DEPENDS example_renderer_standalone
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    COMMENT "Running example_renderer_standalone"
+    VERBATIM
+)

@@ -1,13 +1,23 @@
 #ifndef GEOQIKSETTINGS_HPP
 #define GEOQIKSETTINGS_HPP
 
-#include "Color.hpp"
+#include <Renderer/Color.hpp>
+#include <Renderer/WindowSettings.hpp>
+#include <Renderer/CameraProjectionType.hpp>
+#include <Renderer/InputState.hpp>
 #include <GeoQik/geoqik_export.h>
 #include <cstdint>
 #include <chrono>
 
 namespace geoqik
 {
+
+using renderer::Color;
+using renderer::ColorChannelCount;
+using renderer::WindowSettings;
+using renderer::CameraProjectionType;
+using renderer::InputState;
+using renderer::CursorPosState;
 
 #ifdef _MSC_VER
 #pragma warning(push)

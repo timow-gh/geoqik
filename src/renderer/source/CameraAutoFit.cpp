@@ -1,9 +1,9 @@
-#include "CameraAutoFit.hpp"
+#include <Renderer/CameraAutoFit.hpp>
 #include <algorithm>
 #include <cmath>
 #include <limits>
 
-namespace geoqik
+namespace renderer
 {
 namespace
 {
@@ -81,12 +81,15 @@ void add_vertices_to_bounds(CameraSpaceBounds& bounds,
   }
 }
 
-[[nodiscard]] CameraSpaceBounds calculate_scene_bounds(const Scene& scene, const CameraFrame& frame, const linal::double3& cameraPosition)
+[[nodiscard]] CameraSpaceBounds calculate_scene_bounds(std::span<const std::span<const float>> vertexPositionBuffers,
+                                                       const CameraFrame& frame,
+                                                       const linal::double3& cameraPosition)
 {
   CameraSpaceBounds bounds;
-  add_vertices_to_bounds(bounds, frame, cameraPosition, scene.get_point_buffer().get_points());
-  add_vertices_to_bounds(bounds, frame, cameraPosition, scene.get_line_buffer().get_lines());
-  add_vertices_to_bounds(bounds, frame, cameraPosition, scene.get_mesh_buffer().get_vertices());
+  for (const std::span<const float> vertices : vertexPositionBuffers)
+  {
+    add_vertices_to_bounds(bounds, frame, cameraPosition, vertices);
+  }
   return bounds;
 }
 
@@ -293,7 +296,7 @@ void apply_orthographic_auto_fit(CameraAutoFitResult& result,
 
 } // namespace
 
-CameraAutoFitResult calculate_camera_auto_fit(const Scene& scene, const CameraAutoFitInput& input)
+CameraAutoFitResult calculate_camera_auto_fit(std::span<const std::span<const float>> vertexPositionBuffers, const CameraAutoFitInput& input)
 {
   CameraAutoFitResult result;
   result.position = input.position;
@@ -308,7 +311,7 @@ CameraAutoFitResult calculate_camera_auto_fit(const Scene& scene, const CameraAu
   }
 
   const CameraFrame frame = make_camera_frame(input);
-  CameraSpaceBounds bounds = calculate_scene_bounds(scene, frame, input.position);
+  CameraSpaceBounds bounds = calculate_scene_bounds(vertexPositionBuffers, frame, input.position);
   if (!bounds.hasGeometry)
   {
     return result;
@@ -332,4 +335,4 @@ CameraAutoFitResult calculate_camera_auto_fit(const Scene& scene, const CameraAu
   return result;
 }
 
-} // namespace geoqik
+} // namespace renderer

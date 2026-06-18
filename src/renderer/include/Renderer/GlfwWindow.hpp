@@ -1,11 +1,11 @@
-#ifndef GEOQIK_SOURCE_GLFWWINDOW_HPP
-#define GEOQIK_SOURCE_GLFWWINDOW_HPP
+#ifndef RENDERER_GLFWWINDOW_HPP
+#define RENDERER_GLFWWINDOW_HPP
 
-#include "InputState.hpp"
-#include "WindowSettings.hpp"
+#include <Renderer/InputState.hpp>
+#include <Renderer/WindowSettings.hpp>
 #include <utility>
 
-namespace geoqik
+namespace renderer
 {
 
 class GlfwWindow
@@ -48,6 +48,6 @@ private:
   static void set_window_hints(const WindowSettings& hints);
 };
 
-} // namespace geoqik
+} // namespace renderer
 
-#endif // GEOQIK_SOURCE_GLFWWINDOW_HPP
+#endif // RENDERER_GLFWWINDOW_HPP

@@ -1,15 +1,15 @@
-#ifndef GEOQIK_COLOR_HPP
-#define GEOQIK_COLOR_HPP
+#ifndef RENDERER_COLOR_HPP
+#define RENDERER_COLOR_HPP
 
 #include <array>
 #include <cstddef>
 
-namespace geoqik
+namespace renderer
 {
 
 inline constexpr std::size_t ColorChannelCount = 4;
 using Color = std::array<float, ColorChannelCount>;
 
-} // namespace geoqik
+} // namespace renderer
 
-#endif // GEOQIK_COLOR_HPP
+#endif // RENDERER_COLOR_HPP
