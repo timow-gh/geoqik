@@ -1,6 +1,7 @@
-#include <Renderer/GlfwWindow.hpp>
 #include "Core/FmtIncludeHelper.hpp"
+
 #include <Core/Assert.hpp>
+#include <Renderer/GlfwWindow.hpp>
 
 namespace renderer
 {

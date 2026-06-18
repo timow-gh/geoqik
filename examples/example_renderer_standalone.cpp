@@ -15,9 +15,10 @@
 
 int main()
 {
-  auto windowSettings = renderer::WindowSettings::create_default_window_settings()
-                            .set_title("renderer standalone example")
-                            .set_size(1024, 768);
+  renderer::WindowSettings windowSettings;
+  windowSettings.title = "renderer standalone example";
+  windowSettings.width = 1024;
+  windowSettings.height = 768;
 
   renderer::GlfwWindow window;
   if (!window.create(windowSettings))

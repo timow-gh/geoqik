@@ -1,7 +1,7 @@
 #include <Renderer/Camera.hpp>
 
-#include <Renderer/PickRay.hpp>
 #include <Core/Assert.hpp>
+#include <Renderer/PickRay.hpp>
 #include <cmath>
 #include <glm/ext/vector_double3.hpp>
 #include <glm/geometric.hpp>

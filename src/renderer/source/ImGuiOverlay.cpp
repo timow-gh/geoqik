@@ -1,6 +1,7 @@
-#include <Renderer/ImGuiOverlay.hpp>
 #include "Core/Warnings.hpp"
+
 #include <Core/Assert.hpp>
+#include <Renderer/ImGuiOverlay.hpp>
 #include <array>
 
 DISABLE_ALL_WARNINGS
