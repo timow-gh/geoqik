@@ -2,11 +2,11 @@
 #define MESHBUFFER_HPP
 
 #include "Buffer.hpp"
-#include "Color.hpp"
 #include "Core/Assert.hpp"
 #include "Core/UUID.hpp"
 #include "GeoQikSettings.hpp"
 #include "GeometryBuffers/GeometryBufferConcept.hpp"
+#include <Renderer/Color.hpp>
 #include "linal/linal.hpp"
 #include <cstdint>
 #include <memory>
