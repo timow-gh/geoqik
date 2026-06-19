@@ -8,8 +8,11 @@
 #include <OpenGL/OpenGL.hpp>
 #include <algorithm>
 #include <cstddef>
+#include <optional>
 #include <linal/hmat.hpp>
 #include <linal/vec.hpp>
+#include <stdexcept>
+#include <utility>
 #include <vector>
 
 namespace opengl
@@ -53,23 +56,49 @@ class DrawablesManager
     }
   };
 
-  opengl::PointProgram* m_pointProgram{nullptr};
-  opengl::LineProgram* m_lineProgram{nullptr};
-  opengl::MeshProgram* m_meshProgram{nullptr};
+  ProgramManager programManager;
 
   std::vector<opengl::PointDrawable> m_pointDrawables;
   std::vector<opengl::LineDrawable> m_lineDrawables;
   std::vector<opengl::MeshDrawable> m_meshDrawables;
 
 public:
+  DrawablesManager(const DrawablesManager&) = delete;
+  DrawablesManager& operator=(const DrawablesManager&) = delete;
+  DrawablesManager(DrawablesManager&& other) noexcept
+  {
+    programManager = std::move(other.programManager);
+    m_pointDrawables = std::move(other.m_pointDrawables);
+    m_lineDrawables = std::move(other.m_lineDrawables);
+    m_meshDrawables = std::move(other.m_meshDrawables);
+  }
+  DrawablesManager& operator=(DrawablesManager&& other) noexcept
+  {
+    if (this != &other)
+    {
+      programManager = std::move(other.programManager);
+      m_pointDrawables = std::move(other.m_pointDrawables);
+      m_lineDrawables = std::move(other.m_lineDrawables);
+      m_meshDrawables = std::move(other.m_meshDrawables);
+    }
+    return *this;
+  }
+  ~DrawablesManager()
+  {
+    clear_drawables();
+  }
+
   [[nodiscard]] static std::optional<DrawablesManager> create()
   {
-    auto& programManager = DrawablesManager::get_program_manager();
+    ProgramManager programManager;
+    programManager.compile();
+
     if (!programManager.is_compiled())
     {
       return std::nullopt;
     }
-    return DrawablesManager(programManager.get_point_program(), programManager.get_line_program(), programManager.get_mesh_program());
+
+    return DrawablesManager(std::move(programManager));
   }
 
   [[nodiscard]] bool has_drawables() const
@@ -89,11 +118,6 @@ public:
   {
     m_lineDrawables.emplace_back(std::move(drawable));
   }
-  void add_mesh_drawable(opengl::MeshDrawable drawable)
-  {
-    m_meshDrawables.emplace_back(std::move(drawable));
-  }
-
   void add_point_drawable(std::span<const float> vertices,
                           std::int32_t vertexDimension,
                           std::span<const float> colors,
@@ -102,7 +126,7 @@ public:
                           float pointSize,
                           opengl::BufferAccessPattern accessPattern)
   {
-    auto drawable = opengl::make_point_drawable(*m_pointProgram,
+    auto drawable = opengl::make_point_drawable(get_point_program(),
                                                 vertices,
                                                 vertexDimension,
                                                 colors,
@@ -128,7 +152,7 @@ public:
                          float pointSize,
                          opengl::BufferAccessPattern accessPattern)
   {
-    auto drawable = opengl::make_line_drawable(*m_lineProgram,
+    auto drawable = opengl::make_line_drawable(get_line_program(),
                                                lineVertices,
                                                lineVertexDimension,
                                                lineIndices,
@@ -144,6 +168,30 @@ public:
     }
 
     add_line_drawable(std::move(drawable.value()));
+  }
+
+  void add_mesh_drawable(std::span<const float> vertices,
+                         std::int32_t vertexDimension,
+                         std::span<const float> normals,
+                         std::span<const float> colors,
+                         std::int32_t colorDimension,
+                         std::span<const std::uint32_t> triangleIndices,
+                         opengl::BufferAccessPattern accessPattern)
+  {
+    auto drawable = opengl::make_mesh_soup(get_mesh_program(),
+                                           vertices,
+                                           vertexDimension,
+                                           normals,
+                                           colors,
+                                           colorDimension,
+                                           triangleIndices,
+                                           accessPattern);
+    if (!drawable.has_value())
+    {
+      throw std::runtime_error("Failed to create mesh drawable");
+    }
+
+    m_meshDrawables.emplace_back(std::move(drawable.value()));
   }
 
   void update_last_point_drawable(std::span<const float> vertices,
@@ -374,23 +422,14 @@ public:
   }
 
 private:
-  DrawablesManager() = default;
-  DrawablesManager(opengl::PointProgram* pointProgram, opengl::LineProgram* lineProgram, asdf
-      : m_pointProgram(pointProgram)
-      , m_lineProgram(lineProgram)
+  DrawablesManager(opengl::ProgramManager programManager)
+      : programManager(std::move(programManager))
   {
   }
 
-  [[nodiscard]] static ProgramManager& get_program_manager()
-  {
-    static ProgramManager programManager;
-    if (!programManager.is_compiled())
-    {
-      programManager.compile();
-    }
-
-    return programManager;
-  }
+  LineProgram& get_line_program() { return programManager.get_line_program(); }
+  PointProgram& get_point_program() { return programManager.get_point_program(); }
+  MeshProgram& get_mesh_program() { return programManager.get_mesh_program(); }
 };
 
 } // namespace opengl

@@ -194,6 +194,7 @@ TEST_F(CreateProgramTest, ReportsVertexShaderCompilationFailure)
     EXPECT_CALL(mock, set_shader_source(vertexShaderId, StrEq(vertexShaderSource)));
     EXPECT_CALL(mock, compile_shader(vertexShaderId));
     EXPECT_CALL(mock, get_shader_compile_status(vertexShaderId)).WillOnce(Return(false));
+    EXPECT_CALL(mock, get_shader_info_log(vertexShaderId)).WillOnce(Return("vertex compile error"));
     EXPECT_CALL(mock, delete_shader(vertexShaderId));
   }
 
@@ -225,6 +226,7 @@ TEST_F(CreateProgramTest, ReportsFragmentShaderCompilationFailure)
     EXPECT_CALL(mock, set_shader_source(fragmentShaderId, StrEq(fragmentShaderSource)));
     EXPECT_CALL(mock, compile_shader(fragmentShaderId));
     EXPECT_CALL(mock, get_shader_compile_status(fragmentShaderId)).WillOnce(Return(false));
+    EXPECT_CALL(mock, get_shader_info_log(fragmentShaderId)).WillOnce(Return("fragment compile error"));
     EXPECT_CALL(mock, delete_shader(fragmentShaderId));
     EXPECT_CALL(mock, delete_shader(vertexShaderId));
   }

@@ -1,34 +1,28 @@
 #include "Rendering/OpenGLSceneRenderer.hpp"
 #include "GeometryBuffers/MeshBuffer.hpp"
 #include <OpenGL/BufferAccessPattern.hpp>
-#include <OpenGL/Drawable/MeshDrawable.hpp>
 #include <OpenGL/FrameState.hpp>
 #include <OpenGL/OpenGL.hpp>
 
 namespace geoqik
 {
 
-OpenGLSceneRenderer::OpenGLSceneRenderer()
-    : m_drawablesManager(&m_programManager.get_point_program(), &m_programManager.get_line_program())
+std::unique_ptr<OpenGLSceneRenderer> OpenGLSceneRenderer::create()
 {
+  auto drawablesManager = opengl::DrawablesManager::create();
+  if (!drawablesManager.has_value())
+  {
+    return nullptr;
+  }
+
+  return std::unique_ptr<OpenGLSceneRenderer>(new OpenGLSceneRenderer(std::move(drawablesManager.value())));
 }
 
 OpenGLSceneRenderer::~OpenGLSceneRenderer()
 {
   glFinish();
   clear_drawables();
-  reset_programs();
   glFinish();
-}
-
-void OpenGLSceneRenderer::compile_programs()
-{
-  m_programManager.compile();
-}
-
-void OpenGLSceneRenderer::reset_programs() noexcept
-{
-  m_programManager.reset();
 }
 
 void OpenGLSceneRenderer::begin_frame(const Color& backgroundColor, const Viewport& viewport)
@@ -174,19 +168,13 @@ void OpenGLSceneRenderer::create_mesh_drawable(const Scene& scene)
     return;
   }
 
-  auto drawable = opengl::make_mesh_soup(m_programManager.get_mesh_program(),
-                                         meshBuffer.get_vertices(),
-                                         MeshBuffer::get_vertex_dimension(),
-                                         meshBuffer.get_normals(),
-                                         meshBuffer.get_colors(),
-                                         MeshBuffer::get_color_dimension(),
-                                         meshBuffer.get_triangle_indices(),
-                                         opengl::BufferAccessPattern::STATIC_DRAW);
-  if (!drawable.has_value())
-  {
-    return;
-  }
-  m_drawablesManager.add_mesh_drawable(std::move(drawable.value()));
+  m_drawablesManager.add_mesh_drawable(meshBuffer.get_vertices(),
+                                       MeshBuffer::get_vertex_dimension(),
+                                       meshBuffer.get_normals(),
+                                       meshBuffer.get_colors(),
+                                       MeshBuffer::get_color_dimension(),
+                                       meshBuffer.get_triangle_indices(),
+                                       opengl::BufferAccessPattern::STATIC_DRAW);
 }
 
 void OpenGLSceneRenderer::recreate_mesh_drawables(const Scene& scene)

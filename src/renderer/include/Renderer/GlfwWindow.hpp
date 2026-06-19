@@ -17,12 +17,23 @@ public:
   GlfwWindow() = default;
   GlfwWindow(const GlfwWindow&) = delete;
   GlfwWindow& operator=(const GlfwWindow&) = delete;
-  GlfwWindow(GlfwWindow&&) = default;
-  GlfwWindow& operator=(GlfwWindow&&) = default;
+  GlfwWindow(GlfwWindow&& other) noexcept
+  {
+    m_glfwWindow = other.m_glfwWindow;
+    other.m_glfwWindow = nullptr;
+  }
+  GlfwWindow& operator=(GlfwWindow&& other) noexcept
+  {
+    if (this != &other)
+    {
+      m_glfwWindow = other.m_glfwWindow;
+      other.m_glfwWindow = nullptr;
+    }
+    return *this;
+  }
   ~GlfwWindow();
 
   [[nodiscard]] static std::optional<GlfwWindow> create(const WindowSettings& settings);
-  void destroy();
 
   [[nodiscard]] bool is_initialized() const { return m_glfwWindow != nullptr; }
   [[nodiscard]] GLFWwindow* get_native_handle() const { return m_glfwWindow; }

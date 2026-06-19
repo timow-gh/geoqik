@@ -60,9 +60,27 @@ public:
 
   MeshProgram(const MeshProgram&) = delete;
   MeshProgram& operator=(const MeshProgram&) = delete;
-  MeshProgram(MeshProgram&&) noexcept = default;
-  MeshProgram& operator=(MeshProgram&&) noexcept = default;
-  ~MeshProgram() = default;
+  MeshProgram(MeshProgram&& other) noexcept
+  {
+    m_program = std::move(other.m_program);
+    m_input = std::move(other.m_input);
+  }
+  MeshProgram& operator=(MeshProgram&& other) noexcept
+  {
+    if (this != &other)
+    {
+      m_program = std::move(other.m_program);
+      m_input = std::move(other.m_input);
+    }
+    return *this;
+  }
+  ~MeshProgram()
+  {
+    if (m_program.is_valid())
+    {
+      glDeleteProgram(m_program.get_id().get_value());
+    }
+  }
 
   [[nodiscard]] bool is_valid() const noexcept { return m_program.is_valid(); }
 

@@ -12,10 +12,9 @@ namespace opengl
 SUPPRESS_STL_DLL_WARNINGS_BEGIN
 
 struct OPENGL_EXPORT OpenGLConfig {
-  int majorVersion = 4;
+  int majorVersion = 3;
   int minorVersion = 3;
-  std::string_view glsl_version =
-      "#version 430"; // The target Ubuntu Version only supports opengl verion 4.3
+  std::string_view glsl_version = "#version 330";
   bool debug{false};
 };
 

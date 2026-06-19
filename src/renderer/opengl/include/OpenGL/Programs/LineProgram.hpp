@@ -24,9 +24,31 @@ public:
 
   LineProgram(const LineProgram&) = delete;
   LineProgram& operator=(const LineProgram&) = delete;
-  LineProgram(LineProgram&&) noexcept = default;
-  LineProgram& operator=(LineProgram&&) noexcept = default;
-  ~LineProgram() = default;
+  LineProgram(LineProgram&& other) noexcept
+  {
+    m_program = std::move(other.m_program);
+    m_mvpLocation = std::move(other.m_mvpLocation);
+    m_vertexLocation = std::move(other.m_vertexLocation);
+    m_colorLocation = std::move(other.m_colorLocation);
+  }
+  LineProgram& operator=(LineProgram&& other) noexcept
+  {
+    if (this != &other)
+    {
+      m_program = std::move(other.m_program);
+      m_mvpLocation = std::move(other.m_mvpLocation);
+      m_vertexLocation = std::move(other.m_vertexLocation);
+      m_colorLocation = std::move(other.m_colorLocation);
+    }
+    return *this;
+  }
+  ~LineProgram()
+  {
+    if (is_valid())
+    {
+      glDeleteProgram(m_program.get_id().get_value());
+    }
+  }
 
   [[nodiscard]] bool is_valid() const noexcept { return m_program.is_valid(); }
 

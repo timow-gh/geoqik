@@ -10,7 +10,6 @@
 #include <OpenGL/Drawable/DrawablesManager.hpp>
 #include <OpenGL/FrameState.hpp>
 #include <OpenGL/LineType.hpp>
-#include <OpenGL/Programs/ProgramManager.hpp>
 #include <cstdint>
 #include <memory>
 #include <optional>
@@ -47,7 +46,11 @@ public:
                          float pointSize = 0.0F,
                          opengl::BufferAccessPattern accessPattern = opengl::BufferAccessPattern::STATIC_DRAW);
 
-  void add_mesh_drawable(opengl::MeshDrawable drawable);
+  void add_mesh_drawable(std::span<const float> vertices,
+                         std::span<const float> normals,
+                         std::span<const float> colors,
+                         std::span<const std::uint32_t> triangleIndices,
+                         opengl::BufferAccessPattern accessPattern = opengl::BufferAccessPattern::STATIC_DRAW);
 
   void update_last_point_drawable(std::span<const float> vertices,
                                   std::span<const float> colors,
@@ -80,8 +83,8 @@ public:
   void add_key_callback(KeyCB cb);
 
   // --- Accessors ---
-  [[nodiscard]] GlfwWindow& window() { return *m_window; }
-  [[nodiscard]] const GlfwWindow& window() const { return *m_window; }
+  [[nodiscard]] GlfwWindow& window() { return m_window; }
+  [[nodiscard]] const GlfwWindow& window() const { return m_window; }
   [[nodiscard]] CameraInteractor& camera() { return m_camera; }
   [[nodiscard]] const CameraInteractor& camera() const { return m_camera; }
   [[nodiscard]] ImGuiOverlay& imgui() { return *m_imgui; }
@@ -89,15 +92,14 @@ public:
   static constexpr opengl::ClearColor defaultClearColor{0.05F, 0.05F, 0.08F, 1.0F};
 
 private:
-  explicit Renderer(std::unique_ptr<GlfwWindow> window,
-                    opengl::ProgramManager programManager,
-                    CameraInteractor camera,
-                    std::unique_ptr<ImGuiOverlay> imgui);
+  Renderer(GlfwWindow window,
+           opengl::DrawablesManager drawablesManager,
+           CameraInteractor camera,
+           std::unique_ptr<ImGuiOverlay> imgui);
 
   void wire_callbacks();
 
-  std::unique_ptr<GlfwWindow> m_window;
-  opengl::ProgramManager m_programManager;
+  GlfwWindow m_window;
   opengl::DrawablesManager m_drawablesManager;
   CameraInteractor m_camera;
   std::unique_ptr<ImGuiOverlay> m_imgui;

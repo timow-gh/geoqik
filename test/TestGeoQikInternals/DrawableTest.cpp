@@ -137,6 +137,29 @@ opengl::MeshDrawable make_mesh_drawable_with_alpha(opengl::MeshProgram& program,
   return std::move(drawable.value());
 }
 
+void add_mesh_drawable_with_alpha(opengl::DrawablesManager& manager, const std::vector<float>& colors)
+{
+  const std::vector<float> vertices = {
+      0.0F, 0.0F, 0.0F,
+      1.0F, 0.0F, 0.0F,
+      0.0F, 1.0F, 0.0F,
+  };
+  const std::vector<float> normals = {
+      0.0F, 0.0F, 1.0F,
+      0.0F, 0.0F, 1.0F,
+      0.0F, 0.0F, 1.0F,
+  };
+  const std::vector<std::uint32_t> indices = {0U, 1U, 2U};
+
+  manager.add_mesh_drawable(vertices,
+                            3,
+                            normals,
+                            colors,
+                            4,
+                            indices,
+                            opengl::BufferAccessPattern::STATIC_DRAW);
+}
+
 } // namespace
 
 TEST(DrawableTransparencyInfoTest, HandlesEdgeCasesAndSortableCollections)
@@ -399,10 +422,7 @@ TEST_F(OpenGLDrawableTest, DrawablesManagerUpdatesClearsAndDrawsTransparentPoint
 
 TEST_F(OpenGLDrawableTest, DrawablesManagerDrawsTransparentMeshesAndRestoresCullFaceAndDepthMask)
 {
-  opengl::PointProgram pointProgram = opengl::make_point_program();
-  opengl::LineProgram lineProgram = opengl::make_line_program();
-  opengl::MeshProgram meshProgram = opengl::make_mesh_program();
-  opengl::DrawablesManager manager(&pointProgram, &lineProgram);
+  opengl::DrawablesManager manager = opengl::DrawablesManager::create().value();
 
   const std::vector<float> opaqueColors = {
       1.0F, 0.0F, 0.0F, 1.0F,
@@ -414,8 +434,8 @@ TEST_F(OpenGLDrawableTest, DrawablesManagerDrawsTransparentMeshesAndRestoresCull
       0.0F, 1.0F, 0.0F, 0.5F,
       0.0F, 0.0F, 1.0F, 1.0F,
   };
-  manager.add_mesh_drawable(make_mesh_drawable_with_alpha(meshProgram, opaqueColors));
-  manager.add_mesh_drawable(make_mesh_drawable_with_alpha(meshProgram, translucentColors));
+  add_mesh_drawable_with_alpha(manager, opaqueColors);
+  add_mesh_drawable_with_alpha(manager, translucentColors);
   EXPECT_TRUE(manager.has_mesh_drawables());
 
   glEnable(GL_CULL_FACE);

@@ -5,14 +5,11 @@ namespace renderer
 
 std::unique_ptr<Renderer> Renderer::create(const WindowSettings& settings)
 {
-  auto window = std::make_unique<GlfwWindow>();
-  if (!window->create(settings))
+  auto window = GlfwWindow::create(settings);
+  if (!window.has_value())
   {
     return nullptr;
   }
-
-  opengl::ProgramManager programManager;
-  programManager.compile();
 
   const auto [fbWidth, fbHeight] = window->get_framebuffer_size();
   CameraSettings cameraSettings;
@@ -27,32 +24,38 @@ std::unique_ptr<Renderer> Renderer::create(const WindowSettings& settings)
 
   auto imgui = std::make_unique<ImGuiOverlay>(window->get_native_handle());
 
+  auto drawablesManager = opengl::DrawablesManager::create();
+  if (!drawablesManager.has_value())
+  {
+    return nullptr;
+  }
+
   // Use raw new because the constructor is private and Renderer is non-movable.
-  auto* raw = new Renderer(std::move(window),
-                           std::move(programManager),
+  auto* raw = new Renderer(std::move(window.value()),
+                           std::move(drawablesManager.value()),
                            std::move(camera),
                            std::move(imgui));
+  std::unique_ptr<Renderer> renderer(raw);
+
   raw->wire_callbacks();
-  return std::unique_ptr<Renderer>(raw);
+
+  return renderer;
 }
 
-Renderer::Renderer(std::unique_ptr<GlfwWindow> window,
-                   opengl::ProgramManager programManager,
+Renderer::Renderer(GlfwWindow window,
+                   opengl::DrawablesManager drawables,
                    CameraInteractor camera,
                    std::unique_ptr<ImGuiOverlay> imgui)
     : m_window(std::move(window))
-    , m_programManager(std::move(programManager))
+    , m_drawablesManager(std::move(drawables))
     , m_camera(std::move(camera))
     , m_imgui(std::move(imgui))
 {
-  m_drawablesManager = opengl::DrawablesManager(
-      &m_programManager.get_point_program(),
-      &m_programManager.get_line_program());
 }
 
 void Renderer::wire_callbacks()
 {
-  m_window->set_cursor_pos_callback(
+  m_window.set_cursor_pos_callback(
       [this](double xpos, double ypos)
       {
         if (!m_imgui->handle_cursor_position(xpos, ypos))
@@ -66,7 +69,7 @@ void Renderer::wire_callbacks()
         }
       });
 
-  m_window->set_scroll_callback(
+  m_window.set_scroll_callback(
       [this](double xoff, double yoff)
       {
         if (!m_imgui->handle_scroll(xoff, yoff))
@@ -80,7 +83,7 @@ void Renderer::wire_callbacks()
         }
       });
 
-  m_window->set_mouse_button_callback(
+  m_window.set_mouse_button_callback(
       [this](int button, Action action, Mods mods)
       {
         if (!m_imgui->handle_mouse_button(button, action, mods))
@@ -94,7 +97,7 @@ void Renderer::wire_callbacks()
         }
       });
 
-  m_window->set_key_callback(
+  m_window.set_key_callback(
       [this](Key key, Scancode scancode, Action action, Mods mods)
       {
         (void)m_imgui->handle_key(key, scancode, action, mods);
@@ -104,10 +107,10 @@ void Renderer::wire_callbacks()
         }
       });
 
-  m_window->set_char_callback(
+  m_window.set_char_callback(
       [this](std::uint32_t codepoint) { m_imgui->handle_char(codepoint); });
 
-  m_window->set_framebuffer_size_callback(
+  m_window.set_framebuffer_size_callback(
       [this](std::uint32_t width, std::uint32_t height)
       { m_camera.on_framebuffer_size(width, height); });
 }
@@ -134,9 +137,13 @@ void Renderer::add_line_drawable(std::span<const float> vertices,
   m_drawablesManager.add_line_drawable(vertices, 3, indices, colors, 4, lineType, lineWidth, pointSize, accessPattern);
 }
 
-void Renderer::add_mesh_drawable(opengl::MeshDrawable drawable)
+void Renderer::add_mesh_drawable(std::span<const float> vertices,
+                                 std::span<const float> normals,
+                                 std::span<const float> colors,
+                                 std::span<const std::uint32_t> triangleIndices,
+                                 opengl::BufferAccessPattern accessPattern)
 {
-  m_drawablesManager.add_mesh_drawable(std::move(drawable));
+  m_drawablesManager.add_mesh_drawable(vertices, 3, normals, colors, 4, triangleIndices, accessPattern);
 }
 
 void Renderer::update_last_point_drawable(std::span<const float> vertices,
@@ -169,17 +176,17 @@ void Renderer::poll_events()
 
 bool Renderer::should_close() const
 {
-  return m_window->should_close();
+  return m_window.should_close();
 }
 
 bool Renderer::is_escape_pressed() const
 {
-  return m_window->is_escape_pressed();
+  return m_window.is_escape_pressed();
 }
 
 void Renderer::begin_frame(const opengl::ClearColor& clearColor)
 {
-  const auto [width, height] = m_window->get_framebuffer_size();
+  const auto [width, height] = m_window.get_framebuffer_size();
   opengl::begin_frame(clearColor, opengl::ViewportRect{0, 0, width, height});
 }
 
@@ -222,7 +229,7 @@ void Renderer::end_frame()
 
   m_imgui->render();
   m_imgui->end_frame();
-  m_window->swap_buffers();
+  m_window.swap_buffers();
 }
 
 // --- Callback extension ---

@@ -57,6 +57,7 @@ ProgramCreationResult create_program(const char* vertexShaderSource, const char*
 
   if (!program_opengl::get_shader_compile_status(vertexShader))
   {
+    fmt::print(stderr, "Vertex shader compilation failed: {}\n", program_opengl::get_shader_info_log(vertexShader));
     return make_error_code(ProgramCreationFailureStage::VertexShaderCompilation);
   }
 
@@ -72,6 +73,7 @@ ProgramCreationResult create_program(const char* vertexShaderSource, const char*
 
   if (!program_opengl::get_shader_compile_status(fragmentShader))
   {
+    fmt::print(stderr, "Fragment shader compilation failed: {}\n", program_opengl::get_shader_info_log(fragmentShader));
     return make_error_code(ProgramCreationFailureStage::FragmentShaderCompilation);
   }
 

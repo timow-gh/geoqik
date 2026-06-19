@@ -10,6 +10,8 @@
 namespace opengl
 {
 
+class DrawablesManager;
+
 /** @brief Compiles and holds all programs available */
 class OPENGL_EXPORT ProgramManager {
   LineProgram m_lineProgram;
@@ -27,10 +29,13 @@ public:
   [[nodiscard]] bool is_compiled() const { return m_lineProgram.is_valid() && m_pointProgram.is_valid() && m_meshProgram.is_valid(); }
 
   void compile();
-  void reset() noexcept;
 
   [[nodiscard]] LineProgram& get_line_program() { return m_lineProgram; }
   [[nodiscard]] PointProgram& get_point_program() { return m_pointProgram; }
+
+private:
+  friend class DrawablesManager;
+
   [[nodiscard]] MeshProgram& get_mesh_program() { return m_meshProgram; }
 };
 

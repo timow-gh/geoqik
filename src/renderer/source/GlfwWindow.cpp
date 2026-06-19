@@ -20,22 +20,19 @@ void* load_glfw_proc(const char* procName)
 
 GlfwWindow::~GlfwWindow()
 {
-  destroy();
+  if (m_glfwWindow == nullptr)
+  {
+    return;
+  }
+
+  clear_callbacks(m_glfwWindow);
+  glfwDestroyWindow(m_glfwWindow);
+  m_glfwWindow = nullptr;
+  glfwTerminate();
 }
 
 std::optional<GlfwWindow> GlfwWindow::create(const WindowSettings& settings)
 {
-  GlfwWindow window;
-  auto& glfwWindow = window.m_glfwWindow;
-  
-
-  if (glfwWindow != nullptr)
-  {
-    fmt::print("GLFW window is already initialized.\n");
-    CORE_ASSERT(false);
-    return std::nullopt;
-  }
-
   if (glfwInit() == 0)
   {
     const char* description = nullptr;
@@ -49,11 +46,11 @@ std::optional<GlfwWindow> GlfwWindow::create(const WindowSettings& settings)
   glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
   set_window_hints(settings);
 
-  glfwWindow = glfwCreateWindow(static_cast<int>(settings.width),
-                              static_cast<int>(settings.height),
-                              settings.title,
-                              nullptr,
-                              nullptr);
+  GLFWwindow* glfwWindow = glfwCreateWindow(static_cast<int>(settings.width),
+                                            static_cast<int>(settings.height),
+                                            settings.title,
+                                            nullptr,
+                                            nullptr);
 
   if (glfwWindow == nullptr)
   {
@@ -64,28 +61,17 @@ std::optional<GlfwWindow> GlfwWindow::create(const WindowSettings& settings)
     return std::nullopt;
   }
 
+  GlfwWindow window;
+  window.m_glfwWindow = glfwWindow;
+
   window.make_context_current();
   if (gladLoadGLLoader(load_glfw_proc) == 0)
   {
     fmt::print("Failed to initialize OpenGL context\n");
-    window.destroy();
     return std::nullopt;
   }
 
   return window;
-}
-
-void GlfwWindow::destroy()
-{
-  if (m_glfwWindow == nullptr)
-  {
-    return;
-  }
-
-  clear_callbacks(m_glfwWindow);
-  glfwDestroyWindow(m_glfwWindow);
-  m_glfwWindow = nullptr;
-  glfwTerminate();
 }
 
 void GlfwWindow::make_context_current() const

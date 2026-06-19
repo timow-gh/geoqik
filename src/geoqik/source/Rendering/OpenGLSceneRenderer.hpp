@@ -6,9 +6,9 @@
 #include <Renderer/Viewport.hpp>
 #include <OpenGL/Drawable/DrawablesManager.hpp>
 #include <OpenGL/LineType.hpp>
-#include <OpenGL/Programs/ProgramManager.hpp>
 #include <linal/hmat.hpp>
 #include <linal/vec.hpp>
+#include <memory>
 
 namespace geoqik
 {
@@ -33,20 +33,17 @@ using renderer::Viewport;
 
 class OpenGLSceneRenderer
 {
-  opengl::ProgramManager m_programManager;
   opengl::DrawablesManager m_drawablesManager;
   opengl::LineType m_lineType{opengl::LineType::lines()};
 
 public:
-  OpenGLSceneRenderer();
   OpenGLSceneRenderer(const OpenGLSceneRenderer&) = delete;
   OpenGLSceneRenderer& operator=(const OpenGLSceneRenderer&) = delete;
-  OpenGLSceneRenderer(OpenGLSceneRenderer&&) = delete;
-  OpenGLSceneRenderer& operator=(OpenGLSceneRenderer&&) = delete;
+  OpenGLSceneRenderer(OpenGLSceneRenderer&&) = default;
+  OpenGLSceneRenderer& operator=(OpenGLSceneRenderer&&) = default;
   ~OpenGLSceneRenderer();
 
-  void compile_programs();
-  void reset_programs() noexcept;
+  static std::unique_ptr<OpenGLSceneRenderer> create();
 
   static void begin_frame(const Color& backgroundColor, const Viewport& viewport);
 
@@ -59,6 +56,11 @@ public:
   void clear_drawables();
 
 private:
+  OpenGLSceneRenderer(opengl::DrawablesManager drawablesManager)
+      : m_drawablesManager(std::move(drawablesManager))
+  {
+  }
+
   void create_point_drawable(const Scene& scene);
   void create_line_drawable(const Scene& scene);
   void create_mesh_drawable(const Scene& scene);

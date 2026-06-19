@@ -134,20 +134,24 @@ bool Context::init_window(const GeoQikSettings& geoqikSettings, const WindowSett
 
   m_scene = Scene::create(geoqikSettings);
 
-  m_window = std::make_unique<GlfwWindow>();
-  if (!m_window->create(*m_windowSettings))
+  auto window = GlfwWindow::create(*m_windowSettings);
+  if (!window.has_value())
   {
-    m_window.reset();
     return false;
   }
+  m_window = std::make_unique<GlfwWindow>(std::move(window.value()));
 
   m_backgroundColor[0] = m_geoqikSettings.backgroundColor[0];
   m_backgroundColor[1] = m_geoqikSettings.backgroundColor[1];
   m_backgroundColor[2] = m_geoqikSettings.backgroundColor[2];
   m_backgroundColor[3] = m_geoqikSettings.backgroundColor[3];
 
-  m_renderer = std::make_unique<OpenGLSceneRenderer>();
-  m_renderer->compile_programs();
+  m_renderer = OpenGLSceneRenderer::create();
+  if (!m_renderer)
+  {
+    m_window.reset();
+    return false;
+  }
 
   // For high DPI, the frame buffer size may be different from the window size.
   const auto [framebufferWidth, framebufferHeight] = m_window->get_framebuffer_size();
@@ -655,7 +659,6 @@ bool Context::cleanup()
   m_window->make_context_current();
   m_imguiOverlay.reset();
   m_renderer.reset();
-  m_window->destroy();
   m_window.reset();
 
   return true;
