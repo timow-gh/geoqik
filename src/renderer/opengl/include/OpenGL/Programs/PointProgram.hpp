@@ -28,6 +28,8 @@ public:
   PointProgram& operator=(PointProgram&&) noexcept = default;
   ~PointProgram() = default;
 
+  [[nodiscard]] bool is_valid() const noexcept { return m_program.is_valid(); }
+
   [[nodiscard]] constexpr Location get_mvp_location() const noexcept { return m_mvpLocation.get_location(); }
   [[nodiscard]] constexpr Location get_pos_location() const noexcept { return m_vertexLocation.get_location(); }
   [[nodiscard]] constexpr Location get_color_location() const noexcept { return m_colorLocation.get_location(); }

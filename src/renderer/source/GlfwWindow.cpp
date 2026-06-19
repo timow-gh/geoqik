@@ -23,13 +23,17 @@ GlfwWindow::~GlfwWindow()
   destroy();
 }
 
-bool GlfwWindow::create(const WindowSettings& settings)
+std::optional<GlfwWindow> GlfwWindow::create(const WindowSettings& settings)
 {
-  if (m_window != nullptr)
+  GlfwWindow window;
+  auto& glfwWindow = window.m_glfwWindow;
+  
+
+  if (glfwWindow != nullptr)
   {
     fmt::print("GLFW window is already initialized.\n");
     CORE_ASSERT(false);
-    return false;
+    return std::nullopt;
   }
 
   if (glfwInit() == 0)
@@ -37,7 +41,7 @@ bool GlfwWindow::create(const WindowSettings& settings)
     const char* description = nullptr;
     glfwGetError(&description);
     fmt::print("Error: {}\n", description);
-    return false;
+    return std::nullopt;
   }
 
   glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
@@ -45,49 +49,49 @@ bool GlfwWindow::create(const WindowSettings& settings)
   glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
   set_window_hints(settings);
 
-  m_window = glfwCreateWindow(static_cast<int>(settings.width),
+  glfwWindow = glfwCreateWindow(static_cast<int>(settings.width),
                               static_cast<int>(settings.height),
                               settings.title,
                               nullptr,
                               nullptr);
 
-  if (m_window == nullptr)
+  if (glfwWindow == nullptr)
   {
     const char* description = nullptr;
     glfwGetError(&description);
     fmt::print("Error: {}\n", description);
     glfwTerminate();
-    return false;
+    return std::nullopt;
   }
 
-  make_context_current();
+  window.make_context_current();
   if (gladLoadGLLoader(load_glfw_proc) == 0)
   {
     fmt::print("Failed to initialize OpenGL context\n");
-    destroy();
-    return false;
+    window.destroy();
+    return std::nullopt;
   }
 
-  return true;
+  return window;
 }
 
 void GlfwWindow::destroy()
 {
-  if (m_window == nullptr)
+  if (m_glfwWindow == nullptr)
   {
     return;
   }
 
-  clear_callbacks(m_window);
-  glfwDestroyWindow(m_window);
-  m_window = nullptr;
+  clear_callbacks(m_glfwWindow);
+  glfwDestroyWindow(m_glfwWindow);
+  m_glfwWindow = nullptr;
   glfwTerminate();
 }
 
 void GlfwWindow::make_context_current() const
 {
-  CORE_ASSERT(m_window);
-  glfwMakeContextCurrent(m_window);
+  CORE_ASSERT(m_glfwWindow);
+  glfwMakeContextCurrent(m_glfwWindow);
 }
 
 void GlfwWindow::poll_events()
@@ -97,73 +101,73 @@ void GlfwWindow::poll_events()
 
 void GlfwWindow::swap_buffers() const
 {
-  CORE_ASSERT(m_window);
-  glfwSwapBuffers(m_window);
+  CORE_ASSERT(m_glfwWindow);
+  glfwSwapBuffers(m_glfwWindow);
 }
 
 bool GlfwWindow::should_close() const
 {
-  CORE_ASSERT(m_window);
-  return glfwWindowShouldClose(m_window) != 0;
+  CORE_ASSERT(m_glfwWindow);
+  return glfwWindowShouldClose(m_glfwWindow) != 0;
 }
 
 bool GlfwWindow::is_escape_pressed() const
 {
-  CORE_ASSERT(m_window);
-  return glfwGetKey(m_window, GLFW_KEY_ESCAPE) == GLFW_PRESS;
+  CORE_ASSERT(m_glfwWindow);
+  return glfwGetKey(m_glfwWindow, GLFW_KEY_ESCAPE) == GLFW_PRESS;
 }
 
 std::pair<int, int> GlfwWindow::get_framebuffer_size() const
 {
-  CORE_ASSERT(m_window);
+  CORE_ASSERT(m_glfwWindow);
 
   int framebufferWidth{0};
   int framebufferHeight{0};
-  glfwGetFramebufferSize(m_window, &framebufferWidth, &framebufferHeight);
+  glfwGetFramebufferSize(m_glfwWindow, &framebufferWidth, &framebufferHeight);
 
   return {framebufferWidth, framebufferHeight};
 }
 
 InputState& GlfwWindow::get_input_state() const
 {
-  CORE_ASSERT(m_window);
-  return *renderer::get_input_state(m_window);
+  CORE_ASSERT(m_glfwWindow);
+  return *renderer::get_input_state(m_glfwWindow);
 }
 
 void GlfwWindow::set_key_callback(KeyCB cb)
 {
-  CORE_ASSERT(m_window);
-  renderer::set_key_callback(m_window, std::move(cb));
+  CORE_ASSERT(m_glfwWindow);
+  renderer::set_key_callback(m_glfwWindow, std::move(cb));
 }
 
 void GlfwWindow::set_char_callback(CharCB cb)
 {
-  CORE_ASSERT(m_window);
-  renderer::set_char_callback(m_window, std::move(cb));
+  CORE_ASSERT(m_glfwWindow);
+  renderer::set_char_callback(m_glfwWindow, std::move(cb));
 }
 
 void GlfwWindow::set_cursor_pos_callback(CursorPosCB cb)
 {
-  CORE_ASSERT(m_window);
-  renderer::set_cursor_pos_callback(m_window, std::move(cb));
+  CORE_ASSERT(m_glfwWindow);
+  renderer::set_cursor_pos_callback(m_glfwWindow, std::move(cb));
 }
 
 void GlfwWindow::set_scroll_callback(ScrollCB cb)
 {
-  CORE_ASSERT(m_window);
-  renderer::set_scroll_callback(m_window, std::move(cb));
+  CORE_ASSERT(m_glfwWindow);
+  renderer::set_scroll_callback(m_glfwWindow, std::move(cb));
 }
 
 void GlfwWindow::set_mouse_button_callback(MouseBtnCB cb)
 {
-  CORE_ASSERT(m_window);
-  renderer::set_mouse_button_callback(m_window, std::move(cb));
+  CORE_ASSERT(m_glfwWindow);
+  renderer::set_mouse_button_callback(m_glfwWindow, std::move(cb));
 }
 
 void GlfwWindow::set_framebuffer_size_callback(FramebufferSizeCB cb)
 {
-  CORE_ASSERT(m_window);
-  renderer::set_framebuffer_size_callback(m_window, std::move(cb));
+  CORE_ASSERT(m_glfwWindow);
+  renderer::set_framebuffer_size_callback(m_glfwWindow, std::move(cb));
 }
 
 void GlfwWindow::set_window_hints(const WindowSettings& hints)

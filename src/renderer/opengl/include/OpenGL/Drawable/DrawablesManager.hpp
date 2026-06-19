@@ -4,11 +4,12 @@
 #include <OpenGL/Drawable/LineDrawable.hpp>
 #include <OpenGL/Drawable/MeshDrawable.hpp>
 #include <OpenGL/Drawable/PointDrawable.hpp>
+#include <OpenGL/Programs/ProgramManager.hpp>
 #include <OpenGL/OpenGL.hpp>
-#include <linal/hmat.hpp>
-#include <linal/vec.hpp>
 #include <algorithm>
 #include <cstddef>
+#include <linal/hmat.hpp>
+#include <linal/vec.hpp>
 #include <vector>
 
 namespace opengl
@@ -54,28 +55,44 @@ class DrawablesManager
 
   opengl::PointProgram* m_pointProgram{nullptr};
   opengl::LineProgram* m_lineProgram{nullptr};
+  opengl::MeshProgram* m_meshProgram{nullptr};
 
   std::vector<opengl::PointDrawable> m_pointDrawables;
   std::vector<opengl::LineDrawable> m_lineDrawables;
   std::vector<opengl::MeshDrawable> m_meshDrawables;
 
 public:
-  DrawablesManager() = default;
-  DrawablesManager(opengl::PointProgram* pointProgram, opengl::LineProgram* lineProgram)
-      : m_pointProgram(pointProgram)
-      , m_lineProgram(lineProgram)
+  [[nodiscard]] static std::optional<DrawablesManager> create()
   {
+    auto& programManager = DrawablesManager::get_program_manager();
+    if (!programManager.is_compiled())
+    {
+      return std::nullopt;
+    }
+    return DrawablesManager(programManager.get_point_program(), programManager.get_line_program(), programManager.get_mesh_program());
   }
 
-  [[nodiscard]] bool has_drawables() const { return !m_pointDrawables.empty() || !m_lineDrawables.empty() || !m_meshDrawables.empty(); }
+  [[nodiscard]] bool has_drawables() const
+  {
+    return !m_pointDrawables.empty() || !m_lineDrawables.empty() || !m_meshDrawables.empty();
+  }
 
   [[nodiscard]] bool has_point_drawables() const { return !m_pointDrawables.empty(); }
   [[nodiscard]] bool has_line_drawables() const { return !m_lineDrawables.empty(); }
   [[nodiscard]] bool has_mesh_drawables() const { return !m_meshDrawables.empty(); }
 
-  void add_point_drawable(opengl::PointDrawable drawable) { m_pointDrawables.emplace_back(std::move(drawable)); }
-  void add_line_drawable(opengl::LineDrawable drawable) { m_lineDrawables.emplace_back(std::move(drawable)); }
-  void add_mesh_drawable(opengl::MeshDrawable drawable) { m_meshDrawables.emplace_back(std::move(drawable)); }
+  void add_point_drawable(opengl::PointDrawable drawable)
+  {
+    m_pointDrawables.emplace_back(std::move(drawable));
+  }
+  void add_line_drawable(opengl::LineDrawable drawable)
+  {
+    m_lineDrawables.emplace_back(std::move(drawable));
+  }
+  void add_mesh_drawable(opengl::MeshDrawable drawable)
+  {
+    m_meshDrawables.emplace_back(std::move(drawable));
+  }
 
   void add_point_drawable(std::span<const float> vertices,
                           std::int32_t vertexDimension,
@@ -85,8 +102,14 @@ public:
                           float pointSize,
                           opengl::BufferAccessPattern accessPattern)
   {
-    auto drawable =
-        opengl::make_point_drawable(*m_pointProgram, vertices, vertexDimension, colors, colorDimension, indices, pointSize, accessPattern);
+    auto drawable = opengl::make_point_drawable(*m_pointProgram,
+                                                vertices,
+                                                vertexDimension,
+                                                colors,
+                                                colorDimension,
+                                                indices,
+                                                pointSize,
+                                                accessPattern);
     if (!drawable.has_value())
     {
       throw std::runtime_error("Failed to create point drawable");
@@ -220,7 +243,8 @@ public:
       }
       if (drawable.has_translucent_primitives())
       {
-        renderQueue.transparentCommands.push_back({RenderCommand::Type::line, i, drawable.distance_squared_to(viewPosition)});
+        renderQueue.transparentCommands
+            .push_back({RenderCommand::Type::line, i, drawable.distance_squared_to(viewPosition)});
       }
     }
 
@@ -233,7 +257,8 @@ public:
       }
       if (drawable.has_translucent_primitives())
       {
-        renderQueue.transparentCommands.push_back({RenderCommand::Type::point, i, drawable.distance_squared_to(viewPosition)});
+        renderQueue.transparentCommands
+            .push_back({RenderCommand::Type::point, i, drawable.distance_squared_to(viewPosition)});
       }
     }
 
@@ -291,7 +316,9 @@ public:
       double distanceSquared{};
     };
 
-    const linal::double3 viewPositionDouble{static_cast<double>(viewPos[0]), static_cast<double>(viewPos[1]), static_cast<double>(viewPos[2])};
+    const linal::double3 viewPositionDouble{static_cast<double>(viewPos[0]),
+                                            static_cast<double>(viewPos[1]),
+                                            static_cast<double>(viewPos[2])};
     std::vector<TransparentMesh> transparentMeshes;
     transparentMeshes.reserve(m_meshDrawables.size());
 
@@ -304,13 +331,24 @@ public:
       }
       else
       {
-        drawable.draw(modelMatrix, viewMatrix, projectionMatrix, normalMatrix, lightPosition, viewPos, lightColor, fillLightDirection, fillLightColor, ambientColor, shininess);
+        drawable.draw(modelMatrix,
+                      viewMatrix,
+                      projectionMatrix,
+                      normalMatrix,
+                      lightPosition,
+                      viewPos,
+                      lightColor,
+                      fillLightDirection,
+                      fillLightColor,
+                      ambientColor,
+                      shininess);
       }
     }
 
     std::sort(transparentMeshes.begin(),
               transparentMeshes.end(),
-              [](const TransparentMesh& lhs, const TransparentMesh& rhs) { return lhs.distanceSquared > rhs.distanceSquared; });
+              [](const TransparentMesh& lhs, const TransparentMesh& rhs)
+              { return lhs.distanceSquared > rhs.distanceSquared; });
 
     if (transparentMeshes.empty())
     {
@@ -321,8 +359,37 @@ public:
     const ScopedCullFaceDisabled cullFace;
     for (const auto& transparentMesh: transparentMeshes)
     {
-      m_meshDrawables[transparentMesh.index].draw(modelMatrix, viewMatrix, projectionMatrix, normalMatrix, lightPosition, viewPos, lightColor, fillLightDirection, fillLightColor, ambientColor, shininess);
+      m_meshDrawables[transparentMesh.index].draw(modelMatrix,
+                                                  viewMatrix,
+                                                  projectionMatrix,
+                                                  normalMatrix,
+                                                  lightPosition,
+                                                  viewPos,
+                                                  lightColor,
+                                                  fillLightDirection,
+                                                  fillLightColor,
+                                                  ambientColor,
+                                                  shininess);
     }
+  }
+
+private:
+  DrawablesManager() = default;
+  DrawablesManager(opengl::PointProgram* pointProgram, opengl::LineProgram* lineProgram, asdf
+      : m_pointProgram(pointProgram)
+      , m_lineProgram(lineProgram)
+  {
+  }
+
+  [[nodiscard]] static ProgramManager& get_program_manager()
+  {
+    static ProgramManager programManager;
+    if (!programManager.is_compiled())
+    {
+      programManager.compile();
+    }
+
+    return programManager;
   }
 };
 

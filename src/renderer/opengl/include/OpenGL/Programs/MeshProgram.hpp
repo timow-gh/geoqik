@@ -64,6 +64,8 @@ public:
   MeshProgram& operator=(MeshProgram&&) noexcept = default;
   ~MeshProgram() = default;
 
+  [[nodiscard]] bool is_valid() const noexcept { return m_program.is_valid(); }
+
   [[nodiscard]] ProgramId get_id() const;
 
   [[nodiscard]] constexpr Location get_model_matrix_location() const noexcept { return m_input.m_modelMatrix.get_location(); }

@@ -332,9 +332,7 @@ TEST_F(OpenGLDrawableTest, MeshDrawableUpdatesDrawsAndMoveAssigns)
 
 TEST_F(OpenGLDrawableTest, DrawablesManagerUpdatesClearsAndDrawsTransparentPointsAndLines)
 {
-  opengl::PointProgram pointProgram = opengl::make_point_program();
-  opengl::LineProgram lineProgram = opengl::make_line_program();
-  opengl::DrawablesManager manager(&pointProgram, &lineProgram);
+  opengl::DrawablesManager manager = opengl::DrawablesManager::create().value();
 
   EXPECT_FALSE(manager.has_drawables());
   const std::vector<float> emptyFloatData;

@@ -24,6 +24,8 @@ public:
   ProgramManager& operator=(ProgramManager&&) noexcept = default;
   ~ProgramManager() = default;
 
+  [[nodiscard]] bool is_compiled() const { return m_lineProgram.is_valid() && m_pointProgram.is_valid() && m_meshProgram.is_valid(); }
+
   void compile();
   void reset() noexcept;
 

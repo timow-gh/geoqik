@@ -32,15 +32,13 @@ int main()
   windowSettings.width = defaultWindowWidth;
   windowSettings.height = defaultWindowHeight;
 
-  renderer::GlfwWindow window;
-  if (!window.create(windowSettings))
+  auto window = renderer::GlfwWindow::create(windowSettings);
+  if (!window.has_value())
   {
     return 1;
   }
 
-  opengl::ProgramManager programManager;
-  programManager.compile();
-  opengl::DrawablesManager drawablesManager(&programManager.get_point_program(), &programManager.get_line_program());
+  opengl::DrawablesManager drawablesManager = opengl::DrawablesManager::create();
 
   // One point at the origin.
   const std::array<float, 3> pointVertices{0.0F, 0.0F, 0.0F};
@@ -78,11 +76,11 @@ int main()
   cameraSettings.m_defaultPosition = linal::double3{defaultCameraDistance, defaultCameraDistance, defaultCameraDistance};
   renderer::CameraInteractor cameraInteractor(window.get_input_state(), cameraSettings);
 
-  renderer::ImGuiOverlay imguiOverlay(window.get_native_handle());
+  renderer::ImGuiOverlay imguiOverlay(window->get_native_handle());
   bool autoZoomEnabled = false; // unused by this example, draw_controls still needs a bound value
   renderer::CameraProjectionType projectionType = renderer::CameraProjectionType::PERSPECTIVE;
 
-  window.set_cursor_pos_callback(
+  window->set_cursor_pos_callback(
       [&](double xpos, double ypos)
       {
         if (!imguiOverlay.handle_cursor_position(xpos, ypos))
@@ -91,7 +89,7 @@ int main()
         }
         cameraInteractor.on_cursor_position(xpos, ypos);
       });
-  window.set_scroll_callback(
+  window->set_scroll_callback(
       [&](double xoff, double yoff)
       {
         if (!imguiOverlay.handle_scroll(xoff, yoff))
@@ -100,7 +98,7 @@ int main()
         }
         cameraInteractor.on_scroll(xoff, yoff);
       });
-  window.set_mouse_button_callback(
+  window->set_mouse_button_callback(
       [&](int button, renderer::Action action, renderer::Mods mods)
       {
         if (!imguiOverlay.handle_mouse_button(button, action, mods))
@@ -109,22 +107,22 @@ int main()
         }
         cameraInteractor.on_mouse_button(button, action, mods);
       });
-  window.set_key_callback(
+  window->set_key_callback(
       [&](renderer::Key key, renderer::Scancode scancode, renderer::Action action, renderer::Mods mods)
       { (void)imguiOverlay.handle_key(key, scancode, action, mods); });
-  window.set_char_callback([&](std::uint32_t codepoint) { imguiOverlay.handle_char(codepoint); });
-  window.set_framebuffer_size_callback(
+  window->set_char_callback([&](std::uint32_t codepoint) { imguiOverlay.handle_char(codepoint); });
+  window->set_framebuffer_size_callback(
       [&](std::uint32_t width, std::uint32_t height) { cameraInteractor.on_framebuffer_size(width, height); });
 
-  while (!window.should_close())
+  while (!window->should_close())
   {
     renderer::GlfwWindow::poll_events();
-    if (!imguiOverlay.wants_keyboard() && window.is_escape_pressed())
+    if (!imguiOverlay.wants_keyboard() && window->is_escape_pressed())
     {
       break;
     }
 
-    const auto [width, height] = window.get_framebuffer_size();
+    const auto [width, height] = window->get_framebuffer_size();
     opengl::begin_frame(backgroundColor, opengl::ViewportRect{0, 0, width, height});
 
     drawablesManager.draw_lines_and_points(cameraInteractor.get_current_MVP(), cameraInteractor.get_position());
@@ -138,9 +136,9 @@ int main()
     imguiOverlay.render();
     imguiOverlay.end_frame();
 
-    window.swap_buffers();
+    window->swap_buffers();
   }
 
-  window.destroy();
+  window->destroy();
   return 0;
 }

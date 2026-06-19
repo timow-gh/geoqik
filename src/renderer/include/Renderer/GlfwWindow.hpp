@@ -4,27 +4,28 @@
 #include <Renderer/InputState.hpp>
 #include <Renderer/WindowSettings.hpp>
 #include <utility>
+#include <optional>
 
 namespace renderer
 {
 
 class GlfwWindow
 {
-  GLFWwindow* m_window{nullptr};
+  GLFWwindow* m_glfwWindow{nullptr};
 
 public:
   GlfwWindow() = default;
   GlfwWindow(const GlfwWindow&) = delete;
   GlfwWindow& operator=(const GlfwWindow&) = delete;
-  GlfwWindow(GlfwWindow&&) = delete;
-  GlfwWindow& operator=(GlfwWindow&&) = delete;
+  GlfwWindow(GlfwWindow&&) = default;
+  GlfwWindow& operator=(GlfwWindow&&) = default;
   ~GlfwWindow();
 
-  [[nodiscard]] bool create(const WindowSettings& settings);
+  [[nodiscard]] static std::optional<GlfwWindow> create(const WindowSettings& settings);
   void destroy();
 
-  [[nodiscard]] bool is_initialized() const { return m_window != nullptr; }
-  [[nodiscard]] GLFWwindow* get_native_handle() const { return m_window; }
+  [[nodiscard]] bool is_initialized() const { return m_glfwWindow != nullptr; }
+  [[nodiscard]] GLFWwindow* get_native_handle() const { return m_glfwWindow; }
 
   void make_context_current() const;
   static void poll_events();

@@ -28,6 +28,8 @@ public:
   LineProgram& operator=(LineProgram&&) noexcept = default;
   ~LineProgram() = default;
 
+  [[nodiscard]] bool is_valid() const noexcept { return m_program.is_valid(); }
+
   [[nodiscard]] constexpr Location get_mvp_location() const { return m_mvpLocation.get_location(); }
   [[nodiscard]] constexpr Location get_vertex_location() const { return m_vertexLocation.get_location(); }
   [[nodiscard]] constexpr Location get_color_location() const { return m_colorLocation.get_location(); }
