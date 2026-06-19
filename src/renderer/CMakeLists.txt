@@ -14,6 +14,7 @@ set(renderer_HEADER_FILES
         include/Renderer/RayPlaneIntersection.hpp
         include/Renderer/CameraInteractor.hpp
         include/Renderer/ImGuiOverlay.hpp
+        include/Renderer/Renderer.hpp
 )
 
 set(renderer_SOURCE_FILES
@@ -22,6 +23,7 @@ set(renderer_SOURCE_FILES
         source/Camera.cpp
         source/CameraAutoFit.cpp
         source/ImGuiOverlay.cpp
+        source/Renderer.cpp
 )
 
 set(TARGET_NAME renderer_renderer)
