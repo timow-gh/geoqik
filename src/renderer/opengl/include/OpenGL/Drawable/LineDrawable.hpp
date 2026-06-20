@@ -10,12 +10,12 @@
 #include "OpenGL/VertexArray.hpp"
 #include "OpenGL/VertexBuffer.hpp"
 #include "OpenGL/opengl_export.h"
-#include <Core/Warnings.hpp>
+#include <Renderer/Warnings.hpp>
 #include <cstdint>
 #include <linal/hmat.hpp>
 #include <span>
 #include <vector>
-DISABLE_ALL_WARNINGS
+RENDERER_DISABLE_ALL_WARNINGS
 namespace opengl
 {
 
@@ -115,6 +115,6 @@ OPENGL_EXPORT std::optional<LineDrawable> make_line_drawable(LineProgram& progra
 
 } // namespace opengl
 
-ENABLE_ALL_WARNINGS
+RENDERER_ENABLE_ALL_WARNINGS
 
 #endif // OPENGL_LINESOUP_HPP

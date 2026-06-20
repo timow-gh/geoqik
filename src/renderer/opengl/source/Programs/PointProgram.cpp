@@ -2,7 +2,7 @@
 
 #include "OpenGL/Programs/CreateProgram.hpp"
 #include "OpenGL/ShaderSources.hpp"
-#include <Core/Assert.hpp>
+#include <Renderer/Assert.hpp>
 #include <print>
 #include <string>
 #include <utility>
@@ -16,10 +16,10 @@ PointProgram::PointProgram(ProgramHandle program, Uniform mvpLocation, Attribute
     , m_vertexLocation{vertexLocation}
     , m_colorLocation{colorLocation}
 {
-  CORE_ASSERT(m_program.is_valid());
-  CORE_ASSERT(mvpLocation.get_location().get_value() != -1);
-  CORE_ASSERT(vertexLocation.get_location().get_value() != -1);
-  CORE_ASSERT(colorLocation.get_location().get_value() != -1);
+  RENDERER_ASSERT(m_program.is_valid());
+  RENDERER_ASSERT(mvpLocation.get_location().get_value() != -1);
+  RENDERER_ASSERT(vertexLocation.get_location().get_value() != -1);
+  RENDERER_ASSERT(colorLocation.get_location().get_value() != -1);
 }
 
 void PointProgram::use() const
@@ -39,7 +39,7 @@ PointProgram make_point_program() {
                program.error().category().name(),
                program.error().value(),
                program.error().message());
-    CORE_ASSERT(false);
+    RENDERER_ASSERT(false);
     return {};
   }
   ProgramId programId = program->get_id();

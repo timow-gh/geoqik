@@ -1,6 +1,6 @@
 #include "OpenGL/IndexBuffer.hpp"
 
-#include <Core/Assert.hpp>
+#include <Renderer/Assert.hpp>
 #include <cstdint>
 #include <utility>
 
@@ -46,7 +46,7 @@ std::optional<IndexBuffer> IndexBuffer::create(std::span<const std::uint32_t> in
   glGenBuffers(1, &id.get_value());
   if (id.get_value() == 0)
   {
-    CORE_ASSERT(false);
+    RENDERER_ASSERT(false);
     return std::nullopt;
   }
 
@@ -60,13 +60,13 @@ std::optional<IndexBuffer> IndexBuffer::create(std::span<const std::uint32_t> in
 
 const BufferId& IndexBuffer::get_buffer_id() const
 {
-  CORE_ASSERT(m_id.has_value());
+  RENDERER_ASSERT(m_id.has_value());
   return m_id.value();
 }
 
 void IndexBuffer::bind() const
 {
-  CORE_ASSERT(m_id.has_value());
+  RENDERER_ASSERT(m_id.has_value());
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_id.value().get_value());
 }
 

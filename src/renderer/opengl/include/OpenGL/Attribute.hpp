@@ -5,13 +5,13 @@
 #include "OpenGL/Location.hpp"
 #include "OpenGL/Programs/ProgramId.hpp"
 #include "OpenGL/opengl_export.h"
-#include <Core/DLLWarnings.hpp>
+#include <Renderer/DLLWarnings.hpp>
 #include <string_view>
 
 namespace opengl
 {
 
-SUPPRESS_STL_DLL_WARNINGS_BEGIN
+RENDERER_SUPPRESS_STL_DLL_WARNINGS_BEGIN
 
 class OPENGL_EXPORT Attribute {
   std::string_view m_name;
@@ -25,7 +25,7 @@ public:
   [[nodiscard]] constexpr std::string_view get_name() const noexcept { return m_name; }
 };
 
-SUPPRESS_STL_DLL_WARNINGS_END
+RENDERER_SUPPRESS_STL_DLL_WARNINGS_END
 
 OPENGL_EXPORT Attribute make_attribute(std::string_view name, ProgramId program);
 

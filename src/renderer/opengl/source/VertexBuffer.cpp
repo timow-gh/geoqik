@@ -1,7 +1,7 @@
 #include "OpenGL/VertexBuffer.hpp"
 
 #include "OpenGL/UpdateBuffer.hpp"
-#include <Core/Assert.hpp>
+#include <Renderer/Assert.hpp>
 #include <utility>
 
 namespace opengl
@@ -52,7 +52,7 @@ VertexBuffer::create(std::span<const float> vectors, GLsizei vectorDimension, Lo
   glGenBuffers(1, &bufferId);
   if (bufferId == 0)
   {
-    CORE_ASSERT(false);
+    RENDERER_ASSERT(false);
     return std::nullopt;
   }
 
@@ -73,13 +73,13 @@ VertexBuffer::create(std::span<const float> vectors, GLsizei vectorDimension, Lo
 
 const BufferId& VertexBuffer::get_buffer_id() const
 {
-  CORE_ASSERT(m_bufferId.has_value());
+  RENDERER_ASSERT(m_bufferId.has_value());
   return m_bufferId.value();
 }
 
 void VertexBuffer::bind() const
 {
-  CORE_ASSERT(m_bufferId.has_value());
+  RENDERER_ASSERT(m_bufferId.has_value());
   glBindBuffer(GL_ARRAY_BUFFER, m_bufferId.value().get_value());
   glEnableVertexAttribArray(m_bufferLocation.get_as_unsigned());
   glVertexAttribPointer(m_bufferLocation.get_as_unsigned(),

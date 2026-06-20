@@ -36,6 +36,7 @@ function(create_geoqik_opengl_program_unit_test testName)
             ${PROJECT_SOURCE_DIR}/src/renderer/opengl/source/Programs/CreateProgram.cpp
             ${PROJECT_SOURCE_DIR}/src/renderer/opengl/source/Programs/ProgramId.cpp)
     target_include_directories(${testName} PRIVATE
+            ${PROJECT_SOURCE_DIR}/src/renderer/include
             ${PROJECT_SOURCE_DIR}/src/renderer/opengl/include
             ${PROJECT_SOURCE_DIR}/src/renderer/opengl/source
             ${PROJECT_BINARY_DIR}/src/renderer/opengl/export_header_includes)

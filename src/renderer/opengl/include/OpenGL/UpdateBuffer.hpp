@@ -2,7 +2,7 @@
 #define OPENGL_UPDATEBUFFER_HPP
 
 #include "OpenGL/BufferAccessPattern.hpp"
-#include <Core/Assert.hpp>
+#include <Renderer/Assert.hpp>
 #include <cstddef>
 #include <limits>
 #include <span>
@@ -19,7 +19,7 @@ void update_buffer(TBuffer& buffer, std::span<const T> newBufferData, opengl::Bu
 {
   glBindBuffer(GL_ARRAY_BUFFER, buffer.get_buffer_id().get_value());
   const auto size = newBufferData.size() * sizeof(T);
-  CORE_ASSERT(size <= static_cast<std::size_t>(std::numeric_limits<GLsizeiptr>::max()));
+  RENDERER_ASSERT(size <= static_cast<std::size_t>(std::numeric_limits<GLsizeiptr>::max()));
   const auto bufferSize = static_cast<GLsizeiptr>(size);
   glBufferData(GL_ARRAY_BUFFER, bufferSize, nullptr, get_enum_value(accessPattern));
   glBufferData(GL_ARRAY_BUFFER, bufferSize, newBufferData.data(), get_enum_value(accessPattern));

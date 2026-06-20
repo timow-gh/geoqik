@@ -1,14 +1,13 @@
-#include "Core/Warnings.hpp"
-
-#include <Core/Assert.hpp>
+#include <Renderer/Warnings.hpp>
+#include <Renderer/Assert.hpp>
 #include <Renderer/ImGuiOverlay.hpp>
 #include <array>
 
-DISABLE_ALL_WARNINGS
+RENDERER_DISABLE_ALL_WARNINGS
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
-ENABLE_ALL_WARNINGS
+RENDERER_ENABLE_ALL_WARNINGS
 
 namespace renderer
 {
@@ -16,7 +15,7 @@ namespace renderer
 ImGuiOverlay::ImGuiOverlay(GLFWwindow* window)
     : m_window(window)
 {
-  CORE_ASSERT(m_window != nullptr);
+  RENDERER_ASSERT(m_window != nullptr);
 
   IMGUI_CHECKVERSION();
   ImGui::CreateContext();

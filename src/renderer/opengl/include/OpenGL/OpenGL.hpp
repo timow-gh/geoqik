@@ -2,14 +2,14 @@
 #define OPENGL_OPENGL_HPP
 
 #include <OpenGL/opengl_export.h>
-#include <Core/DLLWarnings.hpp>
+#include <Renderer/DLLWarnings.hpp>
 #include <glad/glad.h>
 #include <string_view>
 
 namespace opengl
 {
 
-SUPPRESS_STL_DLL_WARNINGS_BEGIN
+RENDERER_SUPPRESS_STL_DLL_WARNINGS_BEGIN
 
 struct OPENGL_EXPORT OpenGLConfig {
   int majorVersion = 3;
@@ -18,7 +18,7 @@ struct OPENGL_EXPORT OpenGLConfig {
   bool debug{false};
 };
 
-SUPPRESS_STL_DLL_WARNINGS_END
+RENDERER_SUPPRESS_STL_DLL_WARNINGS_END
 
 } // namespace opengl
 

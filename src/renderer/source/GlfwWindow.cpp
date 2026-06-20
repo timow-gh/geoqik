@@ -1,4 +1,4 @@
-#include <Core/Assert.hpp>
+#include <Renderer/Assert.hpp>
 #include <Renderer/GlfwWindow.hpp>
 #include <print>
 
@@ -75,7 +75,7 @@ std::optional<GlfwWindow> GlfwWindow::create(const WindowSettings& settings)
 
 void GlfwWindow::make_context_current() const
 {
-  CORE_ASSERT(m_glfwWindow);
+  RENDERER_ASSERT(m_glfwWindow);
   glfwMakeContextCurrent(m_glfwWindow);
 }
 
@@ -86,25 +86,25 @@ void GlfwWindow::poll_events()
 
 void GlfwWindow::swap_buffers() const
 {
-  CORE_ASSERT(m_glfwWindow);
+  RENDERER_ASSERT(m_glfwWindow);
   glfwSwapBuffers(m_glfwWindow);
 }
 
 bool GlfwWindow::should_close() const
 {
-  CORE_ASSERT(m_glfwWindow);
+  RENDERER_ASSERT(m_glfwWindow);
   return glfwWindowShouldClose(m_glfwWindow) != 0;
 }
 
 bool GlfwWindow::is_escape_pressed() const
 {
-  CORE_ASSERT(m_glfwWindow);
+  RENDERER_ASSERT(m_glfwWindow);
   return glfwGetKey(m_glfwWindow, GLFW_KEY_ESCAPE) == GLFW_PRESS;
 }
 
 std::pair<int, int> GlfwWindow::get_framebuffer_size() const
 {
-  CORE_ASSERT(m_glfwWindow);
+  RENDERER_ASSERT(m_glfwWindow);
 
   int framebufferWidth{0};
   int framebufferHeight{0};
@@ -115,43 +115,43 @@ std::pair<int, int> GlfwWindow::get_framebuffer_size() const
 
 InputState& GlfwWindow::get_input_state() const
 {
-  CORE_ASSERT(m_glfwWindow);
+  RENDERER_ASSERT(m_glfwWindow);
   return *renderer::get_input_state(m_glfwWindow);
 }
 
 void GlfwWindow::set_key_callback(KeyCB cb)
 {
-  CORE_ASSERT(m_glfwWindow);
+  RENDERER_ASSERT(m_glfwWindow);
   renderer::set_key_callback(m_glfwWindow, std::move(cb));
 }
 
 void GlfwWindow::set_char_callback(CharCB cb)
 {
-  CORE_ASSERT(m_glfwWindow);
+  RENDERER_ASSERT(m_glfwWindow);
   renderer::set_char_callback(m_glfwWindow, std::move(cb));
 }
 
 void GlfwWindow::set_cursor_pos_callback(CursorPosCB cb)
 {
-  CORE_ASSERT(m_glfwWindow);
+  RENDERER_ASSERT(m_glfwWindow);
   renderer::set_cursor_pos_callback(m_glfwWindow, std::move(cb));
 }
 
 void GlfwWindow::set_scroll_callback(ScrollCB cb)
 {
-  CORE_ASSERT(m_glfwWindow);
+  RENDERER_ASSERT(m_glfwWindow);
   renderer::set_scroll_callback(m_glfwWindow, std::move(cb));
 }
 
 void GlfwWindow::set_mouse_button_callback(MouseBtnCB cb)
 {
-  CORE_ASSERT(m_glfwWindow);
+  RENDERER_ASSERT(m_glfwWindow);
   renderer::set_mouse_button_callback(m_glfwWindow, std::move(cb));
 }
 
 void GlfwWindow::set_framebuffer_size_callback(FramebufferSizeCB cb)
 {
-  CORE_ASSERT(m_glfwWindow);
+  RENDERER_ASSERT(m_glfwWindow);
   renderer::set_framebuffer_size_callback(m_glfwWindow, std::move(cb));
 }
 

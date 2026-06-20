@@ -1,6 +1,6 @@
 #include "OpenGL/Drawable/PointDrawable.hpp"
 
-#include <Core/Assert.hpp>
+#include <Renderer/Assert.hpp>
 #include <utility>
 
 namespace opengl
@@ -12,7 +12,7 @@ namespace
 template <typename Drawable>
 std::optional<Drawable> make_failed_drawable()
 {
-  CORE_ASSERT(false);
+  RENDERER_ASSERT(false);
   return std::nullopt;
 }
 
@@ -149,7 +149,7 @@ void PointDrawable::draw_index_buffer(const linal::hmatf& mvp, const IndexBuffer
     return;
   }
 
-  CORE_ASSERT(m_program != nullptr);
+  RENDERER_ASSERT(m_program != nullptr);
   auto& prog = *m_program;
   prog.use();
   glUniformMatrix4fv(prog.get_mvp_location().get_value(), 1, GL_FALSE, mvp.data());

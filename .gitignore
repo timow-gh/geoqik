@@ -1,7 +1,7 @@
 # Build directories and binary files
 build/
 out/
-plans/
+plans/**
 cmake-build-*/
 conan-cache/
 

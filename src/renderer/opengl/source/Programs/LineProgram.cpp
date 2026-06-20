@@ -1,7 +1,7 @@
 #include "OpenGL/Programs/LineProgram.hpp"
 #include "OpenGL/Programs/CreateProgram.hpp"
 #include "OpenGL/ShaderSources.hpp"
-#include <Core/Assert.hpp>
+#include <Renderer/Assert.hpp>
 #include <print>
 #include <string>
 #include <utility>
@@ -15,10 +15,10 @@ LineProgram::LineProgram(ProgramHandle program, Uniform mvpLocation, Attribute v
     , m_vertexLocation{vertexLocation}
     , m_colorLocation{colorLocation}
 {
-  CORE_ASSERT(m_program.is_valid());
-  CORE_ASSERT(mvpLocation.get_location().get_value() != -1);
-  CORE_ASSERT(vertexLocation.get_location().get_value() != -1);
-  CORE_ASSERT(colorLocation.get_location().get_value() != -1);
+  RENDERER_ASSERT(m_program.is_valid());
+  RENDERER_ASSERT(mvpLocation.get_location().get_value() != -1);
+  RENDERER_ASSERT(vertexLocation.get_location().get_value() != -1);
+  RENDERER_ASSERT(colorLocation.get_location().get_value() != -1);
 }
 
 void LineProgram::use() const
@@ -37,12 +37,12 @@ opengl::LineProgram make_line_program() {
                program.error().category().name(),
                program.error().value(),
                program.error().message());
-    CORE_ASSERT(false);
+    RENDERER_ASSERT(false);
     return {};
   }
   
   ProgramId id = program->get_id();
-  CORE_ASSERT(id.get_value() != 0);
+  RENDERER_ASSERT(id.get_value() != 0);
   Uniform mvpLocation = make_uniform("u_MVP", id);
   Attribute vertexLocation = make_attribute("a_vertex", id);
   Attribute colorLocation = make_attribute("a_color", id);

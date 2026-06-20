@@ -4,7 +4,7 @@
 #include <Renderer/CameraProjectionType.hpp>
 #include <Renderer/PickRay.hpp>
 #include <Renderer/Viewport.hpp>
-#include <Core/Assert.hpp>
+#include <Renderer/Assert.hpp>
 #include <cstdint>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -57,8 +57,8 @@ public:
     
     void validate() const
     {
-      CORE_ASSERT(fov > 0.0 && fov < 180.0);
-      CORE_ASSERT(near > 0.0 && far > near);
+      RENDERER_ASSERT(fov > 0.0 && fov < 180.0);
+      RENDERER_ASSERT(near > 0.0 && far > near);
     }
   };
 
@@ -71,8 +71,8 @@ public:
     
     void validate() const
     {
-      CORE_ASSERT(width > 0.0 && height > 0.0);
-      CORE_ASSERT(near > 0.0 && far > near);
+      RENDERER_ASSERT(width > 0.0 && height > 0.0);
+      RENDERER_ASSERT(near > 0.0 && far > near);
     }
   };
 
@@ -175,13 +175,13 @@ public:
   [[nodiscard]] glm::dvec3 right() const { return glm::normalize(glm::cross(gaze(), get_vertical())); }
   [[nodiscard]] glm::dvec3 up() const { return glm::normalize(glm::cross(right(), gaze())); }
   [[nodiscard]] glm::dvec3 gaze() const { 
-    CORE_ASSERT(m_target != m_position); 
+    RENDERER_ASSERT(m_target != m_position); 
     return glm::normalize(m_target - m_position); 
   }
 
   Camera& set_position(const glm::dvec3& position)
   {
-    CORE_ASSERT(position != m_target);
+    RENDERER_ASSERT(position != m_target);
     m_position = position;
     m_viewDirty = true;
     return *this;
@@ -189,7 +189,7 @@ public:
 
   Camera& set_target(const glm::dvec3& target)
   {
-    CORE_ASSERT(target != m_position);
+    RENDERER_ASSERT(target != m_position);
     m_target = target;
     return *this;
   }
@@ -227,7 +227,7 @@ public:
 
   Camera& set_fov(double fov)
   {
-    CORE_ASSERT(fov > 0.0 && fov < 180.0);
+    RENDERER_ASSERT(fov > 0.0 && fov < 180.0);
     if (m_perspective.fov != fov)
     {
       m_perspective.fov = fov;
@@ -241,7 +241,7 @@ public:
 
   Camera& set_perspective_near_plane(double near)
   {
-    CORE_ASSERT(near > 0.0 && near < m_perspective.far);
+    RENDERER_ASSERT(near > 0.0 && near < m_perspective.far);
     if (m_perspective.near != near)
     {
       m_perspective.near = near;
@@ -255,7 +255,7 @@ public:
 
   Camera& set_perspective_far_plane(double far)
   {
-    CORE_ASSERT(far > m_perspective.near);
+    RENDERER_ASSERT(far > m_perspective.near);
     if (m_perspective.far != far)
     {
       m_perspective.far = far;
@@ -285,7 +285,7 @@ public:
 
   Camera& set_orthographic_size(double width, double height)
   {
-    CORE_ASSERT(width > 0.0 && height > 0.0);
+    RENDERER_ASSERT(width > 0.0 && height > 0.0);
     if (m_orthographic.width != width || m_orthographic.height != height)
     {
       m_orthographic.width = width;
@@ -300,7 +300,7 @@ public:
 
   Camera& set_orthographic_near_plane(double near)
   {
-    CORE_ASSERT(near > 0.0 && near < m_orthographic.far);
+    RENDERER_ASSERT(near > 0.0 && near < m_orthographic.far);
     if (m_orthographic.near != near)
     {
       m_orthographic.near = near;
@@ -314,7 +314,7 @@ public:
 
   Camera& set_orthographic_far_plane(double far)
   {
-    CORE_ASSERT(far > m_orthographic.near);
+    RENDERER_ASSERT(far > m_orthographic.near);
     if (m_orthographic.far != far)
     {
       m_orthographic.far = far;
@@ -386,7 +386,7 @@ public:
   void zoom_ortho_projection(double amount)
   {
     const double zoom = 1.0 + amount; // zoom < 1.0 -> zoom out, zoom > 1.0 -> zoom in
-    CORE_ASSERT(zoom > 0.0);
+    RENDERER_ASSERT(zoom > 0.0);
     m_orthographic.width = m_orthographic.width / zoom;
     m_orthographic.height = m_orthographic.height / zoom;
     if (m_activeProjection == CameraProjectionType::ORTHOGRAPHIC)
@@ -397,8 +397,8 @@ public:
 
   void look_at(const glm::dvec3& position, const glm::dvec3& target, const glm::dvec3& vertical)
   {
-    CORE_ASSERT(glm::length(vertical) > 0.0);
-    CORE_ASSERT(position != target);
+    RENDERER_ASSERT(glm::length(vertical) > 0.0);
+    RENDERER_ASSERT(position != target);
     m_position = position;
     m_target = target;
     m_vertical = vertical;
@@ -420,7 +420,7 @@ public:
       case CameraProjectionType::ORTHOGRAPHIC: 
         return create_orthographic_ray(screenX, screenY);
       default:
-        CORE_ASSERT(false);
+        RENDERER_ASSERT(false);
         return {};
     }
   }
@@ -563,7 +563,7 @@ private:
           m_projection = compute_orthographic_matrix();
           break;
         default:
-          CORE_ASSERT(false);
+          RENDERER_ASSERT(false);
           break;
       }
       m_projectionDirty = false;

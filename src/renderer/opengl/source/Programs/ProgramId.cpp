@@ -1,7 +1,7 @@
 #include "OpenGL/Programs/ProgramId.hpp"
 
 #include "ProgramOpenGL.hpp"
-#include <Core/Assert.hpp>
+#include <Renderer/Assert.hpp>
 #include <utility>
 
 namespace opengl
@@ -48,13 +48,13 @@ void ProgramHandle::reset() noexcept
 
 ProgramId ProgramHandle::get_id() const
 {
-  CORE_ASSERT(m_id.has_value());
+  RENDERER_ASSERT(m_id.has_value());
   return m_id.value();
 }
 
 GLuint ProgramHandle::get_value() const
 {
-  CORE_ASSERT(m_id.has_value());
+  RENDERER_ASSERT(m_id.has_value());
   return m_id->get_value();
 }
 

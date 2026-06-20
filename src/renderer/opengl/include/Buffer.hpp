@@ -1,7 +1,7 @@
 #ifndef BUFFER_HPP
 #define BUFFER_HPP
 
-#include "Core/Assert.hpp"
+#include <Renderer/Assert.hpp>
 #include <concepts>
 #include <cstring>
 #include <memory>
@@ -26,14 +26,14 @@ public:
   static Buffer create_from(const Buffer& other, size_type additionalCapacity)
   {
     auto newBuffer = Buffer(other.capacity() + additionalCapacity);
-    CORE_ASSERT(newBuffer.capacity() == other.capacity() + additionalCapacity);
-    CORE_ASSERT(newBuffer.is_empty());
+    RENDERER_ASSERT(newBuffer.capacity() == other.capacity() + additionalCapacity);
+    RENDERER_ASSERT(newBuffer.is_empty());
 
     std::uninitialized_copy(other.begin(), other.end(), newBuffer.data());
     newBuffer.m_pos = other.size();
 
-    CORE_ASSERT(newBuffer.size() == other.size());
-    CORE_ASSERT(newBuffer.free_capacity() == other.free_capacity() + additionalCapacity);
+    RENDERER_ASSERT(newBuffer.size() == other.size());
+    RENDERER_ASSERT(newBuffer.free_capacity() == other.free_capacity() + additionalCapacity);
     return newBuffer;
   }
 
@@ -66,13 +66,13 @@ public:
 
   [[nodiscard]] reference operator[](size_type index)
   {
-    CORE_ASSERT(index <= m_pos);
+    RENDERER_ASSERT(index <= m_pos);
     return m_data[index];
   }
 
   [[nodiscard]] const_reference operator[](size_type index) const
   {
-    CORE_ASSERT(index <= m_pos);
+    RENDERER_ASSERT(index <= m_pos);
     return m_data[index];
   }
 
@@ -91,21 +91,21 @@ public:
 
   constexpr void push_back(const value_type& value) noexcept
   {
-    CORE_ASSERT(m_pos < m_capacity);
+    RENDERER_ASSERT(m_pos < m_capacity);
     m_data[m_pos] = value;
     m_pos++;
   }
 
   constexpr void emplace_back(value_type&& value) noexcept
   {
-    CORE_ASSERT(m_pos < m_capacity);
+    RENDERER_ASSERT(m_pos < m_capacity);
     m_data[m_pos] = std::move(value);
     m_pos++;
   }
 
   void pop_back() noexcept
   {
-    CORE_ASSERT(m_pos > 0);
+    RENDERER_ASSERT(m_pos > 0);
     m_pos--;
   }
 
@@ -113,7 +113,7 @@ public:
 
   void remove(size_type start, size_type size) noexcept
   {
-    CORE_ASSERT(start + size <= m_pos);
+    RENDERER_ASSERT(start + size <= m_pos);
     // Shift elements to the left to fill the gap
     std::memmove(&m_data[start], &m_data[start + size], (m_pos - (start + size)) * sizeof(value_type));
     m_pos -= size;

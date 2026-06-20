@@ -7,11 +7,11 @@
 #include "OpenGL/VertexArray.hpp"
 #include "OpenGL/VertexBuffer.hpp"
 #include "OpenGL/opengl_export.h"
-#include <Core/Warnings.hpp>
+#include <Renderer/Warnings.hpp>
 #include <cstdint>
 #include <linal/hmat.hpp>
 #include <span>
-DISABLE_ALL_WARNINGS
+RENDERER_DISABLE_ALL_WARNINGS
 
 namespace opengl
 {
@@ -80,7 +80,7 @@ OPENGL_EXPORT std::optional<MeshDrawable> make_mesh_soup(MeshProgram& program,
                                                          std::span<const std::uint32_t> triangleIndices,
                                                          BufferAccessPattern accessPattern);
 
-ENABLE_ALL_WARNINGS
+RENDERER_ENABLE_ALL_WARNINGS
 
 } // namespace opengl
 

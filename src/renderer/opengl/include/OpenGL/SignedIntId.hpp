@@ -3,7 +3,7 @@
 
 #include "OpenGL/OpenGL.hpp"
 #include "OpenGL/opengl_export.h"
-#include <Core/Assert.hpp>
+#include <Renderer/Assert.hpp>
 
 namespace opengl
 {
@@ -15,7 +15,7 @@ public:
   constexpr SignedIntId() = default;
   constexpr explicit SignedIntId(GLint id) noexcept
       : m_id{id} {
-    CORE_ASSERT(id != -1);
+    RENDERER_ASSERT(id != -1);
   }
 
   [[nodiscard]] constexpr GLint get_value() const noexcept { return m_id; }

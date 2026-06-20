@@ -1,4 +1,7 @@
 set(renderer_HEADER_FILES
+        include/Renderer/Assert.hpp
+        include/Renderer/Warnings.hpp
+        include/Renderer/DLLWarnings.hpp
         include/Renderer/RendererGlfw.hpp
         include/Renderer/WindowSettings.hpp
         include/Renderer/InputState.hpp
