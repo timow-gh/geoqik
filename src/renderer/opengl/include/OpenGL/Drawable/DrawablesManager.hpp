@@ -449,8 +449,8 @@ public:
   }
 
 private:
-  DrawablesManager(opengl::ProgramManager programManager)
-      : programManager(std::move(programManager))
+  DrawablesManager(opengl::ProgramManager manager)
+      : programManager(std::move(manager))
   {
   }
 
