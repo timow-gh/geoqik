@@ -1,7 +1,6 @@
 #include "OpenGL/Programs/CreateProgram.hpp"
-#include "Core/FmtIncludeHelper.hpp"
-#include "Core/ScopedAction.hpp"
 #include "ProgramOpenGL.hpp"
+#include <print>
 #include <utility>
 
 namespace opengl
@@ -51,13 +50,14 @@ ProgramCreationResult create_program(const char* vertexShaderSource, const char*
   {
     return make_error_code(ProgramCreationFailureStage::VertexShaderCreation);
   }
-  core::ScopedAction vertexShaderDeleter = core::make_scoped_action([vertexShader]() { program_opengl::delete_shader(vertexShader); });
+  struct ShaderGuard { GLuint id; ~ShaderGuard() { program_opengl::delete_shader(id); } };
+  const ShaderGuard vertexShaderDeleter{vertexShader};
   program_opengl::set_shader_source(vertexShader, vertexShaderSource);
   program_opengl::compile_shader(vertexShader);
 
   if (!program_opengl::get_shader_compile_status(vertexShader))
   {
-    fmt::print(stderr, "Vertex shader compilation failed: {}\n", program_opengl::get_shader_info_log(vertexShader));
+    std::print(stderr, "Vertex shader compilation failed: {}\n", program_opengl::get_shader_info_log(vertexShader));
     return make_error_code(ProgramCreationFailureStage::VertexShaderCompilation);
   }
 
@@ -66,14 +66,13 @@ ProgramCreationResult create_program(const char* vertexShaderSource, const char*
   {
     return make_error_code(ProgramCreationFailureStage::FragmentShaderCreation);
   }
-  core::ScopedAction fragmentShaderDeleter =
-      core::make_scoped_action([fragmentShader]() { program_opengl::delete_shader(fragmentShader); });
+  const ShaderGuard fragmentShaderDeleter{fragmentShader};
   program_opengl::set_shader_source(fragmentShader, fragmentShaderSource);
   program_opengl::compile_shader(fragmentShader);
 
   if (!program_opengl::get_shader_compile_status(fragmentShader))
   {
-    fmt::print(stderr, "Fragment shader compilation failed: {}\n", program_opengl::get_shader_info_log(fragmentShader));
+    std::print(stderr, "Fragment shader compilation failed: {}\n", program_opengl::get_shader_info_log(fragmentShader));
     return make_error_code(ProgramCreationFailureStage::FragmentShaderCompilation);
   }
 
@@ -90,7 +89,7 @@ ProgramCreationResult create_program(const char* vertexShaderSource, const char*
   if (!program_opengl::get_program_link_status(programId))
   {
     std::string infoLog = program_opengl::get_program_info_log(programId);
-    fmt::print(stderr, "Program linking failed: {}\n", infoLog);
+    std::print(stderr, "Program linking failed: {}\n", infoLog);
     program_opengl::delete_program(programId);
     return make_error_code(ProgramCreationFailureStage::ProgramLinking);
   }

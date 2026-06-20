@@ -1,7 +1,6 @@
-#include "Core/FmtIncludeHelper.hpp"
-
 #include <Core/Assert.hpp>
 #include <Renderer/GlfwWindow.hpp>
+#include <print>
 
 namespace renderer
 {
@@ -37,7 +36,7 @@ std::optional<GlfwWindow> GlfwWindow::create(const WindowSettings& settings)
   {
     const char* description = nullptr;
     glfwGetError(&description);
-    fmt::print("Error: {}\n", description);
+    std::print("Error: {}\n", description);
     return std::nullopt;
   }
 
@@ -56,7 +55,7 @@ std::optional<GlfwWindow> GlfwWindow::create(const WindowSettings& settings)
   {
     const char* description = nullptr;
     glfwGetError(&description);
-    fmt::print("Error: {}\n", description);
+    std::print("Error: {}\n", description);
     glfwTerminate();
     return std::nullopt;
   }
@@ -67,7 +66,7 @@ std::optional<GlfwWindow> GlfwWindow::create(const WindowSettings& settings)
   window.make_context_current();
   if (gladLoadGLLoader(load_glfw_proc) == 0)
   {
-    fmt::print("Failed to initialize OpenGL context\n");
+    std::print("Failed to initialize OpenGL context\n");
     return std::nullopt;
   }
 

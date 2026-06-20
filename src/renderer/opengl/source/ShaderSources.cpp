@@ -1,5 +1,4 @@
 #include "OpenGL/ShaderSources.hpp"
-#include "Core/FmtIncludeHelper.hpp"
 
 namespace opengl
 {

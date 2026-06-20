@@ -1,8 +1,8 @@
 #include "OpenGL/Programs/LineProgram.hpp"
-#include "Core/FmtIncludeHelper.hpp"
 #include "OpenGL/Programs/CreateProgram.hpp"
 #include "OpenGL/ShaderSources.hpp"
 #include <Core/Assert.hpp>
+#include <print>
 #include <string>
 #include <utility>
 
@@ -32,7 +32,7 @@ opengl::LineProgram make_line_program() {
   ProgramCreationResult program = create_program(vertexShaderSource.c_str(), fragmentShaderSource.c_str());
   if (!program)
   {
-    fmt::print(stderr,
+    std::print(stderr,
                "Error category: '{}';Error code: '{}'; Error message: '{}'\n",
                program.error().category().name(),
                program.error().value(),

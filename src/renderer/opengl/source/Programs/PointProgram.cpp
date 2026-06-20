@@ -1,9 +1,9 @@
 #include "OpenGL/Programs/PointProgram.hpp"
 
-#include "Core/FmtIncludeHelper.hpp"
 #include "OpenGL/Programs/CreateProgram.hpp"
 #include "OpenGL/ShaderSources.hpp"
 #include <Core/Assert.hpp>
+#include <print>
 #include <string>
 #include <utility>
 
@@ -34,7 +34,7 @@ PointProgram make_point_program() {
   ProgramCreationResult program = create_program(vertexShaderSource.c_str(), fragmentShaderSource.c_str());
   if (!program.has_value())
   {
-    fmt::print(stderr,
+    std::print(stderr,
                "Error category: '{}';Error code: '{}'; Error message: '{}'\n",
                program.error().category().name(),
                program.error().value(),

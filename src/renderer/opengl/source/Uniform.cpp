@@ -1,8 +1,8 @@
 #include "OpenGL/Uniform.hpp"
 
-#include "Core/FmtIncludeHelper.hpp"
 #include <Core/Assert.hpp>
 #include <cstdlib>
+#include <print>
 
 namespace opengl
 {
@@ -22,7 +22,7 @@ Uniform make_uniform(std::string_view name, ProgramId program) {
   if (location.get_value() == -1)
   {
     CORE_ASSERT(false);
-    fmt::print("Uniform {} location not found\n", name);
+    std::print("Uniform {} location not found\n", name);
     std::abort();
   }
 

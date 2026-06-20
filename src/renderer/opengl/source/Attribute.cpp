@@ -1,8 +1,8 @@
 #include "OpenGL/Attribute.hpp"
 
-#include "Core/FmtIncludeHelper.hpp"
 #include <Core/Assert.hpp>
 #include <cstdlib>
+#include <print>
 
 namespace opengl
 {
@@ -22,7 +22,7 @@ Attribute make_attribute(std::string_view name, ProgramId program) {
   if (location.get_value() == -1)
   {
     CORE_ASSERT(false);
-    fmt::print(stderr, "Attribute {} not found\n", name);
+    std::print(stderr, "Attribute {} not found\n", name);
     abort();
   }
 

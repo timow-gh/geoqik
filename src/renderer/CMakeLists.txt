@@ -58,7 +58,6 @@ add_library(renderer::renderer ALIAS ${TARGET_NAME})
 target_link_libraries(${TARGET_NAME}
         PUBLIC
         renderer::opengl
-        geoqik::core
         glad::glad
         glfw
         $<BUILD_LOCAL_INTERFACE:linal::linal>
