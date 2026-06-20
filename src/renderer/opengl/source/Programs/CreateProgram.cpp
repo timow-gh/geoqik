@@ -50,7 +50,22 @@ ProgramCreationResult create_program(const char* vertexShaderSource, const char*
   {
     return make_error_code(ProgramCreationFailureStage::VertexShaderCreation);
   }
-  struct ShaderGuard { GLuint id; ~ShaderGuard() { program_opengl::delete_shader(id); } };
+  struct ShaderGuard
+  {
+    GLuint id;
+
+    explicit ShaderGuard(GLuint shaderId)
+        : id(shaderId)
+    {
+    }
+
+    ShaderGuard(const ShaderGuard&)            = delete;
+    ShaderGuard& operator=(const ShaderGuard&) = delete;
+    ShaderGuard(ShaderGuard&&)                 = delete;
+    ShaderGuard& operator=(ShaderGuard&&)      = delete;
+
+    ~ShaderGuard() { program_opengl::delete_shader(id); }
+  };
   const ShaderGuard vertexShaderDeleter{vertexShader};
   program_opengl::set_shader_source(vertexShader, vertexShaderSource);
   program_opengl::compile_shader(vertexShader);

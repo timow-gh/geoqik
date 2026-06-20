@@ -3,6 +3,18 @@
 namespace renderer
 {
 
+namespace
+{
+
+constexpr linal::double3 defaultCameraPosition{5.0, 5.0, 5.0};
+constexpr linal::float3 defaultLightColor{1.0F, 1.0F, 1.0F};
+constexpr linal::float3 defaultFillLightDirection{-0.45F, 0.60F, 0.35F};
+constexpr linal::float3 defaultFillLightColor{0.2F, 0.2F, 0.3F};
+constexpr linal::float3 defaultAmbientColor{0.1F, 0.1F, 0.1F};
+constexpr float defaultShininess = 8.0F;
+
+} // namespace
+
 std::unique_ptr<Renderer> Renderer::create(const WindowSettings& settings)
 {
   auto window = GlfwWindow::create(settings);
@@ -13,7 +25,7 @@ std::unique_ptr<Renderer> Renderer::create(const WindowSettings& settings)
 
   const auto [fbWidth, fbHeight] = window->get_framebuffer_size();
   CameraSettings cameraSettings;
-  cameraSettings.m_defaultPosition = linal::double3{5.0, 5.0, 5.0};
+  cameraSettings.m_defaultPosition = defaultCameraPosition;
   cameraSettings.m_defaultTarget   = linal::double3{0.0, 0.0, 0.0};
   cameraSettings.m_defaultUp       = linal::double3{0.0, 0.0, 1.0};
   cameraSettings.m_camera.set_viewport(0,
@@ -232,11 +244,11 @@ void Renderer::draw()
                                    m_camera.get_normal_matrix(),
                                    viewPosF,
                                    viewPosF,
-                                   linal::float3{1.0F, 1.0F, 1.0F},
-                                   linal::float3{-0.45F, 0.60F, 0.35F},
-                                   linal::float3{0.2F,  0.2F,  0.3F},
-                                   linal::float3{0.1F,  0.1F,  0.1F},
-                                   8.0F);
+                                   defaultLightColor,
+                                   defaultFillLightDirection,
+                                   defaultFillLightColor,
+                                   defaultAmbientColor,
+                                   defaultShininess);
   }
 }
 
