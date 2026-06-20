@@ -8,6 +8,7 @@
 #include <OpenGL/OpenGL.hpp>
 #include <algorithm>
 #include <cstddef>
+#include <cstdint>
 #include <optional>
 #include <linal/hmat.hpp>
 #include <linal/vec.hpp>
@@ -20,6 +21,17 @@ namespace opengl
 
 class DrawablesManager
 {
+public:
+  using DrawableId = std::uint64_t;
+
+private:
+  template <typename Drawable>
+  struct DrawableEntry
+  {
+    DrawableId id{};
+    Drawable drawable;
+  };
+
   struct ScopedDepthMask
   {
     GLboolean previousValue{GL_TRUE};
@@ -57,10 +69,11 @@ class DrawablesManager
   };
 
   ProgramManager programManager;
+  DrawableId m_nextDrawableId{1U};
 
-  std::vector<opengl::PointDrawable> m_pointDrawables;
-  std::vector<opengl::LineDrawable> m_lineDrawables;
-  std::vector<opengl::MeshDrawable> m_meshDrawables;
+  std::vector<DrawableEntry<opengl::PointDrawable>> m_pointDrawables;
+  std::vector<DrawableEntry<opengl::LineDrawable>> m_lineDrawables;
+  std::vector<DrawableEntry<opengl::MeshDrawable>> m_meshDrawables;
 
 public:
   DrawablesManager(const DrawablesManager&) = delete;
@@ -68,6 +81,7 @@ public:
   DrawablesManager(DrawablesManager&& other) noexcept
   {
     programManager = std::move(other.programManager);
+    m_nextDrawableId = other.m_nextDrawableId;
     m_pointDrawables = std::move(other.m_pointDrawables);
     m_lineDrawables = std::move(other.m_lineDrawables);
     m_meshDrawables = std::move(other.m_meshDrawables);
@@ -77,6 +91,7 @@ public:
     if (this != &other)
     {
       programManager = std::move(other.programManager);
+      m_nextDrawableId = other.m_nextDrawableId;
       m_pointDrawables = std::move(other.m_pointDrawables);
       m_lineDrawables = std::move(other.m_lineDrawables);
       m_meshDrawables = std::move(other.m_meshDrawables);
@@ -110,21 +125,25 @@ public:
   [[nodiscard]] bool has_line_drawables() const { return !m_lineDrawables.empty(); }
   [[nodiscard]] bool has_mesh_drawables() const { return !m_meshDrawables.empty(); }
 
-  void add_point_drawable(opengl::PointDrawable drawable)
+  DrawableId add_point_drawable(opengl::PointDrawable drawable)
   {
-    m_pointDrawables.emplace_back(std::move(drawable));
+    const DrawableId id = next_drawable_id();
+    m_pointDrawables.emplace_back(DrawableEntry<opengl::PointDrawable>{id, std::move(drawable)});
+    return id;
   }
-  void add_line_drawable(opengl::LineDrawable drawable)
+  DrawableId add_line_drawable(opengl::LineDrawable drawable)
   {
-    m_lineDrawables.emplace_back(std::move(drawable));
+    const DrawableId id = next_drawable_id();
+    m_lineDrawables.emplace_back(DrawableEntry<opengl::LineDrawable>{id, std::move(drawable)});
+    return id;
   }
-  void add_point_drawable(std::span<const float> vertices,
-                          std::int32_t vertexDimension,
-                          std::span<const float> colors,
-                          std::int32_t colorDimension,
-                          std::span<const std::uint32_t> indices,
-                          float pointSize,
-                          opengl::BufferAccessPattern accessPattern)
+  DrawableId add_point_drawable(std::span<const float> vertices,
+                                std::int32_t vertexDimension,
+                                std::span<const float> colors,
+                                std::int32_t colorDimension,
+                                std::span<const std::uint32_t> indices,
+                                float pointSize,
+                                opengl::BufferAccessPattern accessPattern)
   {
     auto drawable = opengl::make_point_drawable(get_point_program(),
                                                 vertices,
@@ -139,18 +158,18 @@ public:
       throw std::runtime_error("Failed to create point drawable");
     }
 
-    add_point_drawable(std::move(drawable.value()));
+    return add_point_drawable(std::move(drawable.value()));
   }
 
-  void add_line_drawable(std::span<const float> lineVertices,
-                         std::int32_t lineVertexDimension,
-                         std::span<const std::uint32_t> lineIndices,
-                         std::span<const float> lineColors,
-                         std::int32_t colorDimension,
-                         opengl::LineType lineType,
-                         float lineWidth,
-                         float pointSize,
-                         opengl::BufferAccessPattern accessPattern)
+  DrawableId add_line_drawable(std::span<const float> lineVertices,
+                               std::int32_t lineVertexDimension,
+                               std::span<const std::uint32_t> lineIndices,
+                               std::span<const float> lineColors,
+                               std::int32_t colorDimension,
+                               opengl::LineType lineType,
+                               float lineWidth,
+                               float pointSize,
+                               opengl::BufferAccessPattern accessPattern)
   {
     auto drawable = opengl::make_line_drawable(get_line_program(),
                                                lineVertices,
@@ -167,16 +186,16 @@ public:
       throw std::runtime_error("Failed to create line drawable");
     }
 
-    add_line_drawable(std::move(drawable.value()));
+    return add_line_drawable(std::move(drawable.value()));
   }
 
-  void add_mesh_drawable(std::span<const float> vertices,
-                         std::int32_t vertexDimension,
-                         std::span<const float> normals,
-                         std::span<const float> colors,
-                         std::int32_t colorDimension,
-                         std::span<const std::uint32_t> triangleIndices,
-                         opengl::BufferAccessPattern accessPattern)
+  DrawableId add_mesh_drawable(std::span<const float> vertices,
+                               std::int32_t vertexDimension,
+                               std::span<const float> normals,
+                               std::span<const float> colors,
+                               std::int32_t colorDimension,
+                               std::span<const std::uint32_t> triangleIndices,
+                               opengl::BufferAccessPattern accessPattern)
   {
     auto drawable = opengl::make_mesh_soup(get_mesh_program(),
                                            vertices,
@@ -191,8 +210,16 @@ public:
       throw std::runtime_error("Failed to create mesh drawable");
     }
 
-    m_meshDrawables.emplace_back(std::move(drawable.value()));
+    const DrawableId id = next_drawable_id();
+    m_meshDrawables.emplace_back(DrawableEntry<opengl::MeshDrawable>{id, std::move(drawable.value())});
+    return id;
   }
+
+  bool remove_point_drawable(DrawableId id) { return remove_drawable_by_id(m_pointDrawables, id); }
+
+  bool remove_line_drawable(DrawableId id) { return remove_drawable_by_id(m_lineDrawables, id); }
+
+  bool remove_mesh_drawable(DrawableId id) { return remove_drawable_by_id(m_meshDrawables, id); }
 
   void update_last_point_drawable(std::span<const float> vertices,
                                   std::span<const float> colors,
@@ -203,9 +230,9 @@ public:
     {
       return;
     }
-    m_pointDrawables.back().update_vertex_buffer(vertices, accessPattern);
-    m_pointDrawables.back().update_color_buffer(colors, accessPattern);
-    m_pointDrawables.back().update_indices_buffer(indices, accessPattern);
+    m_pointDrawables.back().drawable.update_vertex_buffer(vertices, accessPattern);
+    m_pointDrawables.back().drawable.update_color_buffer(colors, accessPattern);
+    m_pointDrawables.back().drawable.update_indices_buffer(indices, accessPattern);
   }
 
   void update_last_line_drawable(std::span<const float> vertices,
@@ -217,9 +244,9 @@ public:
     {
       return;
     }
-    m_lineDrawables.back().update_vertex_buffer(vertices, accessPattern);
-    m_lineDrawables.back().update_color_buffer(colors, accessPattern);
-    m_lineDrawables.back().update_indices_buffer(indices, accessPattern);
+    m_lineDrawables.back().drawable.update_vertex_buffer(vertices, accessPattern);
+    m_lineDrawables.back().drawable.update_color_buffer(colors, accessPattern);
+    m_lineDrawables.back().drawable.update_indices_buffer(indices, accessPattern);
   }
 
   void clear_point_drawables() { m_pointDrawables.clear(); }
@@ -237,17 +264,17 @@ public:
 
   void draw_points(const linal::hmatf& mvp) const
   {
-    for (const auto& drawable: m_pointDrawables)
+    for (const auto& entry: m_pointDrawables)
     {
-      drawable.draw(mvp);
+      entry.drawable.draw(mvp);
     }
   }
 
   void draw_lines(const linal::hmatf& mvp) const
   {
-    for (const auto& drawable: m_lineDrawables)
+    for (const auto& entry: m_lineDrawables)
     {
-      drawable.draw(mvp);
+      entry.drawable.draw(mvp);
     }
   }
 
@@ -284,7 +311,7 @@ public:
 
     for (std::size_t i = 0; i < m_lineDrawables.size(); ++i)
     {
-      const auto& drawable = m_lineDrawables[i];
+      const auto& drawable = m_lineDrawables[i].drawable;
       if (drawable.has_opaque_primitives())
       {
         renderQueue.opaqueCommands.push_back({RenderCommand::Type::line, i});
@@ -298,7 +325,7 @@ public:
 
     for (std::size_t i = 0; i < m_pointDrawables.size(); ++i)
     {
-      const auto& drawable = m_pointDrawables[i];
+      const auto& drawable = m_pointDrawables[i].drawable;
       if (drawable.has_opaque_primitives())
       {
         renderQueue.opaqueCommands.push_back({RenderCommand::Type::point, i});
@@ -314,11 +341,11 @@ public:
     {
       if (opaqueCommand.type == RenderCommand::Type::line)
       {
-        m_lineDrawables[opaqueCommand.index].draw_opaque(mvp);
+        m_lineDrawables[opaqueCommand.index].drawable.draw_opaque(mvp);
       }
       else
       {
-        m_pointDrawables[opaqueCommand.index].draw_opaque(mvp);
+        m_pointDrawables[opaqueCommand.index].drawable.draw_opaque(mvp);
       }
     }
 
@@ -337,11 +364,11 @@ public:
     {
       if (transparentCommand.type == RenderCommand::Type::line)
       {
-        m_lineDrawables[transparentCommand.index].draw_translucent(mvp, viewPosition);
+        m_lineDrawables[transparentCommand.index].drawable.draw_translucent(mvp, viewPosition);
       }
       else
       {
-        m_pointDrawables[transparentCommand.index].draw_translucent(mvp, viewPosition);
+        m_pointDrawables[transparentCommand.index].drawable.draw_translucent(mvp, viewPosition);
       }
     }
   }
@@ -372,7 +399,7 @@ public:
 
     for (std::size_t i = 0; i < m_meshDrawables.size(); ++i)
     {
-      const auto& drawable = m_meshDrawables[i];
+      const auto& drawable = m_meshDrawables[i].drawable;
       if (drawable.is_translucent())
       {
         transparentMeshes.push_back({i, drawable.distance_squared_to(viewPositionDouble)});
@@ -407,17 +434,17 @@ public:
     const ScopedCullFaceDisabled cullFace;
     for (const auto& transparentMesh: transparentMeshes)
     {
-      m_meshDrawables[transparentMesh.index].draw(modelMatrix,
-                                                  viewMatrix,
-                                                  projectionMatrix,
-                                                  normalMatrix,
-                                                  lightPosition,
-                                                  viewPos,
-                                                  lightColor,
-                                                  fillLightDirection,
-                                                  fillLightColor,
-                                                  ambientColor,
-                                                  shininess);
+      m_meshDrawables[transparentMesh.index].drawable.draw(modelMatrix,
+                                                           viewMatrix,
+                                                           projectionMatrix,
+                                                           normalMatrix,
+                                                           lightPosition,
+                                                           viewPos,
+                                                           lightColor,
+                                                           fillLightDirection,
+                                                           fillLightColor,
+                                                           ambientColor,
+                                                           shininess);
     }
   }
 
@@ -430,6 +457,28 @@ private:
   LineProgram& get_line_program() { return programManager.get_line_program(); }
   PointProgram& get_point_program() { return programManager.get_point_program(); }
   MeshProgram& get_mesh_program() { return programManager.get_mesh_program(); }
+
+  DrawableId next_drawable_id() { return m_nextDrawableId++; }
+
+  template <typename Drawable>
+  static bool remove_drawable_by_id(std::vector<DrawableEntry<Drawable>>& drawables, DrawableId id)
+  {
+    if (id == 0U)
+    {
+      return false;
+    }
+
+    const auto it = std::find_if(drawables.begin(),
+                                 drawables.end(),
+                                 [id](const DrawableEntry<Drawable>& entry) { return entry.id == id; });
+    if (it == drawables.end())
+    {
+      return false;
+    }
+
+    drawables.erase(it);
+    return true;
+  }
 };
 
 } // namespace opengl

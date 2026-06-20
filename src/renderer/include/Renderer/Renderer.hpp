@@ -19,6 +19,25 @@
 namespace renderer
 {
 
+enum class DrawableKind
+{
+  invalid,
+  point,
+  line,
+  mesh
+};
+
+struct DrawableHandle
+{
+  DrawableKind kind{DrawableKind::invalid};
+  std::uint64_t id{0U};
+
+  [[nodiscard]] constexpr bool is_valid() const
+  {
+    return kind != DrawableKind::invalid && id != 0U;
+  }
+};
+
 class Renderer
 {
 public:
@@ -32,25 +51,30 @@ public:
   [[nodiscard]] static std::unique_ptr<Renderer> create(const WindowSettings& settings);
 
   // --- Geometry ---
-  void add_point_drawable(std::span<const float> vertices,
-                          std::span<const float> colors,
-                          std::span<const std::uint32_t> indices,
-                          float pointSize,
-                          opengl::BufferAccessPattern accessPattern = opengl::BufferAccessPattern::STATIC_DRAW);
+  DrawableHandle add_point_drawable(
+      std::span<const float> vertices,
+      std::span<const float> colors,
+      std::span<const std::uint32_t> indices,
+      float pointSize,
+      opengl::BufferAccessPattern accessPattern = opengl::BufferAccessPattern::STATIC_DRAW);
 
-  void add_line_drawable(std::span<const float> vertices,
-                         std::span<const std::uint32_t> indices,
-                         std::span<const float> colors,
-                         opengl::LineType lineType,
-                         float lineWidth,
-                         float pointSize = 0.0F,
-                         opengl::BufferAccessPattern accessPattern = opengl::BufferAccessPattern::STATIC_DRAW);
+  DrawableHandle add_line_drawable(
+      std::span<const float> vertices,
+      std::span<const std::uint32_t> indices,
+      std::span<const float> colors,
+      opengl::LineType lineType,
+      float lineWidth,
+      float pointSize = 0.0F,
+      opengl::BufferAccessPattern accessPattern = opengl::BufferAccessPattern::STATIC_DRAW);
 
-  void add_mesh_drawable(std::span<const float> vertices,
-                         std::span<const float> normals,
-                         std::span<const float> colors,
-                         std::span<const std::uint32_t> triangleIndices,
-                         opengl::BufferAccessPattern accessPattern = opengl::BufferAccessPattern::STATIC_DRAW);
+  DrawableHandle add_mesh_drawable(
+      std::span<const float> vertices,
+      std::span<const float> normals,
+      std::span<const float> colors,
+      std::span<const std::uint32_t> triangleIndices,
+      opengl::BufferAccessPattern accessPattern = opengl::BufferAccessPattern::STATIC_DRAW);
+
+  bool remove_drawable(DrawableHandle handle);
 
   void update_last_point_drawable(std::span<const float> vertices,
                                   std::span<const float> colors,

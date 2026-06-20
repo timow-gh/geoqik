@@ -117,33 +117,58 @@ void Renderer::wire_callbacks()
 
 // --- Geometry ---
 
-void Renderer::add_point_drawable(std::span<const float> vertices,
-                                  std::span<const float> colors,
-                                  std::span<const std::uint32_t> indices,
-                                  float pointSize,
-                                  opengl::BufferAccessPattern accessPattern)
+DrawableHandle Renderer::add_point_drawable(std::span<const float> vertices,
+                                            std::span<const float> colors,
+                                            std::span<const std::uint32_t> indices,
+                                            float pointSize,
+                                            opengl::BufferAccessPattern accessPattern)
 {
-  m_drawablesManager.add_point_drawable(vertices, 3, colors, 4, indices, pointSize, accessPattern);
+  const auto id = m_drawablesManager.add_point_drawable(vertices, 3, colors, 4, indices, pointSize, accessPattern);
+  return DrawableHandle{DrawableKind::point, id};
 }
 
-void Renderer::add_line_drawable(std::span<const float> vertices,
-                                 std::span<const std::uint32_t> indices,
-                                 std::span<const float> colors,
-                                 opengl::LineType lineType,
-                                 float lineWidth,
-                                 float pointSize,
-                                 opengl::BufferAccessPattern accessPattern)
+DrawableHandle Renderer::add_line_drawable(std::span<const float> vertices,
+                                           std::span<const std::uint32_t> indices,
+                                           std::span<const float> colors,
+                                           opengl::LineType lineType,
+                                           float lineWidth,
+                                           float pointSize,
+                                           opengl::BufferAccessPattern accessPattern)
 {
-  m_drawablesManager.add_line_drawable(vertices, 3, indices, colors, 4, lineType, lineWidth, pointSize, accessPattern);
+  const auto id = m_drawablesManager.add_line_drawable(vertices, 3, indices, colors, 4, lineType, lineWidth, pointSize, accessPattern);
+  return DrawableHandle{DrawableKind::line, id};
 }
 
-void Renderer::add_mesh_drawable(std::span<const float> vertices,
-                                 std::span<const float> normals,
-                                 std::span<const float> colors,
-                                 std::span<const std::uint32_t> triangleIndices,
-                                 opengl::BufferAccessPattern accessPattern)
+DrawableHandle Renderer::add_mesh_drawable(std::span<const float> vertices,
+                                           std::span<const float> normals,
+                                           std::span<const float> colors,
+                                           std::span<const std::uint32_t> triangleIndices,
+                                           opengl::BufferAccessPattern accessPattern)
 {
-  m_drawablesManager.add_mesh_drawable(vertices, 3, normals, colors, 4, triangleIndices, accessPattern);
+  const auto id = m_drawablesManager.add_mesh_drawable(vertices, 3, normals, colors, 4, triangleIndices, accessPattern);
+  return DrawableHandle{DrawableKind::mesh, id};
+}
+
+bool Renderer::remove_drawable(DrawableHandle handle)
+{
+  if (!handle.is_valid())
+  {
+    return false;
+  }
+
+  switch (handle.kind)
+  {
+  case DrawableKind::point:
+    return m_drawablesManager.remove_point_drawable(handle.id);
+  case DrawableKind::line:
+    return m_drawablesManager.remove_line_drawable(handle.id);
+  case DrawableKind::mesh:
+    return m_drawablesManager.remove_mesh_drawable(handle.id);
+  case DrawableKind::invalid:
+    return false;
+  }
+
+  return false;
 }
 
 void Renderer::update_last_point_drawable(std::span<const float> vertices,

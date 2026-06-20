@@ -31,6 +31,11 @@ int main()
   const std::array<std::uint32_t,1> pointIndices{0};
   renderer->add_point_drawable(pointVertices, pointColors, pointIndices, standalonePointSize);
 
+  const std::array<float, 3> removablePointVertices{0.0F, 0.0F, 1.0F};
+  const auto removablePoint =
+      renderer->add_point_drawable(removablePointVertices, pointColors, pointIndices, standalonePointSize);
+  (void)renderer->remove_drawable(removablePoint);
+
   // A cross made of two line segments through the origin.
   const std::array<float, 12> lineVertices{
       -1.0F, 0.0F, 0.0F,
