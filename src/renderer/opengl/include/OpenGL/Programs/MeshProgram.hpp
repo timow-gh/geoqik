@@ -4,6 +4,7 @@
 #include "OpenGL/Attribute.hpp"
 #include "OpenGL/Programs/ProgramId.hpp"
 #include "OpenGL/Uniform.hpp"
+#include <Renderer/Assert.hpp>
 
 namespace opengl
 {
@@ -32,20 +33,20 @@ struct OPENGL_EXPORT MeshProgramInput
 
 constexpr void assert_mesh_program_input([[maybe_unused]] const MeshProgramInput& input) noexcept
 {
-  CORE_ASSERT(input.m_modelMatrix.get_location().get_value() != -1);
-  CORE_ASSERT(input.m_viewMatrix.get_location().get_value() != -1);
-  CORE_ASSERT(input.m_projectionMatrix.get_location().get_value() != -1);
-  CORE_ASSERT(input.m_normalMatrix.get_location().get_value() != -1);
-  CORE_ASSERT(input.m_posLocation.get_location().get_value() != -1);
-  CORE_ASSERT(input.m_colorLocation.get_location().get_value() != -1);
-  CORE_ASSERT(input.m_normalLocation.get_location().get_value() != -1);
-  CORE_ASSERT(input.m_lightPos.get_location().get_value() != -1);
-  CORE_ASSERT(input.viewPos.get_location().get_value() != -1);
-  CORE_ASSERT(input.lightColor.get_location().get_value() != -1);
-  CORE_ASSERT(input.fillLightDirection.get_location().get_value() != -1);
-  CORE_ASSERT(input.fillLightColor.get_location().get_value() != -1);
-  CORE_ASSERT(input.ambientColor.get_location().get_value() != -1);
-  CORE_ASSERT(input.shininess.get_location().get_value() != -1);
+  RENDERER_ASSERT(input.m_modelMatrix.get_location().get_value() != -1);
+  RENDERER_ASSERT(input.m_viewMatrix.get_location().get_value() != -1);
+  RENDERER_ASSERT(input.m_projectionMatrix.get_location().get_value() != -1);
+  RENDERER_ASSERT(input.m_normalMatrix.get_location().get_value() != -1);
+  RENDERER_ASSERT(input.m_posLocation.get_location().get_value() != -1);
+  RENDERER_ASSERT(input.m_colorLocation.get_location().get_value() != -1);
+  RENDERER_ASSERT(input.m_normalLocation.get_location().get_value() != -1);
+  RENDERER_ASSERT(input.m_lightPos.get_location().get_value() != -1);
+  RENDERER_ASSERT(input.viewPos.get_location().get_value() != -1);
+  RENDERER_ASSERT(input.lightColor.get_location().get_value() != -1);
+  RENDERER_ASSERT(input.fillLightDirection.get_location().get_value() != -1);
+  RENDERER_ASSERT(input.fillLightColor.get_location().get_value() != -1);
+  RENDERER_ASSERT(input.ambientColor.get_location().get_value() != -1);
+  RENDERER_ASSERT(input.shininess.get_location().get_value() != -1);
 }
 
 class OPENGL_EXPORT MeshProgram
@@ -60,9 +61,29 @@ public:
 
   MeshProgram(const MeshProgram&) = delete;
   MeshProgram& operator=(const MeshProgram&) = delete;
-  MeshProgram(MeshProgram&&) noexcept = default;
-  MeshProgram& operator=(MeshProgram&&) noexcept = default;
-  ~MeshProgram() = default;
+  MeshProgram(MeshProgram&& other) noexcept
+  {
+    m_program = std::move(other.m_program);
+    m_input = std::move(other.m_input);
+  }
+  MeshProgram& operator=(MeshProgram&& other) noexcept
+  {
+    if (this != &other)
+    {
+      m_program = std::move(other.m_program);
+      m_input = std::move(other.m_input);
+    }
+    return *this;
+  }
+  ~MeshProgram()
+  {
+    if (m_program.is_valid())
+    {
+      glDeleteProgram(m_program.get_id().get_value());
+    }
+  }
+
+  [[nodiscard]] bool is_valid() const noexcept { return m_program.is_valid(); }
 
   [[nodiscard]] ProgramId get_id() const;
 

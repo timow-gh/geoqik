@@ -24,9 +24,33 @@ public:
 
   PointProgram(const PointProgram&) = delete;
   PointProgram& operator=(const PointProgram&) = delete;
-  PointProgram(PointProgram&&) noexcept = default;
-  PointProgram& operator=(PointProgram&&) noexcept = default;
-  ~PointProgram() = default;
+  PointProgram(PointProgram&& other) noexcept
+  {
+    m_program = std::move(other.m_program);
+    m_mvpLocation = std::move(other.m_mvpLocation);
+    m_vertexLocation = std::move(other.m_vertexLocation);
+    m_colorLocation = std::move(other.m_colorLocation);
+  }
+  PointProgram& operator=(PointProgram&& other) noexcept
+  {
+    if (this != &other)
+    {
+      m_program = std::move(other.m_program);
+      m_mvpLocation = std::move(other.m_mvpLocation);
+      m_vertexLocation = std::move(other.m_vertexLocation);
+      m_colorLocation = std::move(other.m_colorLocation);
+    }
+    return *this;
+  }
+  ~PointProgram()
+  {
+    if (m_program.is_valid())
+    {
+      glDeleteProgram(m_program.get_id().get_value());
+    }
+  }
+
+  [[nodiscard]] bool is_valid() const noexcept { return m_program.is_valid(); }
 
   [[nodiscard]] constexpr Location get_mvp_location() const noexcept { return m_mvpLocation.get_location(); }
   [[nodiscard]] constexpr Location get_pos_location() const noexcept { return m_vertexLocation.get_location(); }

@@ -64,7 +64,8 @@ file(REMOVE ${CMAKE_CURRENT_BINARY_DIR}/${GENERATED_TARGET_EXPORTS_FILE_NAME})
 target_include_directories(${TARGET_NAME}
         PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/export_header_includes>
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>)
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/../include>)
 
 target_compile_definitions(${TARGET_NAME} PUBLIC OPENGL_STATIC_DEFINE)
 
@@ -91,7 +92,6 @@ endif ()
 
 target_link_libraries(${TARGET_NAME}
         PRIVATE
-        geoqik::core
         glad::glad
         $<BUILD_LOCAL_INTERFACE:linal::linal>
 )

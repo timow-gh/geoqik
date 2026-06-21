@@ -1,6 +1,6 @@
 #include <Renderer/Camera.hpp>
 
-#include <Core/Assert.hpp>
+#include <Renderer/Assert.hpp>
 #include <Renderer/PickRay.hpp>
 #include <cmath>
 #include <glm/ext/vector_double3.hpp>
@@ -46,12 +46,12 @@ PickRay Camera::create_perspective_ray(double screenX, double screenY) const {
 
   cameraGaze = glm::normalize(cameraGaze);
 
-  CORE_ASSERT(!has_nan_value(cameraGaze));
-  CORE_ASSERT(!has_nan_value(get_position()));
-  CORE_ASSERT(!has_inf_value(cameraGaze));
-  CORE_ASSERT(!has_inf_value(get_position()));
-  CORE_ASSERT(!has_huge_value(cameraGaze));
-  CORE_ASSERT(!has_huge_value(get_position()));
+  RENDERER_ASSERT(!has_nan_value(cameraGaze));
+  RENDERER_ASSERT(!has_nan_value(get_position()));
+  RENDERER_ASSERT(!has_inf_value(cameraGaze));
+  RENDERER_ASSERT(!has_inf_value(get_position()));
+  RENDERER_ASSERT(!has_huge_value(cameraGaze));
+  RENDERER_ASSERT(!has_huge_value(get_position()));
 
   return {to_linal(get_position()), to_linal(cameraGaze)};
 }

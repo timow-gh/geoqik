@@ -9,14 +9,14 @@
 #include "OpenGL/VertexArray.hpp"
 #include "OpenGL/VertexBuffer.hpp"
 #include "OpenGL/opengl_export.h"
-#include <Core/Warnings.hpp>
+#include <Renderer/Warnings.hpp>
 #include <cstdint>
 #include <linal/hmat.hpp>
 #include <span>
 #include <utility>
 #include <vector>
 
-DISABLE_ALL_WARNINGS
+RENDERER_DISABLE_ALL_WARNINGS
 
 namespace opengl
 {
@@ -107,6 +107,6 @@ OPENGL_EXPORT std::optional<PointDrawable> make_point_drawable(PointProgram& pro
 
 } // namespace opengl
 
-ENABLE_ALL_WARNINGS
+RENDERER_ENABLE_ALL_WARNINGS
 
 #endif // OPENGL_POINTSOUP_HPP

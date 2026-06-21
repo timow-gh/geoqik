@@ -1,7 +1,7 @@
 #ifndef RENDERER_RAYPLANEINTERSECTION_HPP
 #define RENDERER_RAYPLANEINTERSECTION_HPP
 
-#include <Core/Assert.hpp>
+#include <Renderer/Assert.hpp>
 #include <linal/linal.hpp>
 #include <Geometry/Plane.hpp>
 
@@ -20,7 +20,7 @@ namespace renderer
                                                  const Geometry::Planed& plane,
                                                  linal::double3& result,
                                                  double eps = 1e-6) {
-  CORE_ASSERT(!linal::is_zero(rayDir));
+  RENDERER_ASSERT(!linal::is_zero(rayDir));
   const linal::double3 planeNormal = plane.get_normal();
   const double dirDot = linal::dot(rayDir, planeNormal);
 

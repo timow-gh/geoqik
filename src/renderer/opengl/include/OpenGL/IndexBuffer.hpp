@@ -5,12 +5,12 @@
 #include "OpenGL/BufferId.hpp"
 #include "OpenGL/OpenGL.hpp"
 #include "OpenGL/opengl_export.h"
-#include <Core/Warnings.hpp>
+#include <Renderer/Warnings.hpp>
 #include <cstdint>
 #include <optional>
 #include <span>
 
-DISABLE_ALL_WARNINGS
+RENDERER_DISABLE_ALL_WARNINGS
 
 namespace opengl
 {
@@ -51,6 +51,6 @@ private:
 
 } // namespace opengl
 
-ENABLE_ALL_WARNINGS
+RENDERER_ENABLE_ALL_WARNINGS
 
 #endif // OPENGL_INDEXBUFFER_HPP

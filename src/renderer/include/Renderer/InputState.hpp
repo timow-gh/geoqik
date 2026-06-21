@@ -2,7 +2,7 @@
 #define RENDERER_INPUTSTATE_HPP
 
 #include <Renderer/RendererGlfw.hpp>
-#include <Core/Assert.hpp>
+#include <Renderer/Assert.hpp>
 #include <compare>
 #include <cstdint>
 #include <linal/linal.hpp>
@@ -164,7 +164,7 @@ public:
   explicit Scancode(int scancode)
       : m_scancode(scancode)
   {
-    CORE_ASSERT(is_valid());
+    RENDERER_ASSERT(is_valid());
   }
 
   int get_value() const { return m_scancode; }
@@ -194,7 +194,7 @@ public:
   explicit Codepoint(std::uint32_t codepoint)
       : m_codepoint(codepoint)
   {
-    CORE_ASSERT(is_valid());
+    RENDERER_ASSERT(is_valid());
   }
 
   std::uint32_t get_value() const { return m_codepoint; }

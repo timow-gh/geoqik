@@ -137,6 +137,30 @@ opengl::MeshDrawable make_mesh_drawable_with_alpha(opengl::MeshProgram& program,
   return std::move(drawable.value());
 }
 
+opengl::DrawablesManager::DrawableId add_mesh_drawable_with_alpha(opengl::DrawablesManager& manager,
+                                                                  const std::vector<float>& colors)
+{
+  const std::vector<float> vertices = {
+      0.0F, 0.0F, 0.0F,
+      1.0F, 0.0F, 0.0F,
+      0.0F, 1.0F, 0.0F,
+  };
+  const std::vector<float> normals = {
+      0.0F, 0.0F, 1.0F,
+      0.0F, 0.0F, 1.0F,
+      0.0F, 0.0F, 1.0F,
+  };
+  const std::vector<std::uint32_t> indices = {0U, 1U, 2U};
+
+  return manager.add_mesh_drawable(vertices,
+                                   3,
+                                   normals,
+                                   colors,
+                                   4,
+                                   indices,
+                                   opengl::BufferAccessPattern::STATIC_DRAW);
+}
+
 } // namespace
 
 TEST(DrawableTransparencyInfoTest, HandlesEdgeCasesAndSortableCollections)
@@ -332,9 +356,7 @@ TEST_F(OpenGLDrawableTest, MeshDrawableUpdatesDrawsAndMoveAssigns)
 
 TEST_F(OpenGLDrawableTest, DrawablesManagerUpdatesClearsAndDrawsTransparentPointsAndLines)
 {
-  opengl::PointProgram pointProgram = opengl::make_point_program();
-  opengl::LineProgram lineProgram = opengl::make_line_program();
-  opengl::DrawablesManager manager(&pointProgram, &lineProgram);
+  opengl::DrawablesManager manager = opengl::DrawablesManager::create().value();
 
   EXPECT_FALSE(manager.has_drawables());
   const std::vector<float> emptyFloatData;
@@ -353,7 +375,16 @@ TEST_F(OpenGLDrawableTest, DrawablesManagerUpdatesClearsAndDrawsTransparentPoint
       0.0F, 0.0F, 1.0F, 1.0F,
   };
   const std::vector<std::uint32_t> pointIndices = {0U, 1U, 2U};
-  manager.add_point_drawable(pointVertices, 3, pointColors, 4, pointIndices, 3.0F, opengl::BufferAccessPattern::STATIC_DRAW);
+  const opengl::DrawablesManager::DrawableId firstPointId =
+      manager.add_point_drawable(pointVertices, pointColors, pointIndices, 3.0F, opengl::BufferAccessPattern::STATIC_DRAW);
+  const opengl::DrawablesManager::DrawableId removedPointId =
+      manager.add_point_drawable(pointVertices, pointColors, pointIndices, 3.0F, opengl::BufferAccessPattern::STATIC_DRAW);
+  const opengl::DrawablesManager::DrawableId lastPointId =
+      manager.add_point_drawable(pointVertices, pointColors, pointIndices, 3.0F, opengl::BufferAccessPattern::STATIC_DRAW);
+  EXPECT_TRUE(manager.remove_point_drawable(removedPointId));
+  EXPECT_FALSE(manager.remove_point_drawable(removedPointId));
+  EXPECT_FALSE(manager.remove_point_drawable(0U));
+  EXPECT_TRUE(manager.has_point_drawables());
 
   const std::vector<float> lineVertices = {
       0.0F, 0.0F, 0.0F,
@@ -368,15 +399,25 @@ TEST_F(OpenGLDrawableTest, DrawablesManagerUpdatesClearsAndDrawsTransparentPoint
       0.0F, 1.0F, 0.0F, 0.5F,
   };
   const std::vector<std::uint32_t> lineIndices = {0U, 1U, 2U, 3U};
-  manager.add_line_drawable(lineVertices,
-                            3,
-                            lineIndices,
-                            lineColors,
-                            4,
-                            opengl::LineType::lines(),
-                            2.0F,
-                            1.0F,
-                            opengl::BufferAccessPattern::STATIC_DRAW);
+  const opengl::DrawablesManager::DrawableId removedLineId =
+      manager.add_line_drawable(lineVertices,
+                                lineIndices,
+                                lineColors,
+                                opengl::LineType::lines(),
+                                2.0F,
+                                1.0F,
+                                opengl::BufferAccessPattern::STATIC_DRAW);
+  const opengl::DrawablesManager::DrawableId lastLineId =
+      manager.add_line_drawable(lineVertices,
+                                lineIndices,
+                                lineColors,
+                                opengl::LineType::lines(),
+                                2.0F,
+                                1.0F,
+                                opengl::BufferAccessPattern::STATIC_DRAW);
+  EXPECT_TRUE(manager.remove_line_drawable(removedLineId));
+  EXPECT_FALSE(manager.remove_line_drawable(removedLineId));
+  EXPECT_TRUE(manager.has_line_drawables());
 
   EXPECT_TRUE(manager.has_drawables());
   EXPECT_TRUE(manager.has_point_drawables());
@@ -396,15 +437,15 @@ TEST_F(OpenGLDrawableTest, DrawablesManagerUpdatesClearsAndDrawsTransparentPoint
   manager.update_last_line_drawable(lineVertices, lineColors, emptyIndices, opengl::BufferAccessPattern::DYNAMIC_DRAW);
   manager.clear_point_drawables();
   manager.clear_line_drawables();
+  EXPECT_FALSE(manager.remove_point_drawable(firstPointId));
+  EXPECT_FALSE(manager.remove_point_drawable(lastPointId));
+  EXPECT_FALSE(manager.remove_line_drawable(lastLineId));
   EXPECT_FALSE(manager.has_drawables());
 }
 
 TEST_F(OpenGLDrawableTest, DrawablesManagerDrawsTransparentMeshesAndRestoresCullFaceAndDepthMask)
 {
-  opengl::PointProgram pointProgram = opengl::make_point_program();
-  opengl::LineProgram lineProgram = opengl::make_line_program();
-  opengl::MeshProgram meshProgram = opengl::make_mesh_program();
-  opengl::DrawablesManager manager(&pointProgram, &lineProgram);
+  opengl::DrawablesManager manager = opengl::DrawablesManager::create().value();
 
   const std::vector<float> opaqueColors = {
       1.0F, 0.0F, 0.0F, 1.0F,
@@ -416,23 +457,22 @@ TEST_F(OpenGLDrawableTest, DrawablesManagerDrawsTransparentMeshesAndRestoresCull
       0.0F, 1.0F, 0.0F, 0.5F,
       0.0F, 0.0F, 1.0F, 1.0F,
   };
-  manager.add_mesh_drawable(make_mesh_drawable_with_alpha(meshProgram, opaqueColors));
-  manager.add_mesh_drawable(make_mesh_drawable_with_alpha(meshProgram, translucentColors));
+  const opengl::DrawablesManager::DrawableId removedMeshId = add_mesh_drawable_with_alpha(manager, opaqueColors);
+  const opengl::DrawablesManager::DrawableId lastMeshId = add_mesh_drawable_with_alpha(manager, translucentColors);
+  EXPECT_TRUE(manager.remove_mesh_drawable(removedMeshId));
+  EXPECT_FALSE(manager.remove_mesh_drawable(removedMeshId));
   EXPECT_TRUE(manager.has_mesh_drawables());
 
   glEnable(GL_CULL_FACE);
   glDepthMask(GL_TRUE);
-  manager.draw_meshes(matrix(),
-                      matrix(),
-                      matrix(),
-                      matrix(),
-                      linal::float3{0.0F, 0.0F, 1.0F},
-                      linal::float3{0.0F, 0.0F, 0.0F},
-                      linal::float3{1.0F, 1.0F, 1.0F},
-                      linal::float3{-0.45F, 0.60F, 0.35F},
-                      linal::float3{0.2F, 0.2F, 0.3F},
-                      linal::float3{0.1F, 0.1F, 0.1F},
-                      8.0F);
+  opengl::LightingConfig lighting;
+  lighting.lightPosition  = linal::float3{0.0F, 0.0F, 1.0F};
+  lighting.lightColor     = linal::float3{1.0F, 1.0F, 1.0F};
+  lighting.fillLightDir   = linal::float3{-0.45F, 0.60F, 0.35F};
+  lighting.fillLightColor = linal::float3{0.2F,   0.2F,  0.3F};
+  lighting.ambientColor   = linal::float3{0.1F,   0.1F,  0.1F};
+  lighting.shininess      = 8.0F;
+  manager.draw_meshes(matrix(), matrix(), matrix(), matrix(), linal::float3{0.0F, 0.0F, 0.0F}, lighting);
 
   GLboolean depthMask = GL_FALSE;
   glGetBooleanv(GL_DEPTH_WRITEMASK, &depthMask);
@@ -440,6 +480,7 @@ TEST_F(OpenGLDrawableTest, DrawablesManagerDrawsTransparentMeshesAndRestoresCull
   EXPECT_EQ(GL_TRUE, glIsEnabled(GL_CULL_FACE));
 
   manager.clear_mesh_drawables();
+  EXPECT_FALSE(manager.remove_mesh_drawable(lastMeshId));
   EXPECT_FALSE(manager.has_mesh_drawables());
   manager.clear_drawables();
   EXPECT_FALSE(manager.has_drawables());

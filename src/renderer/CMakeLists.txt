@@ -1,4 +1,7 @@
 set(renderer_HEADER_FILES
+        include/Renderer/Assert.hpp
+        include/Renderer/Warnings.hpp
+        include/Renderer/DLLWarnings.hpp
         include/Renderer/RendererGlfw.hpp
         include/Renderer/WindowSettings.hpp
         include/Renderer/InputState.hpp
@@ -14,6 +17,7 @@ set(renderer_HEADER_FILES
         include/Renderer/RayPlaneIntersection.hpp
         include/Renderer/CameraInteractor.hpp
         include/Renderer/ImGuiOverlay.hpp
+        include/Renderer/Renderer.hpp
 )
 
 set(renderer_SOURCE_FILES
@@ -22,6 +26,7 @@ set(renderer_SOURCE_FILES
         source/Camera.cpp
         source/CameraAutoFit.cpp
         source/ImGuiOverlay.cpp
+        source/Renderer.cpp
 )
 
 set(TARGET_NAME renderer_renderer)
@@ -56,7 +61,6 @@ add_library(renderer::renderer ALIAS ${TARGET_NAME})
 target_link_libraries(${TARGET_NAME}
         PUBLIC
         renderer::opengl
-        geoqik::core
         glad::glad
         glfw
         $<BUILD_LOCAL_INTERFACE:linal::linal>

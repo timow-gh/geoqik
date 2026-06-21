@@ -7,14 +7,14 @@
 #include <Renderer/PickRay.hpp>
 #include <Renderer/CameraProjectionType.hpp>
 #include <Renderer/RayPlaneIntersection.hpp>
-#include <Core/Warnings.hpp>
+#include <Renderer/Warnings.hpp>
 #include <Geometry/Plane.hpp>
 #include <algorithm>
-DISABLE_ALL_WARNINGS
+RENDERER_DISABLE_ALL_WARNINGS
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/ext/quaternion_double.hpp>
 #include <glm/gtx/quaternion.hpp>
-ENABLE_ALL_WARNINGS
+RENDERER_ENABLE_ALL_WARNINGS
 #include <iostream>
 #include <linal/linal.hpp>
 
@@ -203,7 +203,7 @@ public:
     }
     default:
     {
-      CORE_ASSERT(false);
+      RENDERER_ASSERT(false);
       return;
     }
     }
@@ -387,7 +387,7 @@ public:
     case CameraProjectionType::ORTHOGRAPHIC: return m_camera.create_orthographic_ray(xpos, ypos);
     default:
     {
-      CORE_ASSERT(false);
+      RENDERER_ASSERT(false);
       return {};
     }
     }
@@ -424,7 +424,7 @@ private:
     case CameraProjectionType::ORTHOGRAPHIC: return to_hmatf(m_camera.get_ortho_projection_matrix());
     default:
     {
-      CORE_ASSERT(false);
+      RENDERER_ASSERT(false);
       return {};
     }
     }
@@ -439,7 +439,7 @@ private:
     case CameraProjectionType::ORTHOGRAPHIC: m_currentMVP = m_camera.get_ortho_mvp(); break;
     default:
     {
-      CORE_ASSERT(false);
+      RENDERER_ASSERT(false);
       return;
     }
     }

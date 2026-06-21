@@ -1,6 +1,6 @@
 #include "OpenGL/VertexArray.hpp"
 
-#include <Core/Assert.hpp>
+#include <Renderer/Assert.hpp>
 #include <utility>
 
 namespace opengl
@@ -9,7 +9,7 @@ namespace opengl
 VertexArray::VertexArray(GLuint id)
     : m_id(id)
 {
-  CORE_ASSERT(id != 0);
+  RENDERER_ASSERT(id != 0);
 }
 
 VertexArray::VertexArray(VertexArray&& other) noexcept
@@ -47,7 +47,7 @@ std::optional<VertexArray> VertexArray::create()
   glGenVertexArrays(1, &id);
   if (id == 0)
   {
-    CORE_ASSERT(false);
+    RENDERER_ASSERT(false);
     return std::nullopt;
   }
 
@@ -58,7 +58,7 @@ std::optional<VertexArray> VertexArray::create()
 
 void VertexArray::bind() const
 {
-  CORE_ASSERT(m_id.has_value());
+  RENDERER_ASSERT(m_id.has_value());
   glBindVertexArray(m_id.value());
 }
 

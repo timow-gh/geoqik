@@ -1,14 +1,13 @@
-#include "Core/Warnings.hpp"
-
-#include <Core/Assert.hpp>
+#include <Renderer/Assert.hpp>
 #include <Renderer/ImGuiOverlay.hpp>
+#include <Renderer/Warnings.hpp>
 #include <array>
 
-DISABLE_ALL_WARNINGS
+RENDERER_DISABLE_ALL_WARNINGS
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
-ENABLE_ALL_WARNINGS
+RENDERER_ENABLE_ALL_WARNINGS
 
 namespace renderer
 {
@@ -16,7 +15,7 @@ namespace renderer
 ImGuiOverlay::ImGuiOverlay(GLFWwindow* window)
     : m_window(window)
 {
-  CORE_ASSERT(m_window != nullptr);
+  RENDERER_ASSERT(m_window != nullptr);
 
   IMGUI_CHECKVERSION();
   ImGui::CreateContext();
@@ -40,23 +39,38 @@ void ImGuiOverlay::new_frame() // NOLINT(readability-convert-member-functions-to
   ImGui::NewFrame();
 }
 
-void ImGuiOverlay::draw_controls(bool& autoZoomEnabled, CameraProjectionType& projectionType) // NOLINT(readability-convert-member-functions-to-static)
+void ImGuiOverlay::add_camera_controls(bool& autoZoomEnabled, CameraProjectionType& projectionType)
 {
-  ImGui::Begin("Camera");
-  ImGui::Checkbox("Auto Zoom", &autoZoomEnabled);
+  m_controls.emplace_back(
+      [&autoZoomEnabled, &projectionType]()
+      {
+        ImGui::Begin("Camera");
+        ImGui::Checkbox("Auto Zoom", &autoZoomEnabled);
 
-  constexpr std::array<const char*, 2> projectionItems = {"Perspective", "Orthographic"}; // NOLINT(modernize-avoid-c-arrays)
-  int currentItem = static_cast<int>(projectionType);
-  if (ImGui::Combo("Projection", &currentItem, projectionItems.data(), static_cast<int>(projectionItems.size())))
-  {
-    projectionType = static_cast<CameraProjectionType>(currentItem);
-  }
+        constexpr std::array<const char*, 2> projectionItems = {
+            "Perspective",
+            "Orthographic"};
+        int currentItem = static_cast<int>(projectionType);
+        if (ImGui::Combo("Projection",
+                         &currentItem,
+                         projectionItems.data(),
+                         static_cast<int>(projectionItems.size())))
+        {
+          projectionType = static_cast<CameraProjectionType>(currentItem);
+        }
 
-  ImGui::End();
+        ImGui::End();
+      });
 }
 
-void ImGuiOverlay::render() // NOLINT(readability-convert-member-functions-to-static)
+void ImGuiOverlay::render()
 {
+  for (const auto& control : m_controls)
+  {
+    control();
+  }
+  m_controls.clear();
+
   ImGui::Render();
   ImDrawData* drawData = ImGui::GetDrawData();
   if (drawData != nullptr && drawData->Valid)
@@ -83,8 +97,12 @@ bool ImGuiOverlay::handle_cursor_position(double xpos, double ypos)
 
 bool ImGuiOverlay::handle_mouse_button(int button, Action action, Mods mods)
 {
-  ImGui_ImplGlfw_MouseButtonCallback(m_window, button, static_cast<int>(action), static_cast<int>(mods));
-  return m_inputCaptureState.should_forward_mouse_button(button, action, ImGui::GetIO().WantCaptureMouse);
+  ImGui_ImplGlfw_MouseButtonCallback(m_window,
+                                     button,
+                                     static_cast<int>(action),
+                                     static_cast<int>(mods));
+  return m_inputCaptureState
+      .should_forward_mouse_button(button, action, ImGui::GetIO().WantCaptureMouse);
 }
 
 bool ImGuiOverlay::handle_scroll(double xoffset, double yoffset)

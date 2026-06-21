@@ -1,6 +1,6 @@
 #include "OpenGL/Drawable/MeshDrawable.hpp"
 
-#include <Core/Assert.hpp>
+#include <Renderer/Assert.hpp>
 #include <utility>
 
 namespace opengl
@@ -12,7 +12,7 @@ namespace
 template <typename Drawable>
 std::optional<Drawable> make_failed_drawable()
 {
-  CORE_ASSERT(false);
+  RENDERER_ASSERT(false);
   return std::nullopt;
 }
 
@@ -87,7 +87,7 @@ void MeshDrawable::draw(const linal::hmatf& modelMatrix,
                         const linal::float3& ambientColor,
                         float shininess) const
 {
-  CORE_ASSERT(m_program != nullptr);
+  RENDERER_ASSERT(m_program != nullptr);
   const auto& prog = *m_program;
   prog.use();
 

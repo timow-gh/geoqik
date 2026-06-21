@@ -1,7 +1,7 @@
 #include "OpenGL/Programs/MeshProgram.hpp"
 #include "OpenGL/Programs/CreateProgram.hpp"
 #include "OpenGL/ShaderSources.hpp"
-#include <Core/Assert.hpp>
+#include <Renderer/Assert.hpp>
 #include <utility>
 
 namespace opengl
@@ -11,7 +11,7 @@ MeshProgram::MeshProgram(ProgramHandle program, const MeshProgramInput& input) n
     : m_program{std::move(program)}
     , m_input{input}
 {
-  CORE_ASSERT(m_program.is_valid());
+  RENDERER_ASSERT(m_program.is_valid());
   assert_mesh_program_input(input);
 }
 
@@ -29,12 +29,12 @@ MeshProgram make_mesh_program() {
   ProgramCreationResult programCreation = create_program(mesh_vertex_shader_source().data(), mesh_fragment_shader_source().data());
   if (!programCreation.has_value())
   {
-    CORE_ASSERT(false);
+    RENDERER_ASSERT(false);
     return {};
   }
   ProgramHandle program = std::move(programCreation).value();
   ProgramId id = program.get_id();
-  CORE_ASSERT(id.get_value() != 0);
+  RENDERER_ASSERT(id.get_value() != 0);
 
   MeshProgramInput input = {.m_modelMatrix = make_uniform("u_model", id),
                             .m_viewMatrix = make_uniform("u_view", id),

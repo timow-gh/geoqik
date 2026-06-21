@@ -1,6 +1,6 @@
 #include "OpenGL/Drawable/LineDrawable.hpp"
 
-#include <Core/Assert.hpp>
+#include <Renderer/Assert.hpp>
 #include <utility>
 
 namespace opengl
@@ -145,7 +145,7 @@ void LineDrawable::draw_index_buffer(const linal::hmatf& mvp, const IndexBuffer&
     return;
   }
 
-  CORE_ASSERT(m_program != nullptr);
+  RENDERER_ASSERT(m_program != nullptr);
   auto& prog = *m_program;
   prog.use();
   glUniformMatrix4fv(prog.get_mvp_location().get_value(), 1, GL_FALSE, mvp.data());
@@ -185,7 +185,7 @@ std::optional<LineDrawable> make_line_drawable(LineProgram& program,
   auto vertexArray = VertexArray::create();
   if (!vertexArray.has_value())
   {
-    CORE_ASSERT(false);
+    RENDERER_ASSERT(false);
     return std::nullopt;
   }
   auto vertexBuffer = VertexBuffer::create(lineVertices, lineVertexDimension, program.get_vertex_location(), accessPattern);
