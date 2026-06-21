@@ -23,10 +23,19 @@ public:
   ImGuiOverlay(ImGuiOverlay&&) = delete;
   ImGuiOverlay& operator=(ImGuiOverlay&&) = delete;
   ~ImGuiOverlay();
+
+  // \brief Starts a new ImGui frame. Must be called before adding any controls or rendering the overlay.
   void new_frame();
-  void draw_controls(bool& autoZoomEnabled, CameraProjectionType& projectionType);
+  // \brief Adds a custom control to the overlay. The provided function will be called every frame when rendering the overlay, allowing the caller to define custom ImGui controls.
+  void add_control(std::function<void()> controlFunc);
+  // \brief Adds default camera settings to the overlay.
+  void add_camera_controls(bool& autoZoomEnabled, CameraProjectionType& projectionType);
+  // \brief Renders the ImGui overlay by calling all registered control functions and issuing draw calls.
   void render();
+  // \brief If no call to \ref render() occurs, call end_frame to ensure ImGui's internal state is updated correctly.
   void end_frame();
+  
+  [[nodiscard]] bool wants_mouse() const;
 
   [[nodiscard]] bool wants_keyboard() const;
   [[nodiscard]] bool handle_cursor_position(double xpos, double ypos);
@@ -34,6 +43,9 @@ public:
   [[nodiscard]] bool handle_scroll(double xoffset, double yoffset);
   [[nodiscard]] bool handle_key(Key key, Scancode scancode, Action action, Mods mods);
   void handle_char(std::uint32_t codepoint);
+
+  private:
+    std::vector<std::function<void()>> m_controls;
 };
 
 } // namespace renderer

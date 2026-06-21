@@ -518,9 +518,10 @@ void Context::run_event_loop()
     meshParams.fillLightColor = scale_rgb(m_geoqikSettings.meshFillLightColor, m_geoqikSettings.meshFillLightIntensity);
     meshParams.ambientColor = scale_rgb(m_geoqikSettings.meshAmbientColor, m_geoqikSettings.meshAmbientIntensity);
     meshParams.shininess = std::max(0.0F, m_geoqikSettings.meshShininess);
+
     m_renderer->draw(mvp, m_cameraInteractor->get_position(), meshParams);
     CameraProjectionType projType = m_cameraInteractor->get_projection_type();
-    m_imguiOverlay->draw_controls(m_geoqikSettings.autoFitCameraEnabled, projType);
+    m_imguiOverlay->add_camera_controls(m_geoqikSettings.autoFitCameraEnabled, projType);
     if (projType != m_cameraInteractor->get_projection_type())
     {
       m_cameraInteractor->set_projection_type(projType);

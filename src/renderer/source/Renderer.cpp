@@ -7,11 +7,6 @@ namespace
 {
 
 constexpr linal::double3 defaultCameraPosition{5.0, 5.0, 5.0};
-constexpr linal::float3 defaultLightColor{1.0F, 1.0F, 1.0F};
-constexpr linal::float3 defaultFillLightDirection{-0.45F, 0.60F, 0.35F};
-constexpr linal::float3 defaultFillLightColor{0.2F, 0.2F, 0.3F};
-constexpr linal::float3 defaultAmbientColor{0.1F, 0.1F, 0.1F};
-constexpr float defaultShininess = 8.0F;
 
 } // namespace
 
@@ -135,7 +130,7 @@ DrawableHandle Renderer::add_point_drawable(std::span<const float> vertices,
                                             float pointSize,
                                             opengl::BufferAccessPattern accessPattern)
 {
-  const auto id = m_drawablesManager.add_point_drawable(vertices, 3, colors, 4, indices, pointSize, accessPattern);
+  const auto id = m_drawablesManager.add_point_drawable(vertices, colors, indices, pointSize, accessPattern);
   return DrawableHandle{DrawableKind::point, id};
 }
 
@@ -147,7 +142,7 @@ DrawableHandle Renderer::add_line_drawable(std::span<const float> vertices,
                                            float pointSize,
                                            opengl::BufferAccessPattern accessPattern)
 {
-  const auto id = m_drawablesManager.add_line_drawable(vertices, 3, indices, colors, 4, lineType, lineWidth, pointSize, accessPattern);
+  const auto id = m_drawablesManager.add_line_drawable(vertices, indices, colors, lineType, lineWidth, pointSize, accessPattern);
   return DrawableHandle{DrawableKind::line, id};
 }
 
@@ -238,27 +233,22 @@ void Renderer::draw()
         static_cast<float>(m_camera.get_position()[1]),
         static_cast<float>(m_camera.get_position()[2])};
 
+    opengl::LightingConfig lighting;
+    lighting.lightPosition = viewPosF;
     m_drawablesManager.draw_meshes(m_camera.get_model_matrix(),
                                    m_camera.get_view_matrix(),
                                    m_camera.get_projection_matrix(),
                                    m_camera.get_normal_matrix(),
                                    viewPosF,
-                                   viewPosF,
-                                   defaultLightColor,
-                                   defaultFillLightDirection,
-                                   defaultFillLightColor,
-                                   defaultAmbientColor,
-                                   defaultShininess);
+                                   lighting);
   }
 }
 
 void Renderer::end_frame()
 {
-  m_imgui->new_frame();
-
   CameraProjectionType projectionType = m_camera.get_projection_type();
   bool autoZoom = false;
-  m_imgui->draw_controls(autoZoom, projectionType);
+  m_imgui->add_camera_controls(autoZoom, projectionType);
   if (projectionType != m_camera.get_projection_type())
   {
     m_camera.set_projection_type(projectionType);

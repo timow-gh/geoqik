@@ -19,6 +19,16 @@
 namespace opengl
 {
 
+struct LightingConfig
+{
+  linal::float3 lightPosition   {0.0F, 0.0F, 10.0F};
+  linal::float3 lightColor      {1.0F, 1.0F,  1.0F};
+  linal::float3 fillLightDir    {-0.45F, 0.60F, 0.35F};
+  linal::float3 fillLightColor  {0.2F,  0.2F,  0.3F};
+  linal::float3 ambientColor    {0.1F,  0.1F,  0.1F};
+  float         shininess       {8.0F};
+};
+
 class DrawablesManager
 {
 public:
@@ -138,18 +148,16 @@ public:
     return id;
   }
   DrawableId add_point_drawable(std::span<const float> vertices,
-                                std::int32_t vertexDimension,
                                 std::span<const float> colors,
-                                std::int32_t colorDimension,
                                 std::span<const std::uint32_t> indices,
                                 float pointSize,
                                 opengl::BufferAccessPattern accessPattern)
   {
     auto drawable = opengl::make_point_drawable(get_point_program(),
                                                 vertices,
-                                                vertexDimension,
+                                                3,
                                                 colors,
-                                                colorDimension,
+                                                4,
                                                 indices,
                                                 pointSize,
                                                 accessPattern);
@@ -161,22 +169,20 @@ public:
     return add_point_drawable(std::move(drawable.value()));
   }
 
-  DrawableId add_line_drawable(std::span<const float> lineVertices,
-                               std::int32_t lineVertexDimension,
-                               std::span<const std::uint32_t> lineIndices,
-                               std::span<const float> lineColors,
-                               std::int32_t colorDimension,
+  DrawableId add_line_drawable(std::span<const float> vertices,
+                               std::span<const std::uint32_t> indices,
+                               std::span<const float> colors,
                                opengl::LineType lineType,
                                float lineWidth,
                                float pointSize,
                                opengl::BufferAccessPattern accessPattern)
   {
     auto drawable = opengl::make_line_drawable(get_line_program(),
-                                               lineVertices,
-                                               lineVertexDimension,
-                                               lineIndices,
-                                               lineColors,
-                                               colorDimension,
+                                               vertices,
+                                               3,
+                                               indices,
+                                               colors,
+                                               4,
                                                lineType,
                                                lineWidth,
                                                pointSize,
@@ -377,13 +383,8 @@ public:
                    const linal::hmatf& viewMatrix,
                    const linal::hmatf& projectionMatrix,
                    const linal::hmatf& normalMatrix,
-                   const linal::float3& lightPosition,
                    const linal::float3& viewPos,
-                   const linal::float3& lightColor,
-                   const linal::float3& fillLightDirection,
-                   const linal::float3& fillLightColor,
-                   const linal::float3& ambientColor,
-                   float shininess) const
+                   const LightingConfig& lighting = LightingConfig{}) const
   {
     struct TransparentMesh
     {
@@ -410,13 +411,13 @@ public:
                       viewMatrix,
                       projectionMatrix,
                       normalMatrix,
-                      lightPosition,
+                      lighting.lightPosition,
                       viewPos,
-                      lightColor,
-                      fillLightDirection,
-                      fillLightColor,
-                      ambientColor,
-                      shininess);
+                      lighting.lightColor,
+                      lighting.fillLightDir,
+                      lighting.fillLightColor,
+                      lighting.ambientColor,
+                      lighting.shininess);
       }
     }
 
@@ -438,13 +439,13 @@ public:
                                                            viewMatrix,
                                                            projectionMatrix,
                                                            normalMatrix,
-                                                           lightPosition,
+                                                           lighting.lightPosition,
                                                            viewPos,
-                                                           lightColor,
-                                                           fillLightDirection,
-                                                           fillLightColor,
-                                                           ambientColor,
-                                                           shininess);
+                                                           lighting.lightColor,
+                                                           lighting.fillLightDir,
+                                                           lighting.fillLightColor,
+                                                           lighting.ambientColor,
+                                                           lighting.shininess);
     }
   }
 

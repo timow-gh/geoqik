@@ -105,17 +105,19 @@ void OpenGLSceneRenderer::draw(const linal::hmatf& mvp, const linal::double3& vi
   m_drawablesManager.draw_lines_and_points(mvp, viewPosition);
   if (m_drawablesManager.has_mesh_drawables())
   {
+    opengl::LightingConfig lighting;
+    lighting.lightPosition  = meshParams.lightPosition;
+    lighting.lightColor     = meshParams.lightColor;
+    lighting.fillLightDir   = meshParams.fillLightDirection;
+    lighting.fillLightColor = meshParams.fillLightColor;
+    lighting.ambientColor   = meshParams.ambientColor;
+    lighting.shininess      = meshParams.shininess;
     m_drawablesManager.draw_meshes(meshParams.modelMatrix,
                                    meshParams.viewMatrix,
                                    meshParams.projectionMatrix,
                                    meshParams.normalMatrix,
-                                   meshParams.lightPosition,
                                    meshParams.viewPos,
-                                   meshParams.lightColor,
-                                   meshParams.fillLightDirection,
-                                   meshParams.fillLightColor,
-                                   meshParams.ambientColor,
-                                   meshParams.shininess);
+                                   lighting);
   }
 }
 
@@ -133,9 +135,7 @@ void OpenGLSceneRenderer::create_point_drawable(const Scene& scene)
   }
 
   m_drawablesManager.add_point_drawable(pointBuffer.get_points(),
-                                        PointBuffer::get_point_dimension(),
                                         pointBuffer.get_point_colors(),
-                                        PointBuffer::get_color_dimension(),
                                         pointBuffer.get_point_indices(),
                                         scene.get_point_size(),
                                         opengl::BufferAccessPattern::STATIC_DRAW);
@@ -150,10 +150,8 @@ void OpenGLSceneRenderer::create_line_drawable(const Scene& scene)
   }
 
   m_drawablesManager.add_line_drawable(lineBuffer.get_lines(),
-                                       LineBuffer::get_point_dimension(),
                                        lineBuffer.get_line_indices(),
                                        lineBuffer.get_line_colors(),
-                                       LineBuffer::get_color_dimension(),
                                        m_lineType,
                                        scene.get_line_width(),
                                        scene.get_point_size(),

@@ -26,15 +26,17 @@ int main()
   }
 
   // One point at the origin.
-  const std::array<float, 3>        pointVertices{0.0F, 0.0F, 0.0F};
-  const std::array<float, 4>        pointColors{1.0F, 1.0F, 0.0F, 1.0F}; // yellow
-  const std::array<std::uint32_t,1> pointIndices{0};
+  const std::array<float, 3> pointVertices{0.0F, 0.0F, 0.0F};
+  const std::array<float, 4> pointColors{1.0F, 1.0F, 0.0F, 1.0F}; // yellow
+  const std::array<std::uint32_t, 1> pointIndices{0};
   renderer->add_point_drawable(pointVertices, pointColors, pointIndices, standalonePointSize);
 
   const std::array<float, 3> removablePointVertices{0.0F, 0.0F, 1.0F};
-  const auto removablePoint =
-      renderer->add_point_drawable(removablePointVertices, pointColors, pointIndices, standalonePointSize);
-  (void)renderer->remove_drawable(removablePoint);
+  const auto removablePoint = renderer->add_point_drawable(removablePointVertices,
+                                                           pointColors,
+                                                           pointIndices,
+                                                           standalonePointSize);
+  renderer->remove_drawable(removablePoint);
 
   // A cross made of two line segments through the origin.
   const std::array<float, 12> lineVertices{
@@ -48,8 +50,11 @@ int main()
       0.0F, 1.0F, 0.0F, 1.0F,
       0.0F, 1.0F, 0.0F, 1.0F};
   const std::array<std::uint32_t, 4> lineIndices{0, 1, 2, 3};
-  renderer->add_line_drawable(lineVertices, lineIndices, lineColors,
-                      opengl::LineType::lines(), standaloneLineWidth);
+  renderer->add_line_drawable(lineVertices,
+                              lineIndices,
+                              lineColors,
+                              opengl::LineType::lines(),
+                              standaloneLineWidth);
 
   while (!renderer->should_close())
   {
@@ -60,7 +65,6 @@ int main()
     }
     renderer->begin_frame();
     renderer->draw();
-    renderer->end_frame();
   }
 
   return 0;
