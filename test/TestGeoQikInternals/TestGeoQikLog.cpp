@@ -156,3 +156,56 @@ TEST(GeoQikLogTest, BinaryLoadRejectsCorruptHeadersAndVersion)
   (void)std::filesystem::remove(badVersionPath);
   (void)std::filesystem::remove(truncatedPath);
 }
+
+TEST(GeoQikLogTest, MeshMessages_RoundTrip)
+{
+  using namespace geoqik;
+
+  const std::vector<float> verts = {0.0f, 0.0f, 0.0f,  1.0f, 0.0f, 0.0f,  0.0f, 1.0f, 0.0f};
+  const std::vector<std::uint32_t> idx = {0, 1, 2};
+  GeoQikMessageCommonData common;
+  common.geometryId    = make_uuid(50);
+  common.idempotencyId = make_uuid(60);
+  common.rgba          = {0.2f, 0.4f, 0.6f, 1.0f};
+
+  const core::UUID meshHandle = make_uuid(70);
+
+  const std::vector<GeoQikLogEntry> entries{
+      AddMeshWithOpts{verts, {}, {}, idx, common},
+      RemoveMesh{meshHandle},
+      UpdateMeshWithOpts{meshHandle, verts, {}, {}},
+      SetMeshColor{Color{0.1f, 0.2f, 0.3f, 1.0f}}};
+
+  std::stringstream stream(std::ios::in | std::ios::out | std::ios::binary);
+  MessageWriter writer(stream);
+  for (const GeoQikLogEntry& entry : entries)
+  {
+    writer.write(entry);
+  }
+
+  stream.seekg(0);
+  MessageReader reader(stream);
+  std::vector<GeoQikLogEntry> loaded;
+  loaded.reserve(entries.size());
+  for (std::size_t i = 0; i < entries.size(); ++i)
+  {
+    loaded.push_back(reader.read());
+  }
+
+  EXPECT_EQ(entries, loaded);
+}
+
+TEST(GeoQikLogTest, MeshMessages_CreateLogEntry_IsRecorded)
+{
+  using namespace geoqik;
+
+  const std::vector<float> verts = {0.0f, 0.0f, 0.0f,  1.0f, 0.0f, 0.0f,  0.0f, 1.0f, 0.0f};
+  const std::vector<std::uint32_t> idx = {0, 1, 2};
+  GeoQikMessageCommonData common;
+  common.geometryId = make_uuid(80);
+
+  EXPECT_TRUE(create_log_entry(GeoQikMessage{AddMeshWithOpts{verts, {}, {}, idx, common}}).has_value());
+  EXPECT_TRUE(create_log_entry(GeoQikMessage{RemoveMesh{make_uuid(81)}}).has_value());
+  EXPECT_TRUE(create_log_entry(GeoQikMessage{UpdateMeshWithOpts{make_uuid(82), verts, {}, {}}}).has_value());
+  EXPECT_TRUE(create_log_entry(GeoQikMessage{SetMeshColor{Color{0.5f, 0.5f, 0.5f, 1.0f}}}).has_value());
+}

@@ -18,9 +18,9 @@ struct SceneSnapshot
 {
   PointBufferSnapshot pointBuffer;
   LineBufferSnapshot lineBuffer;
+  MeshBufferSnapshot meshBuffer;
   float pointSize{3.0f};
   float lineWidth{1.0f};
-  // Mesh buffer state is intentionally not included. The serialization follow-up plan must add MeshBufferSnapshot here.
 };
 
 class Scene

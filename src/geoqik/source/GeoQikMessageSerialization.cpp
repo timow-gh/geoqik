@@ -35,7 +35,10 @@ enum class SerializedMessageType : std::uint32_t // NOLINT(performance-enum-size
   UpdatePointsWithOpts = 15,
   UpdateLineWithOpts = 16,
   UpdateLinesWithOpts = 17,
-  SetMeshColor = 18
+  SetMeshColor = 18,
+  AddMeshWithOpts = 19,
+  RemoveMesh = 20,
+  UpdateMeshWithOpts = 21
 };
 
 constexpr auto serialized_message_type_value(SerializedMessageType type)
@@ -298,6 +301,28 @@ void MessageWriter::write(const GeoQikLogEntry& message)
           write_pod(m_stream, SerializedMessageType::SetMeshColor);
           write_color(m_stream, value.color);
         }
+        else if constexpr (std::is_same_v<T, AddMeshWithOpts>)
+        {
+          write_pod(m_stream, SerializedMessageType::AddMeshWithOpts);
+          write_common_data(m_stream, value.commonData);
+          write_float_vector(m_stream, value.vertices);
+          write_float_vector(m_stream, value.normals);
+          write_pod(m_stream, static_cast<std::uint64_t>(value.triangleIndices.size()));
+          for (std::uint32_t idx : value.triangleIndices) write_pod(m_stream, idx);
+        }
+        else if constexpr (std::is_same_v<T, RemoveMesh>)
+        {
+          write_pod(m_stream, SerializedMessageType::RemoveMesh);
+          write_uuid(m_stream, value.handle);
+        }
+        else if constexpr (std::is_same_v<T, UpdateMeshWithOpts>)
+        {
+          write_pod(m_stream, SerializedMessageType::UpdateMeshWithOpts);
+          write_uuid(m_stream, value.handle);
+          write_float_vector(m_stream, value.vertices);
+          write_float_vector(m_stream, value.normals);
+          write_float_vector(m_stream, value.colors);
+        }
       },
       message);
 }
@@ -369,6 +394,26 @@ GeoQikLogEntry MessageReader::read()
     color[2] = read_pod<float>(m_stream);
     color[3] = read_pod<float>(m_stream);
     return SetMeshColor{color};
+  }
+  case serialized_message_type_value(SerializedMessageType::AddMeshWithOpts):
+  {
+    GeoQikMessageCommonData common = read_common_data(m_stream);
+    std::vector<float> verts = read_float_vector(m_stream);
+    std::vector<float> norms = read_float_vector(m_stream);
+    const auto idxCount = read_pod<std::uint64_t>(m_stream);
+    std::vector<std::uint32_t> idxs(static_cast<std::size_t>(idxCount));
+    for (auto& i : idxs) i = read_pod<std::uint32_t>(m_stream);
+    return AddMeshWithOpts{std::move(verts), std::move(norms), {}, std::move(idxs), std::move(common)};
+  }
+  case serialized_message_type_value(SerializedMessageType::RemoveMesh):
+    return RemoveMesh{read_uuid(m_stream)};
+  case serialized_message_type_value(SerializedMessageType::UpdateMeshWithOpts):
+  {
+    auto handle = read_uuid(m_stream);
+    std::vector<float> verts = read_float_vector(m_stream);
+    std::vector<float> norms = read_float_vector(m_stream);
+    std::vector<float> colors = read_float_vector(m_stream);
+    return UpdateMeshWithOpts{handle, std::move(verts), std::move(norms), std::move(colors)};
   }
   default: throw std::runtime_error("Unknown GeoQik message type");
   }

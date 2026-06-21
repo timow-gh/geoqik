@@ -47,6 +47,9 @@ struct ReplayUndoContext
 [[nodiscard]] ReplayUndoFrame make_replay_undo_frame(const RemoveAllGeometry& message, const ReplayUndoContext& context);
 [[nodiscard]] ReplayUndoFrame make_replay_undo_frame(const TranslateGeometry& message, const ReplayUndoContext& context);
 [[nodiscard]] ReplayUndoFrame make_replay_undo_frame(const RotateGeometry& message, const ReplayUndoContext& context);
+[[nodiscard]] ReplayUndoFrame make_replay_undo_frame(const AddMeshWithOpts& message, const ReplayUndoContext& context);
+[[nodiscard]] ReplayUndoFrame make_replay_undo_frame(const RemoveMesh& message, const ReplayUndoContext& context);
+[[nodiscard]] ReplayUndoFrame make_replay_undo_frame(const UpdateMeshWithOpts& message, const ReplayUndoContext& context);
 
 [[nodiscard]] ReplayUndoFrame create_replay_undo_frame(const GeoQikLogEntry& entry, const ReplayUndoContext& context);
 

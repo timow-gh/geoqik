@@ -868,7 +868,6 @@ void Context::handle_message(const AddMeshWithOpts& message)
   }
   add_mesh_with_opts(message.vertices, message.normals, message.commonData.rgba,
                      message.triangleIndices, message.commonData);
-  // Mesh messages not added to m_messageLog in this phase.
 }
 
 void Context::add_mesh_with_opts(std::span<const float> vertices,

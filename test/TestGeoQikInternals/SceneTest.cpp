@@ -238,3 +238,20 @@ TEST(SceneTest, UpdatesPointAndLineGeometry)
   EXPECT_FLOAT_EQ(lines[5], 12.0f);
   EXPECT_FLOAT_EQ(scene.get_line_buffer().get_line_colors()[0], 0.6f);
 }
+
+TEST(SceneTest, SceneSnapshot_IncludesMeshBuffer)
+{
+  auto scene = geoqik::Scene::create(make_scene_test_settings());
+
+  std::vector<float> v  = {0.0f, 0.0f, 0.0f,  1.0f, 0.0f, 0.0f,  0.0f, 1.0f, 0.0f};
+  std::vector<uint32_t> idx = {0, 1, 2};
+  core::UUID handle = core::UUID::generate();
+  scene.add_mesh(v, {}, {}, idx, &handle);
+
+  auto snap = scene.create_snapshot();
+  scene.clear();
+  EXPECT_TRUE(scene.get_mesh_buffer().empty());
+
+  scene.restore_snapshot(snap);
+  EXPECT_FALSE(scene.get_mesh_buffer().empty());
+}

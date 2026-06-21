@@ -156,9 +156,10 @@ SceneSnapshot Scene::create_snapshot() const
 {
   SceneSnapshot snapshot;
   snapshot.pointBuffer = m_pointBuffer->create_snapshot();
-  snapshot.lineBuffer = m_lineBuffer->create_snapshot();
-  snapshot.pointSize = m_pointSize;
-  snapshot.lineWidth = m_lineWidth;
+  snapshot.lineBuffer  = m_lineBuffer->create_snapshot();
+  snapshot.meshBuffer  = m_meshBuffer->create_snapshot();
+  snapshot.pointSize   = m_pointSize;
+  snapshot.lineWidth   = m_lineWidth;
   return snapshot;
 }
 
@@ -166,6 +167,7 @@ void Scene::restore_snapshot(const SceneSnapshot& snapshot)
 {
   m_pointBuffer->restore_snapshot(snapshot.pointBuffer);
   m_lineBuffer->restore_snapshot(snapshot.lineBuffer);
+  m_meshBuffer->restore_snapshot(snapshot.meshBuffer);
   m_pointSize = snapshot.pointSize;
   m_lineWidth = snapshot.lineWidth;
 }

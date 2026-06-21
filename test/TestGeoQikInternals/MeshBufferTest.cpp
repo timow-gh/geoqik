@@ -344,3 +344,29 @@ TEST_F(MeshBufferTest, Clear_EmptiesBufferAndSetsChanged)
   EXPECT_EQ(buffer->get_colors().size(), 0u);
   EXPECT_EQ(buffer->get_triangle_indices().size(), 0u);
 }
+
+// =============================================================================
+// Test: create_snapshot / restore_snapshot preserves all data
+// =============================================================================
+
+TEST_F(MeshBufferTest, SnapshotRestore_PreservesAllData)
+{
+  auto buffer = geoqik::MeshBuffer::create(m_settings);
+  buffer->set_default_color(0.5f, 0.5f, 0.5f, 1.0f);
+
+  std::vector<float> v  = {0.0f, 0.0f, 0.0f,  1.0f, 0.0f, 0.0f,  0.0f, 1.0f, 0.0f};
+  std::vector<uint32_t> idx = {0, 1, 2};
+  core::UUID handle = core::UUID::generate();
+  buffer->add_mesh(v, {}, {}, idx, &handle);
+
+  auto snap = buffer->create_snapshot();
+
+  // Mutate
+  buffer->clear();
+  EXPECT_TRUE(buffer->empty());
+
+  // Restore
+  buffer->restore_snapshot(snap);
+  EXPECT_FALSE(buffer->empty());
+  EXPECT_EQ(to_vector(buffer->get_vertices()), v);
+}

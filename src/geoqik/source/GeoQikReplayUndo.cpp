@@ -194,6 +194,33 @@ ReplayUndoFrame make_replay_undo_frame(const RotateGeometry& message, [[maybe_un
   return frame;
 }
 
+ReplayUndoFrame make_replay_undo_frame(const AddMeshWithOpts& message, const ReplayUndoContext& context)
+{
+  ReplayUndoFrame frame;
+  if (context.has_known_idempotency_key(message.commonData.idempotencyId))
+  {
+    return frame;
+  }
+
+  frame.action = GeoQikLogEntry{RemoveMesh{message.commonData.geometryId}};
+  frame.idempotencyKeyToErase = message.commonData.idempotencyId;
+  return frame;
+}
+
+ReplayUndoFrame make_replay_undo_frame([[maybe_unused]] const RemoveMesh& message, const ReplayUndoContext& context)
+{
+  ReplayUndoFrame frame;
+  frame.action = ReplayUndoFrame::RestoreScene{context.scene.create_snapshot()};
+  return frame;
+}
+
+ReplayUndoFrame make_replay_undo_frame([[maybe_unused]] const UpdateMeshWithOpts& message, const ReplayUndoContext& context)
+{
+  ReplayUndoFrame frame;
+  frame.action = ReplayUndoFrame::RestoreScene{context.scene.create_snapshot()};
+  return frame;
+}
+
 ReplayUndoFrame create_replay_undo_frame(const GeoQikLogEntry& entry, const ReplayUndoContext& context)
 {
   return std::visit(

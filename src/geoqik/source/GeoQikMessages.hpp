@@ -296,7 +296,10 @@ using GeoQikLogEntry = std::variant<AddPointWithOpts,
                                     RemoveAllGeometry,
                                     TranslateGeometry,
                                     RotateGeometry,
-                                    SetMeshColor>;
+                                    SetMeshColor,
+                                    AddMeshWithOpts,
+                                    RemoveMesh,
+                                    UpdateMeshWithOpts>;
 
 using GeoQikMessage = std::variant<AddPointWithOpts,
                                    AddPointsWithOpts,

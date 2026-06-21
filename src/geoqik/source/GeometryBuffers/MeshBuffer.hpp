@@ -27,6 +27,16 @@ struct MeshGeoBufferIndex
   std::size_t triangleCount;
 };
 
+struct MeshBufferSnapshot
+{
+  Color defaultMeshColor;
+  std::vector<float> vertices;
+  std::vector<float> normals;
+  std::vector<float> colors;
+  std::vector<std::uint32_t> triangleIndices;
+  std::unordered_map<core::UUID, MeshGeoBufferIndex> handleToMeshIndex;
+};
+
 class MeshBuffer
 {
   static constexpr std::int32_t m_vertexDimension = 3;
@@ -88,6 +98,29 @@ public:
     m_triangleIndices.clear();
     m_handleToMeshIndex.clear();
     m_hasChanged = true;
+  }
+
+  [[nodiscard]] MeshBufferSnapshot create_snapshot() const
+  {
+    MeshBufferSnapshot snapshot;
+    snapshot.defaultMeshColor  = m_defaultMeshColor;
+    snapshot.vertices          = m_vertices;
+    snapshot.normals           = m_normals;
+    snapshot.colors            = m_colors;
+    snapshot.triangleIndices   = m_triangleIndices;
+    snapshot.handleToMeshIndex = m_handleToMeshIndex;
+    return snapshot;
+  }
+
+  void restore_snapshot(const MeshBufferSnapshot& snapshot)
+  {
+    m_defaultMeshColor   = snapshot.defaultMeshColor;
+    m_vertices           = snapshot.vertices;
+    m_normals            = snapshot.normals;
+    m_colors             = snapshot.colors;
+    m_triangleIndices    = snapshot.triangleIndices;
+    m_handleToMeshIndex  = snapshot.handleToMeshIndex;
+    m_hasChanged         = true;
   }
 
   void add_mesh(std::span<const float> vertices,
