@@ -402,7 +402,7 @@ GeoQikLogEntry MessageReader::read()
     std::vector<float> norms = read_float_vector(m_stream);
     const auto idxCount = read_pod<std::uint64_t>(m_stream);
     std::vector<std::uint32_t> idxs(static_cast<std::size_t>(idxCount));
-    for (auto& i : idxs) i = read_pod<std::uint32_t>(m_stream);
+    for (auto& i : idxs) { i = read_pod<std::uint32_t>(m_stream); }
     return AddMeshWithOpts{std::move(verts), std::move(norms), {}, std::move(idxs), std::move(common)};
   }
   case serialized_message_type_value(SerializedMessageType::RemoveMesh):
