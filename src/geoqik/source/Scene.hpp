@@ -98,6 +98,9 @@ public:
   [[nodiscard]] Color get_default_line_color() const;
   void set_default_line_color(float r, float g, float b, float a);
 
+  [[nodiscard]] Color get_default_mesh_color() const;
+  void set_default_mesh_color(float r, float g, float b, float a);
+
   [[nodiscard]] const PointBuffer& get_point_buffer() const { return *m_pointBuffer; }
   [[nodiscard]] PointBuffer& get_point_buffer() { return *m_pointBuffer; }
   [[nodiscard]] const LineBuffer& get_line_buffer() const { return *m_lineBuffer; }

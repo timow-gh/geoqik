@@ -1831,6 +1831,50 @@ geoqik_error_code_t geoqik_get_line_color(float* r, float* g, float* b, float* a
       });
 }
 
+geoqik_error_code_t geoqik_set_mesh_color(float r, float g, float b, float a)
+{
+  if (!geoqik_internal::validate_color(r, g, b, a))
+  {
+    return GEOQIK_ERROR_INVALID_PARAMETER;
+  }
+
+  return geoqik_internal::execute_if_initialized(
+      [&]() -> geoqik_error_code_t {
+        Color colorData{r, g, b, a};
+        return enqueue(GeoQikMessage{SetMeshColor{colorData}});
+      });
+}
+
+geoqik_error_code_t geoqik_get_mesh_color(float* r, float* g, float* b, float* a)
+{
+  if (r == nullptr || g == nullptr || b == nullptr || a == nullptr)
+  {
+    return GEOQIK_ERROR_INVALID_PARAMETER;
+  }
+
+  return geoqik_internal::execute_if_initialized(
+      [&]() -> geoqik_error_code_t
+      {
+        auto promise = std::make_shared<std::promise<Color>>();
+        std::future<Color> future = promise->get_future();
+
+        auto enqueueResult =
+            enqueue(GeoQikMessage{GetMeshColor{
+                [promise](Context& context) { promise->set_value(context.get_mesh_color()); }}});
+        if (enqueueResult != GEOQIK_SUCCESS)
+        {
+          return enqueueResult;
+        }
+
+        auto color = future.get();
+        *r = color[0];
+        *g = color[1];
+        *b = color[2];
+        *a = color[3];
+        return GEOQIK_SUCCESS;
+      });
+}
+
 geoqik_error_code_t geoqik_wait_for_exit_and_cleanup()
 {
   return geoqik_internal::execute_if_initialized(

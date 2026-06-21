@@ -203,6 +203,17 @@ void Context::set_line_color(Color color)
   ++m_geometryMessagesProcessedThisFrame;
 }
 
+Color Context::get_mesh_color()
+{
+  return m_scene.get_default_mesh_color();
+}
+
+void Context::set_mesh_color(Color color)
+{
+  m_scene.set_default_mesh_color(color[0], color[1], color[2], color[3]);
+  ++m_geometryMessagesProcessedThisFrame;
+}
+
 void Context::add_point_with_opts(float x, float y, float z, const GeoQikMessageCommonData& commonData)
 {
   if (is_known_idempotency_key(&commonData.idempotencyId))
@@ -964,6 +975,16 @@ void Context::handle_message(const GetLineWidth& message)
 void Context::handle_message(const GetLineColor& message)
 {
   CORE_ASSERT(message.callback);
+  message.callback(*this);
+}
+
+void Context::handle_message(const SetMeshColor& message)
+{
+  set_mesh_color(message.color);
+}
+
+void Context::handle_message(const GetMeshColor& message)
+{
   message.callback(*this);
 }
 

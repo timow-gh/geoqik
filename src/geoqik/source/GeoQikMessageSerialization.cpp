@@ -34,7 +34,8 @@ enum class SerializedMessageType : std::uint32_t // NOLINT(performance-enum-size
   UpdatePointWithOpts = 14,
   UpdatePointsWithOpts = 15,
   UpdateLineWithOpts = 16,
-  UpdateLinesWithOpts = 17
+  UpdateLinesWithOpts = 17,
+  SetMeshColor = 18
 };
 
 constexpr auto serialized_message_type_value(SerializedMessageType type)
@@ -292,6 +293,11 @@ void MessageWriter::write(const GeoQikLogEntry& message)
           write_pod(m_stream, value.axisZ);
           write_pod(m_stream, value.angle);
         }
+        else if constexpr (std::is_same_v<T, SetMeshColor>)
+        {
+          write_pod(m_stream, SerializedMessageType::SetMeshColor);
+          write_color(m_stream, value.color);
+        }
       },
       message);
 }
@@ -355,6 +361,15 @@ GeoQikLogEntry MessageReader::read()
                           read_pod<float>(m_stream),
                           read_pod<float>(m_stream),
                           read_pod<float>(m_stream)};
+  case serialized_message_type_value(SerializedMessageType::SetMeshColor):
+  {
+    Color color;
+    color[0] = read_pod<float>(m_stream);
+    color[1] = read_pod<float>(m_stream);
+    color[2] = read_pod<float>(m_stream);
+    color[3] = read_pod<float>(m_stream);
+    return SetMeshColor{color};
+  }
   default: throw std::runtime_error("Unknown GeoQik message type");
   }
 }

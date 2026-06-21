@@ -244,6 +244,27 @@ TEST_F(MeshBufferTest, WrongColorSizeThrows)
 // Test 9: clear() → buffer empty, has_changed() true
 // =============================================================================
 
+TEST_F(MeshBufferTest, SetDefaultColor_AppliesToNewlyAddedMesh)
+{
+  auto buffer = geoqik::MeshBuffer::create(m_settings);
+  buffer->set_default_color(1.0f, 0.0f, 0.0f, 1.0f); // red
+
+  std::vector<float> vertices = {0.0f, 0.0f, 0.0f,  1.0f, 0.0f, 0.0f,  0.0f, 1.0f, 0.0f};
+  std::vector<uint32_t> indices = {0, 1, 2};
+  buffer->add_mesh(vertices, {}, {}, indices); // no explicit color
+
+  auto colors = to_vector(buffer->get_colors());
+  // 3 vertices x 4 channels = 12 floats, all r=1 g=0 b=0 a=1
+  ASSERT_EQ(colors.size(), 12u);
+  for (std::size_t i = 0; i < 3; ++i)
+  {
+    EXPECT_FLOAT_EQ(colors[i * 4 + 0], 1.0f);
+    EXPECT_FLOAT_EQ(colors[i * 4 + 1], 0.0f);
+    EXPECT_FLOAT_EQ(colors[i * 4 + 2], 0.0f);
+    EXPECT_FLOAT_EQ(colors[i * 4 + 3], 1.0f);
+  }
+}
+
 TEST_F(MeshBufferTest, Clear_EmptiesBufferAndSetsChanged)
 {
   auto buffer = geoqik::MeshBuffer::create(m_settings);

@@ -360,6 +360,10 @@ extern "C"
   GEOQIK_EXPORT geoqik_error_code_t geoqik_set_line_color(float r, float g, float b, float a);
   GEOQIK_EXPORT geoqik_error_code_t geoqik_get_line_color(float* r, float* g, float* b, float* a);
 
+  /** \brief Sets the default color used for meshes that don't specify their color. */
+  GEOQIK_EXPORT geoqik_error_code_t geoqik_set_mesh_color(float r, float g, float b, float a);
+  GEOQIK_EXPORT geoqik_error_code_t geoqik_get_mesh_color(float* r, float* g, float* b, float* a);
+
   typedef struct
   {
     geoqik_uuid_t idempotencyKey; /**< Optional idempotency key for the line, ignored if the uuid is zeroed. */

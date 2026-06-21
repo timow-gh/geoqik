@@ -181,6 +181,19 @@ TEST(SceneTest, RotatesPointAndLineGeometry)
   EXPECT_NEAR(lines[5], 0.0f, 1.0e-5f);
 }
 
+TEST(SceneTest, DefaultMeshColorMatchesSettings)
+{
+  geoqik::GeoQikSettings settings = make_scene_test_settings();
+  settings.defaultMeshColor = renderer::Color{0.2f, 0.4f, 0.6f, 0.8f};
+  auto scene = geoqik::Scene::create(settings);
+
+  EXPECT_EQ(scene.get_default_mesh_color(), settings.defaultMeshColor);
+
+  scene.set_default_mesh_color(0.1f, 0.2f, 0.3f, 0.4f);
+  auto expected = renderer::Color{0.1f, 0.2f, 0.3f, 0.4f};
+  EXPECT_EQ(scene.get_default_mesh_color(), expected);
+}
+
 TEST(SceneTest, UpdatesPointAndLineGeometry)
 {
   auto scene = geoqik::Scene::create(make_scene_test_settings());

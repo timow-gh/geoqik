@@ -136,6 +136,18 @@ struct SetLineColor
   [[nodiscard]] bool operator==(const SetLineColor&) const = default;
 };
 
+struct SetMeshColor
+{
+  Color color;
+
+  [[nodiscard]] bool operator==(const SetMeshColor&) const = default;
+};
+
+struct GetMeshColor
+{
+  std::function<void(Context& context)> callback;
+};
+
 struct AddMeshWithOpts
 {
   std::vector<float> vertices;
@@ -273,7 +285,8 @@ using GeoQikLogEntry = std::variant<AddPointWithOpts,
                                     SetLineColor,
                                     RemoveAllGeometry,
                                     TranslateGeometry,
-                                    RotateGeometry>;
+                                    RotateGeometry,
+                                    SetMeshColor>;
 
 using GeoQikMessage = std::variant<AddPointWithOpts,
                                    AddPointsWithOpts,
@@ -289,6 +302,7 @@ using GeoQikMessage = std::variant<AddPointWithOpts,
                                    RemoveLine,
                                    SetLineWidth,
                                    SetLineColor,
+                                   SetMeshColor,
                                    RemoveAllGeometry,
                                    TranslateGeometry,
                                    RotateGeometry,
@@ -310,6 +324,7 @@ using GeoQikMessage = std::variant<AddPointWithOpts,
                                    GetPointColor,
                                    GetLineWidth,
                                    GetLineColor,
+                                   GetMeshColor,
                                    Cleanup>;
 
 } // namespace geoqik

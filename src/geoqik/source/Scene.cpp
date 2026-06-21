@@ -192,6 +192,16 @@ void Scene::set_default_line_color(float r, float g, float b, float a)
   m_lineBuffer->set_default_color(r, g, b, a);
 }
 
+Color Scene::get_default_mesh_color() const
+{
+  return m_meshBuffer->get_default_color();
+}
+
+void Scene::set_default_mesh_color(float r, float g, float b, float a)
+{
+  m_meshBuffer->set_default_color(r, g, b, a);
+}
+
 Geometry::Sphere<float> Scene::calc_bounding_sphere(const linal::float3& center) const
 {
   float maxRadiusSq = 0.0F;
