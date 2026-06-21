@@ -19,8 +19,8 @@ set(geoqik_SOURCE_FILES
         source/GeoQikReplayUndo.hpp
         source/GeoQikSettings.hpp
         source/IdempotencyData.hpp
-        source/Rendering/OpenGLSceneRenderer.cpp
-        source/Rendering/OpenGLSceneRenderer.hpp
+        source/Rendering/GeoQikSceneRenderer.cpp
+        source/Rendering/GeoQikSceneRenderer.hpp
         source/Scene.cpp
         source/Scene.hpp
 )

@@ -69,6 +69,7 @@ void ImGuiOverlay::render()
   {
     control();
   }
+  m_controls.clear();
 
   ImGui::Render();
   ImDrawData* drawData = ImGui::GetDrawData();

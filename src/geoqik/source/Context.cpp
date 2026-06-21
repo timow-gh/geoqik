@@ -1,11 +1,10 @@
 #include "Context.hpp"
 #include "Core/FmtIncludeHelper.hpp"
 #include "GeoQikMessages.hpp"
-#include "Rendering/OpenGLSceneRenderer.hpp"
 #include <Core/Assert.hpp>
+#include <OpenGL/FrameState.hpp>
 #include <Renderer/CameraAutoFit.hpp>
-#include <Renderer/GlfwWindow.hpp>
-#include <Renderer/ImGuiOverlay.hpp>
+#include <Renderer/Renderer.hpp>
 #include <algorithm>
 #include <array>
 #include <filesystem>
@@ -23,7 +22,6 @@ using renderer::CameraProjectionType;
 using renderer::Viewport;
 using renderer::CameraInteractor;
 using renderer::CameraSettings;
-using renderer::ImGuiOverlay;
 
 namespace
 {
@@ -114,7 +112,7 @@ Context::Context() = default;
 
 Context::~Context()
 {
-  if (m_window && m_window->is_initialized())
+  if (m_renderer)
   {
     cleanup();
   }
@@ -122,7 +120,7 @@ Context::~Context()
 
 bool Context::init_window(const GeoQikSettings& geoqikSettings, const WindowSettings& settings)
 {
-  if (m_window && m_window->is_initialized())
+  if (m_renderer)
   {
     fmt::print("GeoQik context is already initialized.\n");
     CORE_ASSERT(false);
@@ -134,39 +132,18 @@ bool Context::init_window(const GeoQikSettings& geoqikSettings, const WindowSett
 
   m_scene = Scene::create(geoqikSettings);
 
-  auto window = GlfwWindow::create(*m_windowSettings);
-  if (!window.has_value())
-  {
-    return false;
-  }
-  m_window = std::make_unique<GlfwWindow>(std::move(window.value()));
-
   m_backgroundColor[0] = m_geoqikSettings.backgroundColor[0];
   m_backgroundColor[1] = m_geoqikSettings.backgroundColor[1];
   m_backgroundColor[2] = m_geoqikSettings.backgroundColor[2];
   m_backgroundColor[3] = m_geoqikSettings.backgroundColor[3];
 
-  m_renderer = OpenGLSceneRenderer::create();
+  m_renderer = renderer::Renderer::create(settings);
   if (!m_renderer)
   {
-    m_window.reset();
     return false;
   }
 
-  // For high DPI, the frame buffer size may be different from the window size.
-  const auto [framebufferWidth, framebufferHeight] = m_window->get_framebuffer_size();
-  if (framebufferWidth <= 0 || framebufferHeight <= 0)
-  {
-    fmt::print("Error: Invalid framebuffer size: {}x{}\n", framebufferWidth, framebufferHeight);
-    CORE_ASSERT(false);
-    return false;
-  }
-
-  CameraSettings cameraSettings;
-  cameraSettings.m_camera.set_viewport(0, 0, static_cast<std::uint32_t>(framebufferWidth), static_cast<std::uint32_t>(framebufferHeight));
-
-  m_cameraInteractor = std::make_unique<CameraInteractor>(m_window->get_input_state(), cameraSettings);
-  m_imguiOverlay = std::make_unique<ImGuiOverlay>(m_window->get_native_handle());
+  m_sceneRenderer = std::make_unique<GeoQikSceneRenderer>(*m_renderer);
 
   setup_window_callbacks();
 
@@ -175,53 +152,10 @@ bool Context::init_window(const GeoQikSettings& geoqikSettings, const WindowSett
 
 void Context::setup_window_callbacks()
 {
-  m_window->set_cursor_pos_callback(
-      [this](double xpos, double ypos)
-      {
-        if (m_imguiOverlay && !m_imguiOverlay->handle_cursor_position(xpos, ypos))
-        {
-          return;
-        }
-        m_cameraInteractor->on_cursor_position(xpos, ypos);
-      });
-  m_window->set_scroll_callback(
-      [this](double xoff, double yoff)
-      {
-        if (m_imguiOverlay && !m_imguiOverlay->handle_scroll(xoff, yoff))
-        {
-          return;
-        }
-        m_cameraInteractor->on_scroll(xoff, yoff);
-      });
-  m_window->set_mouse_button_callback(
-      [this](int button, Action action, Mods mods)
-      {
-        if (m_imguiOverlay && !m_imguiOverlay->handle_mouse_button(button, action, mods))
-        {
-          return;
-        }
-        m_cameraInteractor->on_mouse_button(button, action, mods);
-      });
-  m_window->set_framebuffer_size_callback([this](std::uint32_t width, std::uint32_t height)
-  {
-    m_cameraInteractor->on_framebuffer_size(width, height);
-  });
-  m_window->set_key_callback(
+  m_renderer->add_key_callback(
       [this](Key key, Scancode scancode, Action action, Mods mods)
       {
-        if (m_imguiOverlay && !m_imguiOverlay->handle_key(key, scancode, action, mods))
-        {
-          return;
-        }
         on_key(key, scancode, action, mods);
-      });
-  m_window->set_char_callback(
-      [this](std::uint32_t codepoint)
-      {
-        if (m_imguiOverlay)
-        {
-          m_imguiOverlay->handle_char(codepoint);
-        }
       });
 }
 
@@ -233,7 +167,7 @@ float Context::get_point_size()
 void Context::set_point_size(float pointSize)
 {
   m_scene.set_point_size(pointSize);
-  m_renderer->clear_drawables();
+  m_sceneRenderer->clear_drawables();
   ++m_geometryMessagesProcessedThisFrame;
 }
 
@@ -256,7 +190,7 @@ float Context::get_line_width()
 void Context::set_line_width(float lineWidth)
 {
   m_scene.set_line_width(lineWidth);
-  m_renderer->clear_drawables();
+  m_sceneRenderer->clear_drawables();
   ++m_geometryMessagesProcessedThisFrame;
 }
 
@@ -279,7 +213,7 @@ void Context::add_point_with_opts(float x, float y, float z, const GeoQikMessage
   }
   if (m_scene.ensure_point_capacity(1))
   {
-    m_renderer->recreate_point_drawables(m_scene);
+    m_sceneRenderer->recreate_point_drawables(m_scene);
   }
   if (commonData.rgba.size() >= ColorChannelCount)
   {
@@ -300,7 +234,7 @@ void Context::add_points_with_opts(std::span<const float> points, const GeoQikMe
   }
   if (m_scene.ensure_point_capacity(points.size() / 3))
   {
-    m_renderer->recreate_point_drawables(m_scene);
+    m_sceneRenderer->recreate_point_drawables(m_scene);
   }
   m_scene.add_points(points, std::span<const float>(commonData.rgba), &commonData.geometryId);
   ++m_geometryMessagesProcessedThisFrame;
@@ -343,7 +277,7 @@ void Context::add_line(float x1,
   }
   if (m_scene.ensure_line_capacity(1))
   {
-    m_renderer->recreate_line_drawables(m_scene);
+    m_sceneRenderer->recreate_line_drawables(m_scene);
   }
   m_scene.add_line(x1, y1, z1, x2, y2, z2, handle);
   ++m_geometryMessagesProcessedThisFrame;
@@ -368,7 +302,7 @@ void Context::add_line(float x1,
   }
   if (m_scene.ensure_line_capacity(1))
   {
-    m_renderer->recreate_line_drawables(m_scene);
+    m_sceneRenderer->recreate_line_drawables(m_scene);
   }
   m_scene.add_line(x1, y1, z1, x2, y2, z2, r, g, b, a, handle);
   ++m_geometryMessagesProcessedThisFrame;
@@ -382,7 +316,7 @@ void Context::add_line_with_opts(float x1, float y1, float z1, float x2, float y
   }
   if (m_scene.ensure_line_capacity(1))
   {
-    m_renderer->recreate_line_drawables(m_scene);
+    m_sceneRenderer->recreate_line_drawables(m_scene);
   }
   if (commonData.rgba.size() >= ColorChannelCount)
   {
@@ -403,7 +337,7 @@ void Context::add_lines_with_opts(std::span<const float> lines, const GeoQikMess
   }
   if (m_scene.ensure_line_capacity(lines.size() / lineCoordinateCount))
   {
-    m_renderer->recreate_line_drawables(m_scene);
+    m_sceneRenderer->recreate_line_drawables(m_scene);
   }
   m_scene.add_lines(lines,
                     std::span<const float>(commonData.rgba),
@@ -443,7 +377,7 @@ void Context::remove_line(const core::UUID& handle)
 void Context::remove_all_geometry()
 {
   m_scene.clear();
-  m_renderer->clear_drawables();
+  m_sceneRenderer->clear_drawables();
   ++m_geometryMessagesProcessedThisFrame;
 }
 
@@ -468,14 +402,14 @@ void Context::rotate_geometry(const core::UUID& handle,
 
 const Viewport& Context::get_viewport()
 {
-  return m_cameraInteractor->get_viewport();
+  return m_renderer->get_camera().lock()->get_viewport();
 }
 
 // #define PRINT_FRAME_INFO
 
 void Context::run_event_loop()
 {
-  assert(m_window && m_window->is_initialized());
+  assert(m_renderer);
 
   auto& messageQueue = get_message_queue();
   m_lastReplayTick = std::chrono::high_resolution_clock::now();
@@ -483,51 +417,29 @@ void Context::run_event_loop()
   {
     std::chrono::high_resolution_clock::time_point frameStartTime = std::chrono::high_resolution_clock::now();
 
-    m_window->make_context_current();
+    m_renderer->window().make_context_current();
 
-    linal::hmatf mvp;
-    mvp = m_cameraInteractor->get_current_MVP();
-
-    GlfwWindow::poll_events();
-    m_imguiOverlay->new_frame();
+    renderer::Renderer::poll_events();
     update_camera_interaction_state();
     if (should_close_event_loop())
     {
-      m_imguiOverlay->end_frame();
       break;
     }
 
-    const auto& viewport = m_cameraInteractor->get_viewport();
-    OpenGLSceneRenderer::begin_frame(m_backgroundColor, viewport);
+    const opengl::ClearColor clearColor{m_backgroundColor[0], m_backgroundColor[1], m_backgroundColor[2], m_backgroundColor[3]};
+    m_renderer->begin_frame(clearColor);
 
     sync_scene_and_auto_fit();
 
-    mvp = m_cameraInteractor->get_current_MVP();
-    MeshRenderParams meshParams;
-    meshParams.modelMatrix      = m_cameraInteractor->get_model_matrix();
-    meshParams.viewMatrix       = m_cameraInteractor->get_view_matrix();
-    meshParams.projectionMatrix = m_cameraInteractor->get_projection_matrix();
-    meshParams.normalMatrix     = m_cameraInteractor->get_normal_matrix();
-    const linal::double3 camPos = m_cameraInteractor->get_position();
-    meshParams.viewPos = linal::float3{static_cast<float>(camPos[0]),
-                                       static_cast<float>(camPos[1]),
-                                       static_cast<float>(camPos[2])};
-    meshParams.lightPosition = meshParams.viewPos;
-    meshParams.lightColor = scale_rgb(m_geoqikSettings.meshHeadLightColor, m_geoqikSettings.meshHeadLightIntensity);
-    meshParams.fillLightDirection = to_float3(m_geoqikSettings.meshFillLightDirection);
-    meshParams.fillLightColor = scale_rgb(m_geoqikSettings.meshFillLightColor, m_geoqikSettings.meshFillLightIntensity);
-    meshParams.ambientColor = scale_rgb(m_geoqikSettings.meshAmbientColor, m_geoqikSettings.meshAmbientIntensity);
-    meshParams.shininess = std::max(0.0F, m_geoqikSettings.meshShininess);
+    opengl::LightingConfig lighting;
+    lighting.lightColor      = scale_rgb(m_geoqikSettings.meshHeadLightColor, m_geoqikSettings.meshHeadLightIntensity);
+    lighting.fillLightDir    = to_float3(m_geoqikSettings.meshFillLightDirection);
+    lighting.fillLightColor  = scale_rgb(m_geoqikSettings.meshFillLightColor, m_geoqikSettings.meshFillLightIntensity);
+    lighting.ambientColor    = scale_rgb(m_geoqikSettings.meshAmbientColor, m_geoqikSettings.meshAmbientIntensity);
+    lighting.shininess       = std::max(0.0F, m_geoqikSettings.meshShininess);
 
-    m_renderer->draw(mvp, m_cameraInteractor->get_position(), meshParams);
-    CameraProjectionType projType = m_cameraInteractor->get_projection_type();
-    m_imguiOverlay->add_camera_controls(m_geoqikSettings.autoFitCameraEnabled, projType);
-    if (projType != m_cameraInteractor->get_projection_type())
-    {
-      m_cameraInteractor->set_projection_type(projType);
-    }
-    m_imguiOverlay->render();
-    m_window->swap_buffers();
+    m_renderer->draw(lighting);
+    m_renderer->end_frame(m_geoqikSettings.autoFitCameraEnabled);
 
     process_replay_entries(std::chrono::high_resolution_clock::now());
     if (!is_replaying() && process_deferred_messages())
@@ -552,14 +464,15 @@ void Context::run_event_loop()
 
 bool Context::should_close_event_loop()
 {
-  if (m_window->should_close())
+  if (m_renderer->should_close())
   {
     m_windowShouldClose.store(true);
     return true;
   }
 
-  const bool keyboardCaptured = m_imguiOverlay && m_imguiOverlay->wants_keyboard();
-  if (!keyboardCaptured && m_window->is_escape_pressed())
+  const auto imgui = m_renderer->get_imgui().lock();
+  const bool keyboardCaptured = imgui && imgui->wants_keyboard();
+  if (!keyboardCaptured && m_renderer->is_escape_pressed())
   {
     m_windowShouldClose.store(true);
     return true;
@@ -570,18 +483,25 @@ bool Context::should_close_event_loop()
 
 void Context::update_camera_interaction_state()
 {
-  if (!m_cameraInteractor->get_was_blocking())
+  const auto camera = m_renderer->get_camera().lock();
+  if (!camera || !camera->get_was_blocking())
   {
     return;
   }
 
   m_lastCameraInteractionTime = std::chrono::high_resolution_clock::now();
-  m_cameraInteractor->reset_was_blocking();
+  camera->reset_was_blocking();
 }
 
 void Context::sync_scene_and_auto_fit()
 {
-  if (!m_renderer->sync_scene(m_scene))
+  if (!m_sceneRenderer->sync_scene(m_scene))
+  {
+    return;
+  }
+
+  const auto camera = m_renderer->get_camera().lock();
+  if (!camera)
   {
     return;
   }
@@ -592,12 +512,12 @@ void Context::sync_scene_and_auto_fit()
       now - m_lastCameraInteractionTime < m_geoqikSettings.autoFitSuppressAfterUserCameraInteraction;
 
   const CameraAutoFitInput autoFitInput =
-      make_camera_auto_fit_input(*m_cameraInteractor, m_geoqikSettings, hasRecentCameraInteraction);
+      make_camera_auto_fit_input(*camera, m_geoqikSettings, hasRecentCameraInteraction);
   const std::array<std::span<const float>, 2> vertexPositionBuffers{m_scene.get_point_buffer().get_points(), m_scene.get_line_buffer().get_lines()};
   const CameraAutoFitResult autoFitResult = renderer::calculate_camera_auto_fit(std::span<const std::span<const float>>{vertexPositionBuffers}, autoFitInput);
   if (autoFitResult.hasGeometry)
   {
-    m_cameraInteractor->apply_auto_fit_result(autoFitResult);
+    camera->apply_auto_fit_result(autoFitResult);
   }
 }
 
@@ -651,16 +571,15 @@ bool Context::process_message_queue(ConcurrentQueue<GeoQikMessage>& messageQueue
 
 bool Context::cleanup()
 {
-  if (!m_window || !m_window->is_initialized())
+  if (!m_renderer)
   {
     fmt::print("GLFW window is not initialized.\n");
     return false;
   }
 
-  m_window->make_context_current();
-  m_imguiOverlay.reset();
+  m_renderer->window().make_context_current();
+  m_sceneRenderer.reset();
   m_renderer.reset();
-  m_window.reset();
 
   return true;
 }
@@ -1231,7 +1150,7 @@ void Context::restore_replay_undo_frame(const ReplayUndoFrame& frame)
         else if constexpr (std::is_same_v<T, ReplayUndoFrame::RestoreScene>)
         {
           m_scene.restore_snapshot(action.scene);
-          m_renderer->clear_drawables();
+          m_sceneRenderer->clear_drawables();
         }
       },
       frame.action);

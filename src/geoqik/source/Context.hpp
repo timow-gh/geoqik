@@ -10,6 +10,7 @@
 #include "GeoQikReplayUndo.hpp"
 #include "GeoQikSettings.hpp"
 #include "IdempotencyData.hpp"
+#include "Rendering/GeoQikSceneRenderer.hpp"
 #include "Scene.hpp"
 #include <Renderer/WindowSettings.hpp>
 #include <Core/UUID.hpp>
@@ -22,24 +23,20 @@
 #include <utility>
 #include <variant>
 #include <vector>
-#include <Renderer/InputState.hpp>
 
 namespace renderer
 {
-class GlfwWindow;
-class ImGuiOverlay;
+class Renderer;
 }
 
 namespace geoqik
 {
 
-using renderer::GlfwWindow;
 using renderer::Key;
 using renderer::Scancode;
 using renderer::Action;
 using renderer::Mods;
 using renderer::Viewport;
-class OpenGLSceneRenderer;
 
 void init_message_queue(ConcurrentQueue<GeoQikMessage>&& messageQueue);
 [[nodiscard]] ConcurrentQueue<GeoQikMessage>& get_message_queue();
@@ -68,18 +65,15 @@ class Context
   GeoQikSettings m_geoqikSettings;
   std::unique_ptr<WindowSettings> m_windowSettings;
 
-  std::unique_ptr<GlfwWindow> m_window;
   std::atomic<bool> m_windowShouldClose{false};
-
-  std::unique_ptr<renderer::CameraInteractor> m_cameraInteractor;
-  std::unique_ptr<renderer::ImGuiOverlay> m_imguiOverlay;
 
   Color m_backgroundColor{0.1f, 0.1f, 0.1f, 1.0f}; // Default background color
 
   IdempotencySet m_idempotencySet;
 
   Scene m_scene;
-  std::unique_ptr<OpenGLSceneRenderer> m_renderer;
+  std::unique_ptr<renderer::Renderer> m_renderer;
+  std::unique_ptr<GeoQikSceneRenderer> m_sceneRenderer;
   bool m_isDrawing{false};
   std::size_t m_frameCount{0};
   std::size_t m_geometryMessagesProcessedThisFrame{0};

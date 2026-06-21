@@ -91,6 +91,10 @@ public:
   void clear_mesh_drawables();
   void clear_drawables();
 
+  [[nodiscard]] bool has_point_drawables() const;
+  [[nodiscard]] bool has_line_drawables() const;
+  [[nodiscard]] bool has_mesh_drawables() const;
+
   // --- Frame lifecycle ---
   static void poll_events();
   [[nodiscard]] bool should_close() const;
@@ -98,7 +102,9 @@ public:
 
   void begin_frame(const opengl::ClearColor& clearColor = defaultClearColor);
   void draw();
+  void draw(const opengl::LightingConfig& lighting);
   void end_frame();
+  void end_frame(bool& autoFitEnabled);
 
   // --- Callback extension points ---
   void add_cursor_pos_callback(CursorPosCB cb);
@@ -109,24 +115,24 @@ public:
   // --- Accessors ---
   [[nodiscard]] GlfwWindow& window() { return m_window; }
   [[nodiscard]] const GlfwWindow& window() const { return m_window; }
-  [[nodiscard]] CameraInteractor& camera() { return m_camera; }
-  [[nodiscard]] const CameraInteractor& camera() const { return m_camera; }
-  [[nodiscard]] ImGuiOverlay& imgui() { return *m_imgui; }
+  [[nodiscard]] std::weak_ptr<CameraInteractor> get_camera() { return m_camera; }
+  [[nodiscard]] std::weak_ptr<const CameraInteractor> get_camera() const { return m_camera; }
+  [[nodiscard]] std::weak_ptr<ImGuiOverlay> get_imgui() { return m_imgui; }
 
   static constexpr opengl::ClearColor defaultClearColor{0.05F, 0.05F, 0.08F, 1.0F};
 
 private:
   Renderer(GlfwWindow window,
            opengl::DrawablesManager drawablesManager,
-           CameraInteractor camera,
-           std::unique_ptr<ImGuiOverlay> imgui);
+           std::shared_ptr<CameraInteractor> camera,
+           std::shared_ptr<ImGuiOverlay> imgui);
 
   void wire_callbacks();
 
   GlfwWindow m_window;
   opengl::DrawablesManager m_drawablesManager;
-  CameraInteractor m_camera;
-  std::unique_ptr<ImGuiOverlay> m_imgui;
+  std::shared_ptr<CameraInteractor> m_camera;
+  std::shared_ptr<ImGuiOverlay> m_imgui;
 
   std::vector<CursorPosCB> m_cursorPosCallbacks;
   std::vector<ScrollCB> m_scrollCallbacks;

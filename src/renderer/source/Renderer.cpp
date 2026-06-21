@@ -27,9 +27,9 @@ std::unique_ptr<Renderer> Renderer::create(const WindowSettings& settings)
                                        0,
                                        static_cast<std::uint32_t>(fbWidth),
                                        static_cast<std::uint32_t>(fbHeight));
-  CameraInteractor camera(window->get_input_state(), cameraSettings);
+  auto camera = std::make_shared<CameraInteractor>(window->get_input_state(), cameraSettings);
 
-  auto imgui = std::make_unique<ImGuiOverlay>(window->get_native_handle());
+  auto imgui = std::make_shared<ImGuiOverlay>(window->get_native_handle());
 
   auto drawablesManager = opengl::DrawablesManager::create();
   if (!drawablesManager.has_value())
@@ -51,8 +51,8 @@ std::unique_ptr<Renderer> Renderer::create(const WindowSettings& settings)
 
 Renderer::Renderer(GlfwWindow window,
                    opengl::DrawablesManager drawables,
-                   CameraInteractor camera,
-                   std::unique_ptr<ImGuiOverlay> imgui)
+                   std::shared_ptr<CameraInteractor> camera,
+                   std::shared_ptr<ImGuiOverlay> imgui)
     : m_window(std::move(window))
     , m_drawablesManager(std::move(drawables))
     , m_camera(std::move(camera))
@@ -69,7 +69,7 @@ void Renderer::wire_callbacks()
         {
           return;
         }
-        m_camera.on_cursor_position(xpos, ypos);
+        m_camera->on_cursor_position(xpos, ypos);
         for (const auto& cb : m_cursorPosCallbacks)
         {
           cb(xpos, ypos);
@@ -83,7 +83,7 @@ void Renderer::wire_callbacks()
         {
           return;
         }
-        m_camera.on_scroll(xoff, yoff);
+        m_camera->on_scroll(xoff, yoff);
         for (const auto& cb : m_scrollCallbacks)
         {
           cb(xoff, yoff);
@@ -97,7 +97,7 @@ void Renderer::wire_callbacks()
         {
           return;
         }
-        m_camera.on_mouse_button(button, action, mods);
+        m_camera->on_mouse_button(button, action, mods);
         for (const auto& cb : m_mouseButtonCallbacks)
         {
           cb(button, action, mods);
@@ -119,7 +119,7 @@ void Renderer::wire_callbacks()
 
   m_window.set_framebuffer_size_callback(
       [this](std::uint32_t width, std::uint32_t height)
-      { m_camera.on_framebuffer_size(width, height); });
+      { m_camera->on_framebuffer_size(width, height); });
 }
 
 // --- Geometry ---
@@ -199,6 +199,10 @@ void Renderer::clear_line_drawables()  { m_drawablesManager.clear_line_drawables
 void Renderer::clear_mesh_drawables()  { m_drawablesManager.clear_mesh_drawables(); }
 void Renderer::clear_drawables()       { m_drawablesManager.clear_drawables(); }
 
+bool Renderer::has_point_drawables() const { return m_drawablesManager.has_point_drawables(); }
+bool Renderer::has_line_drawables()  const { return m_drawablesManager.has_line_drawables(); }
+bool Renderer::has_mesh_drawables()  const { return m_drawablesManager.has_mesh_drawables(); }
+
 // --- Frame lifecycle ---
 
 void Renderer::poll_events()
@@ -220,38 +224,50 @@ void Renderer::begin_frame(const opengl::ClearColor& clearColor)
 {
   const auto [width, height] = m_window.get_framebuffer_size();
   opengl::begin_frame(clearColor, opengl::ViewportRect{0, 0, width, height});
+  m_imgui->new_frame();
 }
 
 void Renderer::draw()
 {
-  m_drawablesManager.draw_lines_and_points(m_camera.get_current_MVP(), m_camera.get_position());
+  const opengl::LightingConfig lighting;
+  draw(lighting);
+}
+
+void Renderer::draw(const opengl::LightingConfig& lighting)
+{
+  m_drawablesManager.draw_lines_and_points(m_camera->get_current_MVP(), m_camera->get_position());
 
   if (m_drawablesManager.has_mesh_drawables())
   {
     const linal::float3 viewPosF{
-        static_cast<float>(m_camera.get_position()[0]),
-        static_cast<float>(m_camera.get_position()[1]),
-        static_cast<float>(m_camera.get_position()[2])};
+        static_cast<float>(m_camera->get_position()[0]),
+        static_cast<float>(m_camera->get_position()[1]),
+        static_cast<float>(m_camera->get_position()[2])};
 
-    opengl::LightingConfig lighting;
-    lighting.lightPosition = viewPosF;
-    m_drawablesManager.draw_meshes(m_camera.get_model_matrix(),
-                                   m_camera.get_view_matrix(),
-                                   m_camera.get_projection_matrix(),
-                                   m_camera.get_normal_matrix(),
+    opengl::LightingConfig effectiveLighting = lighting;
+    effectiveLighting.lightPosition = viewPosF;
+    m_drawablesManager.draw_meshes(m_camera->get_model_matrix(),
+                                   m_camera->get_view_matrix(),
+                                   m_camera->get_projection_matrix(),
+                                   m_camera->get_normal_matrix(),
                                    viewPosF,
-                                   lighting);
+                                   effectiveLighting);
   }
 }
 
 void Renderer::end_frame()
 {
-  CameraProjectionType projectionType = m_camera.get_projection_type();
-  bool autoZoom = false;
-  m_imgui->add_camera_controls(autoZoom, projectionType);
-  if (projectionType != m_camera.get_projection_type())
+  bool autoFitEnabled = false;
+  end_frame(autoFitEnabled);
+}
+
+void Renderer::end_frame(bool& autoFitEnabled)
+{
+  CameraProjectionType projectionType = m_camera->get_projection_type();
+  m_imgui->add_camera_controls(autoFitEnabled, projectionType);
+  if (projectionType != m_camera->get_projection_type())
   {
-    m_camera.set_projection_type(projectionType);
+    m_camera->set_projection_type(projectionType);
   }
 
   m_imgui->render();
