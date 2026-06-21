@@ -893,7 +893,10 @@ void Context::update_mesh_with_opts(const core::UUID& handle,
                                     std::span<const float> normals,
                                     std::span<const float> colors)
 {
-  m_scene.update_mesh(handle, vertices, normals, colors);
+  if (m_scene.update_mesh(handle, vertices, normals, colors))
+  {
+    ++m_geometryMessagesProcessedThisFrame;
+  }
 }
 
 void Context::handle_message(const UpdateMeshWithOpts& message)

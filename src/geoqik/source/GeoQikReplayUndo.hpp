@@ -43,6 +43,7 @@ struct ReplayUndoContext
 [[nodiscard]] ReplayUndoFrame make_replay_undo_frame(const RemoveLine& message, const ReplayUndoContext& context);
 [[nodiscard]] ReplayUndoFrame make_replay_undo_frame(const SetLineWidth& message, const ReplayUndoContext& context);
 [[nodiscard]] ReplayUndoFrame make_replay_undo_frame(const SetLineColor& message, const ReplayUndoContext& context);
+[[nodiscard]] ReplayUndoFrame make_replay_undo_frame(const SetMeshColor& message, const ReplayUndoContext& context);
 [[nodiscard]] ReplayUndoFrame make_replay_undo_frame(const RemoveAllGeometry& message, const ReplayUndoContext& context);
 [[nodiscard]] ReplayUndoFrame make_replay_undo_frame(const TranslateGeometry& message, const ReplayUndoContext& context);
 [[nodiscard]] ReplayUndoFrame make_replay_undo_frame(const RotateGeometry& message, const ReplayUndoContext& context);

@@ -159,6 +159,13 @@ ReplayUndoFrame make_replay_undo_frame([[maybe_unused]] const SetLineColor& mess
   return frame;
 }
 
+ReplayUndoFrame make_replay_undo_frame([[maybe_unused]] const SetMeshColor& message, const ReplayUndoContext& context)
+{
+  ReplayUndoFrame frame;
+  frame.action = GeoQikLogEntry{SetMeshColor{context.scene.get_default_mesh_color()}};
+  return frame;
+}
+
 ReplayUndoFrame make_replay_undo_frame([[maybe_unused]] const RemoveAllGeometry& message, const ReplayUndoContext& context)
 {
   ReplayUndoFrame frame;

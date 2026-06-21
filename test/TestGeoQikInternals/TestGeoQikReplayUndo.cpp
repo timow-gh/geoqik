@@ -26,6 +26,7 @@ geoqik::GeoQikSettings make_scene_settings()
   settings.defaultLineWidth = 2.0f;
   settings.defaultPointColor = renderer::Color{0.1f, 0.2f, 0.3f, 1.0f};
   settings.defaultLineColor = renderer::Color{0.4f, 0.5f, 0.6f, 1.0f};
+  settings.defaultMeshColor = renderer::Color{0.7f, 0.8f, 0.9f, 1.0f};
   return settings;
 }
 
@@ -144,6 +145,7 @@ TEST(GeoQikReplayUndoTest, StyleUndoCapturesCurrentSceneValues)
   scene.set_default_point_color(0.2f, 0.3f, 0.4f, 1.0f);
   scene.set_line_width(7.0f);
   scene.set_default_line_color(0.5f, 0.6f, 0.7f, 1.0f);
+  scene.set_default_mesh_color(0.8f, 0.7f, 0.6f, 1.0f);
 
   const auto pointSizeFrame = geoqik::make_replay_undo_frame(geoqik::SetPointSize{1.0f}, context);
   ASSERT_NE(nullptr, get_log_action<geoqik::SetPointSize>(pointSizeFrame));
@@ -163,6 +165,11 @@ TEST(GeoQikReplayUndoTest, StyleUndoCapturesCurrentSceneValues)
   const auto* lineColor = get_log_action<geoqik::SetLineColor>(lineColorFrame);
   ASSERT_NE(nullptr, lineColor);
   EXPECT_EQ((renderer::Color{0.5f, 0.6f, 0.7f, 1.0f}), lineColor->color);
+
+  const auto meshColorFrame = geoqik::make_replay_undo_frame(geoqik::SetMeshColor{}, context);
+  const auto* meshColor = get_log_action<geoqik::SetMeshColor>(meshColorFrame);
+  ASSERT_NE(nullptr, meshColor);
+  EXPECT_EQ((renderer::Color{0.8f, 0.7f, 0.6f, 1.0f}), meshColor->color);
 }
 
 TEST(GeoQikReplayUndoTest, RemoveAllGeometryUndoCapturesSceneSnapshot)
