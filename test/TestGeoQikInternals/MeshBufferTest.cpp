@@ -241,8 +241,84 @@ TEST_F(MeshBufferTest, WrongColorSizeThrows)
 }
 
 // =============================================================================
+// Test: update_mesh replaces vertices and recomputes flat normals
+// =============================================================================
+
+TEST_F(MeshBufferTest, UpdateMesh_ReplacesVerticesAndRecomputesNormals)
+{
+  auto buffer = geoqik::MeshBuffer::create(m_settings);
+
+  // Add a flat XY-plane triangle.
+  std::vector<float> v1 = {0.0f, 0.0f, 0.0f,  1.0f, 0.0f, 0.0f,  0.0f, 1.0f, 0.0f};
+  std::vector<uint32_t> idx = {0, 1, 2};
+  core::UUID handle = core::UUID::generate();
+  buffer->add_mesh(v1, {}, {}, idx, &handle);
+
+  // Update to a different triangle (rotated 90 degrees around X).
+  std::vector<float> v2 = {0.0f, 0.0f, 0.0f,  1.0f, 0.0f, 0.0f,  0.0f, 0.0f, 1.0f};
+  bool ok = buffer->update_mesh(handle, v2, {}, {});
+  EXPECT_TRUE(ok);
+
+  auto verts = to_vector(buffer->get_vertices());
+  EXPECT_FLOAT_EQ(verts[6], 0.0f); // updated z of vertex 2
+  EXPECT_FLOAT_EQ(verts[8], 1.0f);
+}
+
+// =============================================================================
+// Test: update_mesh rejects wrong vertex count
+// =============================================================================
+
+TEST_F(MeshBufferTest, UpdateMesh_WrongVertexCountReturnsFalse)
+{
+  auto buffer = geoqik::MeshBuffer::create(m_settings);
+
+  std::vector<float> v = {0.0f, 0.0f, 0.0f,  1.0f, 0.0f, 0.0f,  0.0f, 1.0f, 0.0f};
+  std::vector<uint32_t> idx = {0, 1, 2};
+  core::UUID handle = core::UUID::generate();
+  buffer->add_mesh(v, {}, {}, idx, &handle);
+
+  std::vector<float> wrong = {0.0f, 0.0f, 0.0f}; // only 1 vertex, need 3
+  bool ok = buffer->update_mesh(handle, wrong, {}, {});
+  EXPECT_FALSE(ok);
+}
+
+// =============================================================================
+// Test: update_mesh rejects unknown handle
+// =============================================================================
+
+TEST_F(MeshBufferTest, UpdateMesh_UnknownHandleReturnsFalse)
+{
+  auto buffer = geoqik::MeshBuffer::create(m_settings);
+  core::UUID unknown = core::UUID::generate();
+  std::vector<float> v = {0.0f, 0.0f, 0.0f,  1.0f, 0.0f, 0.0f,  0.0f, 1.0f, 0.0f};
+  bool ok = buffer->update_mesh(unknown, v, {}, {});
+  EXPECT_FALSE(ok);
+}
+
+// =============================================================================
 // Test 9: clear() → buffer empty, has_changed() true
 // =============================================================================
+
+TEST_F(MeshBufferTest, SetDefaultColor_AppliesToNewlyAddedMesh)
+{
+  auto buffer = geoqik::MeshBuffer::create(m_settings);
+  buffer->set_default_color(1.0f, 0.0f, 0.0f, 1.0f); // red
+
+  std::vector<float> vertices = {0.0f, 0.0f, 0.0f,  1.0f, 0.0f, 0.0f,  0.0f, 1.0f, 0.0f};
+  std::vector<uint32_t> indices = {0, 1, 2};
+  buffer->add_mesh(vertices, {}, {}, indices); // no explicit color
+
+  auto colors = to_vector(buffer->get_colors());
+  // 3 vertices x 4 channels = 12 floats, all r=1 g=0 b=0 a=1
+  ASSERT_EQ(colors.size(), 12u);
+  for (std::size_t i = 0; i < 3; ++i)
+  {
+    EXPECT_FLOAT_EQ(colors[i * 4 + 0], 1.0f);
+    EXPECT_FLOAT_EQ(colors[i * 4 + 1], 0.0f);
+    EXPECT_FLOAT_EQ(colors[i * 4 + 2], 0.0f);
+    EXPECT_FLOAT_EQ(colors[i * 4 + 3], 1.0f);
+  }
+}
 
 TEST_F(MeshBufferTest, Clear_EmptiesBufferAndSetsChanged)
 {
@@ -267,4 +343,30 @@ TEST_F(MeshBufferTest, Clear_EmptiesBufferAndSetsChanged)
   EXPECT_EQ(buffer->get_normals().size(), 0u);
   EXPECT_EQ(buffer->get_colors().size(), 0u);
   EXPECT_EQ(buffer->get_triangle_indices().size(), 0u);
+}
+
+// =============================================================================
+// Test: create_snapshot / restore_snapshot preserves all data
+// =============================================================================
+
+TEST_F(MeshBufferTest, SnapshotRestore_PreservesAllData)
+{
+  auto buffer = geoqik::MeshBuffer::create(m_settings);
+  buffer->set_default_color(0.5f, 0.5f, 0.5f, 1.0f);
+
+  std::vector<float> v  = {0.0f, 0.0f, 0.0f,  1.0f, 0.0f, 0.0f,  0.0f, 1.0f, 0.0f};
+  std::vector<uint32_t> idx = {0, 1, 2};
+  core::UUID handle = core::UUID::generate();
+  buffer->add_mesh(v, {}, {}, idx, &handle);
+
+  auto snap = buffer->create_snapshot();
+
+  // Mutate
+  buffer->clear();
+  EXPECT_TRUE(buffer->empty());
+
+  // Restore
+  buffer->restore_snapshot(snap);
+  EXPECT_FALSE(buffer->empty());
+  EXPECT_EQ(to_vector(buffer->get_vertices()), v);
 }

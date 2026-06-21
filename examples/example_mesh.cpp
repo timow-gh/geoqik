@@ -1,4 +1,5 @@
 #include <GeoQik/GeoQik.hpp>
+#include "sleep_helper.hpp"
 #include <cstdint>
 #include <vector>
 
@@ -48,11 +49,28 @@ int main()
   geoqik_add_mesh_opts_t opts{};
   opts.color      = color;
   opts.colorCount = 4;
-  geoqik_add_mesh_opts(vertices.data(),
-                        vertices.size() / 3,
-                        indices.data(),
-                        indices.size() / 3,
-                        &opts);
+  geoqik_result_t result = geoqik_add_mesh_opts(vertices.data(),
+                                                 vertices.size() / 3,
+                                                 indices.data(),
+                                                 indices.size() / 3,
+                                                 &opts);
+
+  geoqik::examples::sleep_for_seconds(1.0);
+
+  // Double the height in the z axis
+  std::vector<float> updatedVertices = vertices;
+  for (std::size_t i = 2; i < updatedVertices.size(); i += 3)
+    updatedVertices[i] *= 2.0f;
+
+  // Orange color
+  float orangeColor[4] = {1.0f, 0.647f, 0.0f, 1.0f};
+  geoqik_update_mesh_opts_t updateOpts{};
+  updateOpts.color      = orangeColor;
+  updateOpts.colorCount = 4;
+  geoqik_update_mesh_opts(&result.geometryId,
+                           updatedVertices.data(),
+                           updatedVertices.size() / 3,
+                           &updateOpts);
 
   geoqik_wait_for_exit_and_cleanup();
   return 0;

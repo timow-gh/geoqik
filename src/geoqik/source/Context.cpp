@@ -203,6 +203,17 @@ void Context::set_line_color(Color color)
   ++m_geometryMessagesProcessedThisFrame;
 }
 
+Color Context::get_mesh_color()
+{
+  return m_scene.get_default_mesh_color();
+}
+
+void Context::set_mesh_color(Color color)
+{
+  m_scene.set_default_mesh_color(color[0], color[1], color[2], color[3]);
+  ++m_geometryMessagesProcessedThisFrame;
+}
+
 void Context::add_point_with_opts(float x, float y, float z, const GeoQikMessageCommonData& commonData)
 {
   if (is_known_idempotency_key(&commonData.idempotencyId))
@@ -857,7 +868,6 @@ void Context::handle_message(const AddMeshWithOpts& message)
   }
   add_mesh_with_opts(message.vertices, message.normals, message.commonData.rgba,
                      message.triangleIndices, message.commonData);
-  // Mesh messages not added to m_messageLog in this phase.
 }
 
 void Context::add_mesh_with_opts(std::span<const float> vertices,
@@ -875,6 +885,22 @@ void Context::handle_message(const RemoveMesh& message)
 {
   m_scene.remove_mesh(message.handle);
   ++m_geometryMessagesProcessedThisFrame;
+}
+
+void Context::update_mesh_with_opts(const core::UUID& handle,
+                                    std::span<const float> vertices,
+                                    std::span<const float> normals,
+                                    std::span<const float> colors)
+{
+  if (m_scene.update_mesh(handle, vertices, normals, colors))
+  {
+    ++m_geometryMessagesProcessedThisFrame;
+  }
+}
+
+void Context::handle_message(const UpdateMeshWithOpts& message)
+{
+  update_mesh_with_opts(message.handle, message.vertices, message.normals, message.colors);
 }
 
 void Context::handle_message([[maybe_unused]] const Draw& message)
@@ -964,6 +990,16 @@ void Context::handle_message(const GetLineWidth& message)
 void Context::handle_message(const GetLineColor& message)
 {
   CORE_ASSERT(message.callback);
+  message.callback(*this);
+}
+
+void Context::handle_message(const SetMeshColor& message)
+{
+  set_mesh_color(message.color);
+}
+
+void Context::handle_message(const GetMeshColor& message)
+{
   message.callback(*this);
 }
 

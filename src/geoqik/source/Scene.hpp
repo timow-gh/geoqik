@@ -18,9 +18,9 @@ struct SceneSnapshot
 {
   PointBufferSnapshot pointBuffer;
   LineBufferSnapshot lineBuffer;
+  MeshBufferSnapshot meshBuffer;
   float pointSize{3.0f};
   float lineWidth{1.0f};
-  // Mesh buffer state is intentionally not included. The serialization follow-up plan must add MeshBufferSnapshot here.
 };
 
 class Scene
@@ -72,6 +72,10 @@ public:
                 std::span<const std::uint32_t> triangleIndices,
                 const core::UUID* handle = nullptr);
   void remove_mesh(core::UUID handle);
+  [[nodiscard]] bool update_mesh(core::UUID handle,
+                                 std::span<const float> vertices,
+                                 std::span<const float> normals,
+                                 std::span<const float> colors);
 
   [[nodiscard]] const MeshBuffer& get_mesh_buffer() const { return *m_meshBuffer; }
   [[nodiscard]] MeshBuffer& get_mesh_buffer() { return *m_meshBuffer; }
@@ -97,6 +101,9 @@ public:
 
   [[nodiscard]] Color get_default_line_color() const;
   void set_default_line_color(float r, float g, float b, float a);
+
+  [[nodiscard]] Color get_default_mesh_color() const;
+  void set_default_mesh_color(float r, float g, float b, float a);
 
   [[nodiscard]] const PointBuffer& get_point_buffer() const { return *m_pointBuffer; }
   [[nodiscard]] PointBuffer& get_point_buffer() { return *m_pointBuffer; }

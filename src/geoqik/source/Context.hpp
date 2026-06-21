@@ -115,6 +115,9 @@ public:
   Color get_line_color();
   void set_line_color(Color color);
 
+  Color get_mesh_color();
+  void set_mesh_color(Color color);
+
   void add_point_with_opts(float x, float y, float z, const GeoQikMessageCommonData& commonData);
   void add_points_with_opts(std::span<const float> points, const GeoQikMessageCommonData& commonData);
   void update_point_with_opts(const core::UUID& handle, float x, float y, float z, std::span<const float> colors);
@@ -144,6 +147,11 @@ public:
                           std::span<const float> colors,
                           std::span<const std::uint32_t> triangleIndices,
                           const GeoQikMessageCommonData& commonData);
+
+  void update_mesh_with_opts(const core::UUID& handle,
+                             std::span<const float> vertices,
+                             std::span<const float> normals,
+                             std::span<const float> colors);
 
   void translate_geometry(const core::UUID& handle, float dx, float dy, float dz);
   void rotate_geometry(const core::UUID& handle,
@@ -220,6 +228,7 @@ private:
   void handle_message(const RotateGeometry& message);
   void handle_message(const AddMeshWithOpts& message);
   void handle_message(const RemoveMesh& message);
+  void handle_message(const UpdateMeshWithOpts& message);
   void handle_message(const Draw& message);
   void handle_message(const StopDraw& message);
   void handle_message(const SaveLog& message);
@@ -236,6 +245,8 @@ private:
   void handle_message(const GetPointColor& message);
   void handle_message(const GetLineWidth& message);
   void handle_message(const GetLineColor& message);
+  void handle_message(const SetMeshColor& message);
+  void handle_message(const GetMeshColor& message);
   void handle_message(const Cleanup& message);
 
   void print_frame_info(const std::chrono::high_resolution_clock::time_point& startTime,

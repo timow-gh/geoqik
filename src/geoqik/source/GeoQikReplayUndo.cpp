@@ -159,6 +159,13 @@ ReplayUndoFrame make_replay_undo_frame([[maybe_unused]] const SetLineColor& mess
   return frame;
 }
 
+ReplayUndoFrame make_replay_undo_frame([[maybe_unused]] const SetMeshColor& message, const ReplayUndoContext& context)
+{
+  ReplayUndoFrame frame;
+  frame.action = GeoQikLogEntry{SetMeshColor{context.scene.get_default_mesh_color()}};
+  return frame;
+}
+
 ReplayUndoFrame make_replay_undo_frame([[maybe_unused]] const RemoveAllGeometry& message, const ReplayUndoContext& context)
 {
   ReplayUndoFrame frame;
@@ -184,6 +191,33 @@ ReplayUndoFrame make_replay_undo_frame(const RotateGeometry& message, [[maybe_un
                                                message.axisY,
                                                message.axisZ,
                                                -message.angle}};
+  return frame;
+}
+
+ReplayUndoFrame make_replay_undo_frame(const AddMeshWithOpts& message, const ReplayUndoContext& context)
+{
+  ReplayUndoFrame frame;
+  if (context.has_known_idempotency_key(message.commonData.idempotencyId))
+  {
+    return frame;
+  }
+
+  frame.action = GeoQikLogEntry{RemoveMesh{message.commonData.geometryId}};
+  frame.idempotencyKeyToErase = message.commonData.idempotencyId;
+  return frame;
+}
+
+ReplayUndoFrame make_replay_undo_frame([[maybe_unused]] const RemoveMesh& message, const ReplayUndoContext& context)
+{
+  ReplayUndoFrame frame;
+  frame.action = ReplayUndoFrame::RestoreScene{context.scene.create_snapshot()};
+  return frame;
+}
+
+ReplayUndoFrame make_replay_undo_frame([[maybe_unused]] const UpdateMeshWithOpts& message, const ReplayUndoContext& context)
+{
+  ReplayUndoFrame frame;
+  frame.action = ReplayUndoFrame::RestoreScene{context.scene.create_snapshot()};
   return frame;
 }
 

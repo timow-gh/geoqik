@@ -136,6 +136,18 @@ struct SetLineColor
   [[nodiscard]] bool operator==(const SetLineColor&) const = default;
 };
 
+struct SetMeshColor
+{
+  Color color;
+
+  [[nodiscard]] bool operator==(const SetMeshColor&) const = default;
+};
+
+struct GetMeshColor
+{
+  std::function<void(Context& context)> callback;
+};
+
 struct AddMeshWithOpts
 {
   std::vector<float> vertices;
@@ -152,6 +164,16 @@ struct RemoveMesh
   core::UUID handle;
 
   [[nodiscard]] bool operator==(const RemoveMesh&) const = default;
+};
+
+struct UpdateMeshWithOpts
+{
+  core::UUID handle;
+  std::vector<float> vertices;
+  std::vector<float> normals;
+  std::vector<float> colors;
+
+  [[nodiscard]] bool operator==(const UpdateMeshWithOpts&) const = default;
 };
 
 struct RemoveAllGeometry
@@ -273,7 +295,11 @@ using GeoQikLogEntry = std::variant<AddPointWithOpts,
                                     SetLineColor,
                                     RemoveAllGeometry,
                                     TranslateGeometry,
-                                    RotateGeometry>;
+                                    RotateGeometry,
+                                    SetMeshColor,
+                                    AddMeshWithOpts,
+                                    RemoveMesh,
+                                    UpdateMeshWithOpts>;
 
 using GeoQikMessage = std::variant<AddPointWithOpts,
                                    AddPointsWithOpts,
@@ -289,11 +315,13 @@ using GeoQikMessage = std::variant<AddPointWithOpts,
                                    RemoveLine,
                                    SetLineWidth,
                                    SetLineColor,
+                                   SetMeshColor,
                                    RemoveAllGeometry,
                                    TranslateGeometry,
                                    RotateGeometry,
                                    AddMeshWithOpts,
                                    RemoveMesh,
+                                   UpdateMeshWithOpts,
                                    Draw,
                                    StopDraw,
                                    SaveLog,
@@ -310,6 +338,7 @@ using GeoQikMessage = std::variant<AddPointWithOpts,
                                    GetPointColor,
                                    GetLineWidth,
                                    GetLineColor,
+                                   GetMeshColor,
                                    Cleanup>;
 
 } // namespace geoqik

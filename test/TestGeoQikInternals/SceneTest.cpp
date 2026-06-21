@@ -181,6 +181,36 @@ TEST(SceneTest, RotatesPointAndLineGeometry)
   EXPECT_NEAR(lines[5], 0.0f, 1.0e-5f);
 }
 
+TEST(SceneTest, DefaultMeshColorMatchesSettings)
+{
+  geoqik::GeoQikSettings settings = make_scene_test_settings();
+  settings.defaultMeshColor = renderer::Color{0.2f, 0.4f, 0.6f, 0.8f};
+  auto scene = geoqik::Scene::create(settings);
+
+  EXPECT_EQ(scene.get_default_mesh_color(), settings.defaultMeshColor);
+
+  scene.set_default_mesh_color(0.1f, 0.2f, 0.3f, 0.4f);
+  auto expected = renderer::Color{0.1f, 0.2f, 0.3f, 0.4f};
+  EXPECT_EQ(scene.get_default_mesh_color(), expected);
+}
+
+TEST(SceneTest, UpdateMesh_ChangesVertexData)
+{
+  auto scene = geoqik::Scene::create(make_scene_test_settings());
+
+  std::vector<float> v = {0.0f, 0.0f, 0.0f,  1.0f, 0.0f, 0.0f,  0.0f, 1.0f, 0.0f};
+  std::vector<uint32_t> idx = {0, 1, 2};
+  core::UUID handle = core::UUID::generate();
+  scene.add_mesh(v, {}, {}, idx, &handle);
+
+  std::vector<float> v2 = {0.0f, 0.0f, 0.0f,  2.0f, 0.0f, 0.0f,  0.0f, 2.0f, 0.0f};
+  bool ok = scene.update_mesh(handle, v2, {}, {});
+  EXPECT_TRUE(ok);
+
+  // Changed flag must be set.
+  EXPECT_TRUE(scene.get_mesh_buffer().has_changed());
+}
+
 TEST(SceneTest, UpdatesPointAndLineGeometry)
 {
   auto scene = geoqik::Scene::create(make_scene_test_settings());
@@ -207,4 +237,21 @@ TEST(SceneTest, UpdatesPointAndLineGeometry)
   EXPECT_FLOAT_EQ(lines[0], 7.0f);
   EXPECT_FLOAT_EQ(lines[5], 12.0f);
   EXPECT_FLOAT_EQ(scene.get_line_buffer().get_line_colors()[0], 0.6f);
+}
+
+TEST(SceneTest, SceneSnapshot_IncludesMeshBuffer)
+{
+  auto scene = geoqik::Scene::create(make_scene_test_settings());
+
+  std::vector<float> v  = {0.0f, 0.0f, 0.0f,  1.0f, 0.0f, 0.0f,  0.0f, 1.0f, 0.0f};
+  std::vector<uint32_t> idx = {0, 1, 2};
+  core::UUID handle = core::UUID::generate();
+  scene.add_mesh(v, {}, {}, idx, &handle);
+
+  auto snap = scene.create_snapshot();
+  scene.clear();
+  EXPECT_TRUE(scene.get_mesh_buffer().empty());
+
+  scene.restore_snapshot(snap);
+  EXPECT_FALSE(scene.get_mesh_buffer().empty());
 }

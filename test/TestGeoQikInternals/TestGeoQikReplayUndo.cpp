@@ -26,6 +26,7 @@ geoqik::GeoQikSettings make_scene_settings()
   settings.defaultLineWidth = 2.0f;
   settings.defaultPointColor = renderer::Color{0.1f, 0.2f, 0.3f, 1.0f};
   settings.defaultLineColor = renderer::Color{0.4f, 0.5f, 0.6f, 1.0f};
+  settings.defaultMeshColor = renderer::Color{0.7f, 0.8f, 0.9f, 1.0f};
   return settings;
 }
 
@@ -144,6 +145,7 @@ TEST(GeoQikReplayUndoTest, StyleUndoCapturesCurrentSceneValues)
   scene.set_default_point_color(0.2f, 0.3f, 0.4f, 1.0f);
   scene.set_line_width(7.0f);
   scene.set_default_line_color(0.5f, 0.6f, 0.7f, 1.0f);
+  scene.set_default_mesh_color(0.8f, 0.7f, 0.6f, 1.0f);
 
   const auto pointSizeFrame = geoqik::make_replay_undo_frame(geoqik::SetPointSize{1.0f}, context);
   ASSERT_NE(nullptr, get_log_action<geoqik::SetPointSize>(pointSizeFrame));
@@ -163,6 +165,11 @@ TEST(GeoQikReplayUndoTest, StyleUndoCapturesCurrentSceneValues)
   const auto* lineColor = get_log_action<geoqik::SetLineColor>(lineColorFrame);
   ASSERT_NE(nullptr, lineColor);
   EXPECT_EQ((renderer::Color{0.5f, 0.6f, 0.7f, 1.0f}), lineColor->color);
+
+  const auto meshColorFrame = geoqik::make_replay_undo_frame(geoqik::SetMeshColor{}, context);
+  const auto* meshColor = get_log_action<geoqik::SetMeshColor>(meshColorFrame);
+  ASSERT_NE(nullptr, meshColor);
+  EXPECT_EQ((renderer::Color{0.8f, 0.7f, 0.6f, 1.0f}), meshColor->color);
 }
 
 TEST(GeoQikReplayUndoTest, RemoveAllGeometryUndoCapturesSceneSnapshot)
@@ -275,4 +282,63 @@ TEST(GeoQikReplayUndoTest, CreateReplayUndoFrameDispatchesVariantEntries)
   EXPECT_FLOAT_EQ(-3.0f, translate->dx);
   EXPECT_FLOAT_EQ(-4.0f, translate->dy);
   EXPECT_FLOAT_EQ(-5.0f, translate->dz);
+}
+
+TEST(GeoQikReplayUndoTest, AddMeshWithOpts_UndoCreatesRemoveMesh)
+{
+  auto scene = geoqik::Scene::create(make_scene_settings());
+  geoqik::IdempotencySet idempotencySet;
+  geoqik::ReplayUndoContext context{scene, idempotencySet};
+
+  geoqik::GeoQikMessageCommonData common{make_uuid(60), make_uuid(70), {}};
+  const auto frame = geoqik::make_replay_undo_frame(
+      geoqik::AddMeshWithOpts{{0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f}, {}, {}, {0, 1, 2}, common},
+      context);
+
+  const auto* removeMesh = get_log_action<geoqik::RemoveMesh>(frame);
+  ASSERT_NE(nullptr, removeMesh);
+  EXPECT_EQ(common.geometryId, removeMesh->handle);
+  EXPECT_EQ(common.idempotencyId, frame.idempotencyKeyToErase);
+
+  // Known idempotency key → no-op frame.
+  idempotencySet.insert(geoqik::IdempotencyData{common.idempotencyId, {}});
+  const auto knownFrame = geoqik::make_replay_undo_frame(
+      geoqik::AddMeshWithOpts{{0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f}, {}, {}, {0, 1, 2}, common},
+      context);
+  EXPECT_TRUE(std::holds_alternative<std::monostate>(knownFrame.action));
+}
+
+TEST(GeoQikReplayUndoTest, RemoveMesh_UndoCapturesSceneSnapshot)
+{
+  auto scene = geoqik::Scene::create(make_scene_settings());
+  geoqik::IdempotencySet idempotencySet;
+  const geoqik::ReplayUndoContext context{scene, idempotencySet};
+
+  const auto meshId = make_uuid(61);
+  const std::vector<float> v = {0.0f, 0.0f, 0.0f,  1.0f, 0.0f, 0.0f,  0.0f, 1.0f, 0.0f};
+  const std::vector<std::uint32_t> triIdx = {0, 1, 2};
+  scene.add_mesh(v, {}, {}, triIdx, &meshId);
+
+  const auto frame = geoqik::make_replay_undo_frame(geoqik::RemoveMesh{meshId}, context);
+  const auto* restoreScene = std::get_if<geoqik::ReplayUndoFrame::RestoreScene>(&frame.action);
+  ASSERT_NE(nullptr, restoreScene);
+  EXPECT_FALSE(restoreScene->scene.meshBuffer.vertices.empty());
+}
+
+TEST(GeoQikReplayUndoTest, UpdateMeshWithOpts_UndoCapturesSceneSnapshot)
+{
+  auto scene = geoqik::Scene::create(make_scene_settings());
+  geoqik::IdempotencySet idempotencySet;
+  const geoqik::ReplayUndoContext context{scene, idempotencySet};
+
+  const auto meshId = make_uuid(62);
+  const std::vector<float> v = {0.0f, 0.0f, 0.0f,  1.0f, 0.0f, 0.0f,  0.0f, 1.0f, 0.0f};
+  const std::vector<std::uint32_t> triIdx = {0, 1, 2};
+  scene.add_mesh(v, {}, {}, triIdx, &meshId);
+
+  const auto frame = geoqik::make_replay_undo_frame(
+      geoqik::UpdateMeshWithOpts{meshId, v, {}, {}}, context);
+  const auto* restoreScene = std::get_if<geoqik::ReplayUndoFrame::RestoreScene>(&frame.action);
+  ASSERT_NE(nullptr, restoreScene);
+  EXPECT_FALSE(restoreScene->scene.meshBuffer.vertices.empty());
 }

@@ -265,13 +265,14 @@ void Renderer::end_frame(bool& autoFitEnabled)
 {
   CameraProjectionType projectionType = m_camera->get_projection_type();
   m_imgui->add_camera_controls(autoFitEnabled, projectionType);
+  m_imgui->render();
+  m_imgui->end_frame();
+
   if (projectionType != m_camera->get_projection_type())
   {
     m_camera->set_projection_type(projectionType);
   }
 
-  m_imgui->render();
-  m_imgui->end_frame();
   m_window.swap_buffers();
 }
 
