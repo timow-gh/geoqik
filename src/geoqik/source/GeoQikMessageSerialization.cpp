@@ -308,7 +308,7 @@ void MessageWriter::write(const GeoQikLogEntry& message)
           write_float_vector(m_stream, value.vertices);
           write_float_vector(m_stream, value.normals);
           write_pod(m_stream, static_cast<std::uint64_t>(value.triangleIndices.size()));
-          for (std::uint32_t idx : value.triangleIndices) write_pod(m_stream, idx);
+          for (std::uint32_t idx : value.triangleIndices) { write_pod(m_stream, idx); }
         }
         else if constexpr (std::is_same_v<T, RemoveMesh>)
         {
