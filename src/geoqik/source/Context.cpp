@@ -18,10 +18,8 @@ namespace geoqik
 using renderer::CameraAutoFitSettings;
 using renderer::CameraAutoFitInput;
 using renderer::CameraAutoFitResult;
-using renderer::CameraProjectionType;
 using renderer::Viewport;
 using renderer::CameraInteractor;
-using renderer::CameraSettings;
 
 namespace
 {

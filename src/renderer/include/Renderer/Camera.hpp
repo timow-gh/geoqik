@@ -51,28 +51,28 @@ class Camera
 public:
   struct PerspectiveParams
   {
-    double fov{30.0};        // Field of view in degrees
-    double near{0.01};       // Near clipping plane
-    double far{3000.0};      // Far clipping plane
-    
+    double fov{30.0};         // Field of view in degrees
+    double near_plane{0.01};  // Near clipping plane
+    double far_plane{3000.0}; // Far clipping plane
+
     void validate() const
     {
       RENDERER_ASSERT(fov > 0.0 && fov < 180.0);
-      RENDERER_ASSERT(near > 0.0 && far > near);
+      RENDERER_ASSERT(near_plane > 0.0 && far_plane > near_plane);
     }
   };
 
   struct OrthographicParams
   {
-    double width{10.0};      // Orthographic view width
-    double height{10.0};     // Orthographic view height
-    double near{0.01};       // Near clipping plane
-    double far{3000.0};      // Far clipping plane
-    
+    double width{10.0};       // Orthographic view width
+    double height{10.0};      // Orthographic view height
+    double near_plane{0.01};  // Near clipping plane
+    double far_plane{3000.0}; // Far clipping plane
+
     void validate() const
     {
       RENDERER_ASSERT(width > 0.0 && height > 0.0);
-      RENDERER_ASSERT(near > 0.0 && far > near);
+      RENDERER_ASSERT(near_plane > 0.0 && far_plane > near_plane);
     }
   };
 
@@ -139,11 +139,11 @@ public:
 
   // Legacy accessors for backward compatibility
   [[nodiscard]] double get_fov() const { return m_perspective.fov; }
-  [[nodiscard]] double get_near_plane() const { 
-    return m_activeProjection == CameraProjectionType::PERSPECTIVE ? m_perspective.near : m_orthographic.near; 
+  [[nodiscard]] double get_near_plane() const {
+    return m_activeProjection == CameraProjectionType::PERSPECTIVE ? m_perspective.near_plane : m_orthographic.near_plane;
   }
-  [[nodiscard]] double get_far_plane() const { 
-    return m_activeProjection == CameraProjectionType::PERSPECTIVE ? m_perspective.far : m_orthographic.far; 
+  [[nodiscard]] double get_far_plane() const {
+    return m_activeProjection == CameraProjectionType::PERSPECTIVE ? m_perspective.far_plane : m_orthographic.far_plane;
   }
 
   // Matrix accessors
@@ -214,7 +214,7 @@ public:
   Camera& set_perspective_params(const PerspectiveParams& params)
   {
     params.validate();
-    if (m_perspective.fov != params.fov || m_perspective.near != params.near || m_perspective.far != params.far)
+    if (m_perspective.fov != params.fov || m_perspective.near_plane != params.near_plane || m_perspective.far_plane != params.far_plane)
     {
       m_perspective = params;
       if (m_activeProjection == CameraProjectionType::PERSPECTIVE)
@@ -225,12 +225,12 @@ public:
     return *this;
   }
 
-  Camera& set_fov(double fov)
+  Camera& set_fov(double fov_deg)
   {
-    RENDERER_ASSERT(fov > 0.0 && fov < 180.0);
-    if (m_perspective.fov != fov)
+    RENDERER_ASSERT(fov_deg > 0.0 && fov_deg < 180.0);
+    if (m_perspective.fov != fov_deg)
     {
-      m_perspective.fov = fov;
+      m_perspective.fov = fov_deg;
       if (m_activeProjection == CameraProjectionType::PERSPECTIVE)
       {
         m_projectionDirty = true;
@@ -239,12 +239,12 @@ public:
     return *this;
   }
 
-  Camera& set_perspective_near_plane(double near)
+  Camera& set_perspective_near_plane(double near_plane)
   {
-    RENDERER_ASSERT(near > 0.0 && near < m_perspective.far);
-    if (m_perspective.near != near)
+    RENDERER_ASSERT(near_plane > 0.0 && near_plane < m_perspective.far_plane);
+    if (m_perspective.near_plane != near_plane)
     {
-      m_perspective.near = near;
+      m_perspective.near_plane = near_plane;
       if (m_activeProjection == CameraProjectionType::PERSPECTIVE)
       {
         m_projectionDirty = true;
@@ -253,12 +253,12 @@ public:
     return *this;
   }
 
-  Camera& set_perspective_far_plane(double far)
+  Camera& set_perspective_far_plane(double far_plane)
   {
-    RENDERER_ASSERT(far > m_perspective.near);
-    if (m_perspective.far != far)
+    RENDERER_ASSERT(far_plane > m_perspective.near_plane);
+    if (m_perspective.far_plane != far_plane)
     {
-      m_perspective.far = far;
+      m_perspective.far_plane = far_plane;
       if (m_activeProjection == CameraProjectionType::PERSPECTIVE)
       {
         m_projectionDirty = true;
@@ -271,8 +271,8 @@ public:
   Camera& set_orthographic_params(const OrthographicParams& params)
   {
     params.validate();
-    if (m_orthographic.width != params.width || m_orthographic.height != params.height || 
-        m_orthographic.near != params.near || m_orthographic.far != params.far)
+    if (m_orthographic.width != params.width || m_orthographic.height != params.height ||
+        m_orthographic.near_plane != params.near_plane || m_orthographic.far_plane != params.far_plane)
     {
       m_orthographic = params;
       if (m_activeProjection == CameraProjectionType::ORTHOGRAPHIC)
@@ -298,12 +298,12 @@ public:
     return *this;
   }
 
-  Camera& set_orthographic_near_plane(double near)
+  Camera& set_orthographic_near_plane(double near_plane)
   {
-    RENDERER_ASSERT(near > 0.0 && near < m_orthographic.far);
-    if (m_orthographic.near != near)
+    RENDERER_ASSERT(near_plane > 0.0 && near_plane < m_orthographic.far_plane);
+    if (m_orthographic.near_plane != near_plane)
     {
-      m_orthographic.near = near;
+      m_orthographic.near_plane = near_plane;
       if (m_activeProjection == CameraProjectionType::ORTHOGRAPHIC)
       {
         m_projectionDirty = true;
@@ -312,12 +312,12 @@ public:
     return *this;
   }
 
-  Camera& set_orthographic_far_plane(double far)
+  Camera& set_orthographic_far_plane(double far_plane)
   {
-    RENDERER_ASSERT(far > m_orthographic.near);
-    if (m_orthographic.far != far)
+    RENDERER_ASSERT(far_plane > m_orthographic.near_plane);
+    if (m_orthographic.far_plane != far_plane)
     {
-      m_orthographic.far = far;
+      m_orthographic.far_plane = far_plane;
       if (m_activeProjection == CameraProjectionType::ORTHOGRAPHIC)
       {
         m_projectionDirty = true;
@@ -327,28 +327,28 @@ public:
   }
 
   // Legacy setters for backward compatibility
-  Camera& set_near_plane(double near)
+  Camera& set_near_plane(double near_plane)
   {
     if (m_activeProjection == CameraProjectionType::PERSPECTIVE)
     {
-      set_perspective_near_plane(near);
+      set_perspective_near_plane(near_plane);
     }
     else
     {
-      set_orthographic_near_plane(near);
+      set_orthographic_near_plane(near_plane);
     }
     return *this;
   }
 
-  Camera& set_far_plane(double far)
+  Camera& set_far_plane(double far_plane)
   {
     if (m_activeProjection == CameraProjectionType::PERSPECTIVE)
     {
-      set_perspective_far_plane(far);
+      set_perspective_far_plane(far_plane);
     }
     else
     {
-      set_orthographic_far_plane(far);
+      set_orthographic_far_plane(far_plane);
     }
     return *this;
   }
@@ -361,9 +361,9 @@ public:
   }
 
   // Legacy orthographic projection setter (for backward compatibility)
-  Camera& set_ortho_projection(double width, double height, double near, double far)
+  Camera& set_ortho_projection(double width, double height, double near_plane, double far_plane)
   {
-    OrthographicParams params{width, height, near, far};
+    OrthographicParams params{width, height, near_plane, far_plane};
     set_orthographic_params(params);
     
     // Update legacy bounds
@@ -572,14 +572,14 @@ private:
 
   [[nodiscard]] glm::mat4 compute_perspective_matrix() const
   {
-    return glm::perspective(glm::radians(m_perspective.fov), m_viewport.get_aspect_ratio(), m_perspective.near, m_perspective.far);
+    return glm::perspective(glm::radians(m_perspective.fov), m_viewport.get_aspect_ratio(), m_perspective.near_plane, m_perspective.far_plane);
   }
 
   [[nodiscard]] glm::mat4 compute_orthographic_matrix() const
   {
     const double halfwidth = m_orthographic.width / 2.0 * m_viewport.get_aspect_ratio();
     const double halfheight = m_orthographic.height / 2.0;
-    return glm::ortho(-halfwidth, halfwidth, -halfheight, halfheight, m_orthographic.near, m_orthographic.far);
+    return glm::ortho(-halfwidth, halfwidth, -halfheight, halfheight, m_orthographic.near_plane, m_orthographic.far_plane);
   }
 };
 

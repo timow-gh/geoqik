@@ -94,8 +94,8 @@ TEST(CameraTest, UpdatesPerspectiveAndOrthographicParameters)
 
   camera.set_near_plane(0.75);
   camera.set_far_plane(300.0);
-  EXPECT_DOUBLE_EQ(camera.get_orthographic_params().near, 0.75);
-  EXPECT_DOUBLE_EQ(camera.get_orthographic_params().far, 300.0);
+  EXPECT_DOUBLE_EQ(camera.get_orthographic_params().near_plane, 0.75);
+  EXPECT_DOUBLE_EQ(camera.get_orthographic_params().far_plane, 300.0);
 
   const glm::mat4 projection = camera.get_projection_matrix();
   const glm::mat4 orthographicProjection = camera.get_ortho_projection_matrix();
