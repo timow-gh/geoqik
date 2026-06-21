@@ -42,7 +42,7 @@ void ImGuiOverlay::new_frame() // NOLINT(readability-convert-member-functions-to
 void ImGuiOverlay::add_camera_controls(bool& autoZoomEnabled, CameraProjectionType& projectionType)
 {
   m_controls.emplace_back(
-      [&autoZoomEnabled, &projectionType, this]()
+      [&autoZoomEnabled, &projectionType]()
       {
         ImGui::Begin("Camera");
         ImGui::Checkbox("Auto Zoom", &autoZoomEnabled);
