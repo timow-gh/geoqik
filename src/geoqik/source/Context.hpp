@@ -148,6 +148,11 @@ public:
                           std::span<const std::uint32_t> triangleIndices,
                           const GeoQikMessageCommonData& commonData);
 
+  void update_mesh_with_opts(const core::UUID& handle,
+                             std::span<const float> vertices,
+                             std::span<const float> normals,
+                             std::span<const float> colors);
+
   void translate_geometry(const core::UUID& handle, float dx, float dy, float dz);
   void rotate_geometry(const core::UUID& handle,
                        float centerX,
@@ -223,6 +228,7 @@ private:
   void handle_message(const RotateGeometry& message);
   void handle_message(const AddMeshWithOpts& message);
   void handle_message(const RemoveMesh& message);
+  void handle_message(const UpdateMeshWithOpts& message);
   void handle_message(const Draw& message);
   void handle_message(const StopDraw& message);
   void handle_message(const SaveLog& message);

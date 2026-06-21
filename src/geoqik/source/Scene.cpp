@@ -125,6 +125,14 @@ void Scene::remove_mesh(core::UUID handle)
   m_meshBuffer->remove_mesh(handle);
 }
 
+bool Scene::update_mesh(core::UUID handle,
+                        std::span<const float> vertices,
+                        std::span<const float> normals,
+                        std::span<const float> colors)
+{
+  return m_meshBuffer->update_mesh(handle, vertices, normals, colors);
+}
+
 void Scene::translate_geometry(core::UUID handle, float dx, float dy, float dz)
 {
   m_pointBuffer->translate_geometry(handle, dx, dy, dz);

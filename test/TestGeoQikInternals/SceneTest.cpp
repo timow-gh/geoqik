@@ -194,6 +194,23 @@ TEST(SceneTest, DefaultMeshColorMatchesSettings)
   EXPECT_EQ(scene.get_default_mesh_color(), expected);
 }
 
+TEST(SceneTest, UpdateMesh_ChangesVertexData)
+{
+  auto scene = geoqik::Scene::create(make_scene_test_settings());
+
+  std::vector<float> v = {0.0f, 0.0f, 0.0f,  1.0f, 0.0f, 0.0f,  0.0f, 1.0f, 0.0f};
+  std::vector<uint32_t> idx = {0, 1, 2};
+  core::UUID handle = core::UUID::generate();
+  scene.add_mesh(v, {}, {}, idx, &handle);
+
+  std::vector<float> v2 = {0.0f, 0.0f, 0.0f,  2.0f, 0.0f, 0.0f,  0.0f, 2.0f, 0.0f};
+  bool ok = scene.update_mesh(handle, v2, {}, {});
+  EXPECT_TRUE(ok);
+
+  // Changed flag must be set.
+  EXPECT_TRUE(scene.get_mesh_buffer().has_changed());
+}
+
 TEST(SceneTest, UpdatesPointAndLineGeometry)
 {
   auto scene = geoqik::Scene::create(make_scene_test_settings());

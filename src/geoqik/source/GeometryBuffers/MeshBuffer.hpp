@@ -194,6 +194,65 @@ public:
     m_hasChanged = true;
   }
 
+  [[nodiscard]] bool update_mesh(core::UUID handle,
+                                std::span<const float> vertices,
+                                std::span<const float> normals,
+                                std::span<const float> colors)
+  {
+    if (handle.is_nil()) return false;
+
+    auto it = m_handleToMeshIndex.find(handle);
+    if (it == m_handleToMeshIndex.end()) return false;
+
+    const MeshGeoBufferIndex& info = it->second;
+
+    // Vertex count must match exactly — topology is immutable.
+    if (vertices.size() != info.vertexCount * 3) return false;
+    if (!normals.empty() && normals.size() != info.vertexCount * 3) return false;
+    if (!colors.empty() &&
+        colors.size() != ColorChannelCount &&
+        colors.size() != info.vertexCount * ColorChannelCount)
+      return false;
+
+    // Replace vertices.
+    const std::size_t vBase = info.vertexStartIndex * 3;
+    for (std::size_t i = 0; i < vertices.size(); ++i)
+      m_vertices[vBase + i] = vertices[i];
+
+    // Replace or recompute normals.
+    if (normals.empty())
+    {
+      recompute_flat_normals_for_range(info.vertexStartIndex, info.vertexCount,
+                                       info.triangleStartIndex, info.triangleCount);
+    }
+    else
+    {
+      const std::size_t nBase = info.vertexStartIndex * 3;
+      for (std::size_t i = 0; i < normals.size(); ++i)
+        m_normals[nBase + i] = normals[i];
+    }
+
+    // Replace colours if supplied.
+    if (!colors.empty())
+    {
+      const std::size_t cBase = info.vertexStartIndex * ColorChannelCount;
+      if (colors.size() == ColorChannelCount)
+      {
+        for (std::size_t v = 0; v < info.vertexCount; ++v)
+          for (std::size_t j = 0; j < ColorChannelCount; ++j)
+            m_colors[cBase + v * ColorChannelCount + j] = colors[j];
+      }
+      else
+      {
+        for (std::size_t i = 0; i < colors.size(); ++i)
+          m_colors[cBase + i] = colors[i];
+      }
+    }
+
+    m_hasChanged = true;
+    return true;
+  }
+
   void translate_geometry(core::UUID handle, float dx, float dy, float dz)
   {
     auto it = m_handleToMeshIndex.find(handle);

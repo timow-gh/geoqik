@@ -888,6 +888,19 @@ void Context::handle_message(const RemoveMesh& message)
   ++m_geometryMessagesProcessedThisFrame;
 }
 
+void Context::update_mesh_with_opts(const core::UUID& handle,
+                                    std::span<const float> vertices,
+                                    std::span<const float> normals,
+                                    std::span<const float> colors)
+{
+  m_scene.update_mesh(handle, vertices, normals, colors);
+}
+
+void Context::handle_message(const UpdateMeshWithOpts& message)
+{
+  update_mesh_with_opts(message.handle, message.vertices, message.normals, message.colors);
+}
+
 void Context::handle_message([[maybe_unused]] const Draw& message)
 {
   m_isDrawing = true;

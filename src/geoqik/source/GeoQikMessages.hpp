@@ -166,6 +166,16 @@ struct RemoveMesh
   [[nodiscard]] bool operator==(const RemoveMesh&) const = default;
 };
 
+struct UpdateMeshWithOpts
+{
+  core::UUID handle;
+  std::vector<float> vertices;
+  std::vector<float> normals;
+  std::vector<float> colors;
+
+  [[nodiscard]] bool operator==(const UpdateMeshWithOpts&) const = default;
+};
+
 struct RemoveAllGeometry
 {
   [[nodiscard]] bool operator==(const RemoveAllGeometry&) const = default;
@@ -308,6 +318,7 @@ using GeoQikMessage = std::variant<AddPointWithOpts,
                                    RotateGeometry,
                                    AddMeshWithOpts,
                                    RemoveMesh,
+                                   UpdateMeshWithOpts,
                                    Draw,
                                    StopDraw,
                                    SaveLog,

@@ -241,6 +241,61 @@ TEST_F(MeshBufferTest, WrongColorSizeThrows)
 }
 
 // =============================================================================
+// Test: update_mesh replaces vertices and recomputes flat normals
+// =============================================================================
+
+TEST_F(MeshBufferTest, UpdateMesh_ReplacesVerticesAndRecomputesNormals)
+{
+  auto buffer = geoqik::MeshBuffer::create(m_settings);
+
+  // Add a flat XY-plane triangle.
+  std::vector<float> v1 = {0.0f, 0.0f, 0.0f,  1.0f, 0.0f, 0.0f,  0.0f, 1.0f, 0.0f};
+  std::vector<uint32_t> idx = {0, 1, 2};
+  core::UUID handle = core::UUID::generate();
+  buffer->add_mesh(v1, {}, {}, idx, &handle);
+
+  // Update to a different triangle (rotated 90 degrees around X).
+  std::vector<float> v2 = {0.0f, 0.0f, 0.0f,  1.0f, 0.0f, 0.0f,  0.0f, 0.0f, 1.0f};
+  bool ok = buffer->update_mesh(handle, v2, {}, {});
+  EXPECT_TRUE(ok);
+
+  auto verts = to_vector(buffer->get_vertices());
+  EXPECT_FLOAT_EQ(verts[6], 0.0f); // updated z of vertex 2
+  EXPECT_FLOAT_EQ(verts[8], 1.0f);
+}
+
+// =============================================================================
+// Test: update_mesh rejects wrong vertex count
+// =============================================================================
+
+TEST_F(MeshBufferTest, UpdateMesh_WrongVertexCountReturnsFalse)
+{
+  auto buffer = geoqik::MeshBuffer::create(m_settings);
+
+  std::vector<float> v = {0.0f, 0.0f, 0.0f,  1.0f, 0.0f, 0.0f,  0.0f, 1.0f, 0.0f};
+  std::vector<uint32_t> idx = {0, 1, 2};
+  core::UUID handle = core::UUID::generate();
+  buffer->add_mesh(v, {}, {}, idx, &handle);
+
+  std::vector<float> wrong = {0.0f, 0.0f, 0.0f}; // only 1 vertex, need 3
+  bool ok = buffer->update_mesh(handle, wrong, {}, {});
+  EXPECT_FALSE(ok);
+}
+
+// =============================================================================
+// Test: update_mesh rejects unknown handle
+// =============================================================================
+
+TEST_F(MeshBufferTest, UpdateMesh_UnknownHandleReturnsFalse)
+{
+  auto buffer = geoqik::MeshBuffer::create(m_settings);
+  core::UUID unknown = core::UUID::generate();
+  std::vector<float> v = {0.0f, 0.0f, 0.0f,  1.0f, 0.0f, 0.0f,  0.0f, 1.0f, 0.0f};
+  bool ok = buffer->update_mesh(unknown, v, {}, {});
+  EXPECT_FALSE(ok);
+}
+
+// =============================================================================
 // Test 9: clear() → buffer empty, has_changed() true
 // =============================================================================
 

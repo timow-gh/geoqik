@@ -421,6 +421,20 @@ extern "C"
 
   GEOQIK_EXPORT geoqik_error_code_t geoqik_remove_mesh(const geoqik_uuid_t* geometryId);
 
+  typedef struct
+  {
+    geoqik_uuid_t idempotencyKey; /**< Optional, ignored if zeroed. */
+    const float* normals;         /**< Optional per-vertex normals (XYZ), NULL to auto-compute. Size must be 0 or vertexCount*3. */
+    size_t normalsCount;          /**< Number of floats in the normals array. */
+    const float* color;           /**< Optional replacement color (RGBA). Size must be 0, 4, or vertexCount*4. */
+    size_t colorCount;            /**< Number of floats in the color array. */
+  } geoqik_update_mesh_opts_t;
+
+  GEOQIK_EXPORT geoqik_error_code_t geoqik_update_mesh_opts(const geoqik_uuid_t* geometryId,
+                                                            const float* vertices,
+                                                            size_t vertexCount,
+                                                            geoqik_update_mesh_opts_t* options);
+
   GEOQIK_EXPORT geoqik_error_code_t geoqik_remove_all_geometry();
 
   GEOQIK_EXPORT geoqik_error_code_t geoqik_translate_geometry(const geoqik_uuid_t* geometryId, double dx, double dy, double dz);

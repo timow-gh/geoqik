@@ -72,6 +72,10 @@ public:
                 std::span<const std::uint32_t> triangleIndices,
                 const core::UUID* handle = nullptr);
   void remove_mesh(core::UUID handle);
+  [[nodiscard]] bool update_mesh(core::UUID handle,
+                                 std::span<const float> vertices,
+                                 std::span<const float> normals,
+                                 std::span<const float> colors);
 
   [[nodiscard]] const MeshBuffer& get_mesh_buffer() const { return *m_meshBuffer; }
   [[nodiscard]] MeshBuffer& get_mesh_buffer() { return *m_meshBuffer; }

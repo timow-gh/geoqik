@@ -1398,6 +1398,49 @@ geoqik_error_code_t geoqik_remove_mesh(const geoqik_uuid_t* geometryId)
       });
 }
 
+geoqik_error_code_t geoqik_update_mesh_opts(const geoqik_uuid_t* geometryId,
+                                            const float* vertices,
+                                            size_t vertexCount,
+                                            geoqik_update_mesh_opts_t* options)
+{
+  if (geometryId == nullptr || vertices == nullptr || vertexCount == 0)
+  {
+    return GEOQIK_ERROR_INVALID_PARAMETER;
+  }
+
+  std::vector<float> verticesCopy(vertices, vertices + (vertexCount * 3));
+  std::vector<float> normalsCopy;
+  std::vector<float> colorsCopy;
+
+  if (options != nullptr)
+  {
+    if (options->normalsCount > 0 && options->normals != nullptr)
+    {
+      normalsCopy.assign(options->normals, options->normals + options->normalsCount);
+    }
+    if (options->colorCount > 0 && options->color != nullptr)
+    {
+      if (!geoqik_internal::validate_color_values(options->color, options->colorCount))
+      {
+        return GEOQIK_ERROR_INVALID_PARAMETER;
+      }
+      colorsCopy.assign(options->color, options->color + options->colorCount);
+    }
+  }
+
+  return geoqik_internal::execute_if_initialized(
+      [&]() -> geoqik_error_code_t
+      {
+        core::UUID handle = convert_to_core_uuid(*geometryId);
+        geoqik::UpdateMeshWithOpts message;
+        message.handle = handle;
+        message.vertices = std::move(verticesCopy);
+        message.normals  = std::move(normalsCopy);
+        message.colors   = std::move(colorsCopy);
+        return enqueue(GeoQikMessage{std::move(message)});
+      });
+}
+
 GEOQIK_EXPORT geoqik_error_code_t geoqik_remove_all_geometry()
 {
   return geoqik_internal::execute_if_initialized(
