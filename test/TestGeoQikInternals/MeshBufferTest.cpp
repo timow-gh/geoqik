@@ -264,6 +264,46 @@ TEST_F(MeshBufferTest, UpdateMesh_ReplacesVerticesAndRecomputesNormals)
   EXPECT_FLOAT_EQ(verts[8], 1.0f);
 }
 
+TEST_F(MeshBufferTest, UpdateMesh_RefreshesOverlayPositions)
+{
+  auto buffer = geoqik::MeshBuffer::create(m_settings);
+
+  std::vector<float> v1 = {0.0f, 0.0f, 0.0f,  1.0f, 0.0f, 0.0f,  0.0f, 1.0f, 0.0f};
+  std::vector<std::uint32_t> idx = {0, 1, 2};
+  core::UUID handle = core::UUID::generate();
+  buffer->add_mesh(v1, {}, {}, idx, &handle);
+
+  geoqik::PerMeshOverlayData overlayData;
+  overlayData.showSegments = true;
+  overlayData.showVertices = true;
+  overlayData.segmentPositions = v1;
+  overlayData.segmentIndices = geoqik::derive_segment_indices_from_triangles(buffer->get_local_triangle_indices(handle));
+  buffer->set_mesh_overlay_data(handle, overlayData);
+
+  std::vector<float> v2 = {0.0f, 0.0f, 0.0f,  2.0f, 0.0f, 0.0f,  0.0f, 2.0f, 1.0f};
+  ASSERT_TRUE(buffer->update_mesh(handle, v2, {}, {}));
+
+  const auto& updatedOverlay = buffer->get_mesh_overlay_data(handle);
+  EXPECT_EQ(updatedOverlay.segmentPositions, v2);
+  EXPECT_EQ(updatedOverlay.segmentIndices, (std::vector<std::uint32_t>{0, 1, 1, 2, 2, 0}));
+}
+
+TEST_F(MeshBufferTest, UpdateMesh_BeforeFirstSyncKeepsMeshOnlyAdded)
+{
+  auto buffer = geoqik::MeshBuffer::create(m_settings);
+
+  std::vector<float> v1 = {0.0f, 0.0f, 0.0f,  1.0f, 0.0f, 0.0f,  0.0f, 1.0f, 0.0f};
+  std::vector<float> v2 = {0.0f, 0.0f, 0.0f,  2.0f, 0.0f, 0.0f,  0.0f, 2.0f, 0.0f};
+  std::vector<std::uint32_t> idx = {0, 1, 2};
+  core::UUID handle = core::UUID::generate();
+
+  buffer->add_mesh(v1, {}, {}, idx, &handle);
+  ASSERT_TRUE(buffer->update_mesh(handle, v2, {}, {}));
+
+  EXPECT_EQ(buffer->get_added_meshes().count(handle), 1u);
+  EXPECT_EQ(buffer->get_updated_meshes().count(handle), 0u);
+}
+
 // =============================================================================
 // Test: update_mesh rejects wrong vertex count
 // =============================================================================
@@ -439,4 +479,221 @@ TEST_F(MeshBufferTest, PerMeshAccessors_ReturnCorrectSubspan)
 
   auto local2 = buffer->get_local_triangle_indices(h2);
   EXPECT_EQ(local2, (std::vector<std::uint32_t>{0,1,2}));
+}
+
+// =============================================================================
+// Plan 005 — Segment overlay tests
+// =============================================================================
+
+TEST_F(MeshBufferTest, SegmentOverlay_AutoDerived_CorrectEdgeCount)
+{
+  auto buffer = geoqik::MeshBuffer::create(m_settings);
+  core::UUID handle = core::UUID::generate();
+  std::vector<float> v = {0.f,0.f,0.f, 1.f,0.f,0.f, 0.f,1.f,0.f};
+  std::vector<std::uint32_t> idx = {0,1,2};
+  buffer->add_mesh(v, {}, {}, idx, &handle);
+
+  auto localTris = buffer->get_local_triangle_indices(handle);
+  auto segs = geoqik::derive_segment_indices_from_triangles(localTris);
+
+  // 1 triangle = 3 edges = 6 indices
+  EXPECT_EQ(segs.size(), 6u);
+  EXPECT_EQ(segs[0], 0u); EXPECT_EQ(segs[1], 1u);
+  EXPECT_EQ(segs[2], 1u); EXPECT_EQ(segs[3], 2u);
+  EXPECT_EQ(segs[4], 2u); EXPECT_EQ(segs[5], 0u);
+}
+
+TEST_F(MeshBufferTest, SegmentOverlay_OverlayDataStoredAndRetrieved)
+{
+  auto buffer = geoqik::MeshBuffer::create(m_settings);
+  core::UUID handle = core::UUID::generate();
+  std::vector<float> v = {0.f,0.f,0.f, 1.f,0.f,0.f, 0.f,1.f,0.f};
+  std::vector<std::uint32_t> idx = {0,1,2};
+  buffer->add_mesh(v, {}, {}, idx, &handle);
+
+  geoqik::PerMeshOverlayData overlayData;
+  overlayData.showSegments = true;
+  overlayData.segmentLineWidth = 2.0f;
+  overlayData.segmentPositions = std::vector<float>(v.begin(), v.end());
+  overlayData.segmentIndices = {0,1,1,2,2,0};
+  buffer->set_mesh_overlay_data(handle, overlayData);
+
+  EXPECT_TRUE(buffer->has_mesh_overlay_data(handle));
+  EXPECT_TRUE(buffer->get_mesh_overlay_data(handle).showSegments);
+  EXPECT_FLOAT_EQ(buffer->get_mesh_overlay_data(handle).segmentLineWidth, 2.0f);
+}
+
+TEST_F(MeshBufferTest, SegmentOverlay_SetBeforeFirstSyncKeepsMeshOnlyAdded)
+{
+  auto buffer = geoqik::MeshBuffer::create(m_settings);
+  core::UUID handle = core::UUID::generate();
+  std::vector<float> v = {0.f,0.f,0.f, 1.f,0.f,0.f, 0.f,1.f,0.f};
+  std::vector<std::uint32_t> idx = {0,1,2};
+  buffer->add_mesh(v, {}, {}, idx, &handle);
+
+  geoqik::PerMeshOverlayData overlayData;
+  overlayData.showSegments = true;
+  overlayData.segmentPositions = v;
+  buffer->set_mesh_overlay_data(handle, overlayData);
+
+  EXPECT_EQ(buffer->get_added_meshes().count(handle), 1u);
+  EXPECT_EQ(buffer->get_updated_meshes().count(handle), 0u);
+}
+
+TEST_F(MeshBufferTest, SegmentOverlay_VisibilityToggle_NoBuildNeeded)
+{
+  auto buffer = geoqik::MeshBuffer::create(m_settings);
+  core::UUID handle = core::UUID::generate();
+  std::vector<float> v = {0.f,0.f,0.f, 1.f,0.f,0.f, 0.f,1.f,0.f};
+  std::vector<std::uint32_t> idx = {0,1,2};
+  buffer->add_mesh(v, {}, {}, idx, &handle);
+
+  geoqik::PerMeshOverlayData overlayData;
+  overlayData.showSegments = true;
+  buffer->set_mesh_overlay_data(handle, overlayData);
+  buffer->clear_change_tracking();
+
+  // Visibility toggle must NOT add to updatedMeshes (no drawable rebuild needed).
+  buffer->set_mesh_segments_visible(handle, false);
+  EXPECT_EQ(buffer->get_updated_meshes().size(), 0u);
+  EXPECT_FALSE(buffer->get_mesh_overlay_data(handle).showSegments);
+}
+
+TEST_F(MeshBufferTest, SegmentOverlay_RemovedWithMesh)
+{
+  auto buffer = geoqik::MeshBuffer::create(m_settings);
+  core::UUID handle = core::UUID::generate();
+  std::vector<float> v = {0.f,0.f,0.f, 1.f,0.f,0.f, 0.f,1.f,0.f};
+  std::vector<std::uint32_t> idx = {0,1,2};
+  buffer->add_mesh(v, {}, {}, idx, &handle);
+  buffer->set_mesh_overlay_data(handle, geoqik::PerMeshOverlayData{});
+
+  buffer->remove_mesh(handle);
+  EXPECT_FALSE(buffer->has_mesh_overlay_data(handle));
+}
+
+// =============================================================================
+// Plan 006 — Vertex overlay tests
+// =============================================================================
+
+TEST_F(MeshBufferTest, VertexOverlay_StoredAndRetrieved)
+{
+  auto buffer = geoqik::MeshBuffer::create(m_settings);
+  core::UUID handle = core::UUID::generate();
+  std::vector<float> v = {0.f,0.f,0.f, 1.f,0.f,0.f, 0.f,1.f,0.f};
+  std::vector<std::uint32_t> idx = {0,1,2};
+  buffer->add_mesh(v, {}, {}, idx, &handle);
+
+  geoqik::PerMeshOverlayData overlayData;
+  overlayData.showVertices     = true;
+  overlayData.vertexPointSize  = 5.0f;
+  overlayData.vertexColor      = renderer::Color{1.0f, 0.0f, 0.0f, 1.0f};
+  overlayData.segmentPositions = v;
+  buffer->set_mesh_overlay_data(handle, overlayData);
+
+  ASSERT_TRUE(buffer->has_mesh_overlay_data(handle));
+  EXPECT_TRUE(buffer->get_mesh_overlay_data(handle).showVertices);
+  EXPECT_FLOAT_EQ(buffer->get_mesh_overlay_data(handle).vertexPointSize, 5.0f);
+}
+
+TEST_F(MeshBufferTest, VertexOverlay_VisibilityToggle_NoBuildNeeded)
+{
+  auto buffer = geoqik::MeshBuffer::create(m_settings);
+  core::UUID handle = core::UUID::generate();
+  std::vector<float> v = {0.f,0.f,0.f, 1.f,0.f,0.f, 0.f,1.f,0.f};
+  std::vector<std::uint32_t> idx = {0,1,2};
+  buffer->add_mesh(v, {}, {}, idx, &handle);
+
+  geoqik::PerMeshOverlayData overlayData;
+  overlayData.showVertices = true;
+  buffer->set_mesh_overlay_data(handle, overlayData);
+  buffer->clear_change_tracking();
+
+  buffer->set_mesh_vertices_visible(handle, false);
+  EXPECT_EQ(buffer->get_updated_meshes().size(), 0u);
+  EXPECT_FALSE(buffer->get_mesh_overlay_data(handle).showVertices);
+}
+
+TEST_F(MeshBufferTest, VertexOverlay_SnapshotPreservesVertexData)
+{
+  auto buffer = geoqik::MeshBuffer::create(m_settings);
+  core::UUID handle = core::UUID::generate();
+  std::vector<float> v = {0.f,0.f,0.f, 1.f,0.f,0.f, 0.f,1.f,0.f};
+  std::vector<std::uint32_t> idx = {0,1,2};
+  buffer->add_mesh(v, {}, {}, idx, &handle);
+
+  geoqik::PerMeshOverlayData overlayData;
+  overlayData.showVertices    = true;
+  overlayData.vertexPointSize = 7.0f;
+  buffer->set_mesh_overlay_data(handle, overlayData);
+
+  auto snap = buffer->create_snapshot();
+
+  buffer->clear();
+  EXPECT_FALSE(buffer->has_mesh_overlay_data(handle));
+
+  buffer->restore_snapshot(snap);
+  ASSERT_TRUE(buffer->has_mesh_overlay_data(handle));
+  EXPECT_FLOAT_EQ(buffer->get_mesh_overlay_data(handle).vertexPointSize, 7.0f);
+}
+
+// =============================================================================
+// Plan 007 — Rendering opts tests
+// =============================================================================
+
+TEST_F(MeshBufferTest, RenderingOpts_DefaultIsBackCullAndVisible)
+{
+  auto buffer = geoqik::MeshBuffer::create(m_settings);
+  core::UUID handle = core::UUID::generate();
+  std::vector<float> v = {0.f,0.f,0.f, 1.f,0.f,0.f, 0.f,1.f,0.f};
+  std::vector<std::uint32_t> idx = {0,1,2};
+  buffer->add_mesh(v, {}, {}, idx, &handle);
+
+  EXPECT_FALSE(buffer->has_mesh_rendering_opts(handle));
+
+  // Setting opts triggers updated tracking.
+  geoqik::PerMeshRenderingOpts opts;
+  opts.cullMode       = geoqik::MeshCullMode::none;
+  opts.surfaceVisible = true;
+  buffer->set_mesh_rendering_opts(handle, opts);
+
+  ASSERT_TRUE(buffer->has_mesh_rendering_opts(handle));
+  EXPECT_EQ(buffer->get_mesh_rendering_opts(handle).cullMode, geoqik::MeshCullMode::none);
+  EXPECT_EQ(buffer->get_updated_meshes().count(handle), 1u);
+}
+
+TEST_F(MeshBufferTest, RenderingOpts_SnapshotRoundtrip)
+{
+  auto buffer = geoqik::MeshBuffer::create(m_settings);
+  core::UUID handle = core::UUID::generate();
+  std::vector<float> v = {0.f,0.f,0.f, 1.f,0.f,0.f, 0.f,1.f,0.f};
+  std::vector<std::uint32_t> idx = {0,1,2};
+  buffer->add_mesh(v, {}, {}, idx, &handle);
+
+  geoqik::PerMeshRenderingOpts opts{geoqik::MeshCullMode::front, false};
+  buffer->set_mesh_rendering_opts(handle, opts);
+
+  auto snap = buffer->create_snapshot();
+  buffer->clear();
+  EXPECT_FALSE(buffer->has_mesh_rendering_opts(handle));
+
+  buffer->restore_snapshot(snap);
+  ASSERT_TRUE(buffer->has_mesh_rendering_opts(handle));
+  EXPECT_EQ(buffer->get_mesh_rendering_opts(handle).cullMode, geoqik::MeshCullMode::front);
+  EXPECT_EQ(buffer->get_mesh_rendering_opts(handle).surfaceVisible, false);
+}
+
+TEST_F(MeshBufferTest, RenderingOpts_RemovedWithMesh)
+{
+  auto buffer = geoqik::MeshBuffer::create(m_settings);
+  core::UUID handle = core::UUID::generate();
+  std::vector<float> v = {0.f,0.f,0.f, 1.f,0.f,0.f, 0.f,1.f,0.f};
+  std::vector<std::uint32_t> idx = {0,1,2};
+  buffer->add_mesh(v, {}, {}, idx, &handle);
+
+  buffer->set_mesh_rendering_opts(handle, geoqik::PerMeshRenderingOpts{});
+  ASSERT_TRUE(buffer->has_mesh_rendering_opts(handle));
+
+  buffer->remove_mesh(handle);
+  EXPECT_FALSE(buffer->has_mesh_rendering_opts(handle));
 }

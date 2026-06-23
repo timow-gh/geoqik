@@ -247,6 +247,8 @@ private:
   void handle_message(const GetLineColor& message);
   void handle_message(const SetMeshColor& message);
   void handle_message(const GetMeshColor& message);
+  void handle_message(const SetMeshOverlayOpts& message);
+  void handle_message(const SetMeshRenderingOpts& message);
   void handle_message(const Cleanup& message);
 
   void print_frame_info(const std::chrono::high_resolution_clock::time_point& startTime,

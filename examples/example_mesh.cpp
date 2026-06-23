@@ -47,13 +47,23 @@ int main()
 
   float color[4] = {0.8f, 0.6f, 0.4f, 1.0f};
   geoqik_add_mesh_opts_t opts{};
-  opts.color      = color;
+  opts.normals = NULL;
+  opts.normalsCount = 0;
+  opts.color = color;
   opts.colorCount = 4;
+  opts.segmentIndices = NULL;
+  opts.segmentIndexCount = 0;
+  opts.segmentColor = NULL;
+  opts.showSegments = 1;
+  opts.segmentLineWidth = 1.0f;
+  opts.vertexColor = NULL;
+  opts.showVertices = 1;
+  opts.vertexPointSize = 3.0f;
   geoqik_result_t result = geoqik_add_mesh_opts(vertices.data(),
-                                                 vertices.size() / 3,
-                                                 indices.data(),
-                                                 indices.size() / 3,
-                                                 &opts);
+                                                vertices.size() / 3,
+                                                indices.data(),
+                                                indices.size() / 3,
+                                                &opts);
 
   geoqik::examples::sleep_for_seconds(1.0);
 
@@ -65,12 +75,12 @@ int main()
   // Orange color
   float orangeColor[4] = {1.0f, 0.647f, 0.0f, 1.0f};
   geoqik_update_mesh_opts_t updateOpts{};
-  updateOpts.color      = orangeColor;
+  updateOpts.color = orangeColor;
   updateOpts.colorCount = 4;
   geoqik_update_mesh_opts(&result.geometryId,
-                           updatedVertices.data(),
-                           updatedVertices.size() / 3,
-                           &updateOpts);
+                          updatedVertices.data(),
+                          updatedVertices.size() / 3,
+                          &updateOpts);
 
   geoqik_wait_for_exit_and_cleanup();
   return 0;

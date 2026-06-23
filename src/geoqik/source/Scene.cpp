@@ -133,6 +133,17 @@ bool Scene::update_mesh(core::UUID handle,
   return m_meshBuffer->update_mesh(handle, vertices, normals, colors);
 }
 
+void Scene::set_mesh_overlay_opts(core::UUID handle, bool showSegments, bool showVertices)
+{
+  m_meshBuffer->set_mesh_segments_visible(handle, showSegments);
+  m_meshBuffer->set_mesh_vertices_visible(handle, showVertices);
+}
+
+void Scene::set_mesh_rendering_opts(core::UUID handle, PerMeshRenderingOpts opts)
+{
+  m_meshBuffer->set_mesh_rendering_opts(handle, std::move(opts));
+}
+
 void Scene::translate_geometry(core::UUID handle, float dx, float dy, float dz)
 {
   m_pointBuffer->translate_geometry(handle, dx, dy, dz);

@@ -9,7 +9,9 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <numeric>
 #include <optional>
+#include <unordered_map>
 #include <linal/hmat.hpp>
 #include <linal/vec.hpp>
 #include <stdexcept>
@@ -18,6 +20,15 @@
 
 namespace opengl
 {
+
+// Plan 007 — cull mode in the renderer/opengl layer.
+// Mirrors geoqik::MeshCullMode from the geoqik layer.
+enum class MeshCullFaceMode
+{
+  back,   // GL_BACK  (default)
+  front,  // GL_FRONT
+  none,   // cull face disabled
+};
 
 struct LightingConfig
 {
@@ -85,26 +96,41 @@ private:
   std::vector<DrawableEntry<opengl::LineDrawable>> m_lineDrawables;
   std::vector<DrawableEntry<opengl::MeshDrawable>> m_meshDrawables;
 
+  // Plan 007 — per-drawable cull mode (only stored when non-default).
+  std::unordered_map<DrawableId, MeshCullFaceMode> m_meshCullModes;
+
+  // Plan 005 — segment overlay drawables (LineDrawable-backed wireframe lines).
+  std::vector<DrawableEntry<opengl::LineDrawable>> m_meshSegmentDrawables;
+
+  // Plan 006 — vertex overlay drawables (PointDrawable-backed point cloud).
+  std::vector<DrawableEntry<opengl::PointDrawable>> m_meshVertexDrawables;
+
 public:
   DrawablesManager(const DrawablesManager&) = delete;
   DrawablesManager& operator=(const DrawablesManager&) = delete;
   DrawablesManager(DrawablesManager&& other) noexcept
   {
-    programManager = std::move(other.programManager);
-    m_nextDrawableId = other.m_nextDrawableId;
-    m_pointDrawables = std::move(other.m_pointDrawables);
-    m_lineDrawables = std::move(other.m_lineDrawables);
-    m_meshDrawables = std::move(other.m_meshDrawables);
+    programManager         = std::move(other.programManager);
+    m_nextDrawableId       = other.m_nextDrawableId;
+    m_pointDrawables       = std::move(other.m_pointDrawables);
+    m_lineDrawables        = std::move(other.m_lineDrawables);
+    m_meshDrawables        = std::move(other.m_meshDrawables);
+    m_meshCullModes        = std::move(other.m_meshCullModes);
+    m_meshSegmentDrawables = std::move(other.m_meshSegmentDrawables);
+    m_meshVertexDrawables  = std::move(other.m_meshVertexDrawables);
   }
   DrawablesManager& operator=(DrawablesManager&& other) noexcept
   {
     if (this != &other)
     {
-      programManager = std::move(other.programManager);
-      m_nextDrawableId = other.m_nextDrawableId;
-      m_pointDrawables = std::move(other.m_pointDrawables);
-      m_lineDrawables = std::move(other.m_lineDrawables);
-      m_meshDrawables = std::move(other.m_meshDrawables);
+      programManager         = std::move(other.programManager);
+      m_nextDrawableId       = other.m_nextDrawableId;
+      m_pointDrawables       = std::move(other.m_pointDrawables);
+      m_lineDrawables        = std::move(other.m_lineDrawables);
+      m_meshDrawables        = std::move(other.m_meshDrawables);
+      m_meshCullModes        = std::move(other.m_meshCullModes);
+      m_meshSegmentDrawables = std::move(other.m_meshSegmentDrawables);
+      m_meshVertexDrawables  = std::move(other.m_meshVertexDrawables);
     }
     return *this;
   }
@@ -128,12 +154,15 @@ public:
 
   [[nodiscard]] bool has_drawables() const
   {
-    return !m_pointDrawables.empty() || !m_lineDrawables.empty() || !m_meshDrawables.empty();
+    return !m_pointDrawables.empty() || !m_lineDrawables.empty() || !m_meshDrawables.empty()
+        || !m_meshSegmentDrawables.empty() || !m_meshVertexDrawables.empty();
   }
 
   [[nodiscard]] bool has_point_drawables() const { return !m_pointDrawables.empty(); }
   [[nodiscard]] bool has_line_drawables() const { return !m_lineDrawables.empty(); }
   [[nodiscard]] bool has_mesh_drawables() const { return !m_meshDrawables.empty(); }
+  [[nodiscard]] bool has_mesh_segment_drawables() const { return !m_meshSegmentDrawables.empty(); }
+  [[nodiscard]] bool has_mesh_vertex_drawables() const { return !m_meshVertexDrawables.empty(); }
 
   DrawableId add_point_drawable(opengl::PointDrawable drawable)
   {
@@ -225,7 +254,135 @@ public:
 
   bool remove_line_drawable(DrawableId id) { return remove_drawable_by_id(m_lineDrawables, id); }
 
-  bool remove_mesh_drawable(DrawableId id) { return remove_drawable_by_id(m_meshDrawables, id); }
+  bool remove_mesh_drawable(DrawableId id)
+  {
+    m_meshCullModes.erase(id);
+    return remove_drawable_by_id(m_meshDrawables, id);
+  }
+
+  // Plan 007 — cull mode management
+  void set_mesh_drawable_cull_mode(DrawableId id, MeshCullFaceMode mode)
+  {
+    if (mode == MeshCullFaceMode::back)
+      m_meshCullModes.erase(id);  // back is the default; no need to store
+    else
+      m_meshCullModes[id] = mode;
+  }
+
+  void remove_mesh_drawable_cull_mode(DrawableId id)
+  {
+    m_meshCullModes.erase(id);
+  }
+
+  // Plan 005 — segment overlay drawables
+  DrawableId add_mesh_segment_drawable(std::span<const float> positions,
+                                       std::span<const std::uint32_t> indices,
+                                       std::span<const float> color,
+                                       float lineWidth)
+  {
+    // Expand single RGBA color to per-vertex colors.
+    const std::size_t vertexCount = positions.size() / 3;
+    std::vector<float> expandedColors;
+    if (color.size() == 4 && vertexCount > 0)
+    {
+      expandedColors.resize(vertexCount * 4);
+      for (std::size_t v = 0; v < vertexCount; ++v)
+        for (std::size_t c = 0; c < 4; ++c)
+          expandedColors[v * 4 + c] = color[c];
+    }
+    else
+    {
+      expandedColors.assign(color.begin(), color.end());
+    }
+
+    auto drawable = opengl::make_line_drawable(get_line_program(),
+                                               positions,
+                                               3,
+                                               indices,
+                                               std::span<const float>(expandedColors),
+                                               4,
+                                               opengl::LineType::lines(),
+                                               lineWidth,
+                                               1.0f,
+                                               opengl::BufferAccessPattern::STATIC_DRAW);
+    if (!drawable.has_value())
+    {
+      throw std::runtime_error("Failed to create mesh segment overlay drawable");
+    }
+
+    const DrawableId id = next_drawable_id();
+    m_meshSegmentDrawables.emplace_back(DrawableEntry<opengl::LineDrawable>{id, std::move(drawable.value())});
+    return id;
+  }
+
+  bool remove_mesh_segment_drawable(DrawableId id)
+  {
+    return remove_drawable_by_id(m_meshSegmentDrawables, id);
+  }
+
+  // Plan 006 — vertex overlay drawables
+  DrawableId add_mesh_vertex_drawable(std::span<const float> positions,
+                                      std::span<const float> color,
+                                      float pointSize)
+  {
+    const std::size_t vertexCount = positions.size() / 3;
+
+    // Expand single RGBA color to per-vertex colors.
+    std::vector<float> expandedColors;
+    if (color.size() == 4 && vertexCount > 0)
+    {
+      expandedColors.resize(vertexCount * 4);
+      for (std::size_t v = 0; v < vertexCount; ++v)
+        for (std::size_t c = 0; c < 4; ++c)
+          expandedColors[v * 4 + c] = color[c];
+    }
+    else
+    {
+      expandedColors.assign(color.begin(), color.end());
+    }
+
+    std::vector<std::uint32_t> indices(vertexCount);
+    std::iota(indices.begin(), indices.end(), 0u);
+
+    auto drawable = opengl::make_point_drawable(get_point_program(),
+                                                positions,
+                                                3,
+                                                std::span<const float>(expandedColors),
+                                                4,
+                                                std::span<const std::uint32_t>(indices),
+                                                pointSize,
+                                                opengl::BufferAccessPattern::STATIC_DRAW);
+    if (!drawable.has_value())
+    {
+      throw std::runtime_error("Failed to create mesh vertex overlay drawable");
+    }
+
+    const DrawableId id = next_drawable_id();
+    m_meshVertexDrawables.emplace_back(DrawableEntry<opengl::PointDrawable>{id, std::move(drawable.value())});
+    return id;
+  }
+
+  bool remove_mesh_vertex_drawable(DrawableId id)
+  {
+    return remove_drawable_by_id(m_meshVertexDrawables, id);
+  }
+
+  // Draw overlay calls — draw opaque only, no transparency sorting needed for overlays.
+  void draw_mesh_segment_overlays(const linal::hmatf& mvp) const
+  {
+    for (const auto& entry : m_meshSegmentDrawables)
+    {
+      entry.drawable.draw_opaque(mvp);
+    }
+  }
+
+  void draw_mesh_vertex_overlays(const linal::hmatf& mvp) const
+  {
+    for (const auto& entry : m_meshVertexDrawables)
+    {
+      entry.drawable.draw_opaque(mvp);
+    }
+  }
 
   void update_last_point_drawable(std::span<const float> vertices,
                                   std::span<const float> colors,
@@ -259,13 +416,22 @@ public:
 
   void clear_line_drawables() { m_lineDrawables.clear(); }
 
-  void clear_mesh_drawables() { m_meshDrawables.clear(); }
+  void clear_mesh_drawables()
+  {
+    m_meshDrawables.clear();
+    m_meshCullModes.clear();
+  }
+
+  void clear_mesh_segment_drawables() { m_meshSegmentDrawables.clear(); }
+  void clear_mesh_vertex_drawables()  { m_meshVertexDrawables.clear(); }
 
   void clear_drawables()
   {
     clear_point_drawables();
     clear_line_drawables();
     clear_mesh_drawables();
+    clear_mesh_segment_drawables();
+    clear_mesh_vertex_drawables();
   }
 
   void draw_points(const linal::hmatf& mvp) const
@@ -392,6 +558,15 @@ public:
       double distanceSquared{};
     };
 
+    // Plan 005: enable polygon offset fill when segment overlays are present
+    // so the surface sits slightly behind the wireframe lines.
+    const bool hasSegmentOverlays = !m_meshSegmentDrawables.empty();
+    if (hasSegmentOverlays)
+    {
+      glEnable(GL_POLYGON_OFFSET_FILL);
+      glPolygonOffset(1.0f, 1.0f);
+    }
+
     const linal::double3 viewPositionDouble{static_cast<double>(viewPos[0]),
                                             static_cast<double>(viewPos[1]),
                                             static_cast<double>(viewPos[2])};
@@ -400,7 +575,30 @@ public:
 
     for (std::size_t i = 0; i < m_meshDrawables.size(); ++i)
     {
-      const auto& drawable = m_meshDrawables[i].drawable;
+      const DrawableEntry<opengl::MeshDrawable>& entry = m_meshDrawables[i];
+      const auto& drawable = entry.drawable;
+
+      // Plan 007: apply per-mesh cull mode before drawing.
+      auto cullIt = m_meshCullModes.find(entry.id);
+      if (cullIt != m_meshCullModes.end())
+      {
+        switch (cullIt->second)
+        {
+          case MeshCullFaceMode::front:
+            glEnable(GL_CULL_FACE);
+            glCullFace(GL_FRONT);
+            break;
+          case MeshCullFaceMode::none:
+            glDisable(GL_CULL_FACE);
+            break;
+          case MeshCullFaceMode::back:
+          default:
+            glEnable(GL_CULL_FACE);
+            glCullFace(GL_BACK);
+            break;
+        }
+      }
+
       if (drawable.is_translucent())
       {
         transparentMeshes.push_back({i, drawable.distance_squared_to(viewPositionDouble)});
@@ -419,6 +617,18 @@ public:
                       lighting.ambientColor,
                       lighting.shininess);
       }
+
+      // Restore default cull state after a per-mesh override.
+      if (cullIt != m_meshCullModes.end())
+      {
+        glEnable(GL_CULL_FACE);
+        glCullFace(GL_BACK);
+      }
+    }
+
+    if (hasSegmentOverlays)
+    {
+      glDisable(GL_POLYGON_OFFSET_FILL);
     }
 
     std::sort(transparentMeshes.begin(),

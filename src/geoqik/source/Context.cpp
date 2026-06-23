@@ -868,6 +868,48 @@ void Context::handle_message(const AddMeshWithOpts& message)
   }
   add_mesh_with_opts(message.vertices, message.normals, message.commonData.rgba,
                      message.triangleIndices, message.commonData);
+
+  // Wire up overlay data if the message carries segment or vertex data.
+  const bool hasSegmentData = !message.segmentIndices.empty() || message.showSegments;
+  const bool hasVertexData  = message.showVertices || !message.vertexColors.empty();
+  if (hasSegmentData || hasVertexData)
+  {
+    const core::UUID& uuid = message.commonData.geometryId;
+    if (!uuid.is_nil())
+    {
+      geoqik::PerMeshOverlayData overlayData;
+
+      // Segment overlay
+      overlayData.showSegments    = message.showSegments;
+      overlayData.segmentLineWidth = message.segmentLineWidth;
+
+      auto verts = m_scene.get_mesh_buffer().get_mesh_vertices(uuid);
+      overlayData.segmentPositions.assign(verts.begin(), verts.end());
+
+      if (message.segmentIndices.empty())
+      {
+        auto localTris = m_scene.get_mesh_buffer().get_local_triangle_indices(uuid);
+        overlayData.segmentIndices = geoqik::derive_segment_indices_from_triangles(localTris);
+      }
+      else
+      {
+        overlayData.segmentIndices = message.segmentIndices;
+      }
+
+      if (message.segmentColors.size() == 4)
+        overlayData.segmentColor = {message.segmentColors[0], message.segmentColors[1],
+                                    message.segmentColors[2], message.segmentColors[3]};
+
+      // Vertex overlay
+      overlayData.showVertices    = message.showVertices;
+      overlayData.vertexPointSize = message.vertexPointSize;
+      if (message.vertexColors.size() == 4)
+        overlayData.vertexColor = {message.vertexColors[0], message.vertexColors[1],
+                                   message.vertexColors[2], message.vertexColors[3]};
+
+      m_scene.get_mesh_buffer().set_mesh_overlay_data(uuid, std::move(overlayData));
+    }
+  }
 }
 
 void Context::add_mesh_with_opts(std::span<const float> vertices,
@@ -879,6 +921,16 @@ void Context::add_mesh_with_opts(std::span<const float> vertices,
   const core::UUID* handlePtr = commonData.geometryId.is_nil() ? nullptr : &commonData.geometryId;
   m_scene.add_mesh(vertices, normals, colors, triangleIndices, handlePtr);
   ++m_geometryMessagesProcessedThisFrame;
+}
+
+void Context::handle_message(const SetMeshOverlayOpts& message)
+{
+  m_scene.set_mesh_overlay_opts(message.handle, message.showSegments, message.showVertices);
+}
+
+void Context::handle_message(const SetMeshRenderingOpts& message)
+{
+  m_scene.set_mesh_rendering_opts(message.handle, {message.cullMode, message.surfaceVisible});
 }
 
 void Context::handle_message(const RemoveMesh& message)

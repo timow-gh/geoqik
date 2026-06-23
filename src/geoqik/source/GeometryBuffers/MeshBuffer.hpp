@@ -20,6 +20,33 @@
 namespace geoqik
 {
 
+enum class MeshCullMode
+{
+  back,   // default — back faces culled
+  front,  // front faces culled
+  none,   // no culling
+};
+
+struct PerMeshRenderingOpts
+{
+  MeshCullMode cullMode{MeshCullMode::back};
+  bool         surfaceVisible{true};
+
+  bool operator==(const PerMeshRenderingOpts&) const = default;
+};
+
+struct PerMeshOverlayData
+{
+  std::vector<float>         segmentPositions;   // copy of mesh vertex positions
+  std::vector<std::uint32_t> segmentIndices;     // pairs [i0,i1, ...] in local (0-based) coords
+  Color                      segmentColor{0.0f, 0.0f, 0.0f, 1.0f};
+  float                      segmentLineWidth{1.0f};
+  bool                       showSegments{false};
+  Color                      vertexColor{1.0f, 1.0f, 1.0f, 1.0f};
+  float                      vertexPointSize{3.0f};
+  bool                       showVertices{false};
+};
+
 struct MeshGeoBufferIndex
 {
   std::size_t vertexStartIndex;
@@ -36,6 +63,8 @@ struct MeshBufferSnapshot
   std::vector<float> colors;
   std::vector<std::uint32_t> triangleIndices;
   std::unordered_map<core::UUID, MeshGeoBufferIndex> handleToMeshIndex;
+  std::unordered_map<core::UUID, PerMeshOverlayData> meshOverlayData;
+  std::unordered_map<core::UUID, PerMeshRenderingOpts> meshRenderingOpts;
 };
 
 class MeshBuffer
@@ -59,6 +88,8 @@ class MeshBuffer
   bool m_fullRebuildNeeded{false};
 
   std::unordered_map<core::UUID, MeshGeoBufferIndex> m_handleToMeshIndex;
+  std::unordered_map<core::UUID, PerMeshOverlayData> m_meshOverlayData;
+  std::unordered_map<core::UUID, PerMeshRenderingOpts> m_meshRenderingOpts;
 
   explicit MeshBuffer(const GeoQikSettings& settings)
       : m_defaultMeshColor(settings.defaultMeshColor)
@@ -105,6 +136,74 @@ public:
     result.reserve(m_handleToMeshIndex.size());
     for (const auto& [uuid, _] : m_handleToMeshIndex) result.push_back(uuid);
     return result;
+  }
+
+  [[nodiscard]] bool has_mesh_overlay_data(const core::UUID& handle) const
+  {
+    return m_meshOverlayData.count(handle) > 0;
+  }
+
+  [[nodiscard]] const PerMeshOverlayData& get_mesh_overlay_data(const core::UUID& handle) const
+  {
+    return m_meshOverlayData.at(handle);
+  }
+
+  void set_mesh_overlay_data(const core::UUID& handle, PerMeshOverlayData data)
+  {
+    m_meshOverlayData[handle] = std::move(data);
+    mark_mesh_updated(handle);
+    m_hasChanged = true;
+  }
+
+  void set_mesh_segments_visible(const core::UUID& handle, bool visible)
+  {
+    auto it = m_meshOverlayData.find(handle);
+    if (it == m_meshOverlayData.end()) return;
+    it->second.showSegments = visible;
+    // No drawable rebuild needed — GeoQikSceneRenderer reads this flag each frame.
+  }
+
+  void set_mesh_vertices_visible(const core::UUID& handle, bool visible)
+  {
+    auto it = m_meshOverlayData.find(handle);
+    if (it == m_meshOverlayData.end()) return;
+    it->second.showVertices = visible;
+  }
+
+  [[nodiscard]] bool any_mesh_has_segment_overlay() const
+  {
+    for (const auto& [uuid, data] : m_meshOverlayData)
+      if (!data.segmentPositions.empty()) return true;
+    return false;
+  }
+
+  [[nodiscard]] bool any_mesh_has_vertex_overlay() const
+  {
+    for (const auto& [uuid, data] : m_meshOverlayData)
+      if (data.showVertices) return true;
+    return false;
+  }
+
+  [[nodiscard]] bool has_mesh_rendering_opts(const core::UUID& handle) const
+  {
+    return m_meshRenderingOpts.count(handle) > 0;
+  }
+
+  [[nodiscard]] const PerMeshRenderingOpts& get_mesh_rendering_opts(const core::UUID& handle) const
+  {
+    return m_meshRenderingOpts.at(handle);
+  }
+
+  void set_mesh_rendering_opts(const core::UUID& handle, PerMeshRenderingOpts opts)
+  {
+    m_meshRenderingOpts[handle] = std::move(opts);
+    mark_mesh_updated(handle);
+    m_hasChanged = true;
+  }
+
+  void remove_mesh_rendering_opts(const core::UUID& handle)
+  {
+    m_meshRenderingOpts.erase(handle);
   }
 
   [[nodiscard]] Color get_default_color() const { return m_defaultMeshColor; }
@@ -156,6 +255,8 @@ public:
     m_colors.clear();
     m_triangleIndices.clear();
     m_handleToMeshIndex.clear();
+    m_meshOverlayData.clear();
+    m_meshRenderingOpts.clear();
     m_hasChanged = true;
     m_fullRebuildNeeded = true;
     m_addedMeshes.clear();
@@ -172,6 +273,8 @@ public:
     snapshot.colors            = m_colors;
     snapshot.triangleIndices   = m_triangleIndices;
     snapshot.handleToMeshIndex = m_handleToMeshIndex;
+    snapshot.meshOverlayData   = m_meshOverlayData;
+    snapshot.meshRenderingOpts = m_meshRenderingOpts;
     return snapshot;
   }
 
@@ -183,6 +286,8 @@ public:
     m_colors             = snapshot.colors;
     m_triangleIndices    = snapshot.triangleIndices;
     m_handleToMeshIndex  = snapshot.handleToMeshIndex;
+    m_meshOverlayData    = snapshot.meshOverlayData;
+    m_meshRenderingOpts  = snapshot.meshRenderingOpts;
     m_hasChanged         = true;
     m_fullRebuildNeeded = true;
     m_addedMeshes.clear();
@@ -289,6 +394,8 @@ public:
     }
 
     m_handleToMeshIndex.erase(it);
+    m_meshOverlayData.erase(handle);
+    m_meshRenderingOpts.erase(handle);
     m_removedMeshes.insert(handle);
     m_addedMeshes.erase(handle);
     m_updatedMeshes.erase(handle);
@@ -328,6 +435,7 @@ public:
     const std::size_t vBase = info.vertexStartIndex * 3;
     for (std::size_t i = 0; i < vertices.size(); ++i)
       m_vertices[vBase + i] = vertices[i];
+    update_mesh_overlay_positions(handle, info);
 
     // Replace or recompute normals.
     if (normals.empty())
@@ -360,7 +468,7 @@ public:
     }
 
     m_hasChanged = true;
-    m_updatedMeshes.insert(handle);
+    mark_mesh_updated(handle);
     return true;
   }
 
@@ -377,8 +485,9 @@ public:
       m_vertices[i+1] += dy;
       m_vertices[i+2] += dz;
     }
+    update_mesh_overlay_positions(handle, it->second);
     m_hasChanged = true;
-    m_updatedMeshes.insert(handle);
+    mark_mesh_updated(handle);
   }
 
   void rotate_geometry(core::UUID handle,
@@ -407,13 +516,32 @@ public:
       m_vertices[i+2] = rotated[2];
     }
 
+    update_mesh_overlay_positions(handle, it->second);
     recompute_flat_normals_for_range(it->second.vertexStartIndex, it->second.vertexCount,
                                      it->second.triangleStartIndex, it->second.triangleCount);
     m_hasChanged = true;
-    m_updatedMeshes.insert(handle);
+    mark_mesh_updated(handle);
   }
 
 private:
+  void mark_mesh_updated(const core::UUID& handle)
+  {
+    if (m_addedMeshes.count(handle) == 0)
+    {
+      m_updatedMeshes.insert(handle);
+    }
+  }
+
+  void update_mesh_overlay_positions(const core::UUID& handle, const MeshGeoBufferIndex& info)
+  {
+    auto overlayIt = m_meshOverlayData.find(handle);
+    if (overlayIt == m_meshOverlayData.end()) return;
+
+    const auto begin = m_vertices.begin() + static_cast<std::ptrdiff_t>(info.vertexStartIndex * 3);
+    const auto end   = begin + static_cast<std::ptrdiff_t>(info.vertexCount * 3);
+    overlayIt->second.segmentPositions.assign(begin, end);
+  }
+
   void compute_and_append_flat_normals(std::span<const float> vertices,
                                        std::span<const std::uint32_t> triangleIndices,
                                        std::size_t vertexCount)
@@ -464,6 +592,22 @@ private:
 };
 
 static_assert(GeometryBuffer<MeshBuffer>);
+
+[[nodiscard]] inline std::vector<std::uint32_t>
+derive_segment_indices_from_triangles(std::span<const std::uint32_t> localTriIndices)
+{
+  // For each triangle [i0, i1, i2] emit three edges as pairs.
+  std::vector<std::uint32_t> segs;
+  segs.reserve((localTriIndices.size() / 3) * 6);
+  for (std::size_t t = 0; t + 2 < localTriIndices.size(); t += 3)
+  {
+    const std::uint32_t i0 = localTriIndices[t];
+    const std::uint32_t i1 = localTriIndices[t + 1];
+    const std::uint32_t i2 = localTriIndices[t + 2];
+    segs.insert(segs.end(), {i0, i1, i1, i2, i2, i0});
+  }
+  return segs;
+}
 
 } // namespace geoqik
 

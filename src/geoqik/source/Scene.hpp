@@ -77,6 +77,12 @@ public:
                                  std::span<const float> normals,
                                  std::span<const float> colors);
 
+  // Toggle overlay visibility for an existing mesh.
+  void set_mesh_overlay_opts(core::UUID handle, bool showSegments, bool showVertices);
+
+  // Apply per-mesh rendering options (triggers drawable rebuild).
+  void set_mesh_rendering_opts(core::UUID handle, PerMeshRenderingOpts opts);
+
   [[nodiscard]] const MeshBuffer& get_mesh_buffer() const { return *m_meshBuffer; }
   [[nodiscard]] MeshBuffer& get_mesh_buffer() { return *m_meshBuffer; }
 

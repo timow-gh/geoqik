@@ -156,6 +156,31 @@ DrawableHandle Renderer::add_mesh_drawable(std::span<const float> vertices,
   return DrawableHandle{DrawableKind::mesh, id};
 }
 
+DrawableHandle Renderer::add_mesh_segment_drawable(std::span<const float> positions,
+                                                    std::span<const std::uint32_t> indices,
+                                                    std::span<const float> color,
+                                                    float lineWidth)
+{
+  const auto id = m_drawablesManager.add_mesh_segment_drawable(positions, indices, color, lineWidth);
+  return DrawableHandle{DrawableKind::meshSegment, id};
+}
+
+DrawableHandle Renderer::add_mesh_vertex_drawable(std::span<const float> positions,
+                                                   std::span<const float> color,
+                                                   float pointSize)
+{
+  const auto id = m_drawablesManager.add_mesh_vertex_drawable(positions, color, pointSize);
+  return DrawableHandle{DrawableKind::meshVertex, id};
+}
+
+void Renderer::set_mesh_drawable_cull_mode(DrawableHandle handle, opengl::MeshCullFaceMode mode)
+{
+  if (handle.kind == DrawableKind::mesh && handle.id != 0U)
+  {
+    m_drawablesManager.set_mesh_drawable_cull_mode(handle.id, mode);
+  }
+}
+
 bool Renderer::remove_drawable(DrawableHandle handle)
 {
   if (!handle.is_valid())
@@ -171,6 +196,10 @@ bool Renderer::remove_drawable(DrawableHandle handle)
     return m_drawablesManager.remove_line_drawable(handle.id);
   case DrawableKind::mesh:
     return m_drawablesManager.remove_mesh_drawable(handle.id);
+  case DrawableKind::meshSegment:
+    return m_drawablesManager.remove_mesh_segment_drawable(handle.id);
+  case DrawableKind::meshVertex:
+    return m_drawablesManager.remove_mesh_vertex_drawable(handle.id);
   case DrawableKind::invalid:
     return false;
   }
@@ -252,6 +281,18 @@ void Renderer::draw(const opengl::LightingConfig& lighting)
                                    m_camera->get_normal_matrix(),
                                    viewPosF,
                                    effectiveLighting);
+  }
+
+  // Plan 005: draw segment overlays on top of meshes.
+  if (m_drawablesManager.has_mesh_segment_drawables())
+  {
+    m_drawablesManager.draw_mesh_segment_overlays(m_camera->get_current_MVP());
+  }
+
+  // Plan 006: draw vertex overlays on top of meshes.
+  if (m_drawablesManager.has_mesh_vertex_drawables())
+  {
+    m_drawablesManager.draw_mesh_vertex_overlays(m_camera->get_current_MVP());
   }
 }
 

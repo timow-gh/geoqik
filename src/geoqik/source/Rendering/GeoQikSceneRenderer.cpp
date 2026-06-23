@@ -1,6 +1,7 @@
 #include "Rendering/GeoQikSceneRenderer.hpp"
 #include "GeometryBuffers/MeshBuffer.hpp"
 #include <OpenGL/BufferAccessPattern.hpp>
+#include <OpenGL/Drawable/DrawablesManager.hpp>
 #include <Renderer/Renderer.hpp>
 
 namespace geoqik
@@ -92,6 +93,59 @@ bool GeoQikSceneRenderer::sync_scene(Scene& scene)
 
   meshBuffer.clear_change_tracking();
 
+  // Toggle overlay drawables on/off based on current visibility flags.
+  // This runs every sync to pick up flag-only changes that don't trigger m_updatedMeshes.
+  for (auto& [uuid, bundle] : m_meshBundles)
+  {
+    if (!meshBuffer.has_mesh_overlay_data(uuid)) continue;
+    const auto& overlay = meshBuffer.get_mesh_overlay_data(uuid);
+
+    // Segments: add drawable if now visible and not yet created; remove if now hidden.
+    const bool wantSegments = overlay.showSegments
+                              && !overlay.segmentPositions.empty()
+                              && !overlay.segmentIndices.empty();
+    if (wantSegments && !bundle.segments.is_valid())
+    {
+      const std::vector<float> colorVec{overlay.segmentColor[0],
+                                        overlay.segmentColor[1],
+                                        overlay.segmentColor[2],
+                                        overlay.segmentColor[3]};
+      bundle.segments = m_renderer.add_mesh_segment_drawable(
+          std::span<const float>(overlay.segmentPositions),
+          std::span<const std::uint32_t>(overlay.segmentIndices),
+          std::span<const float>(colorVec),
+          overlay.segmentLineWidth);
+      updateOccurred = true;
+    }
+    else if (!wantSegments && bundle.segments.is_valid())
+    {
+      m_renderer.remove_drawable(bundle.segments);
+      bundle.segments = {};
+      updateOccurred = true;
+    }
+
+    // Vertices: add drawable if now visible and not yet created; remove if now hidden.
+    const bool wantVertices = overlay.showVertices && !overlay.segmentPositions.empty();
+    if (wantVertices && !bundle.vertices.is_valid())
+    {
+      const std::vector<float> colorVec{overlay.vertexColor[0],
+                                        overlay.vertexColor[1],
+                                        overlay.vertexColor[2],
+                                        overlay.vertexColor[3]};
+      bundle.vertices = m_renderer.add_mesh_vertex_drawable(
+          std::span<const float>(overlay.segmentPositions),
+          std::span<const float>(colorVec),
+          overlay.vertexPointSize);
+      updateOccurred = true;
+    }
+    else if (!wantVertices && bundle.vertices.is_valid())
+    {
+      m_renderer.remove_drawable(bundle.vertices);
+      bundle.vertices = {};
+      updateOccurred = true;
+    }
+  }
+
   return updateOccurred;
 }
 
@@ -156,12 +210,71 @@ void GeoQikSceneRenderer::clear_drawables()
 
 void GeoQikSceneRenderer::create_surface_bundle(const core::UUID& uuid, const MeshBuffer& meshBuffer)
 {
+  remove_bundle(uuid);
+
   MeshDrawableBundle bundle;
-  bundle.surface = m_renderer.add_mesh_drawable(meshBuffer.get_mesh_vertices(uuid),
-                                                meshBuffer.get_mesh_normals(uuid),
-                                                meshBuffer.get_mesh_colors(uuid),
-                                                meshBuffer.get_local_triangle_indices(uuid),
-                                                opengl::BufferAccessPattern::STATIC_DRAW);
+
+  bool surfaceVisible = true;
+  if (meshBuffer.has_mesh_rendering_opts(uuid))
+  {
+    const auto& renderOpts = meshBuffer.get_mesh_rendering_opts(uuid);
+    surfaceVisible = renderOpts.surfaceVisible;
+  }
+
+  if (surfaceVisible)
+  {
+    bundle.surface = m_renderer.add_mesh_drawable(meshBuffer.get_mesh_vertices(uuid),
+                                                  meshBuffer.get_mesh_normals(uuid),
+                                                  meshBuffer.get_mesh_colors(uuid),
+                                                  meshBuffer.get_local_triangle_indices(uuid),
+                                                  opengl::BufferAccessPattern::STATIC_DRAW);
+
+    if (bundle.surface.is_valid() && meshBuffer.has_mesh_rendering_opts(uuid))
+    {
+      const auto& renderOpts = meshBuffer.get_mesh_rendering_opts(uuid);
+      opengl::MeshCullFaceMode cullFaceMode = opengl::MeshCullFaceMode::back;
+      switch (renderOpts.cullMode)
+      {
+        case MeshCullMode::front: cullFaceMode = opengl::MeshCullFaceMode::front; break;
+        case MeshCullMode::none:  cullFaceMode = opengl::MeshCullFaceMode::none;  break;
+        case MeshCullMode::back:
+        default:                  cullFaceMode = opengl::MeshCullFaceMode::back;  break;
+      }
+      m_renderer.set_mesh_drawable_cull_mode(bundle.surface, cullFaceMode);
+    }
+  }
+
+  // Segment overlay
+  if (meshBuffer.has_mesh_overlay_data(uuid))
+  {
+    const auto& overlay = meshBuffer.get_mesh_overlay_data(uuid);
+    if (overlay.showSegments && !overlay.segmentPositions.empty() && !overlay.segmentIndices.empty())
+    {
+      const std::vector<float> colorVec{overlay.segmentColor[0],
+                                        overlay.segmentColor[1],
+                                        overlay.segmentColor[2],
+                                        overlay.segmentColor[3]};
+      bundle.segments = m_renderer.add_mesh_segment_drawable(
+          std::span<const float>(overlay.segmentPositions),
+          std::span<const std::uint32_t>(overlay.segmentIndices),
+          std::span<const float>(colorVec),
+          overlay.segmentLineWidth);
+    }
+
+    // Vertex overlay
+    if (overlay.showVertices && !overlay.segmentPositions.empty())
+    {
+      const std::vector<float> colorVec{overlay.vertexColor[0],
+                                        overlay.vertexColor[1],
+                                        overlay.vertexColor[2],
+                                        overlay.vertexColor[3]};
+      bundle.vertices = m_renderer.add_mesh_vertex_drawable(
+          std::span<const float>(overlay.segmentPositions),
+          std::span<const float>(colorVec),
+          overlay.vertexPointSize);
+    }
+  }
+
   m_meshBundles.emplace(uuid, std::move(bundle));
 }
 

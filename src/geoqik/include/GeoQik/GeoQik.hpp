@@ -425,6 +425,13 @@ extern "C"
   /** \brief Removes the line identified by geometryId. */
   GEOQIK_EXPORT geoqik_error_code_t geoqik_remove_line(const geoqik_uuid_t* geometryId);
 
+  typedef enum
+  {
+    GEOQIK_MESH_CULL_BACK  = 0, /**< Back faces culled (default OpenGL behavior). */
+    GEOQIK_MESH_CULL_FRONT = 1, /**< Front faces culled. */
+    GEOQIK_MESH_CULL_NONE  = 2  /**< No face culling. */
+  } geoqik_mesh_cull_mode_t;
+
   typedef struct
   {
     geoqik_uuid_t idempotencyKey; /**< Optional idempotency key for the mesh, ignored if the uuid is zeroed. */
@@ -432,6 +439,14 @@ extern "C"
     size_t normalsCount;          /**< Number of floats in the normals array. */
     const float* color;           /**< Optional color (RGBA), ignored if null. Size must be 0, 4, or vertexCount*4. */
     size_t colorCount;            /**< Number of floats in the color array. */
+    const uint32_t* segmentIndices;     /**< Pairs [i0,i1,...] indexing mesh vertices. NULL = auto-derive all triangle edges. */
+    size_t          segmentIndexCount;  /**< Number of uint32_t values in segmentIndices (must be even). */
+    const float*    segmentColor;       /**< Single RGBA [4 floats]. NULL = black (0,0,0,1). */
+    int             showSegments;       /**< Non-zero to show wireframe on add. */
+    float           segmentLineWidth;   /**< 0.0 = default 1.0. */
+    const float*    vertexColor;        /**< Single RGBA [4 floats]. NULL = white (1,1,1,1). */
+    int             showVertices;       /**< Non-zero to show vertex points on add. */
+    float           vertexPointSize;    /**< 0.0 = default 3.0. */
   } geoqik_add_mesh_opts_t;
 
   /** \brief Adds a triangle mesh. vertices is a flat XYZ array (vertexCount positions); triangleIndices holds vertexCount triplets. Normals are auto-computed if not provided. */
@@ -458,6 +473,26 @@ extern "C"
                                                             const float* vertices,
                                                             size_t vertexCount,
                                                             geoqik_update_mesh_opts_t* options);
+
+  typedef struct
+  {
+    int showSegments; /**< Non-zero = show, zero = hide. -1 = leave unchanged. */
+    int showVertices; /**< Non-zero = show, zero = hide. -1 = leave unchanged. */
+  } geoqik_mesh_overlay_opts_t;
+
+  /** \brief Set per-mesh overlay visibility (wireframe segments and/or vertex points). */
+  GEOQIK_EXPORT geoqik_error_code_t geoqik_set_mesh_overlay_opts(const geoqik_uuid_t* geometryId,
+                                                                   const geoqik_mesh_overlay_opts_t* opts);
+
+  typedef struct
+  {
+    geoqik_mesh_cull_mode_t cullMode;       /**< Face culling mode. */
+    int                     surfaceVisible; /**< 0 = hide surface; non-zero = show (default). */
+  } geoqik_mesh_rendering_opts_t;
+
+  /** \brief Set per-mesh rendering options (cull mode, surface visibility). Does not require re-submitting geometry. */
+  GEOQIK_EXPORT geoqik_error_code_t geoqik_set_mesh_rendering_opts(const geoqik_uuid_t* geometryId,
+                                                                     const geoqik_mesh_rendering_opts_t* options);
 
   /** \brief Removes all points, lines, and meshes from the scene. */
   GEOQIK_EXPORT geoqik_error_code_t geoqik_remove_all_geometry();
