@@ -85,6 +85,5 @@ The release workflow builds packages, verifies that the tag version matches
 `project(geoqik VERSION ...)` in `CMakeLists.txt`, generates the GitHub Release
 body with `git-cliff`, and uploads the package artifacts.
 
-Create `v0.1.0` as the baseline tag for the current history. After that,
-release notes are generated from Conventional Commits since the previous `v*`
-tag.
+Release notes are generated from Conventional Commits since the previous `v*`
+tag. Push a `v0.1.0` tag first to establish the baseline.

@@ -8,42 +8,40 @@
 #include <stdbool.h>
 #endif
 
-/** Description:
+/**
+ * @file GeoQik.hpp
+ * @brief C API for GeoQik — real-time 3D geometry visualization for debugging.
  *
- * 'A picture is worth a thousand words' - This library aims to provide a simple way to visualize geometry for debugging purposes.
+ * Add points, lines, and meshes from any thread; GeoQik opens an OpenGL window
+ * and renders them live.
  *
+ * ## Lifecycle
  *
- * Thread Safety:
- * All functions in the GeoQik C API are thread-safe and can be called concurrently from multiple threads. Except for the geoqik_init()
- * function which must be called only once before any other GeoQik functions.
+ * 1. Call `geoqik_init()` (or `geoqik_init_with_settings()`) once before any
+ *    other function.
+ * 2. Optionally add geometry and configure style (size, color, width).
+ * 3. Call `geoqik_draw()` to open the window. Geometry added after this call
+ *    is rendered as soon as possible.
+ * 4. Call `geoqik_wait_for_exit_and_cleanup()` to block until the window is
+ *    closed, or `geoqik_cleanup()` to destroy it immediately.
  *
- * Calls to the GeoQik API use locking internally, keep in mind that this may lead to contention if multiple threads
- * access the API simultaneously.
+ * ## Thread safety
  *
+ * All functions except `geoqik_init()` and `geoqik_init_with_settings()` are
+ * thread-safe. Those two must be called exactly once before any other call.
+ * Internal locking is used; avoid calling the API from a tight hot loop on
+ * multiple threads simultaneously to prevent contention.
  *
- * Usage Example:
+ * ## Quick example
  *
- * \code
- * geoqik_error_code_t result = geoqik_init(); // Initialize the GeoQik library
- * if (result != GEOQIK_SUCCESS) {
- *     printf("Failed to initialize: %s\n", geoqik_get_error_string(result));
- *     return -1;
- * }
- *
- * geoqik_set_point_size(5.0f); // Following calls that add points will use this size.
- * geoqik_set_line_width(2.0f); // Following calls that add lines will use this width.
- * geoqik_set_point_color(1.0f, 0.0f, 0.0f, 1.0f); // Following calls that add points will use this color.
- *
- * // Geometry won't be drawn yet, it will be drawn when geoqik_draw() is called.
+ * @code
+ * geoqik_init();
+ * geoqik_set_point_size(5.0f);
+ * geoqik_set_point_color(1.0f, 0.0f, 0.0f, 1.0f);
+ * geoqik_draw();
  * geoqik_add_point(1.0, 0.0, 0.0);
- * geoqik_add_line(0.0, 0.0, 0.0, 1.0, 0.0, 0.0);
- *
- * geoqik_draw(); // Draw all added geometry. Geometry added after this call will be drawn as soon as possible.
- *
- * geoqik_add_point(0.0, 1.0, 0.0); // This point will be drawn as soon as possible since geoqik_draw() was already called.
- *
- * geoqik_wait_for_exit_and_cleanup(); // Blocking, wait for user to close the window and clean up resources.
- * \endcode
+ * geoqik_wait_for_exit_and_cleanup();
+ * @endcode
  */
 
 #ifdef __cplusplus
@@ -298,16 +296,16 @@ extern "C"
     geoqik_uuid_t geometryId; /* The geometry ID, if applicable (zeroed otherwise) */
   } geoqik_result_t;
 
-  /** \brief Initializes the GeoQik library.
-   *
-   * This function initializes the GeoQik library.
-   * \attention Must be called before any other GeoQik functions.
-   */
+  /** \brief Initializes GeoQik with default settings. Must be called once before any other function. */
   GEOQIK_EXPORT geoqik_error_code_t geoqik_init();
 
+  /** \brief Fills @p settings with the library defaults. Call before customizing and passing to geoqik_init_with_settings(). */
   GEOQIK_EXPORT void geoqik_create_default_settings(geoqik_settings_t* settings);
+  /** \brief Fills @p settings with default window parameters. Call before customizing and passing to geoqik_init_with_settings(). */
   GEOQIK_EXPORT void geoqik_init_default_window_settings(geoqik_window_settings_t* settings);
+  /** \brief Initializes GeoQik with custom library and window settings. Must be called once before any other function. */
   GEOQIK_EXPORT geoqik_error_code_t geoqik_init_with_settings(const geoqik_settings_t* geoqikSettings, const geoqik_window_settings_t* windowSettings);
+  /** \brief Returns whether the library has been successfully initialized. */
   GEOQIK_EXPORT geoqik_error_code_t geoqik_is_api_initialized(bool* isInitialized);
 
   /* Get error message for result code */
@@ -317,13 +315,17 @@ extern "C"
 
   /** \brief Sets the size used for all points */
   GEOQIK_EXPORT geoqik_error_code_t geoqik_set_point_size(float pointSize);
+  /** \brief Gets the current default point size. */
   GEOQIK_EXPORT geoqik_error_code_t geoqik_get_point_size(float* pointSize);
 
   /** \brief Sets the color used for all points that don't specify their color. */
   GEOQIK_EXPORT geoqik_error_code_t geoqik_set_point_color(float r, float g, float b, float a);
+  /** \brief Gets the current default point color. */
   GEOQIK_EXPORT geoqik_error_code_t geoqik_get_point_color(float* r, float* g, float* b, float* a);
 
+  /** \brief Adds a point at (x, y, z) using the current default color and size. */
   GEOQIK_EXPORT geoqik_result_t geoqik_add_point(double x, double y, double z);
+  /** \brief Adds a point at (x, y, z) with an explicit RGBA color. */
   GEOQIK_EXPORT geoqik_result_t geoqik_add_point_with_color(double x, double y, double z, float r, float g, float b, float a);
 
   typedef struct
@@ -333,7 +335,9 @@ extern "C"
     size_t colorCount;            /**< Number of floats in the color array, must be 0, 4, or number of points * 4 */
   } geoqik_add_points_options_t;
 
+  /** \brief Adds a single point with extended options (idempotency key, per-point color). */
   GEOQIK_EXPORT geoqik_result_t geoqik_add_point_opts(double x, double y, double z, geoqik_add_points_options_t* options);
+  /** \brief Adds multiple points from a flat XYZ array (size = number of points). */
   GEOQIK_EXPORT geoqik_result_t geoqik_add_points_opts(const double* points, size_t size, geoqik_add_points_options_t* options);
 
   typedef struct
@@ -342,26 +346,36 @@ extern "C"
     size_t colorCount;  /**< Number of floats in the color array, must be 0, 4, or number of points * 4 */
   } geoqik_update_points_options_t;
 
+  /** \brief Updates the point identified by geometryId to a new position. */
   GEOQIK_EXPORT geoqik_error_code_t geoqik_update_point(const geoqik_uuid_t* geometryId, double x, double y, double z);
+  /** \brief Updates the position and color of the point identified by geometryId. */
   GEOQIK_EXPORT geoqik_error_code_t geoqik_update_point_with_color(const geoqik_uuid_t* geometryId, double x, double y, double z, float r, float g, float b, float a);
+  /** \brief Updates the point identified by geometryId with extended options. */
   GEOQIK_EXPORT geoqik_error_code_t geoqik_update_point_opts(const geoqik_uuid_t* geometryId, double x, double y, double z, geoqik_update_points_options_t* options);
+  /** \brief Updates multiple points identified by geometryId from a flat XYZ array. */
   GEOQIK_EXPORT geoqik_error_code_t geoqik_update_points_opts(const geoqik_uuid_t* geometryId, const double* points, size_t size, geoqik_update_points_options_t* options);
 
+  /** \brief Removes the point identified by geometryId. */
   GEOQIK_EXPORT geoqik_error_code_t geoqik_remove_point(const geoqik_uuid_t* geometryId);
 
+  /** \brief Adds a line from (x1,y1,z1) to (x2,y2,z2) using the current default color and width. */
   GEOQIK_EXPORT geoqik_error_code_t geoqik_add_line(double x1, double y1, double z1, double x2, double y2, double z2);
+  /** \brief Adds a line from (x1,y1,z1) to (x2,y2,z2) with an explicit RGBA color. */
   GEOQIK_EXPORT geoqik_error_code_t geoqik_add_line_with_color(double x1, double y1, double z1, double x2, double y2, double z2, float r, float g, float b, float a);
 
   /** \brief Sets the width used for all lines. */
   GEOQIK_EXPORT geoqik_error_code_t geoqik_set_line_width(float lineWidth);
+  /** \brief Gets the current default line width. */
   GEOQIK_EXPORT geoqik_error_code_t geoqik_get_line_width(float* lineWidth);
 
   /** \brief Sets the color used for all lines that don't specify their color. */
   GEOQIK_EXPORT geoqik_error_code_t geoqik_set_line_color(float r, float g, float b, float a);
+  /** \brief Gets the current default line color. */
   GEOQIK_EXPORT geoqik_error_code_t geoqik_get_line_color(float* r, float* g, float* b, float* a);
 
   /** \brief Sets the default color used for meshes that don't specify their color. */
   GEOQIK_EXPORT geoqik_error_code_t geoqik_set_mesh_color(float r, float g, float b, float a);
+  /** \brief Gets the current default mesh color. */
   GEOQIK_EXPORT geoqik_error_code_t geoqik_get_mesh_color(float* r, float* g, float* b, float* a);
 
   typedef struct
@@ -371,7 +385,9 @@ extern "C"
     size_t colorCount;            /**< Number of floats in the color array, must be 0, 4, or number of lines * 4 */
   } geoqik_add_line_opts_t;
 
+  /** \brief Adds a single line with extended options (idempotency key, per-line color). */
   GEOQIK_EXPORT geoqik_result_t geoqik_add_line_opts(double x1, double y1, double z1, double x2, double y2, double z2, geoqik_add_line_opts_t* options);
+  /** \brief Adds multiple lines from a flat array of endpoint pairs (size = number of lines). */
   GEOQIK_EXPORT geoqik_result_t geoqik_add_lines_opts(const double* lines, size_t size, geoqik_add_line_opts_t* options);
 
   typedef struct
@@ -380,7 +396,9 @@ extern "C"
     size_t colorCount;  /**< Number of floats in the color array, must be 0, 4, or number of lines * 4 */
   } geoqik_update_line_opts_t;
 
+  /** \brief Updates the line identified by geometryId. */
   GEOQIK_EXPORT geoqik_error_code_t geoqik_update_line(const geoqik_uuid_t* geometryId, double x1, double y1, double z1, double x2, double y2, double z2);
+  /** \brief Updates and recolors the line identified by geometryId. */
   GEOQIK_EXPORT geoqik_error_code_t geoqik_update_line_with_color(const geoqik_uuid_t* geometryId,
                                                                   double x1,
                                                                   double y1,
@@ -392,6 +410,7 @@ extern "C"
                                                                   float g,
                                                                   float b,
                                                                   float a);
+  /** \brief Updates the line identified by geometryId with extended options. */
   GEOQIK_EXPORT geoqik_error_code_t geoqik_update_line_opts(const geoqik_uuid_t* geometryId,
                                                             double x1,
                                                             double y1,
@@ -400,8 +419,10 @@ extern "C"
                                                             double y2,
                                                             double z2,
                                                             geoqik_update_line_opts_t* options);
+  /** \brief Updates multiple lines identified by geometryId from a flat endpoint-pair array. */
   GEOQIK_EXPORT geoqik_error_code_t geoqik_update_lines_opts(const geoqik_uuid_t* geometryId, const double* lines, size_t size, geoqik_update_line_opts_t* options);
 
+  /** \brief Removes the line identified by geometryId. */
   GEOQIK_EXPORT geoqik_error_code_t geoqik_remove_line(const geoqik_uuid_t* geometryId);
 
   typedef struct
@@ -413,12 +434,14 @@ extern "C"
     size_t colorCount;            /**< Number of floats in the color array. */
   } geoqik_add_mesh_opts_t;
 
+  /** \brief Adds a triangle mesh. vertices is a flat XYZ array (vertexCount positions); triangleIndices holds vertexCount triplets. Normals are auto-computed if not provided. */
   GEOQIK_EXPORT geoqik_result_t geoqik_add_mesh_opts(const float* vertices,
                                                        size_t vertexCount,
                                                        const uint32_t* triangleIndices,
                                                        size_t triangleCount,
                                                        geoqik_add_mesh_opts_t* options);
 
+  /** \brief Removes the mesh identified by geometryId. */
   GEOQIK_EXPORT geoqik_error_code_t geoqik_remove_mesh(const geoqik_uuid_t* geometryId);
 
   typedef struct
@@ -430,13 +453,16 @@ extern "C"
     size_t colorCount;            /**< Number of floats in the color array. */
   } geoqik_update_mesh_opts_t;
 
+  /** \brief Updates the vertices of the mesh identified by geometryId. */
   GEOQIK_EXPORT geoqik_error_code_t geoqik_update_mesh_opts(const geoqik_uuid_t* geometryId,
                                                             const float* vertices,
                                                             size_t vertexCount,
                                                             geoqik_update_mesh_opts_t* options);
 
+  /** \brief Removes all points, lines, and meshes from the scene. */
   GEOQIK_EXPORT geoqik_error_code_t geoqik_remove_all_geometry();
 
+  /** \brief Translates the geometry identified by geometryId by (dx, dy, dz). */
   GEOQIK_EXPORT geoqik_error_code_t geoqik_translate_geometry(const geoqik_uuid_t* geometryId, double dx, double dy, double dz);
   /** \brief Rotates the specified geometry around the given center, axis and angle */
   GEOQIK_EXPORT geoqik_error_code_t geoqik_rotate_geometry(const geoqik_uuid_t* geometryId,
