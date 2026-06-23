@@ -53,26 +53,44 @@ bool GeoQikSceneRenderer::sync_scene(Scene& scene)
   }
 
   auto& meshBuffer = scene.get_mesh_buffer();
-  if (!m_renderer.has_mesh_drawables() && !meshBuffer.empty())
+
+  if (meshBuffer.is_full_rebuild_needed())
   {
-    m_renderer.add_mesh_drawable(meshBuffer.get_vertices(),
-                                 meshBuffer.get_normals(),
-                                 meshBuffer.get_colors(),
-                                 meshBuffer.get_triangle_indices(),
-                                 opengl::BufferAccessPattern::STATIC_DRAW);
+    for (auto& [uuid, bundle] : m_meshBundles)
+    {
+      if (bundle.surface.is_valid())  m_renderer.remove_drawable(bundle.surface);
+      if (bundle.segments.is_valid()) m_renderer.remove_drawable(bundle.segments);
+      if (bundle.vertices.is_valid()) m_renderer.remove_drawable(bundle.vertices);
+    }
+    m_meshBundles.clear();
+
+    for (const core::UUID& uuid : meshBuffer.get_all_mesh_uuids())
+      create_surface_bundle(uuid, meshBuffer);
+
     updateOccurred = true;
   }
-  else if (meshBuffer.has_changed())
+  else
   {
-    m_renderer.clear_mesh_drawables();
-    m_renderer.add_mesh_drawable(meshBuffer.get_vertices(),
-                                 meshBuffer.get_normals(),
-                                 meshBuffer.get_colors(),
-                                 meshBuffer.get_triangle_indices(),
-                                 opengl::BufferAccessPattern::STATIC_DRAW);
-    meshBuffer.reset_changed_flag();
-    updateOccurred = true;
+    for (const core::UUID& uuid : meshBuffer.get_removed_meshes())
+      remove_bundle(uuid);
+    if (!meshBuffer.get_removed_meshes().empty())
+      updateOccurred = true;
+
+    for (const core::UUID& uuid : meshBuffer.get_updated_meshes())
+    {
+      remove_bundle(uuid);
+      create_surface_bundle(uuid, meshBuffer);
+    }
+    if (!meshBuffer.get_updated_meshes().empty())
+      updateOccurred = true;
+
+    for (const core::UUID& uuid : meshBuffer.get_added_meshes())
+      create_surface_bundle(uuid, meshBuffer);
+    if (!meshBuffer.get_added_meshes().empty())
+      updateOccurred = true;
   }
+
+  meshBuffer.clear_change_tracking();
 
   return updateOccurred;
 }
@@ -119,21 +137,43 @@ void GeoQikSceneRenderer::recreate_line_drawables(const Scene& scene)
 
 void GeoQikSceneRenderer::recreate_mesh_drawables(const Scene& scene)
 {
-  m_renderer.clear_mesh_drawables();
-  const auto& meshBuffer = scene.get_mesh_buffer();
-  if (!meshBuffer.empty())
+  for (auto& [uuid, bundle] : m_meshBundles)
   {
-    m_renderer.add_mesh_drawable(meshBuffer.get_vertices(),
-                                 meshBuffer.get_normals(),
-                                 meshBuffer.get_colors(),
-                                 meshBuffer.get_triangle_indices(),
-                                 opengl::BufferAccessPattern::STATIC_DRAW);
+    if (bundle.surface.is_valid())  m_renderer.remove_drawable(bundle.surface);
+    if (bundle.segments.is_valid()) m_renderer.remove_drawable(bundle.segments);
+    if (bundle.vertices.is_valid()) m_renderer.remove_drawable(bundle.vertices);
   }
+  m_meshBundles.clear();
+
+  for (const core::UUID& uuid : scene.get_mesh_buffer().get_all_mesh_uuids())
+    create_surface_bundle(uuid, scene.get_mesh_buffer());
 }
 
 void GeoQikSceneRenderer::clear_drawables()
 {
   m_renderer.clear_drawables();
+}
+
+void GeoQikSceneRenderer::create_surface_bundle(const core::UUID& uuid, const MeshBuffer& meshBuffer)
+{
+  MeshDrawableBundle bundle;
+  bundle.surface = m_renderer.add_mesh_drawable(meshBuffer.get_mesh_vertices(uuid),
+                                                meshBuffer.get_mesh_normals(uuid),
+                                                meshBuffer.get_mesh_colors(uuid),
+                                                meshBuffer.get_local_triangle_indices(uuid),
+                                                opengl::BufferAccessPattern::STATIC_DRAW);
+  m_meshBundles.emplace(uuid, std::move(bundle));
+}
+
+void GeoQikSceneRenderer::remove_bundle(const core::UUID& uuid)
+{
+  auto it = m_meshBundles.find(uuid);
+  if (it == m_meshBundles.end()) return;
+  auto& bundle = it->second;
+  if (bundle.surface.is_valid())  m_renderer.remove_drawable(bundle.surface);
+  if (bundle.segments.is_valid()) m_renderer.remove_drawable(bundle.segments);
+  if (bundle.vertices.is_valid()) m_renderer.remove_drawable(bundle.vertices);
+  m_meshBundles.erase(it);
 }
 
 } // namespace geoqik

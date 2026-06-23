@@ -14,6 +14,7 @@
 #include <span>
 #include <stdexcept>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 namespace geoqik
@@ -52,6 +53,11 @@ class MeshBuffer
 
   bool m_hasChanged{false};
 
+  std::unordered_set<core::UUID> m_addedMeshes;
+  std::unordered_set<core::UUID> m_updatedMeshes;
+  std::unordered_set<core::UUID> m_removedMeshes;
+  bool m_fullRebuildNeeded{false};
+
   std::unordered_map<core::UUID, MeshGeoBufferIndex> m_handleToMeshIndex;
 
   explicit MeshBuffer(const GeoQikSettings& settings)
@@ -79,6 +85,28 @@ public:
   void reset_changed_flag() { m_hasChanged = false; }
   [[nodiscard]] bool empty() const { return m_vertices.empty(); }
 
+  [[nodiscard]] const std::unordered_set<core::UUID>& get_added_meshes()   const { return m_addedMeshes; }
+  [[nodiscard]] const std::unordered_set<core::UUID>& get_updated_meshes() const { return m_updatedMeshes; }
+  [[nodiscard]] const std::unordered_set<core::UUID>& get_removed_meshes() const { return m_removedMeshes; }
+  [[nodiscard]] bool is_full_rebuild_needed() const { return m_fullRebuildNeeded; }
+
+  void clear_change_tracking()
+  {
+    m_addedMeshes.clear();
+    m_updatedMeshes.clear();
+    m_removedMeshes.clear();
+    m_fullRebuildNeeded = false;
+    m_hasChanged = false;
+  }
+
+  [[nodiscard]] std::vector<core::UUID> get_all_mesh_uuids() const
+  {
+    std::vector<core::UUID> result;
+    result.reserve(m_handleToMeshIndex.size());
+    for (const auto& [uuid, _] : m_handleToMeshIndex) result.push_back(uuid);
+    return result;
+  }
+
   [[nodiscard]] Color get_default_color() const { return m_defaultMeshColor; }
   void set_default_color(float r, float g, float b, float a) { m_defaultMeshColor = {r, g, b, a}; }
 
@@ -86,6 +114,37 @@ public:
   [[nodiscard]] std::span<const float> get_normals() const { return m_normals; }
   [[nodiscard]] std::span<const float> get_colors() const { return m_colors; }
   [[nodiscard]] std::span<const std::uint32_t> get_triangle_indices() const { return m_triangleIndices; }
+
+  [[nodiscard]] std::span<const float> get_mesh_vertices(const core::UUID& handle) const
+  {
+    const auto& info = m_handleToMeshIndex.at(handle);
+    return std::span<const float>{m_vertices}.subspan(info.vertexStartIndex * 3, info.vertexCount * 3);
+  }
+
+  [[nodiscard]] std::span<const float> get_mesh_normals(const core::UUID& handle) const
+  {
+    const auto& info = m_handleToMeshIndex.at(handle);
+    return std::span<const float>{m_normals}.subspan(info.vertexStartIndex * 3, info.vertexCount * 3);
+  }
+
+  [[nodiscard]] std::span<const float> get_mesh_colors(const core::UUID& handle) const
+  {
+    const auto& info = m_handleToMeshIndex.at(handle);
+    return std::span<const float>{m_colors}.subspan(info.vertexStartIndex * 4, info.vertexCount * 4);
+  }
+
+  [[nodiscard]] std::vector<std::uint32_t> get_local_triangle_indices(const core::UUID& handle) const
+  {
+    const auto& info = m_handleToMeshIndex.at(handle);
+    const auto base  = static_cast<std::uint32_t>(info.vertexStartIndex);
+    std::vector<std::uint32_t> local;
+    local.reserve(info.triangleCount * 3);
+    const std::size_t start = info.triangleStartIndex * 3;
+    const std::size_t end   = start + info.triangleCount * 3;
+    for (std::size_t i = start; i < end; ++i)
+      local.push_back(m_triangleIndices[i] - base);
+    return local;
+  }
 
   [[nodiscard]] static constexpr std::int32_t get_vertex_dimension() { return m_vertexDimension; }
   [[nodiscard]] static constexpr std::int32_t get_color_dimension() { return m_colorDimension; }
@@ -98,6 +157,10 @@ public:
     m_triangleIndices.clear();
     m_handleToMeshIndex.clear();
     m_hasChanged = true;
+    m_fullRebuildNeeded = true;
+    m_addedMeshes.clear();
+    m_updatedMeshes.clear();
+    m_removedMeshes.clear();
   }
 
   [[nodiscard]] MeshBufferSnapshot create_snapshot() const
@@ -121,6 +184,10 @@ public:
     m_triangleIndices    = snapshot.triangleIndices;
     m_handleToMeshIndex  = snapshot.handleToMeshIndex;
     m_hasChanged         = true;
+    m_fullRebuildNeeded = true;
+    m_addedMeshes.clear();
+    m_updatedMeshes.clear();
+    m_removedMeshes.clear();
   }
 
   void add_mesh(std::span<const float> vertices,
@@ -179,8 +246,15 @@ public:
       m_triangleIndices.push_back(idx + static_cast<std::uint32_t>(firstVertexIndex));
 
     if (handle && !handle->is_nil())
+    {
       m_handleToMeshIndex.emplace(*handle, MeshGeoBufferIndex{firstVertexIndex, vertexCount,
                                                                firstTriangleIndex, triangleCount});
+      m_addedMeshes.insert(*handle);
+    }
+    else
+    {
+      m_fullRebuildNeeded = true;
+    }
 
     m_hasChanged = true;
   }
@@ -215,6 +289,9 @@ public:
     }
 
     m_handleToMeshIndex.erase(it);
+    m_removedMeshes.insert(handle);
+    m_addedMeshes.erase(handle);
+    m_updatedMeshes.erase(handle);
     for (auto& [uuid, info] : m_handleToMeshIndex)
     {
       if (info.vertexStartIndex >= vertexStart + vertexCount)
@@ -283,6 +360,7 @@ public:
     }
 
     m_hasChanged = true;
+    m_updatedMeshes.insert(handle);
     return true;
   }
 
@@ -300,6 +378,7 @@ public:
       m_vertices[i+2] += dz;
     }
     m_hasChanged = true;
+    m_updatedMeshes.insert(handle);
   }
 
   void rotate_geometry(core::UUID handle,
@@ -331,6 +410,7 @@ public:
     recompute_flat_normals_for_range(it->second.vertexStartIndex, it->second.vertexCount,
                                      it->second.triangleStartIndex, it->second.triangleCount);
     m_hasChanged = true;
+    m_updatedMeshes.insert(handle);
   }
 
 private:

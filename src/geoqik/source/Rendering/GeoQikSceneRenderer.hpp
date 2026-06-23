@@ -3,11 +3,8 @@
 
 #include "Scene.hpp"
 #include <OpenGL/LineType.hpp>
-
-namespace renderer
-{
-class Renderer;
-}
+#include <Renderer/Renderer.hpp>
+#include <unordered_map>
 
 namespace geoqik
 {
@@ -16,6 +13,15 @@ class GeoQikSceneRenderer
 {
   renderer::Renderer& m_renderer;
   opengl::LineType m_lineType{opengl::LineType::lines()};
+
+  struct MeshDrawableBundle
+  {
+    renderer::DrawableHandle surface;
+    renderer::DrawableHandle segments;
+    renderer::DrawableHandle vertices;
+  };
+
+  std::unordered_map<core::UUID, MeshDrawableBundle> m_meshBundles;
 
 public:
   explicit GeoQikSceneRenderer(renderer::Renderer& renderer)
@@ -34,6 +40,10 @@ public:
   void recreate_line_drawables(const Scene& scene);
   void recreate_mesh_drawables(const Scene& scene);
   void clear_drawables();
+
+private:
+  void create_surface_bundle(const core::UUID& uuid, const MeshBuffer& meshBuffer);
+  void remove_bundle(const core::UUID& uuid);
 };
 
 } // namespace geoqik
