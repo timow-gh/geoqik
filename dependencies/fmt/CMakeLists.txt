@@ -11,7 +11,7 @@ CPMAddPackage(
         GIT_TAG 11.2.0
         GIT_SHALLOW TRUE
         OPTIONS
-        "FMT_INSTALL ON"
+        "FMT_INSTALL OFF"
         "CMAKE_POSITION_INDEPENDENT_CODE ON"
 )
 
