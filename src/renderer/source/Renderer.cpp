@@ -299,13 +299,20 @@ void Renderer::draw(const opengl::LightingConfig& lighting)
 void Renderer::end_frame()
 {
   bool autoFitEnabled = false;
-  end_frame(autoFitEnabled);
+  bool homeRequested = false;
+  end_frame(autoFitEnabled, homeRequested);
 }
 
 void Renderer::end_frame(bool& autoFitEnabled)
 {
+  bool homeRequested = false;
+  end_frame(autoFitEnabled, homeRequested);
+}
+
+void Renderer::end_frame(bool& autoFitEnabled, bool& homeRequested)
+{
   CameraProjectionType projectionType = m_camera->get_projection_type();
-  m_imgui->add_camera_controls(autoFitEnabled, projectionType);
+  m_imgui->add_camera_controls(autoFitEnabled, projectionType, homeRequested);
   m_imgui->render();
   m_imgui->end_frame();
 

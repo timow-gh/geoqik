@@ -75,6 +75,7 @@ class Context
   std::unique_ptr<renderer::Renderer> m_renderer;
   std::unique_ptr<GeoQikSceneRenderer> m_sceneRenderer;
   bool m_isDrawing{false};
+  bool m_homeRequested{false};
   std::size_t m_frameCount{0};
   std::size_t m_geometryMessagesProcessedThisFrame{0};
   std::vector<GeoQikLogEntry> m_messageLog;

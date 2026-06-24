@@ -39,10 +39,10 @@ void ImGuiOverlay::new_frame() // NOLINT(readability-convert-member-functions-to
   ImGui::NewFrame();
 }
 
-void ImGuiOverlay::add_camera_controls(bool& autoZoomEnabled, CameraProjectionType& projectionType)
+void ImGuiOverlay::add_camera_controls(bool& autoZoomEnabled, CameraProjectionType& projectionType, bool& homeRequested)
 {
   m_controls.emplace_back(
-      [&autoZoomEnabled, &projectionType]()
+      [&autoZoomEnabled, &projectionType, &homeRequested]()
       {
         ImGui::Begin("Camera");
         ImGui::Checkbox("Auto Zoom", &autoZoomEnabled);
@@ -57,6 +57,11 @@ void ImGuiOverlay::add_camera_controls(bool& autoZoomEnabled, CameraProjectionTy
                          static_cast<int>(projectionItems.size())))
         {
           projectionType = static_cast<CameraProjectionType>(currentItem);
+        }
+
+        if (ImGui::Button("Home"))
+        {
+          homeRequested = true;
         }
 
         ImGui::End();

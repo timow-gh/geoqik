@@ -248,6 +248,35 @@ Geometry::Sphere<float> Scene::calc_bounding_sphere(const linal::float3& center)
   return Geometry::Sphere<float>{center, std::sqrt(maxRadiusSq)};
 }
 
+linal::float3 Scene::calc_scene_centroid() const
+{
+  linal::float3 sum{0.0f, 0.0f, 0.0f};
+  std::size_t count = 0;
+
+  auto accumulate = [&](std::span<const float> coords)
+  {
+    for (std::size_t i = 0; i + 2 < coords.size(); i += 3)
+    {
+      sum[0] += coords[i];
+      sum[1] += coords[i + 1];
+      sum[2] += coords[i + 2];
+      ++count;
+    }
+  };
+
+  accumulate(m_pointBuffer->get_points());
+  accumulate(m_lineBuffer->get_lines());
+  accumulate(m_meshBuffer->get_vertices());
+
+  if (count == 0)
+  {
+    return linal::float3{0.0f, 0.0f, 0.0f};
+  }
+
+  const float inv = 1.0f / static_cast<float>(count);
+  return linal::float3{sum[0] * inv, sum[1] * inv, sum[2] * inv};
+}
+
 std::size_t Scene::calc_growth_factor(std::size_t currentCapacity, std::size_t freeCapacity, std::size_t requestedCount) const
 {
   if (currentCapacity == 0)

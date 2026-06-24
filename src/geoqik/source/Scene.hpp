@@ -117,6 +117,7 @@ public:
   [[nodiscard]] LineBuffer& get_line_buffer() { return *m_lineBuffer; }
 
   [[nodiscard]] Geometry::Sphere<float> calc_bounding_sphere(const linal::float3& center) const;
+  [[nodiscard]] linal::float3 calc_scene_centroid() const;
 
 private:
   [[nodiscard]] std::size_t calc_growth_factor(std::size_t currentCapacity, std::size_t freeCapacity, std::size_t requestedCount) const;

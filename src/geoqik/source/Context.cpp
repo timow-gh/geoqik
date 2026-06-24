@@ -448,7 +448,7 @@ void Context::run_event_loop()
     lighting.shininess       = std::max(0.0F, m_geoqikSettings.meshShininess);
 
     m_renderer->draw(lighting);
-    m_renderer->end_frame(m_geoqikSettings.autoFitCameraEnabled);
+    m_renderer->end_frame(m_geoqikSettings.autoFitCameraEnabled, m_homeRequested);
 
     process_replay_entries(std::chrono::high_resolution_clock::now());
     if (!is_replaying() && process_deferred_messages())
@@ -504,13 +504,35 @@ void Context::update_camera_interaction_state()
 
 void Context::sync_scene_and_auto_fit()
 {
-  if (!m_sceneRenderer->sync_scene(m_scene))
+  const bool sceneChanged = m_sceneRenderer->sync_scene(m_scene);
+
+  const auto camera = m_renderer->get_camera().lock();
+  if (!camera)
   {
     return;
   }
 
-  const auto camera = m_renderer->get_camera().lock();
-  if (!camera)
+  if (m_homeRequested)
+  {
+    m_homeRequested = false;
+    const std::array<std::span<const float>, 3> homeBuffers{
+        m_scene.get_point_buffer().get_points(),
+        m_scene.get_line_buffer().get_lines(),
+        m_scene.get_mesh_buffer().get_vertices()};
+    CameraAutoFitInput homeInput = make_camera_auto_fit_input(*camera, m_geoqikSettings, false);
+    homeInput.settings.enabled = true;
+    homeInput.suppressZoomIn = false;
+    const CameraAutoFitResult homeResult =
+        renderer::calculate_camera_auto_fit(std::span<const std::span<const float>>{homeBuffers}, homeInput);
+    if (homeResult.hasGeometry)
+    {
+      camera->apply_auto_fit_result(homeResult);
+      m_lastCameraInteractionTime = {};
+    }
+    return;
+  }
+
+  if (!sceneChanged)
   {
     return;
   }
@@ -522,8 +544,12 @@ void Context::sync_scene_and_auto_fit()
 
   const CameraAutoFitInput autoFitInput =
       make_camera_auto_fit_input(*camera, m_geoqikSettings, hasRecentCameraInteraction);
-  const std::array<std::span<const float>, 2> vertexPositionBuffers{m_scene.get_point_buffer().get_points(), m_scene.get_line_buffer().get_lines()};
-  const CameraAutoFitResult autoFitResult = renderer::calculate_camera_auto_fit(std::span<const std::span<const float>>{vertexPositionBuffers}, autoFitInput);
+  const std::array<std::span<const float>, 3> vertexPositionBuffers{
+      m_scene.get_point_buffer().get_points(),
+      m_scene.get_line_buffer().get_lines(),
+      m_scene.get_mesh_buffer().get_vertices()};
+  const CameraAutoFitResult autoFitResult =
+      renderer::calculate_camera_auto_fit(std::span<const std::span<const float>>{vertexPositionBuffers}, autoFitInput);
   if (autoFitResult.hasGeometry)
   {
     camera->apply_auto_fit_result(autoFitResult);
