@@ -14,6 +14,7 @@
 #include <memory>
 #include <optional>
 #include <span>
+#include <utility>
 #include <vector>
 
 namespace renderer
@@ -40,6 +41,25 @@ struct DrawableHandle
   }
 };
 
+struct LogicalViewportRect
+{
+  double x{0.0};
+  double y{0.0};
+  double width{1.0};
+  double height{1.0};
+
+  [[nodiscard]] bool contains(double xpos, double ypos) const
+  {
+    return xpos >= x && ypos >= y && xpos < x + width && ypos < y + height;
+  }
+};
+
+struct SceneViewport
+{
+  LogicalViewportRect logical;
+  opengl::ViewportRect framebuffer;
+};
+
 class Renderer
 {
 public:
@@ -51,6 +71,14 @@ public:
   ~Renderer() = default;
 
   [[nodiscard]] static std::unique_ptr<Renderer> create(const WindowSettings& settings);
+  [[nodiscard]] static SceneViewport calculate_scene_viewport(
+      std::pair<int, int> windowSize,
+      std::pair<int, int> framebufferSize,
+      double reservedLogicalWidth);
+  [[nodiscard]] static std::optional<std::pair<double, double>> to_scene_framebuffer_coordinates(
+      const SceneViewport& sceneViewport,
+      double xpos,
+      double ypos);
 
   // --- Geometry ---
   DrawableHandle add_point_drawable(
@@ -145,11 +173,16 @@ private:
            std::shared_ptr<ImGuiOverlay> imgui);
 
   void wire_callbacks();
+  void update_scene_viewport();
+  [[nodiscard]] std::optional<std::pair<double, double>> current_scene_framebuffer_coordinates() const;
 
   GlfwWindow m_window;
   opengl::DrawablesManager m_drawablesManager;
   std::shared_ptr<CameraInteractor> m_camera;
   std::shared_ptr<ImGuiOverlay> m_imgui;
+  SceneViewport m_sceneViewport;
+  CursorPosState m_lastWindowCursorPos;
+  bool m_cameraMouseInteractionActive{false};
 
   std::vector<CursorPosCB> m_cursorPosCallbacks;
   std::vector<ScrollCB> m_scrollCallbacks;

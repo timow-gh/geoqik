@@ -102,6 +102,17 @@ bool GlfwWindow::is_escape_pressed() const
   return glfwGetKey(m_glfwWindow, GLFW_KEY_ESCAPE) == GLFW_PRESS;
 }
 
+std::pair<int, int> GlfwWindow::get_window_size() const
+{
+  RENDERER_ASSERT(m_glfwWindow);
+
+  int windowWidth{0};
+  int windowHeight{0};
+  glfwGetWindowSize(m_glfwWindow, &windowWidth, &windowHeight);
+
+  return {windowWidth, windowHeight};
+}
+
 std::pair<int, int> GlfwWindow::get_framebuffer_size() const
 {
   RENDERER_ASSERT(m_glfwWindow);
@@ -111,6 +122,16 @@ std::pair<int, int> GlfwWindow::get_framebuffer_size() const
   glfwGetFramebufferSize(m_glfwWindow, &framebufferWidth, &framebufferHeight);
 
   return {framebufferWidth, framebufferHeight};
+}
+
+std::pair<double, double> GlfwWindow::get_framebuffer_scale() const
+{
+  const auto [windowWidth, windowHeight] = get_window_size();
+  const auto [framebufferWidth, framebufferHeight] = get_framebuffer_size();
+
+  const double xScale = windowWidth > 0 ? static_cast<double>(framebufferWidth) / windowWidth : 1.0;
+  const double yScale = windowHeight > 0 ? static_cast<double>(framebufferHeight) / windowHeight : 1.0;
+  return {xScale, yScale};
 }
 
 InputState& GlfwWindow::get_input_state() const

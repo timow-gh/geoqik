@@ -348,6 +348,11 @@ void ImGuiOverlay::end_frame() // NOLINT(readability-convert-member-functions-to
   ImGui::EndFrame();
 }
 
+float ImGuiOverlay::get_reserved_control_panel_width() const
+{
+  return m_controlPanelWidth + 2.0F * controlPanelMargin;
+}
+
 bool ImGuiOverlay::wants_mouse() const // NOLINT(readability-convert-member-functions-to-static)
 {
   return ImGui::GetIO().WantCaptureMouse;

@@ -40,6 +40,8 @@ public:
   // \brief If no call to \ref render() occurs, call end_frame to ensure ImGui's internal state is updated correctly.
   void end_frame();
   
+  [[nodiscard]] float get_reserved_control_panel_width() const;
+
   [[nodiscard]] bool wants_mouse() const;
 
   [[nodiscard]] bool wants_keyboard() const;
