@@ -70,7 +70,9 @@ std::optional<GeoQikLogEntry> create_log_entry(const GeoQikMessage& message)
                       std::is_same_v<T, SetMeshColor> ||
                       std::is_same_v<T, AddMeshWithOpts> ||
                       std::is_same_v<T, RemoveMesh> ||
-                      std::is_same_v<T, UpdateMeshWithOpts>)
+                      std::is_same_v<T, UpdateMeshWithOpts> ||
+                      std::is_same_v<T, SetMeshOverlayOpts> ||
+                      std::is_same_v<T, SetMeshRenderingOpts>)
         {
           return GeoQikLogEntry{value};
         }

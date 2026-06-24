@@ -10,20 +10,40 @@ set(geoqik_SOURCE_FILES
         source/GeometryBuffers/LineBuffer.hpp
         source/GeometryBuffers/PointBuffer.hpp
         source/GeoQik.cpp
-        source/GeoQikLog.cpp
         source/GeoQikLog.hpp
-        source/GeoQikMessageSerialization.cpp
         source/GeoQikMessageSerialization.hpp
         source/GeoQikMessages.hpp
-        source/GeoQikReplayUndo.cpp
         source/GeoQikReplayUndo.hpp
         source/GeoQikSettings.hpp
         source/IdempotencyData.hpp
         source/Rendering/GeoQikSceneRenderer.cpp
         source/Rendering/GeoQikSceneRenderer.hpp
-        source/Scene.cpp
         source/Scene.hpp
 )
+
+set(geoqik_INTERNAL_SOURCE_FILES
+        source/Scene.cpp
+        source/GeoQikLog.cpp
+        source/GeoQikMessageSerialization.cpp
+        source/GeoQikReplayUndo.cpp)
+
+add_library(geoqik_internal_objects OBJECT ${geoqik_INTERNAL_SOURCE_FILES})
+
+target_include_directories(geoqik_internal_objects
+        PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/source>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/export_header_includes>)
+
+target_link_libraries(geoqik_internal_objects
+        PRIVATE
+        $<BUILD_LOCAL_INTERFACE:geoqik::core>
+        $<BUILD_LOCAL_INTERFACE:renderer::renderer>
+        $<BUILD_LOCAL_INTERFACE:fmt::fmt>
+        $<BUILD_LOCAL_INTERFACE:linal::linal>
+        $<BUILD_LOCAL_INTERFACE:Geometry::Geometry>)
+
+target_compile_features(geoqik_internal_objects PRIVATE cxx_std_23)
+set_target_properties(geoqik_internal_objects PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 set(TARGET_NAME geoqik)
 add_library(${TARGET_NAME} SHARED ${geoqik_SOURCE_FILES} ${geoqik_HEADER_FILES})
@@ -68,6 +88,7 @@ endif ()
 
 target_link_libraries(${TARGET_NAME}
         PRIVATE
+        geoqik_internal_objects
         $<BUILD_LOCAL_INTERFACE:geoqik::core>
         $<BUILD_LOCAL_INTERFACE:renderer::renderer>
         $<BUILD_LOCAL_INTERFACE:imgui::imgui>
@@ -102,22 +123,21 @@ if (${PROJECT_NAME}_INSTALL)
 endif ()
 
 # Only to test the library, not to be installed.
-add_library(geoqik_internals STATIC
-        ${CMAKE_SOURCE_DIR}/src/geoqik/source/Scene.cpp
-        ${CMAKE_SOURCE_DIR}/src/geoqik/source/GeoQikLog.cpp
-        ${CMAKE_SOURCE_DIR}/src/geoqik/source/GeoQikMessageSerialization.cpp
-        ${CMAKE_SOURCE_DIR}/src/geoqik/source/GeoQikReplayUndo.cpp)
+add_library(geoqik_internals STATIC)
 
 target_include_directories(geoqik_internals
         PUBLIC
-        ${CMAKE_SOURCE_DIR}/src/geoqik/source
+        ${CMAKE_CURRENT_LIST_DIR}/source
         ${CMAKE_CURRENT_BINARY_DIR}/export_header_includes
         PRIVATE
         $<TARGET_PROPERTY:geoqik_core,INTERFACE_INCLUDE_DIRECTORIES>
         $<TARGET_PROPERTY:renderer_opengl,INTERFACE_INCLUDE_DIRECTORIES>)
 
+target_compile_definitions(geoqik_internals PUBLIC GEOQIK_STATIC_DEFINE)
+
 target_link_libraries(geoqik_internals
         PUBLIC
+        geoqik_internal_objects
         stduuid linal::linal Geometry::Geometry geoqik::core renderer::renderer)
 
 target_compile_features(geoqik_internals PRIVATE cxx_std_23)

@@ -651,7 +651,8 @@ TEST_F(MeshBufferTest, RenderingOpts_DefaultIsBackCullAndVisible)
 
   EXPECT_FALSE(buffer->has_mesh_rendering_opts(handle));
 
-  // Setting opts triggers updated tracking.
+  // Setting opts before the first renderer sync keeps the mesh covered by the
+  // added set; the renderer reads opts while creating the new surface bundle.
   geoqik::PerMeshRenderingOpts opts;
   opts.cullMode       = geoqik::MeshCullMode::none;
   opts.surfaceVisible = true;
@@ -659,6 +660,14 @@ TEST_F(MeshBufferTest, RenderingOpts_DefaultIsBackCullAndVisible)
 
   ASSERT_TRUE(buffer->has_mesh_rendering_opts(handle));
   EXPECT_EQ(buffer->get_mesh_rendering_opts(handle).cullMode, geoqik::MeshCullMode::none);
+  EXPECT_EQ(buffer->get_added_meshes().count(handle), 1u);
+  EXPECT_EQ(buffer->get_updated_meshes().count(handle), 0u);
+
+  buffer->clear_change_tracking();
+  buffer->set_mesh_rendering_opts(handle, geoqik::PerMeshRenderingOpts{geoqik::MeshCullMode::front, false});
+
+  EXPECT_EQ(buffer->get_mesh_rendering_opts(handle).cullMode, geoqik::MeshCullMode::front);
+  EXPECT_FALSE(buffer->get_mesh_rendering_opts(handle).surfaceVisible);
   EXPECT_EQ(buffer->get_updated_meshes().count(handle), 1u);
 }
 
