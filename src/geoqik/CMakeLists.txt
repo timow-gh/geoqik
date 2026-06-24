@@ -102,17 +102,24 @@ if (${PROJECT_NAME}_INSTALL)
 endif ()
 
 # Only to test the library, not to be installed.
-add_library(geoqik_internals INTERFACE)
-# This following include dir paths need to be paths with the project as its root, since the test projects rely on them.
-target_include_directories(geoqik_internals INTERFACE ${CMAKE_SOURCE_DIR}/src/geoqik/source)
-target_sources(geoqik_internals INTERFACE
+add_library(geoqik_internals STATIC
         ${CMAKE_SOURCE_DIR}/src/geoqik/source/Scene.cpp
         ${CMAKE_SOURCE_DIR}/src/geoqik/source/GeoQikLog.cpp
         ${CMAKE_SOURCE_DIR}/src/geoqik/source/GeoQikMessageSerialization.cpp
         ${CMAKE_SOURCE_DIR}/src/geoqik/source/GeoQikReplayUndo.cpp)
-target_link_libraries(geoqik_internals INTERFACE
-        stduuid linal::linal Geometry::Geometry geoqik::core renderer::renderer)
-target_include_directories(geoqik_internals INTERFACE
+
+target_include_directories(geoqik_internals
+        PUBLIC
+        ${CMAKE_SOURCE_DIR}/src/geoqik/source
+        ${CMAKE_CURRENT_BINARY_DIR}/export_header_includes
+        PRIVATE
         $<TARGET_PROPERTY:geoqik_core,INTERFACE_INCLUDE_DIRECTORIES>
         $<TARGET_PROPERTY:renderer_opengl,INTERFACE_INCLUDE_DIRECTORIES>)
+
+target_link_libraries(geoqik_internals
+        PUBLIC
+        stduuid linal::linal Geometry::Geometry geoqik::core renderer::renderer)
+
+target_compile_features(geoqik_internals PRIVATE cxx_std_23)
+
 add_library(geoqik::geoqik_internals ALIAS geoqik_internals)

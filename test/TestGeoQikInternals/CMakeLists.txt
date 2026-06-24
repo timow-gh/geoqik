@@ -31,18 +31,10 @@ function(create_renderer_test testName)
 endfunction()
 
 function(create_geoqik_opengl_program_unit_test testName)
-    add_executable(${testName}
-            ${testName}.cpp
-            ${PROJECT_SOURCE_DIR}/src/renderer/opengl/source/Programs/CreateProgram.cpp
-            ${PROJECT_SOURCE_DIR}/src/renderer/opengl/source/Programs/ProgramId.cpp)
-    target_include_directories(${testName} PRIVATE
-            ${PROJECT_SOURCE_DIR}/src/renderer/include
-            ${PROJECT_SOURCE_DIR}/src/renderer/opengl/include
-            ${PROJECT_SOURCE_DIR}/src/renderer/opengl/source
-            ${PROJECT_BINARY_DIR}/src/renderer/opengl/export_header_includes)
-    target_compile_definitions(${testName} PRIVATE OPENGL_STATIC_DEFINE)
+    add_executable(${testName} ${testName}.cpp)
     target_compile_features(${testName} PRIVATE cxx_std_23)
     target_link_libraries(${testName} PRIVATE
+            renderer::opengl
             gmock
             gtest_main
             geoqik::core
