@@ -21,7 +21,6 @@
 namespace opengl
 {
 
-// Plan 007 — cull mode in the renderer/opengl layer.
 // Mirrors geoqik::MeshCullMode from the geoqik layer.
 enum class MeshCullFaceMode
 {
@@ -96,13 +95,10 @@ private:
   std::vector<DrawableEntry<opengl::LineDrawable>> m_lineDrawables;
   std::vector<DrawableEntry<opengl::MeshDrawable>> m_meshDrawables;
 
-  // Plan 007 — per-drawable cull mode (only stored when non-default).
   std::unordered_map<DrawableId, MeshCullFaceMode> m_meshCullModes;
 
-  // Plan 005 — segment overlay drawables (LineDrawable-backed wireframe lines).
   std::vector<DrawableEntry<opengl::LineDrawable>> m_meshSegmentDrawables;
 
-  // Plan 006 — vertex overlay drawables (PointDrawable-backed point cloud).
   std::vector<DrawableEntry<opengl::PointDrawable>> m_meshVertexDrawables;
 
 public:
@@ -260,7 +256,6 @@ public:
     return remove_drawable_by_id(m_meshDrawables, id);
   }
 
-  // Plan 007 — cull mode management
   void set_mesh_drawable_cull_mode(DrawableId id, MeshCullFaceMode mode)
   {
     if (mode == MeshCullFaceMode::back)
@@ -274,7 +269,6 @@ public:
     m_meshCullModes.erase(id);
   }
 
-  // Plan 005 — segment overlay drawables
   DrawableId add_mesh_segment_drawable(std::span<const float> positions,
                                        std::span<const std::uint32_t> indices,
                                        std::span<const float> color,
@@ -320,7 +314,6 @@ public:
     return remove_drawable_by_id(m_meshSegmentDrawables, id);
   }
 
-  // Plan 006 — vertex overlay drawables
   DrawableId add_mesh_vertex_drawable(std::span<const float> positions,
                                       std::span<const float> color,
                                       float pointSize)
@@ -558,7 +551,7 @@ public:
       double distanceSquared{};
     };
 
-    // Plan 005: enable polygon offset fill when segment overlays are present
+    // Enable polygon offset fill when segment overlays are present
     // so the surface sits slightly behind the wireframe lines.
     const bool hasSegmentOverlays = !m_meshSegmentDrawables.empty();
     if (hasSegmentOverlays)
@@ -578,7 +571,7 @@ public:
       const DrawableEntry<opengl::MeshDrawable>& entry = m_meshDrawables[i];
       const auto& drawable = entry.drawable;
 
-      // Plan 007: apply per-mesh cull mode before drawing.
+      // Apply per-mesh cull mode before drawing.
       auto cullIt = m_meshCullModes.find(entry.id);
       if (cullIt != m_meshCullModes.end())
       {

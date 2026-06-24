@@ -482,7 +482,7 @@ TEST_F(MeshBufferTest, PerMeshAccessors_ReturnCorrectSubspan)
 }
 
 // =============================================================================
-// Plan 005 — Segment overlay tests
+// Segment overlay tests
 // =============================================================================
 
 TEST_F(MeshBufferTest, SegmentOverlay_AutoDerived_CorrectEdgeCount)
@@ -573,7 +573,7 @@ TEST_F(MeshBufferTest, SegmentOverlay_RemovedWithMesh)
 }
 
 // =============================================================================
-// Plan 006 — Vertex overlay tests
+// Vertex overlay tests
 // =============================================================================
 
 TEST_F(MeshBufferTest, VertexOverlay_StoredAndRetrieved)
@@ -638,7 +638,7 @@ TEST_F(MeshBufferTest, VertexOverlay_SnapshotPreservesVertexData)
 }
 
 // =============================================================================
-// Plan 007 — Rendering opts tests
+// Rendering opts tests
 // =============================================================================
 
 TEST_F(MeshBufferTest, RenderingOpts_DefaultIsBackCullAndVisible)

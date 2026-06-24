@@ -25,8 +25,8 @@ enum class DrawableKind
   point,
   line,
   mesh,
-  meshSegment,   // Plan 005 — wireframe overlay
-  meshVertex,    // Plan 006 — vertex point overlay
+  meshSegment,
+  meshVertex,
 };
 
 struct DrawableHandle
@@ -76,20 +76,17 @@ public:
       std::span<const std::uint32_t> triangleIndices,
       opengl::BufferAccessPattern accessPattern = opengl::BufferAccessPattern::STATIC_DRAW);
 
-  // Plan 005 — segment overlay drawables
   DrawableHandle add_mesh_segment_drawable(
       std::span<const float> positions,
       std::span<const std::uint32_t> indices,
       std::span<const float> color,
       float lineWidth);
 
-  // Plan 006 — vertex overlay drawables
   DrawableHandle add_mesh_vertex_drawable(
       std::span<const float> positions,
       std::span<const float> color,
       float pointSize);
 
-  // Plan 007 — per-mesh cull mode
   void set_mesh_drawable_cull_mode(DrawableHandle handle, opengl::MeshCullFaceMode mode);
 
   bool remove_drawable(DrawableHandle handle);

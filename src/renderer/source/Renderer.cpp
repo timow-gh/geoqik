@@ -283,13 +283,13 @@ void Renderer::draw(const opengl::LightingConfig& lighting)
                                    effectiveLighting);
   }
 
-  // Plan 005: draw segment overlays on top of meshes.
+  // Draw segment overlays on top of meshes.
   if (m_drawablesManager.has_mesh_segment_drawables())
   {
     m_drawablesManager.draw_mesh_segment_overlays(m_camera->get_current_MVP());
   }
 
-  // Plan 006: draw vertex overlays on top of meshes.
+  // Draw vertex overlays on top of meshes.
   if (m_drawablesManager.has_mesh_vertex_drawables())
   {
     m_drawablesManager.draw_mesh_vertex_overlays(m_camera->get_current_MVP());
