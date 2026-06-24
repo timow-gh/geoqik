@@ -3,6 +3,7 @@
 
 #include <Renderer/Camera.hpp>
 #include <Renderer/CameraInteractor.hpp>
+#include <Renderer/ReplayGuiState.hpp>
 #include "ConcurrentQueue/ConcurrentQueue.hpp"
 #include "GeoQik/GeoQik.hpp"
 #include "GeoQikLog.hpp"
@@ -76,6 +77,9 @@ class Context
   std::unique_ptr<GeoQikSceneRenderer> m_sceneRenderer;
   bool m_isDrawing{false};
   bool m_homeRequested{false};
+  bool m_isReplayBackward{false};
+  double m_baseEntriesPerSecond{60.0};
+  double m_currentSpeedMultiplier{1.0};
   std::size_t m_frameCount{0};
   std::size_t m_geometryMessagesProcessedThisFrame{0};
   std::vector<GeoQikLogEntry> m_messageLog;
@@ -198,6 +202,8 @@ private:
   [[nodiscard]] bool should_close_event_loop();
   void update_camera_interaction_state();
   void sync_scene_and_auto_fit();
+  void populate_replay_gui_state(renderer::ReplayGuiState& state) const;
+  void consume_replay_gui_commands(const renderer::ReplayGuiState& state);
   [[nodiscard]] bool should_stop_processing_messages(const std::chrono::high_resolution_clock::time_point& frameStartTime,
                                                      const std::chrono::high_resolution_clock::time_point& messageProcessingStartTime) const;
   [[nodiscard]] bool process_message_queue(ConcurrentQueue<GeoQikMessage>& messageQueue,

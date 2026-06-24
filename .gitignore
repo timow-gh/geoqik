@@ -5,6 +5,8 @@ plans/**
 cmake-build-*/
 conan-cache/
 
+**/**/imgui.ini
+
 .claude
 .cache
 compile_commands.json

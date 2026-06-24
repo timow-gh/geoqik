@@ -375,6 +375,11 @@ public:
 
   void on_framebuffer_size(std::uint32_t width, std::uint32_t height)
   {
+    if (width == 0 || height == 0)
+    {
+      return;
+    }
+
     m_camera.set_viewport(0, 0, width, height);
     update_mvp();
   }

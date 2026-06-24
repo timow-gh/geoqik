@@ -14,6 +14,7 @@ set(renderer_HEADER_FILES
         include/Renderer/Viewport.hpp
         include/Renderer/Camera.hpp
         include/Renderer/CameraAutoFit.hpp
+        include/Renderer/ReplayGuiState.hpp
         include/Renderer/RayPlaneIntersection.hpp
         include/Renderer/CameraInteractor.hpp
         include/Renderer/ImGuiOverlay.hpp

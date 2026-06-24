@@ -1,5 +1,7 @@
 #include <Renderer/Renderer.hpp>
 
+#include <cstdint>
+
 namespace renderer
 {
 
@@ -7,6 +9,11 @@ namespace
 {
 
 constexpr linal::double3 defaultCameraPosition{5.0, 5.0, 5.0};
+
+std::uint32_t valid_framebuffer_dimension(int dimension)
+{
+  return static_cast<std::uint32_t>(dimension > 0 ? dimension : 1);
+}
 
 } // namespace
 
@@ -25,8 +32,8 @@ std::unique_ptr<Renderer> Renderer::create(const WindowSettings& settings)
   cameraSettings.m_defaultUp       = linal::double3{0.0, 0.0, 1.0};
   cameraSettings.m_camera.set_viewport(0,
                                        0,
-                                       static_cast<std::uint32_t>(fbWidth),
-                                       static_cast<std::uint32_t>(fbHeight));
+                                       valid_framebuffer_dimension(fbWidth),
+                                       valid_framebuffer_dimension(fbHeight));
   auto camera = std::make_shared<CameraInteractor>(window->get_input_state(), cameraSettings);
 
   auto imgui = std::make_shared<ImGuiOverlay>(window->get_native_handle());
@@ -300,19 +307,28 @@ void Renderer::end_frame()
 {
   bool autoFitEnabled = false;
   bool homeRequested = false;
-  end_frame(autoFitEnabled, homeRequested);
+  ReplayGuiState replayState;
+  end_frame(autoFitEnabled, homeRequested, replayState);
 }
 
 void Renderer::end_frame(bool& autoFitEnabled)
 {
   bool homeRequested = false;
-  end_frame(autoFitEnabled, homeRequested);
+  ReplayGuiState replayState;
+  end_frame(autoFitEnabled, homeRequested, replayState);
 }
 
 void Renderer::end_frame(bool& autoFitEnabled, bool& homeRequested)
 {
+  ReplayGuiState replayState;
+  end_frame(autoFitEnabled, homeRequested, replayState);
+}
+
+void Renderer::end_frame(bool& autoFitEnabled, bool& homeRequested, ReplayGuiState& replayState)
+{
   CameraProjectionType projectionType = m_camera->get_projection_type();
   m_imgui->add_camera_controls(autoFitEnabled, projectionType, homeRequested);
+  m_imgui->add_replay_controls(replayState);
   m_imgui->render();
   m_imgui->end_frame();
 
