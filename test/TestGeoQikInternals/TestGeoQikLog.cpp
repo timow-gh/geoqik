@@ -171,7 +171,7 @@ TEST(GeoQikLogTest, MeshMessages_RoundTrip)
   const core::UUID meshHandle = make_uuid(70);
 
   const std::vector<GeoQikLogEntry> entries{
-      AddMeshWithOpts{verts, {}, {}, idx, common},
+      AddMeshWithOpts{verts, {}, {}, idx, common, {}, {}, 1.0f, false, {}},
       RemoveMesh{meshHandle},
       UpdateMeshWithOpts{meshHandle, verts, {}, {}},
       SetMeshColor{Color{0.1f, 0.2f, 0.3f, 1.0f}}};
@@ -204,7 +204,7 @@ TEST(GeoQikLogTest, MeshMessages_CreateLogEntry_IsRecorded)
   GeoQikMessageCommonData common;
   common.geometryId = make_uuid(80);
 
-  EXPECT_TRUE(create_log_entry(GeoQikMessage{AddMeshWithOpts{verts, {}, {}, idx, common}}).has_value());
+  EXPECT_TRUE(create_log_entry(GeoQikMessage{AddMeshWithOpts{verts, {}, {}, idx, common, {}, {}, 1.0f, false, {}}}).has_value());
   EXPECT_TRUE(create_log_entry(GeoQikMessage{RemoveMesh{make_uuid(81)}}).has_value());
   EXPECT_TRUE(create_log_entry(GeoQikMessage{UpdateMeshWithOpts{make_uuid(82), verts, {}, {}}}).has_value());
   EXPECT_TRUE(create_log_entry(GeoQikMessage{SetMeshColor{Color{0.5f, 0.5f, 0.5f, 1.0f}}}).has_value());

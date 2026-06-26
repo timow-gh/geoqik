@@ -173,6 +173,9 @@ private:
 
   void wire_callbacks();
   void update_scene_viewport();
+  void on_cursor_pos(double xpos, double ypos);
+  void on_scroll(double xoff, double yoff);
+  void on_mouse_button(int button, Action action, Mods mods);
   [[nodiscard]] std::optional<std::pair<double, double>> current_scene_framebuffer_coordinates() const;
 
   GlfwWindow m_window;

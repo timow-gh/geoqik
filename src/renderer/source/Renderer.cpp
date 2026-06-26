@@ -125,84 +125,88 @@ Renderer::Renderer(GlfwWindow window,
 {
 }
 
+void Renderer::on_cursor_pos(double xpos, double ypos)
+{
+  m_lastWindowCursorPos = CursorPosState{xpos, ypos};
+  if (!m_imgui->handle_cursor_position(xpos, ypos))
+  {
+    return;
+  }
+  const auto sceneCoordinates =
+      Renderer::to_scene_framebuffer_coordinates(m_sceneViewport, xpos, ypos);
+  if (!sceneCoordinates.has_value())
+  {
+    return;
+  }
+  const auto [sceneX, sceneY] = *sceneCoordinates;
+  m_window.get_input_state().cursorPosState = CursorPosState{sceneX, sceneY};
+  m_camera->on_cursor_position(sceneX, sceneY);
+  for (const auto& cb : m_cursorPosCallbacks)
+  {
+    cb(sceneX, sceneY);
+  }
+}
+
+void Renderer::on_scroll(double xoff, double yoff)
+{
+  if (!m_imgui->handle_scroll(xoff, yoff))
+  {
+    return;
+  }
+  if (!current_scene_framebuffer_coordinates().has_value())
+  {
+    return;
+  }
+  const auto [sceneX, sceneY] = *current_scene_framebuffer_coordinates();
+  m_window.get_input_state().cursorPosState = CursorPosState{sceneX, sceneY};
+  m_camera->on_scroll(xoff, yoff);
+  for (const auto& cb : m_scrollCallbacks)
+  {
+    cb(xoff, yoff);
+  }
+}
+
+void Renderer::on_mouse_button(int button, Action action, Mods mods)
+{
+  if (!m_imgui->handle_mouse_button(button, action, mods))
+  {
+    return;
+  }
+  const auto sceneCoordinates = current_scene_framebuffer_coordinates();
+  if (!sceneCoordinates.has_value() && !m_cameraMouseInteractionActive)
+  {
+    return;
+  }
+  if (sceneCoordinates.has_value())
+  {
+    const auto [sceneX, sceneY] = *sceneCoordinates;
+    m_window.get_input_state().cursorPosState = CursorPosState{sceneX, sceneY};
+  }
+  if (action == Action::PRESS)
+  {
+    m_cameraMouseInteractionActive = sceneCoordinates.has_value() &&
+                                     (button == GLFW_MOUSE_BUTTON_RIGHT ||
+                                      button == GLFW_MOUSE_BUTTON_MIDDLE);
+  }
+  m_camera->on_mouse_button(button, action, mods);
+  if (action == Action::RELEASE)
+  {
+    m_cameraMouseInteractionActive = false;
+  }
+  for (const auto& cb : m_mouseButtonCallbacks)
+  {
+    cb(button, action, mods);
+  }
+}
+
 void Renderer::wire_callbacks()
 {
-  m_window.set_cursor_pos_callback(
-      [this](double xpos, double ypos)
-      {
-        m_lastWindowCursorPos = CursorPosState{xpos, ypos};
-        if (!m_imgui->handle_cursor_position(xpos, ypos))
-        {
-          return;
-        }
-        const auto sceneCoordinates =
-            Renderer::to_scene_framebuffer_coordinates(m_sceneViewport, xpos, ypos);
-        if (!sceneCoordinates.has_value())
-        {
-          return;
-        }
-        const auto [sceneX, sceneY] = *sceneCoordinates;
-        m_window.get_input_state().cursorPosState = CursorPosState{sceneX, sceneY};
-        m_camera->on_cursor_position(sceneX, sceneY);
-        for (const auto& cb : m_cursorPosCallbacks)
-        {
-          cb(sceneX, sceneY);
-        }
-      });
+  m_window.set_cursor_pos_callback([this](double xpos, double ypos) { on_cursor_pos(xpos, ypos); });
 
-  m_window.set_scroll_callback(
-      [this](double xoff, double yoff)
-      {
-        if (!m_imgui->handle_scroll(xoff, yoff))
-        {
-          return;
-        }
-        if (!current_scene_framebuffer_coordinates().has_value())
-        {
-          return;
-        }
-        const auto [sceneX, sceneY] = *current_scene_framebuffer_coordinates();
-        m_window.get_input_state().cursorPosState = CursorPosState{sceneX, sceneY};
-        m_camera->on_scroll(xoff, yoff);
-        for (const auto& cb : m_scrollCallbacks)
-        {
-          cb(xoff, yoff);
-        }
-      });
+  m_window.set_scroll_callback([this](double xoff, double yoff) { on_scroll(xoff, yoff); });
 
   m_window.set_mouse_button_callback(
-      [this](int button, Action action, Mods mods)
-      {
-        if (!m_imgui->handle_mouse_button(button, action, mods))
-        {
-          return;
-        }
-        const auto sceneCoordinates = current_scene_framebuffer_coordinates();
-        if (!sceneCoordinates.has_value() && !m_cameraMouseInteractionActive)
-        {
-          return;
-        }
-        if (sceneCoordinates.has_value())
-        {
-          const auto [sceneX, sceneY] = *sceneCoordinates;
-          m_window.get_input_state().cursorPosState = CursorPosState{sceneX, sceneY};
-        }
-        if (action == Action::PRESS)
-        {
-          m_cameraMouseInteractionActive = sceneCoordinates.has_value() &&
-                                           (button == GLFW_MOUSE_BUTTON_RIGHT ||
-                                            button == GLFW_MOUSE_BUTTON_MIDDLE);
-        }
-        m_camera->on_mouse_button(button, action, mods);
-        if (action == Action::RELEASE)
-        {
-          m_cameraMouseInteractionActive = false;
-        }
-        for (const auto& cb : m_mouseButtonCallbacks)
-        {
-          cb(button, action, mods);
-        }
-      });
+      [this](int button, Action action, Mods mods) { on_mouse_button(button, action, mods); });
 
   m_window.set_key_callback(
       [this](Key key, Scancode scancode, Action action, Mods mods)

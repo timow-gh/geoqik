@@ -292,7 +292,7 @@ TEST(GeoQikReplayUndoTest, AddMeshWithOpts_UndoCreatesRemoveMesh)
 
   geoqik::GeoQikMessageCommonData common{make_uuid(60), make_uuid(70), {}};
   const auto frame = geoqik::make_replay_undo_frame(
-      geoqik::AddMeshWithOpts{{0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f}, {}, {}, {0, 1, 2}, common},
+      geoqik::AddMeshWithOpts{{0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f}, {}, {}, {0, 1, 2}, common, {}, {}, 1.0f, false, {}},
       context);
 
   const auto* removeMesh = get_log_action<geoqik::RemoveMesh>(frame);
@@ -303,7 +303,7 @@ TEST(GeoQikReplayUndoTest, AddMeshWithOpts_UndoCreatesRemoveMesh)
   // Known idempotency key → no-op frame.
   idempotencySet.insert(geoqik::IdempotencyData{common.idempotencyId, {}});
   const auto knownFrame = geoqik::make_replay_undo_frame(
-      geoqik::AddMeshWithOpts{{0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f}, {}, {}, {0, 1, 2}, common},
+      geoqik::AddMeshWithOpts{{0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f}, {}, {}, {0, 1, 2}, common, {}, {}, 1.0f, false, {}},
       context);
   EXPECT_TRUE(std::holds_alternative<std::monostate>(knownFrame.action));
 }
