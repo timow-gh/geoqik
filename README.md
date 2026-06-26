@@ -41,7 +41,7 @@ cmake -DCMAKE_PREFIX_PATH=/path/to/geoqik/install ...
 include(FetchContent)
 FetchContent_Declare(
     geoqik
-    GIT_REPOSITORY https://github.com/your-org/geoqik.git
+    GIT_REPOSITORY https://github.com/timow-gh/geoqik.git
     GIT_TAG        v0.1.0
 )
 set(geoqik_INSTALL OFF)
@@ -71,6 +71,37 @@ int main()
     geoqik_wait_for_exit_and_cleanup(); // blocks until the window is closed
 }
 ```
+
+### Mesh
+
+```cpp
+#include <GeoQik/GeoQik.hpp>
+
+// vertices: flat XYZ — {x0,y0,z0, x1,y1,z1, ...}
+// triangleIndices: triplets of vertex indices
+float vertices[] = { 0,0,0,  1,0,0,  0,1,0 };
+uint32_t indices[] = { 0, 1, 2 };
+
+geoqik_add_mesh_opts_t opts{};  // normals auto-computed, default color
+geoqik_result_t result = geoqik_add_mesh_opts(vertices, 3, indices, 1, &opts);
+```
+
+### Log and replay
+
+GeoQik records every geometry event in memory. You can save this log to disk and replay it later:
+
+```cpp
+// Save the current session
+geoqik_save_log("session.geoqik", GEOQIK_LOG_FORMAT_BINARY);
+
+// In a later run: load and replay over time
+geoqik_init();
+geoqik_draw();
+geoqik_replay_log("session.geoqik", GEOQIK_LOG_FORMAT_BINARY, NULL); // NULL = default options
+geoqik_wait_for_exit_and_cleanup();
+```
+
+Use `geoqik_replay_options_t` to control playback speed, key bindings, and step mode.
 
 All API functions except `geoqik_init()` are thread-safe and can be called concurrently.
 

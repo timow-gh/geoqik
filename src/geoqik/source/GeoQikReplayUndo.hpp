@@ -50,6 +50,8 @@ struct ReplayUndoContext
 [[nodiscard]] ReplayUndoFrame make_replay_undo_frame(const AddMeshWithOpts& message, const ReplayUndoContext& context);
 [[nodiscard]] ReplayUndoFrame make_replay_undo_frame(const RemoveMesh& message, const ReplayUndoContext& context);
 [[nodiscard]] ReplayUndoFrame make_replay_undo_frame(const UpdateMeshWithOpts& message, const ReplayUndoContext& context);
+[[nodiscard]] ReplayUndoFrame make_replay_undo_frame(const SetMeshOverlayOpts& message, const ReplayUndoContext& context);
+[[nodiscard]] ReplayUndoFrame make_replay_undo_frame(const SetMeshRenderingOpts& message, const ReplayUndoContext& context);
 
 [[nodiscard]] ReplayUndoFrame create_replay_undo_frame(const GeoQikLogEntry& entry, const ReplayUndoContext& context);
 

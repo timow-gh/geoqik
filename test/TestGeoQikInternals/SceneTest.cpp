@@ -255,3 +255,75 @@ TEST(SceneTest, SceneSnapshot_IncludesMeshBuffer)
   scene.restore_snapshot(snap);
   EXPECT_FALSE(scene.get_mesh_buffer().empty());
 }
+
+TEST(SceneTest, CalcSceneCentroid_EmptySceneReturnsOrigin)
+{
+  auto scene = geoqik::Scene::create(make_scene_test_settings());
+
+  const linal::float3 centroid = scene.calc_scene_centroid();
+
+  EXPECT_FLOAT_EQ(centroid[0], 0.0f);
+  EXPECT_FLOAT_EQ(centroid[1], 0.0f);
+  EXPECT_FLOAT_EQ(centroid[2], 0.0f);
+}
+
+TEST(SceneTest, CalcSceneCentroid_TwoSymmetricPointsGivesOrigin)
+{
+  auto scene = geoqik::Scene::create(make_scene_test_settings());
+
+  scene.add_point(6.0f, 0.0f, 0.0f);
+  scene.add_point(-6.0f, 0.0f, 0.0f);
+
+  const linal::float3 centroid = scene.calc_scene_centroid();
+
+  EXPECT_FLOAT_EQ(centroid[0], 0.0f);
+  EXPECT_FLOAT_EQ(centroid[1], 0.0f);
+  EXPECT_FLOAT_EQ(centroid[2], 0.0f);
+}
+
+TEST(SceneTest, CalcSceneCentroid_MeshTriangleVertices)
+{
+  geoqik::GeoQikSettings settings = make_scene_test_settings();
+  settings.initialMeshCapacity = 8;
+  auto scene = geoqik::Scene::create(settings);
+
+  std::vector<float> v = {0.0f, 0.0f, 0.0f,  3.0f, 0.0f, 0.0f,  0.0f, 3.0f, 0.0f};
+  std::vector<uint32_t> idx = {0, 1, 2};
+  scene.add_mesh(v, {}, {}, idx);
+
+  const linal::float3 centroid = scene.calc_scene_centroid();
+
+  EXPECT_FLOAT_EQ(centroid[0], 1.0f);
+  EXPECT_FLOAT_EQ(centroid[1], 1.0f);
+  EXPECT_FLOAT_EQ(centroid[2], 0.0f);
+}
+
+TEST(SceneTest, CalcSceneCentroid_UpdatesAfterRemovePointAndMesh)
+{
+  geoqik::GeoQikSettings settings = make_scene_test_settings();
+  settings.initialMeshCapacity = 8;
+  auto scene = geoqik::Scene::create(settings);
+
+  const auto pointId = core::UUID::generate();
+  scene.add_point(6.0f, 0.0f, 0.0f, &pointId);
+
+  std::vector<float> v = {0.0f, 0.0f, 0.0f,  3.0f, 0.0f, 0.0f,  0.0f, 3.0f, 0.0f};
+  std::vector<uint32_t> idx = {0, 1, 2};
+  const auto meshId = core::UUID::generate();
+  scene.add_mesh(v, {}, {}, idx, &meshId);
+
+  {
+    const linal::float3 c = scene.calc_scene_centroid();
+    EXPECT_FLOAT_EQ(c[0], 9.0f / 4.0f);
+    EXPECT_FLOAT_EQ(c[1], 3.0f / 4.0f);
+    EXPECT_FLOAT_EQ(c[2], 0.0f);
+  }
+
+  scene.remove_point(pointId);
+  scene.remove_mesh(meshId);
+
+  const linal::float3 c = scene.calc_scene_centroid();
+  EXPECT_FLOAT_EQ(c[0], 0.0f);
+  EXPECT_FLOAT_EQ(c[1], 0.0f);
+  EXPECT_FLOAT_EQ(c[2], 0.0f);
+}

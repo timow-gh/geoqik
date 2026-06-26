@@ -221,6 +221,20 @@ ReplayUndoFrame make_replay_undo_frame([[maybe_unused]] const UpdateMeshWithOpts
   return frame;
 }
 
+ReplayUndoFrame make_replay_undo_frame([[maybe_unused]] const SetMeshOverlayOpts& message, const ReplayUndoContext& context)
+{
+  ReplayUndoFrame frame;
+  frame.action = ReplayUndoFrame::RestoreScene{context.scene.create_snapshot()};
+  return frame;
+}
+
+ReplayUndoFrame make_replay_undo_frame([[maybe_unused]] const SetMeshRenderingOpts& message, const ReplayUndoContext& context)
+{
+  ReplayUndoFrame frame;
+  frame.action = ReplayUndoFrame::RestoreScene{context.scene.create_snapshot()};
+  return frame;
+}
+
 ReplayUndoFrame create_replay_undo_frame(const GeoQikLogEntry& entry, const ReplayUndoContext& context)
 {
   return std::visit(

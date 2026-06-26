@@ -171,7 +171,7 @@ TEST(GeoQikLogTest, MeshMessages_RoundTrip)
   const core::UUID meshHandle = make_uuid(70);
 
   const std::vector<GeoQikLogEntry> entries{
-      AddMeshWithOpts{verts, {}, {}, idx, common},
+      AddMeshWithOpts{verts, {}, {}, idx, common, {}, {}, 1.0f, false, {}},
       RemoveMesh{meshHandle},
       UpdateMeshWithOpts{meshHandle, verts, {}, {}},
       SetMeshColor{Color{0.1f, 0.2f, 0.3f, 1.0f}}};
@@ -204,8 +204,89 @@ TEST(GeoQikLogTest, MeshMessages_CreateLogEntry_IsRecorded)
   GeoQikMessageCommonData common;
   common.geometryId = make_uuid(80);
 
-  EXPECT_TRUE(create_log_entry(GeoQikMessage{AddMeshWithOpts{verts, {}, {}, idx, common}}).has_value());
+  EXPECT_TRUE(create_log_entry(GeoQikMessage{AddMeshWithOpts{verts, {}, {}, idx, common, {}, {}, 1.0f, false, {}}}).has_value());
   EXPECT_TRUE(create_log_entry(GeoQikMessage{RemoveMesh{make_uuid(81)}}).has_value());
   EXPECT_TRUE(create_log_entry(GeoQikMessage{UpdateMeshWithOpts{make_uuid(82), verts, {}, {}}}).has_value());
   EXPECT_TRUE(create_log_entry(GeoQikMessage{SetMeshColor{Color{0.5f, 0.5f, 0.5f, 1.0f}}}).has_value());
+}
+
+TEST(GeoQikLogTest, MessageWriterReaderRoundTrip_SetMeshOverlayOpts)
+{
+  using namespace geoqik;
+
+  const std::vector<GeoQikLogEntry> entries{
+      SetMeshOverlayOpts{make_uuid(50), true, false},
+      SetMeshOverlayOpts{make_uuid(51), false, true}};
+
+  std::stringstream stream(std::ios::in | std::ios::out | std::ios::binary);
+  MessageWriter writer(stream);
+  for (const GeoQikLogEntry& entry : entries)
+  {
+    writer.write(entry);
+  }
+
+  stream.seekg(0);
+  MessageReader reader(stream);
+  for (const GeoQikLogEntry& expected : entries)
+  {
+    const GeoQikLogEntry actual = reader.read();
+    EXPECT_EQ(actual, expected);
+  }
+}
+
+TEST(GeoQikLogTest, MessageWriterReaderRoundTrip_SetMeshRenderingOpts)
+{
+  using namespace geoqik;
+
+  const std::vector<GeoQikLogEntry> entries{
+      SetMeshRenderingOpts{make_uuid(60), MeshCullMode::none, false},
+      SetMeshRenderingOpts{make_uuid(61), MeshCullMode::front, true}};
+
+  std::stringstream stream(std::ios::in | std::ios::out | std::ios::binary);
+  MessageWriter writer(stream);
+  for (const GeoQikLogEntry& entry : entries)
+  {
+    writer.write(entry);
+  }
+
+  stream.seekg(0);
+  MessageReader reader(stream);
+  for (const GeoQikLogEntry& expected : entries)
+  {
+    const GeoQikLogEntry actual = reader.read();
+    EXPECT_EQ(actual, expected);
+  }
+}
+
+TEST(GeoQikLogTest, MessageWriterReaderRoundTrip_AddMeshWithOpts_OverlayFields)
+{
+  using namespace geoqik;
+
+  const GeoQikMessageCommonData commonData{make_uuid(70), make_uuid(71), {1.0f, 0.0f, 0.0f, 1.0f}};
+  AddMeshWithOpts msg;
+  msg.vertices        = {0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 1.f, 0.f};
+  msg.normals         = {0.f, 0.f, 1.f, 0.f, 0.f, 1.f, 0.f, 0.f, 1.f};
+  msg.triangleIndices = {0, 1, 2};
+  msg.commonData      = commonData;
+  msg.segmentIndices  = {0, 1, 1, 2};
+  msg.segmentColors   = {1.f, 0.f, 0.f, 1.f};
+  msg.segmentLineWidth = 2.5f;
+  msg.showSegments    = true;
+  msg.vertexColors    = {0.f, 1.f, 0.f, 1.f};
+  msg.vertexPointSize = 4.0f;
+  msg.showVertices    = true;
+
+  const std::vector<GeoQikLogEntry> entries{msg};
+
+  std::stringstream stream(std::ios::in | std::ios::out | std::ios::binary);
+  MessageWriter writer(stream);
+  for (const GeoQikLogEntry& entry : entries)
+  {
+    writer.write(entry);
+  }
+
+  stream.seekg(0);
+  MessageReader reader(stream);
+  const GeoQikLogEntry actual = reader.read();
+  EXPECT_EQ(actual, GeoQikLogEntry{msg});
 }

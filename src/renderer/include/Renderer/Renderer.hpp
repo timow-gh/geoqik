@@ -14,6 +14,7 @@
 #include <memory>
 #include <optional>
 #include <span>
+#include <utility>
 #include <vector>
 
 namespace renderer
@@ -24,7 +25,9 @@ enum class DrawableKind
   invalid,
   point,
   line,
-  mesh
+  mesh,
+  meshSegment,
+  meshVertex,
 };
 
 struct DrawableHandle
@@ -38,6 +41,25 @@ struct DrawableHandle
   }
 };
 
+struct LogicalViewportRect
+{
+  double x{0.0};
+  double y{0.0};
+  double width{1.0};
+  double height{1.0};
+
+  [[nodiscard]] bool contains(double xpos, double ypos) const
+  {
+    return xpos >= x && ypos >= y && xpos < x + width && ypos < y + height;
+  }
+};
+
+struct SceneViewport
+{
+  LogicalViewportRect logical;
+  opengl::ViewportRect framebuffer;
+};
+
 class Renderer
 {
 public:
@@ -49,6 +71,14 @@ public:
   ~Renderer() = default;
 
   [[nodiscard]] static std::unique_ptr<Renderer> create(const WindowSettings& settings);
+  [[nodiscard]] static SceneViewport calculate_scene_viewport(
+      std::pair<int, int> windowSize,
+      std::pair<int, int> framebufferSize,
+      double reservedLogicalWidth);
+  [[nodiscard]] static std::optional<std::pair<double, double>> to_scene_framebuffer_coordinates(
+      const SceneViewport& sceneViewport,
+      double xpos,
+      double ypos);
 
   // --- Geometry ---
   DrawableHandle add_point_drawable(
@@ -73,6 +103,19 @@ public:
       std::span<const float> colors,
       std::span<const std::uint32_t> triangleIndices,
       opengl::BufferAccessPattern accessPattern = opengl::BufferAccessPattern::STATIC_DRAW);
+
+  DrawableHandle add_mesh_segment_drawable(
+      std::span<const float> positions,
+      std::span<const std::uint32_t> indices,
+      std::span<const float> color,
+      float lineWidth);
+
+  DrawableHandle add_mesh_vertex_drawable(
+      std::span<const float> positions,
+      std::span<const float> color,
+      float pointSize);
+
+  void set_mesh_drawable_cull_mode(DrawableHandle handle, opengl::MeshCullFaceMode mode);
 
   bool remove_drawable(DrawableHandle handle);
 
@@ -105,6 +148,7 @@ public:
   void draw(const opengl::LightingConfig& lighting);
   void end_frame();
   void end_frame(bool& autoFitEnabled);
+  void end_frame(bool& autoFitEnabled, bool& homeRequested);
 
   // --- Callback extension points ---
   void add_cursor_pos_callback(CursorPosCB cb);
@@ -128,11 +172,19 @@ private:
            std::shared_ptr<ImGuiOverlay> imgui);
 
   void wire_callbacks();
+  void update_scene_viewport();
+  void on_cursor_pos(double xpos, double ypos);
+  void on_scroll(double xoff, double yoff);
+  void on_mouse_button(int button, Action action, Mods mods);
+  [[nodiscard]] std::optional<std::pair<double, double>> current_scene_framebuffer_coordinates() const;
 
   GlfwWindow m_window;
   opengl::DrawablesManager m_drawablesManager;
   std::shared_ptr<CameraInteractor> m_camera;
   std::shared_ptr<ImGuiOverlay> m_imgui;
+  SceneViewport m_sceneViewport;
+  CursorPosState m_lastWindowCursorPos;
+  bool m_cameraMouseInteractionActive{false};
 
   std::vector<CursorPosCB> m_cursorPosCallbacks;
   std::vector<ScrollCB> m_scrollCallbacks;

@@ -17,6 +17,7 @@
 #include <atomic>
 #include <cassert>
 #include <chrono>
+#include <cstddef>
 #include <deque>
 #include <memory>
 #include <span>
@@ -31,6 +32,8 @@ class Renderer;
 
 namespace geoqik
 {
+
+struct ReplayGuiState;
 
 using renderer::Key;
 using renderer::Scancode;
@@ -75,6 +78,10 @@ class Context
   std::unique_ptr<renderer::Renderer> m_renderer;
   std::unique_ptr<GeoQikSceneRenderer> m_sceneRenderer;
   bool m_isDrawing{false};
+  bool m_homeRequested{false};
+  bool m_isReplayBackward{false};
+  double m_baseEntriesPerSecond{60.0};
+  double m_currentSpeedMultiplier{1.0};
   std::size_t m_frameCount{0};
   std::size_t m_geometryMessagesProcessedThisFrame{0};
   std::vector<GeoQikLogEntry> m_messageLog;
@@ -197,6 +204,8 @@ private:
   [[nodiscard]] bool should_close_event_loop();
   void update_camera_interaction_state();
   void sync_scene_and_auto_fit();
+  void populate_replay_gui_state(ReplayGuiState& state) const;
+  void consume_replay_gui_commands(const ReplayGuiState& state);
   [[nodiscard]] bool should_stop_processing_messages(const std::chrono::high_resolution_clock::time_point& frameStartTime,
                                                      const std::chrono::high_resolution_clock::time_point& messageProcessingStartTime) const;
   [[nodiscard]] bool process_message_queue(ConcurrentQueue<GeoQikMessage>& messageQueue,
@@ -247,6 +256,8 @@ private:
   void handle_message(const GetLineColor& message);
   void handle_message(const SetMeshColor& message);
   void handle_message(const GetMeshColor& message);
+  void handle_message(const SetMeshOverlayOpts& message);
+  void handle_message(const SetMeshRenderingOpts& message);
   void handle_message(const Cleanup& message);
 
   void print_frame_info(const std::chrono::high_resolution_clock::time_point& startTime,

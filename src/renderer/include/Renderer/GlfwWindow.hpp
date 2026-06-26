@@ -44,7 +44,9 @@ public:
 
   [[nodiscard]] bool should_close() const;
   [[nodiscard]] bool is_escape_pressed() const;
+  [[nodiscard]] std::pair<int, int> get_window_size() const;
   [[nodiscard]] std::pair<int, int> get_framebuffer_size() const;
+  [[nodiscard]] std::pair<double, double> get_framebuffer_scale() const;
 
   [[nodiscard]] InputState& get_input_state() const;
 

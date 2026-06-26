@@ -5,12 +5,20 @@
 #include <OpenGL/FrameState.hpp>
 #include <Renderer/CameraAutoFit.hpp>
 #include <Renderer/Renderer.hpp>
+#include <Renderer/Warnings.hpp>
 #include <algorithm>
 #include <array>
+#include <cmath>
+#include <cstdint>
 #include <filesystem>
+#include <string>
 #include <system_error>
 #include <type_traits>
 #include <utility>
+
+RENDERER_DISABLE_ALL_WARNINGS
+#include <imgui.h>
+RENDERER_ENABLE_ALL_WARNINGS
 
 namespace geoqik
 {
@@ -20,6 +28,37 @@ using renderer::CameraAutoFitInput;
 using renderer::CameraAutoFitResult;
 using renderer::Viewport;
 using renderer::CameraInteractor;
+
+struct ReplayGuiState
+{
+  bool isActive{false};
+  bool isPaused{false};
+  bool isBackward{false};
+  std::size_t currentEntry{0};
+  std::size_t totalEntries{0};
+  double speedMultiplier{1.0};
+  std::size_t entriesPerStep{1};
+  std::string pauseKeysLabel;
+  std::string resumeKeysLabel;
+  std::string stepForwardKeysLabel;
+  std::string stepBackwardKeysLabel;
+  std::string increaseStepKeysLabel;
+  std::string decreaseStepKeysLabel;
+
+  enum class Command : std::uint8_t
+  {
+    None,
+    Play,
+    PlayReverse,
+    Pause,
+    Finish,
+    StepForward,
+    StepBackward,
+  };
+  Command command{Command::None};
+  double requestedSpeedMultiplier{0.0};
+  std::size_t requestedEntriesPerStep{0};
+};
 
 namespace
 {
@@ -43,6 +82,207 @@ bool is_existing_regular_file(const char* path)
 {
   std::error_code ec;
   return std::filesystem::is_regular_file(path, ec);
+}
+
+std::string key_label(Key key)
+{
+  const int value = static_cast<int>(key);
+  if (value >= static_cast<int>(Key::KEY_A) && value <= static_cast<int>(Key::KEY_Z))
+  {
+    return {1, static_cast<char>('A' + value - static_cast<int>(Key::KEY_A))};
+  }
+
+  if (value >= static_cast<int>(Key::KEY_0) && value <= static_cast<int>(Key::KEY_9))
+  {
+    return {1, static_cast<char>('0' + value - static_cast<int>(Key::KEY_0))};
+  }
+
+  switch (key)
+  {
+  case Key::KEY_SPACE: return "Space";
+  case Key::KEY_LEFT: return "Left";
+  case Key::KEY_RIGHT: return "Right";
+  case Key::KEY_UP: return "Up";
+  case Key::KEY_DOWN: return "Down";
+  case Key::KEY_PAGE_UP: return "Page Up";
+  case Key::KEY_PAGE_DOWN: return "Page Down";
+  case Key::KEY_HOME: return "Home";
+  case Key::KEY_END: return "End";
+  default:
+    return "Key " + std::to_string(value);
+  }
+}
+
+std::string key_labels(const std::vector<Key>& keys)
+{
+  std::string result;
+  for (const Key key : keys)
+  {
+    if (!result.empty())
+    {
+      result += "/";
+    }
+    result += key_label(key);
+  }
+  return result;
+}
+
+float equal_button_width(int buttonCount)
+{
+  const float availableWidth = ImGui::GetContentRegionAvail().x;
+  const float spacing = ImGui::GetStyle().ItemSpacing.x * static_cast<float>(buttonCount - 1);
+  return std::max(1.0F, (availableWidth - spacing) / static_cast<float>(buttonCount));
+}
+
+bool full_width_button(const char* label)
+{
+  return ImGui::Button(label, ImVec2{-1.0F, 0.0F});
+}
+
+bool equal_width_button(const char* label, float width)
+{
+  return ImGui::Button(label, ImVec2{width, 0.0F});
+}
+
+void render_replay_speed_controls(ReplayGuiState& replayState)
+{
+  constexpr std::array<double, 4> speedOptions{1.0, 2.0, 4.0, 8.0};
+  constexpr std::array<const char*, 4> speedLabels{"1x", "2x", "4x", "8x"};
+
+  ImGui::TextUnformatted("Speed");
+  const float buttonWidth = equal_button_width(static_cast<int>(speedOptions.size()));
+  for (std::size_t i = 0; i < speedOptions.size(); ++i)
+  {
+    if (i != 0)
+    {
+      ImGui::SameLine();
+    }
+
+    const bool isCurrent = std::abs(replayState.speedMultiplier - speedOptions[i]) < 0.01;
+    if (isCurrent)
+    {
+      ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive));
+    }
+    if (equal_width_button(speedLabels[i], buttonWidth))
+    {
+      replayState.requestedSpeedMultiplier = speedOptions[i];
+    }
+    if (isCurrent)
+    {
+      ImGui::PopStyleColor();
+    }
+  }
+}
+
+void render_replay_transport_controls(ReplayGuiState& replayState)
+{
+  if (full_width_button("End replay"))
+  {
+    replayState.command = ReplayGuiState::Command::Finish;
+  }
+
+  ImGui::Separator();
+
+  const bool canStepBack = replayState.currentEntry > 0;
+  const bool canStepForward = replayState.currentEntry < replayState.totalEntries;
+  const float twoButtonWidth = equal_button_width(2);
+
+  if (!canStepBack)
+  {
+    ImGui::BeginDisabled();
+  }
+  if (equal_width_button("Step Back", twoButtonWidth))
+  {
+    replayState.command = ReplayGuiState::Command::StepBackward;
+  }
+  ImGui::SameLine();
+  if (equal_width_button(replayState.isBackward && !replayState.isPaused ? "Reverse *" : "Reverse",
+                         twoButtonWidth))
+  {
+    replayState.command = ReplayGuiState::Command::PlayReverse;
+  }
+  if (!canStepBack)
+  {
+    ImGui::EndDisabled();
+  }
+
+  const char* playPauseLabel = replayState.isPaused ? "Play" : "Pause";
+  if (full_width_button(playPauseLabel))
+  {
+    replayState.command =
+        replayState.isPaused ? ReplayGuiState::Command::Play : ReplayGuiState::Command::Pause;
+  }
+
+  if (!canStepForward)
+  {
+    ImGui::BeginDisabled();
+  }
+  if (equal_width_button(!replayState.isBackward && !replayState.isPaused ? "Forward *" : "Forward",
+                         twoButtonWidth))
+  {
+    replayState.command = ReplayGuiState::Command::Play;
+  }
+  ImGui::SameLine();
+  if (equal_width_button("Step Forward", twoButtonWidth))
+  {
+    replayState.command = ReplayGuiState::Command::StepForward;
+  }
+  if (!canStepForward)
+  {
+    ImGui::EndDisabled();
+  }
+}
+
+void render_replay_controls(ReplayGuiState& replayState)
+{
+  if (!replayState.isActive)
+  {
+    return;
+  }
+
+  if (ImGui::CollapsingHeader("Replay", ImGuiTreeNodeFlags_DefaultOpen))
+  {
+    const float progress =
+        replayState.totalEntries > 0
+            ? static_cast<float>(std::min(replayState.currentEntry, replayState.totalEntries)) /
+                  static_cast<float>(replayState.totalEntries)
+            : 0.0F;
+    ImGui::TextUnformatted(fmt::format("Entry {} / {}", replayState.currentEntry, replayState.totalEntries).c_str());
+    ImGui::ProgressBar(progress, ImVec2{-1.0F, 0.0F});
+
+    render_replay_speed_controls(replayState);
+    render_replay_transport_controls(replayState);
+
+    const std::size_t remainingEntryCount =
+        replayState.totalEntries > replayState.currentEntry
+            ? replayState.totalEntries - replayState.currentEntry
+            : 0U;
+    const int remainingEntries = static_cast<int>(remainingEntryCount);
+    const int sliderMax = std::max(1, remainingEntries);
+    int stepSize = static_cast<int>(replayState.entriesPerStep);
+    stepSize = std::max(1, std::min(stepSize, sliderMax));
+    ImGui::TextUnformatted("Step size");
+    ImGui::SetNextItemWidth(-1.0F);
+    if (ImGui::SliderInt("##StepSize", &stepSize, 1, sliderMax))
+    {
+      replayState.requestedEntriesPerStep = static_cast<std::size_t>(stepSize);
+    }
+  }
+
+  if (ImGui::CollapsingHeader("Shortcuts"))
+  {
+    ImGui::PushTextWrapPos(0.0F);
+    ImGui::TextUnformatted(fmt::format("Play: {}, pause: {}",
+                                       replayState.resumeKeysLabel,
+                                       replayState.pauseKeysLabel).c_str());
+    ImGui::TextUnformatted(fmt::format("Step: forward {}, back {}",
+                                       replayState.stepForwardKeysLabel,
+                                       replayState.stepBackwardKeysLabel).c_str());
+    ImGui::TextUnformatted(fmt::format("Step size: + {}, - {}",
+                                       replayState.increaseStepKeysLabel,
+                                       replayState.decreaseStepKeysLabel).c_str());
+    ImGui::PopTextWrapPos();
+  }
 }
 
 } // namespace
@@ -448,7 +688,17 @@ void Context::run_event_loop()
     lighting.shininess       = std::max(0.0F, m_geoqikSettings.meshShininess);
 
     m_renderer->draw(lighting);
-    m_renderer->end_frame(m_geoqikSettings.autoFitCameraEnabled);
+    ReplayGuiState replayState;
+    populate_replay_gui_state(replayState);
+    if (replayState.isActive)
+    {
+      if (const auto imgui = m_renderer->get_imgui().lock())
+      {
+        imgui->add_control([&replayState]() { render_replay_controls(replayState); });
+      }
+    }
+    m_renderer->end_frame(m_geoqikSettings.autoFitCameraEnabled, m_homeRequested);
+    consume_replay_gui_commands(replayState);
 
     process_replay_entries(std::chrono::high_resolution_clock::now());
     if (!is_replaying() && process_deferred_messages())
@@ -504,13 +754,43 @@ void Context::update_camera_interaction_state()
 
 void Context::sync_scene_and_auto_fit()
 {
-  if (!m_sceneRenderer->sync_scene(m_scene))
+  const bool sceneChanged = m_sceneRenderer->sync_scene(m_scene);
+
+  const auto camera = m_renderer->get_camera().lock();
+  if (!camera)
   {
     return;
   }
 
-  const auto camera = m_renderer->get_camera().lock();
-  if (!camera)
+  if (m_homeRequested)
+  {
+    m_homeRequested = false;
+    const std::array<std::span<const float>, 3> homeBuffers{
+        m_scene.get_point_buffer().get_points(),
+        m_scene.get_line_buffer().get_lines(),
+        m_scene.get_mesh_buffer().get_vertices()};
+    CameraAutoFitInput homeInput = make_camera_auto_fit_input(*camera, m_geoqikSettings, false);
+    homeInput.position = camera->get_default_position();
+    homeInput.target = camera->get_default_target();
+    homeInput.vertical = camera->get_default_up();
+    homeInput.settings.enabled = true;
+    homeInput.suppressZoomIn = false;
+    const CameraAutoFitResult homeResult =
+        renderer::calculate_camera_auto_fit(std::span<const std::span<const float>>{homeBuffers}, homeInput);
+    if (homeResult.hasGeometry)
+    {
+      camera->apply_auto_fit_result(homeResult);
+      m_lastCameraInteractionTime = {};
+    }
+    else
+    {
+      camera->look_at(camera->get_default_position(), camera->get_default_target(), camera->get_default_up());
+      m_lastCameraInteractionTime = {};
+    }
+    return;
+  }
+
+  if (!sceneChanged)
   {
     return;
   }
@@ -522,11 +802,99 @@ void Context::sync_scene_and_auto_fit()
 
   const CameraAutoFitInput autoFitInput =
       make_camera_auto_fit_input(*camera, m_geoqikSettings, hasRecentCameraInteraction);
-  const std::array<std::span<const float>, 2> vertexPositionBuffers{m_scene.get_point_buffer().get_points(), m_scene.get_line_buffer().get_lines()};
-  const CameraAutoFitResult autoFitResult = renderer::calculate_camera_auto_fit(std::span<const std::span<const float>>{vertexPositionBuffers}, autoFitInput);
+  const std::array<std::span<const float>, 3> vertexPositionBuffers{
+      m_scene.get_point_buffer().get_points(),
+      m_scene.get_line_buffer().get_lines(),
+      m_scene.get_mesh_buffer().get_vertices()};
+  const CameraAutoFitResult autoFitResult =
+      renderer::calculate_camera_auto_fit(std::span<const std::span<const float>>{vertexPositionBuffers}, autoFitInput);
   if (autoFitResult.hasGeometry)
   {
     camera->apply_auto_fit_result(autoFitResult);
+  }
+}
+
+void Context::populate_replay_gui_state(ReplayGuiState& state) const
+{
+  state.isActive   = is_replaying();
+  state.isPaused   = m_isReplayPaused;
+  state.isBackward = m_isReplayBackward;
+  const auto [current, total] = get_replay_progress();
+  state.currentEntry   = current;
+  state.totalEntries   = total;
+  state.speedMultiplier  = m_currentSpeedMultiplier;
+  state.entriesPerStep   = m_replayOptions.entriesPerStep;
+  state.pauseKeysLabel = key_labels(m_replayOptions.pauseKeys);
+  state.resumeKeysLabel = key_labels(m_replayOptions.resumeKeys);
+  state.stepForwardKeysLabel = key_labels(m_replayOptions.stepKeys);
+  state.stepBackwardKeysLabel = key_labels(m_replayOptions.backwardStepKeys);
+  state.increaseStepKeysLabel = key_labels(m_replayOptions.increaseEntriesPerStepKeys);
+  state.decreaseStepKeysLabel = key_labels(m_replayOptions.decreaseEntriesPerStepKeys);
+}
+
+void Context::consume_replay_gui_commands(const ReplayGuiState& state)
+{
+  if (!is_replaying())
+  {
+    return;
+  }
+
+  if (state.requestedSpeedMultiplier > 0.0)
+  {
+    m_currentSpeedMultiplier = state.requestedSpeedMultiplier;
+    m_replayOptions.entriesPerSecond = m_baseEntriesPerSecond * m_currentSpeedMultiplier;
+  }
+
+  if (state.requestedEntriesPerStep > 0)
+  {
+    m_replayOptions.entriesPerStep = state.requestedEntriesPerStep;
+  }
+
+  switch (state.command)
+  {
+  case ReplayGuiState::Command::Play:
+    m_isReplayBackward = false;
+    m_isReplayPaused   = false;
+    m_replayEntryBudget = 0.0;
+    m_lastReplayTick    = std::chrono::high_resolution_clock::now();
+    break;
+
+  case ReplayGuiState::Command::PlayReverse:
+    m_isReplayBackward = true;
+    m_isReplayPaused   = false;
+    m_replayEntryBudget = 0.0;
+    m_lastReplayTick    = std::chrono::high_resolution_clock::now();
+    break;
+
+  case ReplayGuiState::Command::Pause:
+    m_isReplayPaused = true;
+    break;
+
+  case ReplayGuiState::Command::Finish:
+  {
+    m_isReplayBackward = false;
+    m_isReplayPaused   = false;
+    const std::size_t remaining = m_replayEntries.size() - m_replayEntryIndex;
+    if (remaining > 0)
+    {
+      apply_replay_entries(remaining);
+    }
+    finish_replay();
+    break;
+  }
+
+  case ReplayGuiState::Command::StepForward:
+    m_isReplayPaused = true;
+    step_replay_entries(m_replayOptions.entriesPerStep);
+    break;
+
+  case ReplayGuiState::Command::StepBackward:
+    m_isReplayPaused = true;
+    step_replay_entries_backward(m_replayOptions.entriesPerStep);
+    break;
+
+  case ReplayGuiState::Command::None:
+    break;
   }
 }
 
@@ -706,6 +1074,8 @@ void Context::cancel_replay()
   m_replayEntryBudget = 0.0;
   m_isReplayActive = false;
   m_isReplayPaused = false;
+  m_isReplayBackward = false;
+  m_currentSpeedMultiplier = 1.0;
 }
 
 void Context::pause_replay()
@@ -868,6 +1238,52 @@ void Context::handle_message(const AddMeshWithOpts& message)
   }
   add_mesh_with_opts(message.vertices, message.normals, message.commonData.rgba,
                      message.triangleIndices, message.commonData);
+
+  // Wire up overlay data if the message carries segment or vertex data.
+  const bool hasSegmentData = !message.segmentIndices.empty() || message.showSegments;
+  const bool hasVertexData  = message.showVertices || !message.vertexColors.empty();
+  if (hasSegmentData || hasVertexData)
+  {
+    const core::UUID& uuid = message.commonData.geometryId;
+    if (!uuid.is_nil())
+    {
+      geoqik::PerMeshOverlayData overlayData;
+
+      // Segment overlay
+      overlayData.showSegments    = message.showSegments;
+      overlayData.segmentLineWidth = message.segmentLineWidth;
+
+      auto verts = m_scene.get_mesh_buffer().get_mesh_vertices(uuid);
+      overlayData.segmentPositions.assign(verts.begin(), verts.end());
+
+      if (message.segmentIndices.empty())
+      {
+        auto localTris = m_scene.get_mesh_buffer().get_local_triangle_indices(uuid);
+        overlayData.segmentIndices = geoqik::derive_segment_indices_from_triangles(localTris);
+      }
+      else
+      {
+        overlayData.segmentIndices = message.segmentIndices;
+      }
+
+      if (message.segmentColors.size() == 4)
+      {
+        overlayData.segmentColor = {message.segmentColors[0], message.segmentColors[1],
+                                    message.segmentColors[2], message.segmentColors[3]};
+      }
+
+      // Vertex overlay
+      overlayData.showVertices    = message.showVertices;
+      overlayData.vertexPointSize = message.vertexPointSize;
+      if (message.vertexColors.size() == 4)
+      {
+        overlayData.vertexColor = {message.vertexColors[0], message.vertexColors[1],
+                                   message.vertexColors[2], message.vertexColors[3]};
+      }
+
+      m_scene.get_mesh_buffer().set_mesh_overlay_data(uuid, std::move(overlayData));
+    }
+  }
 }
 
 void Context::add_mesh_with_opts(std::span<const float> vertices,
@@ -879,6 +1295,16 @@ void Context::add_mesh_with_opts(std::span<const float> vertices,
   const core::UUID* handlePtr = commonData.geometryId.is_nil() ? nullptr : &commonData.geometryId;
   m_scene.add_mesh(vertices, normals, colors, triangleIndices, handlePtr);
   ++m_geometryMessagesProcessedThisFrame;
+}
+
+void Context::handle_message(const SetMeshOverlayOpts& message)
+{
+  m_scene.set_mesh_overlay_opts(message.handle, message.showSegments, message.showVertices);
+}
+
+void Context::handle_message(const SetMeshRenderingOpts& message)
+{
+  m_scene.set_mesh_rendering_opts(message.handle, {message.cullMode, message.surfaceVisible});
 }
 
 void Context::handle_message(const RemoveMesh& message)
@@ -1056,13 +1482,16 @@ void Context::on_key(Key key, [[maybe_unused]] Scancode scancode, Action action,
     return;
   }
 
-  if (action == Action::PRESS && has_replay_key(m_replayOptions.increaseEntriesPerStepKeys, key))
+  if ((action == Action::PRESS || action == Action::REPEAT) &&
+      has_replay_key(m_replayOptions.increaseEntriesPerStepKeys, key))
   {
     ++m_replayOptions.entriesPerStep;
     return;
   }
 
-  if (action == Action::PRESS && has_replay_key(m_replayOptions.decreaseEntriesPerStepKeys, key) && m_replayOptions.entriesPerStep > 1)
+  if ((action == Action::PRESS || action == Action::REPEAT) &&
+      has_replay_key(m_replayOptions.decreaseEntriesPerStepKeys, key) &&
+      m_replayOptions.entriesPerStep > 1)
   {
     --m_replayOptions.entriesPerStep;
   }
@@ -1087,6 +1516,9 @@ void Context::start_replay(std::vector<GeoQikLogEntry> entries, const ReplayOpti
   m_isReplayActive = !m_replayEntries.empty();
   m_isReplayPaused = options.startPaused;
   m_lastReplayTick = std::chrono::high_resolution_clock::now();
+  m_baseEntriesPerSecond = m_replayOptions.entriesPerSecond;
+  m_currentSpeedMultiplier = 1.0;
+  m_isReplayBackward = false;
 }
 
 void Context::process_replay_entries(const std::chrono::high_resolution_clock::time_point& now)
@@ -1108,6 +1540,29 @@ void Context::process_replay_entries(const std::chrono::high_resolution_clock::t
   if (m_isReplayPaused)
   {
     m_lastReplayTick = now;
+    return;
+  }
+
+  if (m_isReplayBackward)
+  {
+    if (m_replayEntryIndex == 0)
+    {
+      m_isReplayPaused = true;
+      m_lastReplayTick = now;
+      return;
+    }
+
+    const std::chrono::duration<double> elapsed = now - m_lastReplayTick;
+    m_lastReplayTick = now;
+    m_replayEntryBudget += elapsed.count() * m_replayOptions.entriesPerSecond;
+
+    auto entriesToUndo = static_cast<std::size_t>(m_replayEntryBudget);
+    entriesToUndo = std::min(entriesToUndo, m_replayOptions.maxEntriesPerFrame);
+    undo_replay_entries(entriesToUndo);
+    if (m_replayEntryBudget >= 1.0)
+    {
+      m_replayEntryBudget -= static_cast<double>(entriesToUndo);
+    }
     return;
   }
 
@@ -1203,6 +1658,8 @@ void Context::finish_replay()
   m_replayEntryBudget = 0.0;
   m_isReplayActive = false;
   m_isReplayPaused = false;
+  m_isReplayBackward = false;
+  m_currentSpeedMultiplier = 1.0;
 }
 
 void Context::defer_or_handle_message(GeoQikMessage&& message)

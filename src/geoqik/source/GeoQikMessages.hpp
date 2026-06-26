@@ -3,6 +3,7 @@
 
 #include <Renderer/Color.hpp>
 #include "Core/UUID.hpp"
+#include "GeometryBuffers/MeshBuffer.hpp"
 
 #include <functional>
 #include <variant>
@@ -155,6 +156,13 @@ struct AddMeshWithOpts
   std::vector<float> colors;
   std::vector<std::uint32_t> triangleIndices;
   GeoQikMessageCommonData commonData;
+  std::vector<std::uint32_t> segmentIndices;    // empty = auto-derive; non-empty = user-supplied pairs
+  std::vector<float>         segmentColors;     // single RGBA [4 floats] or empty (use default black)
+  float                      segmentLineWidth{1.0f};
+  bool                       showSegments{false};
+  std::vector<float>         vertexColors;     // single RGBA [4 floats] or empty (use default white)
+  float                      vertexPointSize{3.0f};
+  bool                       showVertices{false};
 
   [[nodiscard]] bool operator==(const AddMeshWithOpts&) const = default;
 };
@@ -174,6 +182,24 @@ struct UpdateMeshWithOpts
   std::vector<float> colors;
 
   [[nodiscard]] bool operator==(const UpdateMeshWithOpts&) const = default;
+};
+
+struct SetMeshOverlayOpts
+{
+  core::UUID handle;
+  bool showSegments{false};
+  bool showVertices{false};
+
+  [[nodiscard]] bool operator==(const SetMeshOverlayOpts&) const = default;
+};
+
+struct SetMeshRenderingOpts
+{
+  core::UUID   handle;
+  MeshCullMode cullMode{MeshCullMode::back};
+  bool         surfaceVisible{true};
+
+  bool operator==(const SetMeshRenderingOpts&) const = default;
 };
 
 struct RemoveAllGeometry
@@ -299,7 +325,9 @@ using GeoQikLogEntry = std::variant<AddPointWithOpts,
                                     SetMeshColor,
                                     AddMeshWithOpts,
                                     RemoveMesh,
-                                    UpdateMeshWithOpts>;
+                                    UpdateMeshWithOpts,
+                                    SetMeshOverlayOpts,
+                                    SetMeshRenderingOpts>;
 
 using GeoQikMessage = std::variant<AddPointWithOpts,
                                    AddPointsWithOpts,
@@ -322,6 +350,8 @@ using GeoQikMessage = std::variant<AddPointWithOpts,
                                    AddMeshWithOpts,
                                    RemoveMesh,
                                    UpdateMeshWithOpts,
+                                   SetMeshOverlayOpts,
+                                   SetMeshRenderingOpts,
                                    Draw,
                                    StopDraw,
                                    SaveLog,

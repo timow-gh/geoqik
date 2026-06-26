@@ -1320,6 +1320,47 @@ geoqik_error_code_t geoqik_remove_line(const geoqik_uuid_t* geometryId)
       });
 }
 
+namespace
+{
+
+constexpr float kDefaultSegmentLineWidth = 1.0F;
+constexpr float kDefaultVertexPointSize  = 3.0F;
+
+[[nodiscard]] geoqik_error_code_t apply_mesh_overlay_opts(geoqik::AddMeshWithOpts& message,
+                                                           const geoqik_add_mesh_opts_t* options)
+{
+  if (options == nullptr) { return GEOQIK_SUCCESS; }
+
+  if (options->segmentIndices != nullptr && options->segmentIndexCount > 0)
+  {
+    if (options->segmentIndexCount % 2 != 0)
+    {
+      return GEOQIK_ERROR_INVALID_PARAMETER;
+    }
+    message.segmentIndices.assign(options->segmentIndices,
+                                  options->segmentIndices + options->segmentIndexCount);
+  }
+  if (options->segmentColor != nullptr)
+  {
+    message.segmentColors.assign(options->segmentColor, options->segmentColor + 4);
+  }
+  message.segmentLineWidth = (options->segmentLineWidth > 0.0F) ? options->segmentLineWidth
+                                                                 : kDefaultSegmentLineWidth;
+  message.showSegments = (options->showSegments != 0);
+
+  if (options->vertexColor != nullptr)
+  {
+    message.vertexColors.assign(options->vertexColor, options->vertexColor + 4);
+  }
+  message.vertexPointSize = (options->vertexPointSize > 0.0F) ? options->vertexPointSize
+                                                               : kDefaultVertexPointSize;
+  message.showVertices = (options->showVertices != 0);
+
+  return GEOQIK_SUCCESS;
+}
+
+} // namespace
+
 geoqik_result_t geoqik_add_mesh_opts(const float* vertices,
                                      size_t vertexCount,
                                      const uint32_t* triangleIndices,
@@ -1377,6 +1418,12 @@ geoqik_result_t geoqik_add_mesh_opts(const float* vertices,
         message.normals = std::move(normalsCopy);
         message.triangleIndices = std::move(indicesCopy);
         message.commonData = std::move(commonData);
+
+        geoqik_error_code_t overlayErr = apply_mesh_overlay_opts(message, options);
+        if (overlayErr != GEOQIK_SUCCESS)
+        {
+          return geoqik_result_t{overlayErr, {}};
+        }
 
         auto enqueueResult = enqueue(GeoQikMessage{std::move(message)});
         return geoqik_result_t{enqueueResult, convert_to_geoqik_uuid(reqId)};
@@ -1438,6 +1485,60 @@ geoqik_error_code_t geoqik_update_mesh_opts(const geoqik_uuid_t* geometryId,
         message.normals  = std::move(normalsCopy);
         message.colors   = std::move(colorsCopy);
         return enqueue(GeoQikMessage{std::move(message)});
+      });
+}
+
+geoqik_error_code_t geoqik_set_mesh_overlay_opts(const geoqik_uuid_t* geometryId,
+                                                   const geoqik_mesh_overlay_opts_t* opts)
+{
+  if (geometryId == nullptr || opts == nullptr)
+  {
+    return GEOQIK_ERROR_INVALID_PARAMETER;
+  }
+
+  return geoqik_internal::execute_if_initialized(
+      [&]() -> geoqik_error_code_t
+      {
+        core::UUID handle = convert_to_core_uuid(*geometryId);
+        geoqik::SetMeshOverlayOpts message;
+        message.handle       = handle;
+        message.showSegments = (opts->showSegments > 0);
+        message.showVertices = (opts->showVertices > 0);
+        return enqueue(GeoQikMessage{message});
+      });
+}
+
+geoqik_error_code_t geoqik_set_mesh_rendering_opts(const geoqik_uuid_t* geometryId,
+                                                     const geoqik_mesh_rendering_opts_t* options)
+{
+  if (geometryId == nullptr || options == nullptr)
+  {
+    return GEOQIK_ERROR_INVALID_PARAMETER;
+  }
+
+  return geoqik_internal::execute_if_initialized(
+      [&]() -> geoqik_error_code_t
+      {
+        core::UUID handle = convert_to_core_uuid(*geometryId);
+        geoqik::SetMeshRenderingOpts message;
+        message.handle         = handle;
+        message.surfaceVisible = (options->surfaceVisible != 0);
+
+        switch (options->cullMode)
+        {
+        case GEOQIK_MESH_CULL_FRONT:
+          message.cullMode = geoqik::MeshCullMode::front;
+          break;
+        case GEOQIK_MESH_CULL_NONE:
+          message.cullMode = geoqik::MeshCullMode::none;
+          break;
+        case GEOQIK_MESH_CULL_BACK:
+        default:
+          message.cullMode = geoqik::MeshCullMode::back;
+          break;
+        }
+
+        return enqueue(GeoQikMessage{message});
       });
 }
 

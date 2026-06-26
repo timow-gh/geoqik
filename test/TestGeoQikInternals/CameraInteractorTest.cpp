@@ -219,3 +219,16 @@ TEST(CameraInteractorTest, FramebufferResizeUpdatesViewport)
   EXPECT_EQ(interactor.get_viewport().get_width(), 1024);
   EXPECT_EQ(interactor.get_viewport().get_height(), 512);
 }
+
+TEST(CameraInteractorTest, ZeroFramebufferResizeKeepsCurrentViewport)
+{
+  renderer::InputState inputState;
+  renderer::CameraInteractor interactor = make_interactor(inputState);
+
+  interactor.on_framebuffer_size(1024, 512);
+  interactor.on_framebuffer_size(0, 512);
+  interactor.on_framebuffer_size(1024, 0);
+
+  EXPECT_EQ(interactor.get_viewport().get_width(), 1024);
+  EXPECT_EQ(interactor.get_viewport().get_height(), 512);
+}

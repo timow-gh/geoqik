@@ -38,7 +38,10 @@ enum class SerializedMessageType : std::uint32_t // NOLINT(performance-enum-size
   SetMeshColor = 18,
   AddMeshWithOpts = 19,
   RemoveMesh = 20,
-  UpdateMeshWithOpts = 21
+  UpdateMeshWithOpts = 21,
+  SetMeshOverlayOpts = 22,
+  SetMeshRenderingOpts = 23
+  // Next free ID: 24
 };
 
 constexpr auto serialized_message_type_value(SerializedMessageType type)
@@ -309,6 +312,16 @@ void MessageWriter::write(const GeoQikLogEntry& message)
           write_float_vector(m_stream, value.normals);
           write_pod(m_stream, static_cast<std::uint64_t>(value.triangleIndices.size()));
           for (std::uint32_t idx : value.triangleIndices) { write_pod(m_stream, idx); }
+          // Segment overlay (added for overlay replay support)
+          write_pod(m_stream, static_cast<std::uint64_t>(value.segmentIndices.size()));
+          for (std::uint32_t idx : value.segmentIndices) { write_pod(m_stream, idx); }
+          write_float_vector(m_stream, value.segmentColors);
+          write_pod(m_stream, value.segmentLineWidth);
+          write_pod(m_stream, static_cast<std::uint8_t>(value.showSegments ? 1 : 0));
+          // Vertex overlay
+          write_float_vector(m_stream, value.vertexColors);
+          write_pod(m_stream, value.vertexPointSize);
+          write_pod(m_stream, static_cast<std::uint8_t>(value.showVertices ? 1 : 0));
         }
         else if constexpr (std::is_same_v<T, RemoveMesh>)
         {
@@ -322,6 +335,20 @@ void MessageWriter::write(const GeoQikLogEntry& message)
           write_float_vector(m_stream, value.vertices);
           write_float_vector(m_stream, value.normals);
           write_float_vector(m_stream, value.colors);
+        }
+        else if constexpr (std::is_same_v<T, SetMeshOverlayOpts>)
+        {
+          write_pod(m_stream, SerializedMessageType::SetMeshOverlayOpts);
+          write_uuid(m_stream, value.handle);
+          write_pod(m_stream, static_cast<std::uint8_t>(value.showSegments ? 1 : 0));
+          write_pod(m_stream, static_cast<std::uint8_t>(value.showVertices ? 1 : 0));
+        }
+        else if constexpr (std::is_same_v<T, SetMeshRenderingOpts>)
+        {
+          write_pod(m_stream, SerializedMessageType::SetMeshRenderingOpts);
+          write_uuid(m_stream, value.handle);
+          write_pod(m_stream, static_cast<std::uint8_t>(value.cullMode));
+          write_pod(m_stream, static_cast<std::uint8_t>(value.surfaceVisible ? 1 : 0));
         }
       },
       message);
@@ -403,7 +430,25 @@ GeoQikLogEntry MessageReader::read()
     const auto idxCount = read_pod<std::uint64_t>(m_stream);
     std::vector<std::uint32_t> idxs(static_cast<std::size_t>(idxCount));
     for (auto& i : idxs) { i = read_pod<std::uint32_t>(m_stream); }
-    return AddMeshWithOpts{std::move(verts), std::move(norms), {}, std::move(idxs), std::move(common)};
+    AddMeshWithOpts msg;
+    msg.vertices        = std::move(verts);
+    msg.normals         = std::move(norms);
+    msg.triangleIndices = std::move(idxs);
+    msg.commonData      = std::move(common);
+    // Segment and vertex overlay fields (present in new-format logs only)
+    if (m_stream.peek() != std::char_traits<char>::eof())
+    {
+      const auto segIdxCount = read_pod<std::uint64_t>(m_stream);
+      msg.segmentIndices.resize(static_cast<std::size_t>(segIdxCount));
+      for (auto& i : msg.segmentIndices) { i = read_pod<std::uint32_t>(m_stream); }
+      msg.segmentColors     = read_float_vector(m_stream);
+      msg.segmentLineWidth  = read_pod<float>(m_stream);
+      msg.showSegments      = (read_pod<std::uint8_t>(m_stream) != 0);
+      msg.vertexColors      = read_float_vector(m_stream);
+      msg.vertexPointSize   = read_pod<float>(m_stream);
+      msg.showVertices      = (read_pod<std::uint8_t>(m_stream) != 0);
+    }
+    return msg;
   }
   case serialized_message_type_value(SerializedMessageType::RemoveMesh):
     return RemoveMesh{read_uuid(m_stream)};
@@ -414,6 +459,22 @@ GeoQikLogEntry MessageReader::read()
     std::vector<float> norms = read_float_vector(m_stream);
     std::vector<float> colors = read_float_vector(m_stream);
     return UpdateMeshWithOpts{handle, std::move(verts), std::move(norms), std::move(colors)};
+  }
+  case serialized_message_type_value(SerializedMessageType::SetMeshOverlayOpts):
+  {
+    SetMeshOverlayOpts msg;
+    msg.handle       = read_uuid(m_stream);
+    msg.showSegments = (read_pod<std::uint8_t>(m_stream) != 0);
+    msg.showVertices = (read_pod<std::uint8_t>(m_stream) != 0);
+    return msg;
+  }
+  case serialized_message_type_value(SerializedMessageType::SetMeshRenderingOpts):
+  {
+    SetMeshRenderingOpts msg;
+    msg.handle        = read_uuid(m_stream);
+    msg.cullMode      = static_cast<MeshCullMode>(read_pod<std::uint8_t>(m_stream));
+    msg.surfaceVisible = (read_pod<std::uint8_t>(m_stream) != 0);
+    return msg;
   }
   default: throw std::runtime_error("Unknown GeoQik message type");
   }

@@ -1,5 +1,9 @@
 #include <Renderer/Renderer.hpp>
 
+#include <algorithm>
+#include <cmath>
+#include <cstdint>
+
 namespace renderer
 {
 
@@ -8,7 +12,67 @@ namespace
 
 constexpr linal::double3 defaultCameraPosition{5.0, 5.0, 5.0};
 
+std::uint32_t valid_framebuffer_dimension(int dimension)
+{
+  return static_cast<std::uint32_t>(dimension > 0 ? dimension : 1);
+}
+
+double valid_logical_dimension(int dimension)
+{
+  return static_cast<double>(dimension > 0 ? dimension : 1);
+}
+
+int round_to_framebuffer_pixel(double value)
+{
+  return static_cast<int>(std::round(value));
+}
+
 } // namespace
+
+SceneViewport Renderer::calculate_scene_viewport(std::pair<int, int> windowSize,
+                                                 std::pair<int, int> framebufferSize,
+                                                 double reservedLogicalWidth)
+{
+  const double logicalWindowWidth = valid_logical_dimension(windowSize.first);
+  const double logicalWindowHeight = valid_logical_dimension(windowSize.second);
+  const int framebufferWidth = std::max(1, framebufferSize.first);
+  const int framebufferHeight = std::max(1, framebufferSize.second);
+
+  const double sceneX = std::clamp(reservedLogicalWidth, 0.0, logicalWindowWidth - 1.0);
+  const double sceneWidth = std::max(1.0, logicalWindowWidth - sceneX);
+  const double xScale = static_cast<double>(framebufferWidth) / logicalWindowWidth;
+
+  const int framebufferX = std::clamp(round_to_framebuffer_pixel(sceneX * xScale),
+                                      0,
+                                      framebufferWidth - 1);
+
+  SceneViewport viewport;
+  viewport.logical = LogicalViewportRect{sceneX, 0.0, sceneWidth, logicalWindowHeight};
+  viewport.framebuffer = opengl::ViewportRect{framebufferX,
+                                              0,
+                                              std::max(1, framebufferWidth - framebufferX),
+                                              framebufferHeight};
+  return viewport;
+}
+
+std::optional<std::pair<double, double>> Renderer::to_scene_framebuffer_coordinates(
+    const SceneViewport& sceneViewport,
+    double xpos,
+    double ypos)
+{
+  if (!sceneViewport.logical.contains(xpos, ypos))
+  {
+    return std::nullopt;
+  }
+
+  const double localLogicalX = xpos - sceneViewport.logical.x;
+  const double localLogicalY = ypos - sceneViewport.logical.y;
+  const double xScale = static_cast<double>(sceneViewport.framebuffer.width) /
+                        sceneViewport.logical.width;
+  const double yScale = static_cast<double>(sceneViewport.framebuffer.height) /
+                        sceneViewport.logical.height;
+  return std::pair<double, double>{localLogicalX * xScale, localLogicalY * yScale};
+}
 
 std::unique_ptr<Renderer> Renderer::create(const WindowSettings& settings)
 {
@@ -25,8 +89,8 @@ std::unique_ptr<Renderer> Renderer::create(const WindowSettings& settings)
   cameraSettings.m_defaultUp       = linal::double3{0.0, 0.0, 1.0};
   cameraSettings.m_camera.set_viewport(0,
                                        0,
-                                       static_cast<std::uint32_t>(fbWidth),
-                                       static_cast<std::uint32_t>(fbHeight));
+                                       valid_framebuffer_dimension(fbWidth),
+                                       valid_framebuffer_dimension(fbHeight));
   auto camera = std::make_shared<CameraInteractor>(window->get_input_state(), cameraSettings);
 
   auto imgui = std::make_shared<ImGuiOverlay>(window->get_native_handle());
@@ -44,6 +108,7 @@ std::unique_ptr<Renderer> Renderer::create(const WindowSettings& settings)
                            std::move(imgui));
   std::unique_ptr<Renderer> renderer(raw);
 
+  raw->update_scene_viewport();
   raw->wire_callbacks();
 
   return renderer;
@@ -60,49 +125,88 @@ Renderer::Renderer(GlfwWindow window,
 {
 }
 
+void Renderer::on_cursor_pos(double xpos, double ypos)
+{
+  m_lastWindowCursorPos = CursorPosState{xpos, ypos};
+  if (!m_imgui->handle_cursor_position(xpos, ypos))
+  {
+    return;
+  }
+  const auto sceneCoordinates =
+      Renderer::to_scene_framebuffer_coordinates(m_sceneViewport, xpos, ypos);
+  if (!sceneCoordinates.has_value())
+  {
+    return;
+  }
+  const auto [sceneX, sceneY] = *sceneCoordinates;
+  m_window.get_input_state().cursorPosState = CursorPosState{sceneX, sceneY};
+  m_camera->on_cursor_position(sceneX, sceneY);
+  for (const auto& cb : m_cursorPosCallbacks)
+  {
+    cb(sceneX, sceneY);
+  }
+}
+
+void Renderer::on_scroll(double xoff, double yoff)
+{
+  if (!m_imgui->handle_scroll(xoff, yoff))
+  {
+    return;
+  }
+  if (!current_scene_framebuffer_coordinates().has_value())
+  {
+    return;
+  }
+  const auto [sceneX, sceneY] = *current_scene_framebuffer_coordinates();
+  m_window.get_input_state().cursorPosState = CursorPosState{sceneX, sceneY};
+  m_camera->on_scroll(xoff, yoff);
+  for (const auto& cb : m_scrollCallbacks)
+  {
+    cb(xoff, yoff);
+  }
+}
+
+void Renderer::on_mouse_button(int button, Action action, Mods mods)
+{
+  if (!m_imgui->handle_mouse_button(button, action, mods))
+  {
+    return;
+  }
+  const auto sceneCoordinates = current_scene_framebuffer_coordinates();
+  if (!sceneCoordinates.has_value() && !m_cameraMouseInteractionActive)
+  {
+    return;
+  }
+  if (sceneCoordinates.has_value())
+  {
+    const auto [sceneX, sceneY] = *sceneCoordinates;
+    m_window.get_input_state().cursorPosState = CursorPosState{sceneX, sceneY};
+  }
+  if (action == Action::PRESS)
+  {
+    m_cameraMouseInteractionActive = sceneCoordinates.has_value() &&
+                                     (button == GLFW_MOUSE_BUTTON_RIGHT ||
+                                      button == GLFW_MOUSE_BUTTON_MIDDLE);
+  }
+  m_camera->on_mouse_button(button, action, mods);
+  if (action == Action::RELEASE)
+  {
+    m_cameraMouseInteractionActive = false;
+  }
+  for (const auto& cb : m_mouseButtonCallbacks)
+  {
+    cb(button, action, mods);
+  }
+}
+
 void Renderer::wire_callbacks()
 {
-  m_window.set_cursor_pos_callback(
-      [this](double xpos, double ypos)
-      {
-        if (!m_imgui->handle_cursor_position(xpos, ypos))
-        {
-          return;
-        }
-        m_camera->on_cursor_position(xpos, ypos);
-        for (const auto& cb : m_cursorPosCallbacks)
-        {
-          cb(xpos, ypos);
-        }
-      });
+  m_window.set_cursor_pos_callback([this](double xpos, double ypos) { on_cursor_pos(xpos, ypos); });
 
-  m_window.set_scroll_callback(
-      [this](double xoff, double yoff)
-      {
-        if (!m_imgui->handle_scroll(xoff, yoff))
-        {
-          return;
-        }
-        m_camera->on_scroll(xoff, yoff);
-        for (const auto& cb : m_scrollCallbacks)
-        {
-          cb(xoff, yoff);
-        }
-      });
+  m_window.set_scroll_callback([this](double xoff, double yoff) { on_scroll(xoff, yoff); });
 
   m_window.set_mouse_button_callback(
-      [this](int button, Action action, Mods mods)
-      {
-        if (!m_imgui->handle_mouse_button(button, action, mods))
-        {
-          return;
-        }
-        m_camera->on_mouse_button(button, action, mods);
-        for (const auto& cb : m_mouseButtonCallbacks)
-        {
-          cb(button, action, mods);
-        }
-      });
+      [this](int button, Action action, Mods mods) { on_mouse_button(button, action, mods); });
 
   m_window.set_key_callback(
       [this](Key key, Scancode scancode, Action action, Mods mods)
@@ -118,8 +222,8 @@ void Renderer::wire_callbacks()
       [this](std::uint32_t codepoint) { m_imgui->handle_char(codepoint); });
 
   m_window.set_framebuffer_size_callback(
-      [this](std::uint32_t width, std::uint32_t height)
-      { m_camera->on_framebuffer_size(width, height); });
+      [this]([[maybe_unused]] std::uint32_t width, [[maybe_unused]] std::uint32_t height)
+      { update_scene_viewport(); });
 }
 
 // --- Geometry ---
@@ -156,6 +260,31 @@ DrawableHandle Renderer::add_mesh_drawable(std::span<const float> vertices,
   return DrawableHandle{DrawableKind::mesh, id};
 }
 
+DrawableHandle Renderer::add_mesh_segment_drawable(std::span<const float> positions,
+                                                    std::span<const std::uint32_t> indices,
+                                                    std::span<const float> color,
+                                                    float lineWidth)
+{
+  const auto id = m_drawablesManager.add_mesh_segment_drawable(positions, indices, color, lineWidth);
+  return DrawableHandle{DrawableKind::meshSegment, id};
+}
+
+DrawableHandle Renderer::add_mesh_vertex_drawable(std::span<const float> positions,
+                                                   std::span<const float> color,
+                                                   float pointSize)
+{
+  const auto id = m_drawablesManager.add_mesh_vertex_drawable(positions, color, pointSize);
+  return DrawableHandle{DrawableKind::meshVertex, id};
+}
+
+void Renderer::set_mesh_drawable_cull_mode(DrawableHandle handle, opengl::MeshCullFaceMode mode)
+{
+  if (handle.kind == DrawableKind::mesh && handle.id != 0U)
+  {
+    m_drawablesManager.set_mesh_drawable_cull_mode(handle.id, mode);
+  }
+}
+
 bool Renderer::remove_drawable(DrawableHandle handle)
 {
   if (!handle.is_valid())
@@ -171,6 +300,10 @@ bool Renderer::remove_drawable(DrawableHandle handle)
     return m_drawablesManager.remove_line_drawable(handle.id);
   case DrawableKind::mesh:
     return m_drawablesManager.remove_mesh_drawable(handle.id);
+  case DrawableKind::meshSegment:
+    return m_drawablesManager.remove_mesh_segment_drawable(handle.id);
+  case DrawableKind::meshVertex:
+    return m_drawablesManager.remove_mesh_vertex_drawable(handle.id);
   case DrawableKind::invalid:
     return false;
   }
@@ -222,9 +355,8 @@ bool Renderer::is_escape_pressed() const
 
 void Renderer::begin_frame(const opengl::ClearColor& clearColor)
 {
-  const auto [width, height] = m_window.get_framebuffer_size();
-  opengl::begin_frame(clearColor, opengl::ViewportRect{0, 0, width, height});
-  m_imgui->new_frame();
+  update_scene_viewport();
+  opengl::begin_frame(clearColor, m_sceneViewport.framebuffer);
 }
 
 void Renderer::draw()
@@ -253,18 +385,38 @@ void Renderer::draw(const opengl::LightingConfig& lighting)
                                    viewPosF,
                                    effectiveLighting);
   }
+
+  // Draw segment overlays on top of meshes.
+  if (m_drawablesManager.has_mesh_segment_drawables())
+  {
+    m_drawablesManager.draw_mesh_segment_overlays(m_camera->get_current_MVP());
+  }
+
+  // Draw vertex overlays on top of meshes.
+  if (m_drawablesManager.has_mesh_vertex_drawables())
+  {
+    m_drawablesManager.draw_mesh_vertex_overlays(m_camera->get_current_MVP());
+  }
 }
 
 void Renderer::end_frame()
 {
   bool autoFitEnabled = false;
-  end_frame(autoFitEnabled);
+  bool homeRequested = false;
+  end_frame(autoFitEnabled, homeRequested);
 }
 
 void Renderer::end_frame(bool& autoFitEnabled)
 {
+  bool homeRequested = false;
+  end_frame(autoFitEnabled, homeRequested);
+}
+
+void Renderer::end_frame(bool& autoFitEnabled, bool& homeRequested)
+{
+  m_imgui->new_frame();
   CameraProjectionType projectionType = m_camera->get_projection_type();
-  m_imgui->add_camera_controls(autoFitEnabled, projectionType);
+  m_imgui->add_camera_controls(autoFitEnabled, projectionType, homeRequested);
   m_imgui->render();
   m_imgui->end_frame();
 
@@ -282,5 +434,29 @@ void Renderer::add_cursor_pos_callback(CursorPosCB cb)   { m_cursorPosCallbacks.
 void Renderer::add_scroll_callback(ScrollCB cb)           { m_scrollCallbacks.push_back(std::move(cb)); }
 void Renderer::add_mouse_button_callback(MouseBtnCB cb)   { m_mouseButtonCallbacks.push_back(std::move(cb)); }
 void Renderer::add_key_callback(KeyCB cb)                 { m_keyCallbacks.push_back(std::move(cb)); }
+
+void Renderer::update_scene_viewport()
+{
+  double reservedWidth = 0.0;
+  if (m_imgui)
+  {
+    reservedWidth = static_cast<double>(m_imgui->get_reserved_control_panel_width());
+  }
+  m_sceneViewport =
+      Renderer::calculate_scene_viewport(m_window.get_window_size(),
+                                         m_window.get_framebuffer_size(),
+                                         reservedWidth);
+  m_camera->set_viewport(0,
+                         0,
+                         valid_framebuffer_dimension(m_sceneViewport.framebuffer.width),
+                         valid_framebuffer_dimension(m_sceneViewport.framebuffer.height));
+}
+
+std::optional<std::pair<double, double>> Renderer::current_scene_framebuffer_coordinates() const
+{
+  return Renderer::to_scene_framebuffer_coordinates(m_sceneViewport,
+                                                    m_lastWindowCursorPos.xpos,
+                                                    m_lastWindowCursorPos.ypos);
+}
 
 } // namespace renderer
