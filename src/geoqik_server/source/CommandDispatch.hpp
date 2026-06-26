@@ -1,11 +1,18 @@
 #ifndef GEOQIK_SERVER_COMMAND_DISPATCH_HPP
 #define GEOQIK_SERVER_COMMAND_DISPATCH_HPP
 
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wnull-dereference"
+#endif
 #ifdef _WIN32
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/windows/stream_handle.hpp>
 #else
 #include <boost/asio/local/stream_protocol.hpp>
+#endif
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
 #endif
 
 namespace geoqik::server::dispatch {

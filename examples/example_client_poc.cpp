@@ -15,7 +15,7 @@
 #include <thread>
 
 int main() {
-    auto err = geoqik_init();
+    [[maybe_unused]] auto err = geoqik_init();
     assert(err == GEOQIK_SUCCESS && "geoqik_init failed; is GEOQIK_EXE_PATH set?");
 
     err = geoqik_draw();
@@ -38,10 +38,10 @@ int main() {
                 const double y = std::sin(angle);
                 const double z = static_cast<double>(stepIndex) * 0.008;
 
-                const auto pointResult = geoqik_add_point(x, y, z);
+                [[maybe_unused]] const auto pointResult = geoqik_add_point(x, y, z);
                 assert(pointResult.err == GEOQIK_SUCCESS);
 
-                const auto lineResult = geoqik_add_line(offset, 0.0, z * 0.35, x, y, z);
+                [[maybe_unused]] const auto lineResult = geoqik_add_line(offset, 0.0, z * 0.35, x, y, z);
                 assert(lineResult == GEOQIK_SUCCESS);
             }
         });

@@ -3,7 +3,8 @@
 
 #include <GeoQikProtocol/Protocol.hpp>
 
-#include <boost/process.hpp>
+#include <boost/process/v1/child.hpp>
+#include <boost/process/v1/search_path.hpp>
 #include <cstdint>
 #include <cstdlib>
 #include <stdexcept>
@@ -53,7 +54,7 @@ public:
     ~ProcessManager() = default;
 
     void start() {
-        namespace bp = boost::process;
+        namespace bp = boost::process::v1;
 
         boost::filesystem::path exePath;
         if (const auto env = get_env("GEOQIK_EXE_PATH"); !env.empty()) {
@@ -110,7 +111,7 @@ private:
 #endif
     }
 
-    boost::process::child child_;
+    boost::process::v1::child child_;
     std::string pipeName_;
 };
 

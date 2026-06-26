@@ -64,14 +64,14 @@ std::atomic<bool>& api_is_initialized_storage()
   return apiIsInitialized;
 }
 
-enum class ErrorDomain
+enum class ErrorDomain : std::uint8_t
 {
   Api = 1,
   Renderer = 2,
   Io = 3
 };
 
-enum class ApiDiagnosticId
+enum class ApiDiagnosticId : std::uint8_t
 {
   Success,
   NotInitialized,
@@ -98,7 +98,7 @@ public:
 
   [[nodiscard]] std::string message(int ev) const override
   {
-    switch (static_cast<ErrorDomain>(ev))
+    switch (static_cast<ErrorDomain>(static_cast<std::uint8_t>(ev)))
     {
     case ErrorDomain::Api: return "api error";
     case ErrorDomain::Renderer: return "renderer error";
@@ -147,7 +147,7 @@ struct ApiDiagnosticEntry
   const char* action;
 };
 
-constexpr ApiDiagnosticEntry apiDiagnosticCatalog[] = {
+constexpr std::array<ApiDiagnosticEntry, 16> apiDiagnosticCatalog = {{
     {ApiDiagnosticId::Success, GEOQIK_SUCCESS, ErrorDomain::Api, "Success", "", "", ""},
     {ApiDiagnosticId::NotInitialized,
      GEOQIK_ERROR_NOT_INITIALIZED,
@@ -253,7 +253,7 @@ constexpr ApiDiagnosticEntry apiDiagnosticCatalog[] = {
      "Invalid state",
      "GeoQik is not in the required state for this operation.",
      "The requested operation conflicts with the current API state.",
-     "Complete or cancel the current operation before retrying."}};
+     "Complete or cancel the current operation before retrying."}}};
 
 const ApiDiagnosticEntry& api_entry(ApiDiagnosticId id)
 {
@@ -2002,10 +2002,9 @@ geoqik_error_code_t geoqik_save_log(const char* path, geoqik_log_format_t format
       {
         auto promise = std::make_shared<std::promise<geoqik_error_code_t>>();
         std::future<geoqik_error_code_t> future = promise->get_future();
-        std::string pathCopy(path);
 
         auto enqueueResult = enqueue(GeoQikMessage{
-            SaveLog{[promise, path = std::move(pathCopy), format](Context& context) { promise->set_value(context.save_log(path.c_str(), format)); }}});
+            SaveLog{[promise, pathCopy = std::string(path), format](Context& context) { promise->set_value(context.save_log(pathCopy.c_str(), format)); }}});
         if (enqueueResult != GEOQIK_SUCCESS)
         {
           return enqueueResult;
@@ -2014,7 +2013,7 @@ geoqik_error_code_t geoqik_save_log(const char* path, geoqik_log_format_t format
         const geoqik_error_code_t result = future.get();
         if (result == GEOQIK_ERROR_UNKNOWN)
         {
-          return geoqik_internal::fail(ApiDiagnosticId::IoFailure, "geoqik_save_log", pathCopy.c_str());
+          return geoqik_internal::fail(ApiDiagnosticId::IoFailure, "geoqik_save_log", path);
         }
         return result;
       },
@@ -2037,10 +2036,9 @@ geoqik_error_code_t geoqik_load_log(const char* path, geoqik_log_format_t format
       {
         auto promise = std::make_shared<std::promise<geoqik_error_code_t>>();
         std::future<geoqik_error_code_t> future = promise->get_future();
-        std::string pathCopy(path);
 
         auto enqueueResult = enqueue(GeoQikMessage{
-            LoadLog{[promise, path = std::move(pathCopy), format](Context& context) { promise->set_value(context.load_log(path.c_str(), format)); }}});
+            LoadLog{[promise, pathCopy = std::string(path), format](Context& context) { promise->set_value(context.load_log(pathCopy.c_str(), format)); }}});
         if (enqueueResult != GEOQIK_SUCCESS)
         {
           return enqueueResult;
@@ -2049,7 +2047,7 @@ geoqik_error_code_t geoqik_load_log(const char* path, geoqik_log_format_t format
         const geoqik_error_code_t result = future.get();
         if (result == GEOQIK_ERROR_UNKNOWN)
         {
-          return geoqik_internal::fail(ApiDiagnosticId::IoFailure, "geoqik_load_log", pathCopy.c_str());
+          return geoqik_internal::fail(ApiDiagnosticId::IoFailure, "geoqik_load_log", path);
         }
         return result;
       },
@@ -2078,11 +2076,10 @@ geoqik_error_code_t geoqik_replay_log(const char* path, geoqik_log_format_t form
       {
         auto promise = std::make_shared<std::promise<geoqik_error_code_t>>();
         std::future<geoqik_error_code_t> future = promise->get_future();
-        std::string pathCopy(path);
 
         auto enqueueResult = enqueue(GeoQikMessage{
-            ReplayLog{[promise, path = std::move(pathCopy), format, replayOptions](Context& context)
-                      { promise->set_value(context.replay_log(path.c_str(), format, replayOptions)); }}});
+            ReplayLog{[promise, pathCopy = std::string(path), format, replayOptions](Context& context)
+                      { promise->set_value(context.replay_log(pathCopy.c_str(), format, replayOptions)); }}});
         if (enqueueResult != GEOQIK_SUCCESS)
         {
           return enqueueResult;
@@ -2091,7 +2088,7 @@ geoqik_error_code_t geoqik_replay_log(const char* path, geoqik_log_format_t form
         const geoqik_error_code_t result = future.get();
         if (result == GEOQIK_ERROR_UNKNOWN)
         {
-          return geoqik_internal::fail(ApiDiagnosticId::IoFailure, "geoqik_replay_log", pathCopy.c_str());
+          return geoqik_internal::fail(ApiDiagnosticId::IoFailure, "geoqik_replay_log", path);
         }
         return result;
       },
