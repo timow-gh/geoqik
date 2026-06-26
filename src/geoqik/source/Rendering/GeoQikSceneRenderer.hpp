@@ -45,6 +45,7 @@ private:
   bool sync_points(Scene& scene);
   bool sync_lines(Scene& scene);
   bool sync_meshes(MeshBuffer& meshBuffer);
+  bool sync_mesh_changes(MeshBuffer& meshBuffer);
   bool sync_overlay_drawables(MeshBuffer& meshBuffer);
   void create_surface_bundle(const core::UUID& uuid, const MeshBuffer& meshBuffer);
   void remove_bundle(const core::UUID& uuid);

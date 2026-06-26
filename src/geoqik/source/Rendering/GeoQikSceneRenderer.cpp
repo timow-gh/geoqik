@@ -57,9 +57,32 @@ bool GeoQikSceneRenderer::sync_lines(Scene& scene)
   return false;
 }
 
-bool GeoQikSceneRenderer::sync_meshes(MeshBuffer& meshBuffer)
+bool GeoQikSceneRenderer::sync_mesh_changes(MeshBuffer& meshBuffer)
 {
   bool updateOccurred = false;
+  for (const core::UUID& uuid : meshBuffer.get_removed_meshes())
+  {
+    remove_bundle(uuid);
+  }
+  if (!meshBuffer.get_removed_meshes().empty()) { updateOccurred = true; }
+
+  for (const core::UUID& uuid : meshBuffer.get_updated_meshes())
+  {
+    remove_bundle(uuid);
+    create_surface_bundle(uuid, meshBuffer);
+  }
+  if (!meshBuffer.get_updated_meshes().empty()) { updateOccurred = true; }
+
+  for (const core::UUID& uuid : meshBuffer.get_added_meshes())
+  {
+    create_surface_bundle(uuid, meshBuffer);
+  }
+  if (!meshBuffer.get_added_meshes().empty()) { updateOccurred = true; }
+  return updateOccurred;
+}
+
+bool GeoQikSceneRenderer::sync_meshes(MeshBuffer& meshBuffer)
+{
   if (meshBuffer.is_full_rebuild_needed())
   {
     for (auto& [uuid, bundle] : m_meshBundles)
@@ -73,30 +96,9 @@ bool GeoQikSceneRenderer::sync_meshes(MeshBuffer& meshBuffer)
     {
       create_surface_bundle(uuid, meshBuffer);
     }
-    updateOccurred = true;
+    return true;
   }
-  else
-  {
-    for (const core::UUID& uuid : meshBuffer.get_removed_meshes())
-    {
-      remove_bundle(uuid);
-    }
-    if (!meshBuffer.get_removed_meshes().empty()) { updateOccurred = true; }
-
-    for (const core::UUID& uuid : meshBuffer.get_updated_meshes())
-    {
-      remove_bundle(uuid);
-      create_surface_bundle(uuid, meshBuffer);
-    }
-    if (!meshBuffer.get_updated_meshes().empty()) { updateOccurred = true; }
-
-    for (const core::UUID& uuid : meshBuffer.get_added_meshes())
-    {
-      create_surface_bundle(uuid, meshBuffer);
-    }
-    if (!meshBuffer.get_added_meshes().empty()) { updateOccurred = true; }
-  }
-  return updateOccurred;
+  return sync_mesh_changes(meshBuffer);
 }
 
 bool GeoQikSceneRenderer::sync_overlay_drawables(MeshBuffer& meshBuffer)
