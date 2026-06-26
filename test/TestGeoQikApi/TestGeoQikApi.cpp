@@ -5,6 +5,8 @@
 #include <fstream>
 #include <gtest/gtest.h>
 #include <iterator>
+#include <string>
+#include <thread>
 #include <vector>
 
 class GeoQikTestApi : public ::testing::Test
@@ -127,6 +129,10 @@ TEST_F(GeoQikTestApi, InitializationStatusAndErrorStrings)
   EXPECT_STREQ("Wrong RGBA color size", geoqik_get_error_string(GEOQIK_ERROR_WRONG_COLOR_SIZE));
   EXPECT_STREQ("Memory allocation error", geoqik_get_error_string(GEOQIK_ERROR_MEMORY_ALLOCATION));
   EXPECT_STREQ("Unknown error", geoqik_get_error_string(GEOQIK_ERROR_UNKNOWN));
+  EXPECT_STREQ("Renderer initialization failed", geoqik_get_error_string(GEOQIK_ERROR_RENDERER_INIT_FAILED));
+  EXPECT_STREQ("I/O error", geoqik_get_error_string(GEOQIK_ERROR_IO));
+  EXPECT_STREQ("Unsupported format", geoqik_get_error_string(GEOQIK_ERROR_UNSUPPORTED_FORMAT));
+  EXPECT_STREQ("Invalid state", geoqik_get_error_string(GEOQIK_ERROR_INVALID_STATE));
   EXPECT_STREQ("Invalid error code", geoqik_get_error_string(static_cast<geoqik_error_code_t>(42)));
 
   init_hidden_geoqik();
@@ -136,6 +142,49 @@ TEST_F(GeoQikTestApi, InitializationStatusAndErrorStrings)
 
   ASSERT_EQ(GEOQIK_SUCCESS, geoqik_is_api_initialized(&isInitialized));
   EXPECT_FALSE(isInitialized);
+}
+
+TEST_F(GeoQikTestApi, LastErrorInfoReportsDetailsAndClearsOnSuccess)
+{
+  geoqik_clear_last_error();
+
+  EXPECT_EQ(GEOQIK_ERROR_INVALID_PARAMETER, geoqik_set_point_size(0.0f));
+
+  geoqik_error_info_t info{};
+  info.struct_size = sizeof(info);
+  ASSERT_EQ(GEOQIK_SUCCESS, geoqik_get_last_error_info(&info));
+  EXPECT_EQ(GEOQIK_ERROR_INVALID_PARAMETER, info.code);
+  EXPECT_STREQ("geoqik_set_point_size", info.operation);
+  EXPECT_NE(nullptr, info.what);
+  EXPECT_NE(nullptr, info.why);
+  EXPECT_NE(nullptr, info.action);
+  EXPECT_NE(std::string(info.what).find("parameters"), std::string::npos);
+  EXPECT_STREQ("parameter: pointSize; expected > 0", info.details);
+
+  geoqik_uuid_t uuid{};
+  ASSERT_EQ(GEOQIK_SUCCESS, geoqik_generate_uuid(&uuid));
+  ASSERT_EQ(GEOQIK_SUCCESS, geoqik_get_last_error_info(&info));
+  EXPECT_EQ(GEOQIK_SUCCESS, info.code);
+}
+
+TEST_F(GeoQikTestApi, LastErrorInfoIsThreadLocal)
+{
+  geoqik_clear_last_error();
+
+  std::thread worker([] {
+    EXPECT_EQ(GEOQIK_ERROR_INVALID_PARAMETER, geoqik_get_point_size(nullptr));
+    geoqik_error_info_t info{};
+    info.struct_size = sizeof(info);
+    ASSERT_EQ(GEOQIK_SUCCESS, geoqik_get_last_error_info(&info));
+    EXPECT_EQ(GEOQIK_ERROR_INVALID_PARAMETER, info.code);
+    EXPECT_STREQ("geoqik_get_point_size", info.operation);
+  });
+  worker.join();
+
+  geoqik_error_info_t info{};
+  info.struct_size = sizeof(info);
+  ASSERT_EQ(GEOQIK_SUCCESS, geoqik_get_last_error_info(&info));
+  EXPECT_EQ(GEOQIK_SUCCESS, info.code);
 }
 
 TEST_F(GeoQikTestApi, InitWhileInitializedReturnsAlreadyInitialized)
@@ -286,9 +335,9 @@ TEST_F(GeoQikTestApi, SaveLoadLogValidation)
   init_hidden_geoqik();
 
   EXPECT_EQ(GEOQIK_ERROR_INVALID_PARAMETER, geoqik_save_log("", GEOQIK_LOG_FORMAT_BINARY));
-  EXPECT_EQ(GEOQIK_ERROR_INVALID_PARAMETER, geoqik_save_log(validPath.string().c_str(), static_cast<geoqik_log_format_t>(42)));
-  EXPECT_EQ(GEOQIK_ERROR_INVALID_PARAMETER, geoqik_load_log(validPath.string().c_str(), static_cast<geoqik_log_format_t>(42)));
-  EXPECT_EQ(GEOQIK_ERROR_UNKNOWN, geoqik_load_log(missingPath.string().c_str(), GEOQIK_LOG_FORMAT_BINARY));
+  EXPECT_EQ(GEOQIK_ERROR_UNSUPPORTED_FORMAT, geoqik_save_log(validPath.string().c_str(), static_cast<geoqik_log_format_t>(42)));
+  EXPECT_EQ(GEOQIK_ERROR_UNSUPPORTED_FORMAT, geoqik_load_log(validPath.string().c_str(), static_cast<geoqik_log_format_t>(42)));
+  EXPECT_EQ(GEOQIK_ERROR_IO, geoqik_load_log(missingPath.string().c_str(), GEOQIK_LOG_FORMAT_BINARY));
 
   geoqik_cleanup();
 }
@@ -305,7 +354,7 @@ TEST_F(GeoQikTestApi, ReplayLogValidation)
 
   EXPECT_EQ(GEOQIK_ERROR_INVALID_PARAMETER, geoqik_replay_log(nullptr, GEOQIK_LOG_FORMAT_BINARY, nullptr));
   EXPECT_EQ(GEOQIK_ERROR_INVALID_PARAMETER, geoqik_replay_log("", GEOQIK_LOG_FORMAT_BINARY, nullptr));
-  EXPECT_EQ(GEOQIK_ERROR_INVALID_PARAMETER, geoqik_replay_log(validPath.string().c_str(), static_cast<geoqik_log_format_t>(42), nullptr));
+  EXPECT_EQ(GEOQIK_ERROR_UNSUPPORTED_FORMAT, geoqik_replay_log(validPath.string().c_str(), static_cast<geoqik_log_format_t>(42), nullptr));
   EXPECT_EQ(GEOQIK_ERROR_INVALID_PARAMETER, geoqik_replay_log(validPath.string().c_str(), GEOQIK_LOG_FORMAT_BINARY, &invalidOptions));
   invalidOptions.entriesPerSecond = INFINITY;
   EXPECT_EQ(GEOQIK_ERROR_INVALID_PARAMETER, geoqik_replay_log(validPath.string().c_str(), GEOQIK_LOG_FORMAT_BINARY, &invalidOptions));
@@ -359,7 +408,7 @@ TEST_F(GeoQikTestApi, ReplayLogValidation)
 
   init_hidden_geoqik();
 
-  EXPECT_EQ(GEOQIK_ERROR_UNKNOWN, geoqik_replay_log(missingPath.string().c_str(), GEOQIK_LOG_FORMAT_BINARY, nullptr));
+  EXPECT_EQ(GEOQIK_ERROR_IO, geoqik_replay_log(missingPath.string().c_str(), GEOQIK_LOG_FORMAT_BINARY, nullptr));
 
   invalidOptions.entriesPerSecond = 0.0;
   invalidOptions.speedMultiplier = -1.0;

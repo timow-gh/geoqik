@@ -23,6 +23,22 @@
 
 namespace geoqik::client::detail {
 
+class ServerExecutableNotFoundError : public std::runtime_error {
+public:
+    explicit ServerExecutableNotFoundError(const std::string& message)
+        : std::runtime_error(message)
+    {
+    }
+};
+
+class ServerStartError : public std::runtime_error {
+public:
+    explicit ServerStartError(const std::string& message)
+        : std::runtime_error(message)
+    {
+    }
+};
+
 class ProcessManager {
 public:
     [[nodiscard]] static ProcessManager& instance() {
@@ -46,7 +62,7 @@ public:
             exePath = bp::search_path("geoqik");
         }
         if (exePath.empty()) {
-            throw std::runtime_error(
+            throw ServerExecutableNotFoundError(
                 "geoqik executable not found. Set GEOQIK_EXE_PATH or add geoqik to PATH.");
         }
 
@@ -60,7 +76,7 @@ public:
         child_ = bp::child(exePath, "--pipe-name", pipeName_);
 
         if (!child_.running()) {
-            throw std::runtime_error("geoqik process failed to start.");
+            throw ServerStartError("geoqik process failed to start.");
         }
     }
 

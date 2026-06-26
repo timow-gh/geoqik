@@ -22,6 +22,38 @@
 
 namespace geoqik::client::detail {
 
+class IpcConnectionError : public std::runtime_error {
+public:
+    explicit IpcConnectionError(const std::string& message)
+        : std::runtime_error(message)
+    {
+    }
+};
+
+class IpcWriteError : public std::runtime_error {
+public:
+    explicit IpcWriteError(const std::string& message)
+        : std::runtime_error(message)
+    {
+    }
+};
+
+class IpcReadError : public std::runtime_error {
+public:
+    explicit IpcReadError(const std::string& message)
+        : std::runtime_error(message)
+    {
+    }
+};
+
+class ProtocolError : public std::runtime_error {
+public:
+    explicit ProtocolError(const std::string& message)
+        : std::runtime_error(message)
+    {
+    }
+};
+
 class Connection {
 public:
 #ifdef _WIN32
@@ -73,7 +105,7 @@ public:
 #endif
             std::this_thread::sleep_for(retryInterval);
         }
-        throw std::runtime_error(
+        throw IpcConnectionError(
             "geoqik: timed out connecting to server pipe: " + pipeName);
     }
 
@@ -84,21 +116,42 @@ public:
     {
         namespace proto = geoqik::protocol;
 
-        proto::FrameHeader header{};
-        header.commandId = static_cast<std::uint32_t>(cmd);
-        header.payloadBytes = proto::payload_byte_count(payload.size());
-        boost::asio::write(*stream_,
-            boost::asio::buffer(&header, sizeof(header)));
-
-        if (!payload.empty()) {
+        try {
+            proto::FrameHeader header{};
+            header.commandId = static_cast<std::uint32_t>(cmd);
+            header.payloadBytes = proto::payload_byte_count(payload.size());
             boost::asio::write(*stream_,
-                boost::asio::buffer(payload.data(), payload.size()));
+                boost::asio::buffer(&header, sizeof(header)));
+
+            if (!payload.empty()) {
+                boost::asio::write(*stream_,
+                    boost::asio::buffer(payload.data(), payload.size()));
+            }
+        } catch (const std::exception& e) {
+            throw IpcWriteError(e.what());
         }
 
-        proto::ResponseFrame resp{};
-        boost::asio::read(*stream_,
-            boost::asio::buffer(&resp, sizeof(resp)));
-        return resp;
+        proto::ResponseHeader responseHeader{};
+        try {
+            boost::asio::read(*stream_,
+                boost::asio::buffer(&responseHeader, sizeof(responseHeader)));
+
+            std::vector<std::uint8_t> diagnosticPayload(responseHeader.diagnosticBytes);
+            if (responseHeader.diagnosticBytes > 0) {
+                boost::asio::read(*stream_,
+                    boost::asio::buffer(diagnosticPayload.data(), diagnosticPayload.size()));
+            }
+
+            proto::ResponseFrame resp{};
+            resp.errorCode = responseHeader.errorCode;
+            resp.uuid = responseHeader.uuid;
+            resp.diagnostic = proto::decode_diagnostic(diagnosticPayload);
+            return resp;
+        } catch (const std::out_of_range& e) {
+            throw ProtocolError(e.what());
+        } catch (const std::exception& e) {
+            throw IpcReadError(e.what());
+        }
     }
 
     [[nodiscard]] bool connected() const noexcept { return stream_.has_value(); }

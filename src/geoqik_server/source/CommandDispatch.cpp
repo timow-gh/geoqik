@@ -7,6 +7,7 @@
 #include <boost/asio.hpp>
 #include <cstdint>
 #include <cstdlib>
+#include <string>
 #include <vector>
 
 namespace geoqik::server::dispatch {
@@ -15,17 +16,95 @@ namespace proto = geoqik::protocol;
 
 namespace {
 
+enum class ServerDiagnosticId {
+    InvalidPayload,
+    UnknownCommand,
+};
+
+struct ServerDiagnosticEntry {
+    ServerDiagnosticId id;
+    geoqik_error_code_t responseCode;
+    const char* operation;
+    const char* what;
+    const char* why;
+    const char* action;
+};
+
+constexpr ServerDiagnosticEntry serverDiagnosticCatalog[] = {
+    {ServerDiagnosticId::InvalidPayload,
+     GEOQIK_ERROR_INVALID_PARAMETER,
+     "geoqik_server_dispatch",
+     "The IPC command payload is invalid.",
+     "The command ID and payload byte count do not match the GeoQik protocol.",
+     "Use a matching GeoQik client and server build."},
+    {ServerDiagnosticId::UnknownCommand,
+     GEOQIK_ERROR_UNKNOWN,
+     "geoqik_server_dispatch",
+     "The IPC command is unknown.",
+     "The server received a command ID that this build does not implement.",
+     "Use a matching GeoQik client and server build."},
+};
+
+[[nodiscard]] const ServerDiagnosticEntry& server_entry(ServerDiagnosticId id) {
+    for (const ServerDiagnosticEntry& entry : serverDiagnosticCatalog) {
+        if (entry.id == id) {
+            return entry;
+        }
+    }
+    return serverDiagnosticCatalog[0];
+}
+
+[[nodiscard]] proto::DiagnosticText server_diagnostic(ServerDiagnosticId id, const std::string& details = {}) {
+    const ServerDiagnosticEntry& entry = server_entry(id);
+    return proto::DiagnosticText{
+        entry.operation,
+        entry.what,
+        entry.why,
+        entry.action,
+        details};
+}
+
+[[nodiscard]] proto::DiagnosticText last_api_diagnostic() {
+    geoqik_error_info_t info{};
+    info.struct_size = sizeof(info);
+    if (geoqik_get_last_error_info(&info) != GEOQIK_SUCCESS || info.code == GEOQIK_SUCCESS) {
+        return {};
+    }
+
+    return proto::DiagnosticText{
+        info.operation != nullptr ? info.operation : "",
+        info.what != nullptr ? info.what : "",
+        info.why != nullptr ? info.why : "",
+        info.action != nullptr ? info.action : "",
+        info.details != nullptr ? info.details : ""};
+}
+
 void send_response(PipeStream& stream,
                    geoqik_error_code_t err,
-                   const geoqik_uuid_t* uuid = nullptr)
+                   const geoqik_uuid_t* uuid = nullptr,
+                   const proto::DiagnosticText& diagnostic = {})
 {
-    proto::ResponseFrame resp{};
+    const std::vector<std::uint8_t> diagnosticPayload = proto::encode_diagnostic(diagnostic);
+
+    proto::ResponseHeader resp{};
     resp.errorCode = static_cast<std::uint32_t>(err);
+    resp.diagnosticBytes = proto::payload_byte_count(diagnosticPayload.size());
     if (uuid != nullptr) {
         std::copy_n(uuid->value, proto::uuidByteCount, resp.uuid.begin());
     }
     boost::asio::write(stream,
         boost::asio::buffer(&resp, sizeof(resp)));
+    if (!diagnosticPayload.empty()) {
+        boost::asio::write(stream,
+            boost::asio::buffer(diagnosticPayload.data(), diagnosticPayload.size()));
+    }
+}
+
+void send_api_response(PipeStream& stream,
+                       geoqik_error_code_t err,
+                       const geoqik_uuid_t* uuid = nullptr)
+{
+    send_response(stream, err, uuid, err == GEOQIK_SUCCESS ? proto::DiagnosticText{} : last_api_diagnostic());
 }
 
 [[nodiscard]] bool payload_size_matches(proto::CommandId commandId, std::size_t payloadSize) {
@@ -77,7 +156,8 @@ void handle_connection(PipeStream& stream) {
 
         const auto cmd = static_cast<proto::CommandId>(header.commandId);
         if (!payload_size_matches(cmd, payload.size())) {
-            send_response(stream, GEOQIK_ERROR_INVALID_PARAMETER);
+            const ServerDiagnosticEntry& entry = server_entry(ServerDiagnosticId::InvalidPayload);
+            send_response(stream, entry.responseCode, nullptr, server_diagnostic(ServerDiagnosticId::InvalidPayload));
             return;
         }
 
@@ -85,7 +165,7 @@ void handle_connection(PipeStream& stream) {
 
         case proto::CommandId::Draw: {
             const auto err = geoqik_draw();
-            send_response(stream, err);
+            send_api_response(stream, err);
             break;
         }
 
@@ -95,7 +175,7 @@ void handle_connection(PipeStream& stream) {
             const auto y = read_field<double>(payload, offset);
             const auto z = read_field<double>(payload, offset);
             const auto result = geoqik_add_point(x, y, z);
-            send_response(stream, result.err, &result.geometryId);
+            send_api_response(stream, result.err, &result.geometryId);
             break;
         }
 
@@ -108,24 +188,27 @@ void handle_connection(PipeStream& stream) {
             const auto y2 = read_field<double>(payload, offset);
             const auto z2 = read_field<double>(payload, offset);
             const auto err = geoqik_add_line(x1, y1, z1, x2, y2, z2);
-            send_response(stream, err);
+            send_api_response(stream, err);
             break;
         }
 
         case proto::CommandId::WaitForExit: {
             const auto err = geoqik_wait_for_exit_and_cleanup();
-            send_response(stream, err);
+            send_api_response(stream, err);
             exit_success();
         }
 
         case proto::CommandId::Cleanup: {
             const auto err = geoqik_cleanup();
-            send_response(stream, err);
+            send_api_response(stream, err);
             exit_success();
         }
 
         default:
-            send_response(stream, GEOQIK_ERROR_UNKNOWN);
+            {
+                const ServerDiagnosticEntry& entry = server_entry(ServerDiagnosticId::UnknownCommand);
+                send_response(stream, entry.responseCode, nullptr, server_diagnostic(ServerDiagnosticId::UnknownCommand));
+            }
             return;
         }
     }
