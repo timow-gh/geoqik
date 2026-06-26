@@ -28,7 +28,7 @@ constexpr float controlPanelSideCount = 2.0F;
 float panel_max_width(float viewportWidth)
 {
   const float visibleWidth = std::max(controlPanelTinyViewportMinWidth,
-                                      viewportWidth - controlPanelSideCount * controlPanelMargin);
+                                      viewportWidth - (controlPanelSideCount * controlPanelMargin));
   return std::min(controlPanelMaxWidth, visibleWidth);
 }
 
@@ -159,7 +159,7 @@ void ImGuiOverlay::render()
                                    viewport->WorkPos.y + controlPanelMargin},
                             ImGuiCond_Always);
     ImGui::SetNextWindowSize(ImVec2{m_controlPanelWidth,
-                                    std::max(0.0F, viewport->WorkSize.y - controlPanelSideCount * controlPanelMargin)},
+                                    std::max(0.0F, viewport->WorkSize.y - (controlPanelSideCount * controlPanelMargin))},
                              ImGuiCond_Always);
 
     constexpr ImGuiWindowFlags windowFlags =
@@ -203,7 +203,7 @@ void ImGuiOverlay::end_frame() // NOLINT(readability-convert-member-functions-to
 
 float ImGuiOverlay::get_reserved_control_panel_width() const
 {
-  return m_controlPanelWidth + controlPanelSideCount * controlPanelMargin;
+  return m_controlPanelWidth + (controlPanelSideCount * controlPanelMargin);
 }
 
 bool ImGuiOverlay::wants_mouse() const // NOLINT(readability-convert-member-functions-to-static)
