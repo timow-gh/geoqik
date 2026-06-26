@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstdint>
 #include <filesystem>
 #include <string>
 #include <system_error>
@@ -44,7 +45,7 @@ struct ReplayGuiState
   std::string increaseStepKeysLabel;
   std::string decreaseStepKeysLabel;
 
-  enum class Command
+  enum class Command : std::uint8_t
   {
     None,
     Play,
@@ -88,12 +89,12 @@ std::string key_label(Key key)
   const int value = static_cast<int>(key);
   if (value >= static_cast<int>(Key::KEY_A) && value <= static_cast<int>(Key::KEY_Z))
   {
-    return std::string(1, static_cast<char>('A' + value - static_cast<int>(Key::KEY_A)));
+    return {1, static_cast<char>('A' + value - static_cast<int>(Key::KEY_A))};
   }
 
   if (value >= static_cast<int>(Key::KEY_0) && value <= static_cast<int>(Key::KEY_9))
   {
-    return std::string(1, static_cast<char>('0' + value - static_cast<int>(Key::KEY_0)));
+    return {1, static_cast<char>('0' + value - static_cast<int>(Key::KEY_0))};
   }
 
   switch (key)
@@ -246,7 +247,7 @@ void render_replay_controls(ReplayGuiState& replayState)
             ? static_cast<float>(std::min(replayState.currentEntry, replayState.totalEntries)) /
                   static_cast<float>(replayState.totalEntries)
             : 0.0F;
-    ImGui::Text("Entry %zu / %zu", replayState.currentEntry, replayState.totalEntries);
+    ImGui::TextUnformatted(fmt::format("Entry {} / {}", replayState.currentEntry, replayState.totalEntries).c_str());
     ImGui::ProgressBar(progress, ImVec2{-1.0F, 0.0F});
 
     render_replay_speed_controls(replayState);
@@ -270,15 +271,17 @@ void render_replay_controls(ReplayGuiState& replayState)
 
   if (ImGui::CollapsingHeader("Shortcuts"))
   {
-    ImGui::TextWrapped("Play: %s, pause: %s",
-                       replayState.resumeKeysLabel.c_str(),
-                       replayState.pauseKeysLabel.c_str());
-    ImGui::TextWrapped("Step: forward %s, back %s",
-                       replayState.stepForwardKeysLabel.c_str(),
-                       replayState.stepBackwardKeysLabel.c_str());
-    ImGui::TextWrapped("Step size: + %s, - %s",
-                       replayState.increaseStepKeysLabel.c_str(),
-                       replayState.decreaseStepKeysLabel.c_str());
+    ImGui::PushTextWrapPos(0.0F);
+    ImGui::TextUnformatted(fmt::format("Play: {}, pause: {}",
+                                       replayState.resumeKeysLabel,
+                                       replayState.pauseKeysLabel).c_str());
+    ImGui::TextUnformatted(fmt::format("Step: forward {}, back {}",
+                                       replayState.stepForwardKeysLabel,
+                                       replayState.stepBackwardKeysLabel).c_str());
+    ImGui::TextUnformatted(fmt::format("Step size: + {}, - {}",
+                                       replayState.increaseStepKeysLabel,
+                                       replayState.decreaseStepKeysLabel).c_str());
+    ImGui::PopTextWrapPos();
   }
 }
 
@@ -1264,15 +1267,19 @@ void Context::handle_message(const AddMeshWithOpts& message)
       }
 
       if (message.segmentColors.size() == 4)
+      {
         overlayData.segmentColor = {message.segmentColors[0], message.segmentColors[1],
                                     message.segmentColors[2], message.segmentColors[3]};
+      }
 
       // Vertex overlay
       overlayData.showVertices    = message.showVertices;
       overlayData.vertexPointSize = message.vertexPointSize;
       if (message.vertexColors.size() == 4)
+      {
         overlayData.vertexColor = {message.vertexColors[0], message.vertexColors[1],
                                    message.vertexColors[2], message.vertexColors[3]};
+      }
 
       m_scene.get_mesh_buffer().set_mesh_overlay_data(uuid, std::move(overlayData));
     }
