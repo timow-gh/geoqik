@@ -37,9 +37,8 @@ void run(const std::string& pipeName) {
 
         std::thread([h]() {
             boost::asio::io_context io;
-            boost::asio::windows::stream_handle stream(io, h);
+            PipeStream stream(io.get_executor(), h);
             dispatch::handle_connection(stream);
-            ::CloseHandle(h);
         }).detach();
     }
 }

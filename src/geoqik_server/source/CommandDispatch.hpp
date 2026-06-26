@@ -1,8 +1,9 @@
 #pragma once
 
 #ifdef _WIN32
+#include <boost/asio/io_context.hpp>
 #include <boost/asio/windows/stream_handle.hpp>
-using PipeStream = boost::asio::windows::stream_handle;
+using PipeStream = boost::asio::windows::basic_stream_handle<boost::asio::io_context::executor_type>;
 #else
 #include <boost/asio/local/stream_protocol.hpp>
 using PipeStream = boost::asio::local::stream_protocol::socket;

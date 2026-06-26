@@ -154,7 +154,7 @@ TEST_F(GeoQikTestApi, InitWhileInitializedReturnsAlreadyInitialized)
 
 TEST_F(GeoQikTestApi, CombinedOperations)
 {
-  geoqik_init();
+  init_hidden_geoqik();
 
   geoqik_set_point_size(4.0f);
   geoqik_set_point_color(1.0f, 0.0f, 0.0f, 1.0f); // Red
@@ -205,7 +205,7 @@ TEST_F(GeoQikTestApi, InitDestroySequence)
 {
   for (int i = 0; i < 3; i++)
   {
-    geoqik_init();
+    init_hidden_geoqik();
     geoqik_add_point(0.0, 0.0, 0.0);
     geoqik_draw();
     geoqik_cleanup();
@@ -214,7 +214,7 @@ TEST_F(GeoQikTestApi, InitDestroySequence)
 
 TEST_F(GeoQikTestApi, Draw)
 {
-  geoqik_init();
+  init_hidden_geoqik();
 
   geoqik_add_point(0.0, 0.0, 0.0);
   geoqik_add_line(0.0, 0.0, 0.0, 1.0, 1.0, 1.0);

@@ -22,9 +22,11 @@ namespace geoqik::client::detail {
 class Connection {
 public:
 #ifdef _WIN32
-    using StreamType = boost::asio::windows::stream_handle;
+    using StreamType = boost::asio::windows::basic_stream_handle<boost::asio::io_context::executor_type>;
 #else
-    using StreamType = boost::asio::local::stream_protocol::socket;
+    using StreamType = boost::asio::basic_stream_socket<
+        boost::asio::local::stream_protocol,
+        boost::asio::io_context::executor_type>;
 #endif
 
     void connect(const std::string& pipeName) {
@@ -45,12 +47,12 @@ public:
                 nullptr);
 
             if (h != INVALID_HANDLE_VALUE) {
-                stream_.emplace(io_, h);
+                stream_.emplace(io_.get_executor(), h);
                 return;
             }
 #else
             boost::system::error_code ec;
-            boost::asio::local::stream_protocol::socket sock(io_);
+            StreamType sock(io_.get_executor());
             sock.connect(
                 boost::asio::local::stream_protocol::endpoint(pipeName), ec);
             if (!ec) {
@@ -93,9 +95,9 @@ private:
     boost::asio::io_context io_;
 
 #ifdef _WIN32
-    std::optional<boost::asio::windows::stream_handle> stream_;
+    std::optional<StreamType> stream_;
 #else
-    std::optional<boost::asio::local::stream_protocol::socket> stream_;
+    std::optional<StreamType> stream_;
 #endif
 };
 

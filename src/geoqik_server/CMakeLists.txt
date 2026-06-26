@@ -37,6 +37,7 @@ target_link_libraries(${TARGET_NAME} PRIVATE
 
 # Boost.Asio on Windows needs these system libs
 if (WIN32)
+    target_compile_definitions(${TARGET_NAME} PRIVATE _WIN32_WINNT=0x0601)
     target_link_libraries(${TARGET_NAME} PRIVATE ws2_32 mswsock)
 endif()
 

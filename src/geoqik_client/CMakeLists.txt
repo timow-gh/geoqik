@@ -14,6 +14,7 @@ target_link_libraries(geoqik_client INTERFACE
     Boost::headers)
 
 if (WIN32)
+    target_compile_definitions(geoqik_client INTERFACE _WIN32_WINNT=0x0601)
     target_link_libraries(geoqik_client INTERFACE ws2_32 mswsock)
 endif()
 
