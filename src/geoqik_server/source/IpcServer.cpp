@@ -69,9 +69,7 @@ void run(const std::string& pipeName) {
 #include <boost/asio.hpp>
 #include <boost/asio/local/stream_protocol.hpp>
 #include <cstdlib>
-#include <filesystem>
 #include <iostream>
-#include <system_error>
 #include <thread>
 
 namespace asio = boost::asio;
@@ -81,13 +79,6 @@ namespace geoqik::server {
 void run(const std::string& socketPath) {
     namespace local = asio::local;
     asio::io_context io;
-
-    std::error_code removeError;
-    std::filesystem::remove(socketPath, removeError);
-    if (removeError) {
-        std::cerr << "Removing existing socket failed: " << removeError.message() << '\n';
-        std::exit(EXIT_FAILURE); // NOLINT(concurrency-mt-unsafe)
-    }
 
     local::stream_protocol::acceptor acceptor(
         io,

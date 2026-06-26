@@ -92,11 +92,16 @@ void send_response(PipeStream& stream,
     if (uuid != nullptr) {
         std::copy_n(uuid->value, proto::uuidByteCount, resp.uuid.begin());
     }
+
+    boost::system::error_code ec;
     boost::asio::write(stream,
-        boost::asio::buffer(&resp, sizeof(resp)));
+        boost::asio::buffer(&resp, sizeof(resp)), ec);
+    if (ec) {
+        return;
+    }
     if (!diagnosticPayload.empty()) {
         boost::asio::write(stream,
-            boost::asio::buffer(diagnosticPayload.data(), diagnosticPayload.size()));
+            boost::asio::buffer(diagnosticPayload.data(), diagnosticPayload.size()), ec);
     }
 }
 

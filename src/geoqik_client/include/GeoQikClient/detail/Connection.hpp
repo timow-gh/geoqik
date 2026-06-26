@@ -128,6 +128,7 @@ public:
                     boost::asio::buffer(payload.data(), payload.size()));
             }
         } catch (const std::exception& e) {
+            disconnect();
             throw IpcWriteError(e.what());
         }
 
@@ -148,15 +149,24 @@ public:
             resp.diagnostic = proto::decode_diagnostic(diagnosticPayload);
             return resp;
         } catch (const std::out_of_range& e) {
+            disconnect();
             throw ProtocolError(e.what());
         } catch (const std::exception& e) {
+            disconnect();
             throw IpcReadError(e.what());
         }
     }
 
     [[nodiscard]] bool connected() const noexcept { return stream_.has_value(); }
 
-private:
+    void disconnect() noexcept {
+        boost::system::error_code ec;
+        if (stream_.has_value()) {
+            stream_->close(ec);
+        }
+        stream_.reset();
+    }
+
     boost::asio::io_context io_;
 
     std::optional<StreamType> stream_;
@@ -172,6 +182,10 @@ inline void ensure_connected(const std::string& pipeName) {
     if (!conn.connected()) {
         conn.connect(pipeName);
     }
+}
+
+inline void disconnect_thread_connection() noexcept {
+    thread_connection().disconnect();
 }
 
 } // namespace geoqik::client::detail

@@ -54,6 +54,12 @@ public:
     ~ProcessManager() = default;
 
     void start() {
+        if (started_ && child_.running()) {
+            return;
+        }
+        started_ = false;
+        pipeName_.clear();
+
         namespace bp = boost::process::v1;
 
         boost::filesystem::path exePath;
@@ -62,7 +68,7 @@ public:
         } else {
             exePath = bp::search_path("geoqik");
         }
-        if (exePath.empty()) {
+        if (exePath.empty() || !boost::filesystem::exists(exePath)) {
             throw ServerExecutableNotFoundError(
                 "geoqik executable not found. Set GEOQIK_EXE_PATH or add geoqik to PATH.");
         }
@@ -79,6 +85,8 @@ public:
         if (!child_.running()) {
             throw ServerStartError("geoqik process failed to start.");
         }
+
+        started_ = true;
     }
 
     [[nodiscard]] const std::string& pipe_name() const noexcept { return pipeName_; }
@@ -113,6 +121,7 @@ private:
 
     boost::process::v1::child child_;
     std::string pipeName_;
+    bool started_ = false;
 };
 
 } // namespace geoqik::client::detail

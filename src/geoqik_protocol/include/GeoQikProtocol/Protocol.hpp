@@ -55,11 +55,18 @@ struct ResponseFrame {
     DiagnosticText diagnostic;
 };
 
+// On Linux, a leading null byte places the socket in the kernel's abstract
+// namespace rather than the filesystem. This eliminates the TOCTOU race where a
+// local attacker could watch for the server's unlink(), then race to place a
+// symlink at /tmp/geoqik-<pid>.sock before bind() runs — potentially redirecting
+// the bind to an arbitrary file or causing a denial-of-service. An abstract
+// socket has no filesystem entry to race against and vanishes when the server
+// exits.
 [[nodiscard]] inline std::string make_pipe_name(std::uint64_t pid) {
 #ifdef _WIN32
     return R"(\\.\pipe\geoqik-)" + std::to_string(pid);
 #else
-    return "/tmp/geoqik-" + std::to_string(pid) + ".sock";
+    return std::string("\0geoqik-", 8) + std::to_string(pid);
 #endif
 }
 

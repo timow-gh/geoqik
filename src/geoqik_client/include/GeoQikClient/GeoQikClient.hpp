@@ -345,6 +345,21 @@ template<typename Func>
     return geoqik::client::detail::thread_connection().send_recv(cmd, payload);
 }
 
+[[nodiscard]] inline geoqik_error_code_t call_terminating(
+    geoqik::protocol::CommandId cmd,
+    const char* operation)
+{
+    auto& pm = geoqik::client::detail::ProcessManager::instance();
+    if (!pm.is_running()) {
+        geoqik::client::detail::disconnect_thread_connection();
+        return GEOQIK_SUCCESS;
+    }
+    const auto resp = call(cmd);
+    geoqik::client::detail::disconnect_thread_connection();
+    set_server_response_error(resp, operation);
+    return static_cast<geoqik_error_code_t>(resp.errorCode);
+}
+
 } // namespace geoqik_client_impl
 
 inline geoqik_error_code_t geoqik_client_get_last_error_info(geoqik_client_error_info_t* info) {
@@ -370,6 +385,9 @@ inline void geoqik_client_clear_last_error() {
 [[nodiscard]] inline geoqik_error_code_t geoqik_init() {
     return geoqik_client_impl::execute_client_call("geoqik_init", []() -> geoqik_error_code_t {
         auto& pm = geoqik::client::detail::ProcessManager::instance();
+        if (!pm.is_running()) {
+            geoqik::client::detail::disconnect_thread_connection();
+        }
         pm.start();
         geoqik::client::detail::ensure_connected(pm.pipe_name());
         geoqik_client_impl::clear_last_client_error();
@@ -428,19 +446,15 @@ inline void geoqik_client_clear_last_error() {
 
 [[nodiscard]] inline geoqik_error_code_t geoqik_wait_for_exit_and_cleanup() {
     return geoqik_client_impl::execute_client_call("geoqik_wait_for_exit_and_cleanup", []() -> geoqik_error_code_t {
-        namespace proto = geoqik::protocol;
-        const auto resp = geoqik_client_impl::call(proto::CommandId::WaitForExit);
-        geoqik_client_impl::set_server_response_error(resp, "geoqik_wait_for_exit_and_cleanup");
-        return static_cast<geoqik_error_code_t>(resp.errorCode);
+        return geoqik_client_impl::call_terminating(
+            geoqik::protocol::CommandId::WaitForExit, "geoqik_wait_for_exit_and_cleanup");
     });
 }
 
 [[nodiscard]] inline geoqik_error_code_t geoqik_cleanup() {
     return geoqik_client_impl::execute_client_call("geoqik_cleanup", []() -> geoqik_error_code_t {
-        namespace proto = geoqik::protocol;
-        const auto resp = geoqik_client_impl::call(proto::CommandId::Cleanup);
-        geoqik_client_impl::set_server_response_error(resp, "geoqik_cleanup");
-        return static_cast<geoqik_error_code_t>(resp.errorCode);
+        return geoqik_client_impl::call_terminating(
+            geoqik::protocol::CommandId::Cleanup, "geoqik_cleanup");
     });
 }
 
