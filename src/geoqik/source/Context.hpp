@@ -3,7 +3,6 @@
 
 #include <Renderer/Camera.hpp>
 #include <Renderer/CameraInteractor.hpp>
-#include <Renderer/ReplayGuiState.hpp>
 #include "ConcurrentQueue/ConcurrentQueue.hpp"
 #include "GeoQik/GeoQik.hpp"
 #include "GeoQikLog.hpp"
@@ -18,6 +17,7 @@
 #include <atomic>
 #include <cassert>
 #include <chrono>
+#include <cstddef>
 #include <deque>
 #include <memory>
 #include <span>
@@ -32,6 +32,8 @@ class Renderer;
 
 namespace geoqik
 {
+
+struct ReplayGuiState;
 
 using renderer::Key;
 using renderer::Scancode;
@@ -202,8 +204,8 @@ private:
   [[nodiscard]] bool should_close_event_loop();
   void update_camera_interaction_state();
   void sync_scene_and_auto_fit();
-  void populate_replay_gui_state(renderer::ReplayGuiState& state) const;
-  void consume_replay_gui_commands(const renderer::ReplayGuiState& state);
+  void populate_replay_gui_state(ReplayGuiState& state) const;
+  void consume_replay_gui_commands(const ReplayGuiState& state);
   [[nodiscard]] bool should_stop_processing_messages(const std::chrono::high_resolution_clock::time_point& frameStartTime,
                                                      const std::chrono::high_resolution_clock::time_point& messageProcessingStartTime) const;
   [[nodiscard]] bool process_message_queue(ConcurrentQueue<GeoQikMessage>& messageQueue,

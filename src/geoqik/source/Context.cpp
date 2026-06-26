@@ -5,13 +5,19 @@
 #include <OpenGL/FrameState.hpp>
 #include <Renderer/CameraAutoFit.hpp>
 #include <Renderer/Renderer.hpp>
+#include <Renderer/Warnings.hpp>
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <filesystem>
 #include <string>
 #include <system_error>
 #include <type_traits>
 #include <utility>
+
+RENDERER_DISABLE_ALL_WARNINGS
+#include <imgui.h>
+RENDERER_ENABLE_ALL_WARNINGS
 
 namespace geoqik
 {
@@ -21,6 +27,37 @@ using renderer::CameraAutoFitInput;
 using renderer::CameraAutoFitResult;
 using renderer::Viewport;
 using renderer::CameraInteractor;
+
+struct ReplayGuiState
+{
+  bool isActive{false};
+  bool isPaused{false};
+  bool isBackward{false};
+  std::size_t currentEntry{0};
+  std::size_t totalEntries{0};
+  double speedMultiplier{1.0};
+  std::size_t entriesPerStep{1};
+  std::string pauseKeysLabel;
+  std::string resumeKeysLabel;
+  std::string stepForwardKeysLabel;
+  std::string stepBackwardKeysLabel;
+  std::string increaseStepKeysLabel;
+  std::string decreaseStepKeysLabel;
+
+  enum class Command
+  {
+    None,
+    Play,
+    PlayReverse,
+    Pause,
+    Finish,
+    StepForward,
+    StepBackward,
+  };
+  Command command{Command::None};
+  double requestedSpeedMultiplier{0.0};
+  std::size_t requestedEntriesPerStep{0};
+};
 
 namespace
 {
@@ -87,6 +124,162 @@ std::string key_labels(const std::vector<Key>& keys)
     result += key_label(key);
   }
   return result;
+}
+
+float equal_button_width(int buttonCount)
+{
+  const float availableWidth = ImGui::GetContentRegionAvail().x;
+  const float spacing = ImGui::GetStyle().ItemSpacing.x * static_cast<float>(buttonCount - 1);
+  return std::max(1.0F, (availableWidth - spacing) / static_cast<float>(buttonCount));
+}
+
+bool full_width_button(const char* label)
+{
+  return ImGui::Button(label, ImVec2{-1.0F, 0.0F});
+}
+
+bool equal_width_button(const char* label, float width)
+{
+  return ImGui::Button(label, ImVec2{width, 0.0F});
+}
+
+void render_replay_speed_controls(ReplayGuiState& replayState)
+{
+  constexpr std::array<double, 4> speedOptions{1.0, 2.0, 4.0, 8.0};
+  constexpr std::array<const char*, 4> speedLabels{"1x", "2x", "4x", "8x"};
+
+  ImGui::TextUnformatted("Speed");
+  const float buttonWidth = equal_button_width(static_cast<int>(speedOptions.size()));
+  for (std::size_t i = 0; i < speedOptions.size(); ++i)
+  {
+    if (i != 0)
+    {
+      ImGui::SameLine();
+    }
+
+    const bool isCurrent = std::abs(replayState.speedMultiplier - speedOptions[i]) < 0.01;
+    if (isCurrent)
+    {
+      ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive));
+    }
+    if (equal_width_button(speedLabels[i], buttonWidth))
+    {
+      replayState.requestedSpeedMultiplier = speedOptions[i];
+    }
+    if (isCurrent)
+    {
+      ImGui::PopStyleColor();
+    }
+  }
+}
+
+void render_replay_transport_controls(ReplayGuiState& replayState)
+{
+  if (full_width_button("End replay"))
+  {
+    replayState.command = ReplayGuiState::Command::Finish;
+  }
+
+  ImGui::Separator();
+
+  const bool canStepBack = replayState.currentEntry > 0;
+  const bool canStepForward = replayState.currentEntry < replayState.totalEntries;
+  const float twoButtonWidth = equal_button_width(2);
+
+  if (!canStepBack)
+  {
+    ImGui::BeginDisabled();
+  }
+  if (equal_width_button("Step Back", twoButtonWidth))
+  {
+    replayState.command = ReplayGuiState::Command::StepBackward;
+  }
+  ImGui::SameLine();
+  if (equal_width_button(replayState.isBackward && !replayState.isPaused ? "Reverse *" : "Reverse",
+                         twoButtonWidth))
+  {
+    replayState.command = ReplayGuiState::Command::PlayReverse;
+  }
+  if (!canStepBack)
+  {
+    ImGui::EndDisabled();
+  }
+
+  const char* playPauseLabel = replayState.isPaused ? "Play" : "Pause";
+  if (full_width_button(playPauseLabel))
+  {
+    replayState.command =
+        replayState.isPaused ? ReplayGuiState::Command::Play : ReplayGuiState::Command::Pause;
+  }
+
+  if (!canStepForward)
+  {
+    ImGui::BeginDisabled();
+  }
+  if (equal_width_button(!replayState.isBackward && !replayState.isPaused ? "Forward *" : "Forward",
+                         twoButtonWidth))
+  {
+    replayState.command = ReplayGuiState::Command::Play;
+  }
+  ImGui::SameLine();
+  if (equal_width_button("Step Forward", twoButtonWidth))
+  {
+    replayState.command = ReplayGuiState::Command::StepForward;
+  }
+  if (!canStepForward)
+  {
+    ImGui::EndDisabled();
+  }
+}
+
+void render_replay_controls(ReplayGuiState& replayState)
+{
+  if (!replayState.isActive)
+  {
+    return;
+  }
+
+  if (ImGui::CollapsingHeader("Replay", ImGuiTreeNodeFlags_DefaultOpen))
+  {
+    const float progress =
+        replayState.totalEntries > 0
+            ? static_cast<float>(std::min(replayState.currentEntry, replayState.totalEntries)) /
+                  static_cast<float>(replayState.totalEntries)
+            : 0.0F;
+    ImGui::Text("Entry %zu / %zu", replayState.currentEntry, replayState.totalEntries);
+    ImGui::ProgressBar(progress, ImVec2{-1.0F, 0.0F});
+
+    render_replay_speed_controls(replayState);
+    render_replay_transport_controls(replayState);
+
+    const std::size_t remainingEntryCount =
+        replayState.totalEntries > replayState.currentEntry
+            ? replayState.totalEntries - replayState.currentEntry
+            : 0U;
+    const int remainingEntries = static_cast<int>(remainingEntryCount);
+    const int sliderMax = std::max(1, remainingEntries);
+    int stepSize = static_cast<int>(replayState.entriesPerStep);
+    stepSize = std::max(1, std::min(stepSize, sliderMax));
+    ImGui::TextUnformatted("Step size");
+    ImGui::SetNextItemWidth(-1.0F);
+    if (ImGui::SliderInt("##StepSize", &stepSize, 1, sliderMax))
+    {
+      replayState.requestedEntriesPerStep = static_cast<std::size_t>(stepSize);
+    }
+  }
+
+  if (ImGui::CollapsingHeader("Shortcuts"))
+  {
+    ImGui::TextWrapped("Play: %s, pause: %s",
+                       replayState.resumeKeysLabel.c_str(),
+                       replayState.pauseKeysLabel.c_str());
+    ImGui::TextWrapped("Step: forward %s, back %s",
+                       replayState.stepForwardKeysLabel.c_str(),
+                       replayState.stepBackwardKeysLabel.c_str());
+    ImGui::TextWrapped("Step size: + %s, - %s",
+                       replayState.increaseStepKeysLabel.c_str(),
+                       replayState.decreaseStepKeysLabel.c_str());
+  }
 }
 
 } // namespace
@@ -492,9 +685,16 @@ void Context::run_event_loop()
     lighting.shininess       = std::max(0.0F, m_geoqikSettings.meshShininess);
 
     m_renderer->draw(lighting);
-    renderer::ReplayGuiState replayState;
+    ReplayGuiState replayState;
     populate_replay_gui_state(replayState);
-    m_renderer->end_frame(m_geoqikSettings.autoFitCameraEnabled, m_homeRequested, replayState);
+    if (replayState.isActive)
+    {
+      if (const auto imgui = m_renderer->get_imgui().lock())
+      {
+        imgui->add_control([&replayState]() { render_replay_controls(replayState); });
+      }
+    }
+    m_renderer->end_frame(m_geoqikSettings.autoFitCameraEnabled, m_homeRequested);
     consume_replay_gui_commands(replayState);
 
     process_replay_entries(std::chrono::high_resolution_clock::now());
@@ -611,7 +811,7 @@ void Context::sync_scene_and_auto_fit()
   }
 }
 
-void Context::populate_replay_gui_state(renderer::ReplayGuiState& state) const
+void Context::populate_replay_gui_state(ReplayGuiState& state) const
 {
   state.isActive   = is_replaying();
   state.isPaused   = m_isReplayPaused;
@@ -629,7 +829,7 @@ void Context::populate_replay_gui_state(renderer::ReplayGuiState& state) const
   state.decreaseStepKeysLabel = key_labels(m_replayOptions.decreaseEntriesPerStepKeys);
 }
 
-void Context::consume_replay_gui_commands(const renderer::ReplayGuiState& state)
+void Context::consume_replay_gui_commands(const ReplayGuiState& state)
 {
   if (!is_replaying())
   {
@@ -649,25 +849,25 @@ void Context::consume_replay_gui_commands(const renderer::ReplayGuiState& state)
 
   switch (state.command)
   {
-  case renderer::ReplayGuiState::Command::Play:
+  case ReplayGuiState::Command::Play:
     m_isReplayBackward = false;
     m_isReplayPaused   = false;
     m_replayEntryBudget = 0.0;
     m_lastReplayTick    = std::chrono::high_resolution_clock::now();
     break;
 
-  case renderer::ReplayGuiState::Command::PlayReverse:
+  case ReplayGuiState::Command::PlayReverse:
     m_isReplayBackward = true;
     m_isReplayPaused   = false;
     m_replayEntryBudget = 0.0;
     m_lastReplayTick    = std::chrono::high_resolution_clock::now();
     break;
 
-  case renderer::ReplayGuiState::Command::Pause:
+  case ReplayGuiState::Command::Pause:
     m_isReplayPaused = true;
     break;
 
-  case renderer::ReplayGuiState::Command::Finish:
+  case ReplayGuiState::Command::Finish:
   {
     m_isReplayBackward = false;
     m_isReplayPaused   = false;
@@ -680,17 +880,17 @@ void Context::consume_replay_gui_commands(const renderer::ReplayGuiState& state)
     break;
   }
 
-  case renderer::ReplayGuiState::Command::StepForward:
+  case ReplayGuiState::Command::StepForward:
     m_isReplayPaused = true;
     step_replay_entries(m_replayOptions.entriesPerStep);
     break;
 
-  case renderer::ReplayGuiState::Command::StepBackward:
+  case ReplayGuiState::Command::StepBackward:
     m_isReplayPaused = true;
     step_replay_entries_backward(m_replayOptions.entriesPerStep);
     break;
 
-  case renderer::ReplayGuiState::Command::None:
+  case ReplayGuiState::Command::None:
     break;
   }
 }

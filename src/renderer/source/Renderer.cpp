@@ -399,29 +399,20 @@ void Renderer::end_frame()
 {
   bool autoFitEnabled = false;
   bool homeRequested = false;
-  ReplayGuiState replayState;
-  end_frame(autoFitEnabled, homeRequested, replayState);
+  end_frame(autoFitEnabled, homeRequested);
 }
 
 void Renderer::end_frame(bool& autoFitEnabled)
 {
   bool homeRequested = false;
-  ReplayGuiState replayState;
-  end_frame(autoFitEnabled, homeRequested, replayState);
+  end_frame(autoFitEnabled, homeRequested);
 }
 
 void Renderer::end_frame(bool& autoFitEnabled, bool& homeRequested)
 {
-  ReplayGuiState replayState;
-  end_frame(autoFitEnabled, homeRequested, replayState);
-}
-
-void Renderer::end_frame(bool& autoFitEnabled, bool& homeRequested, ReplayGuiState& replayState)
-{
   m_imgui->new_frame();
   CameraProjectionType projectionType = m_camera->get_projection_type();
   m_imgui->add_camera_controls(autoFitEnabled, projectionType, homeRequested);
-  m_imgui->add_replay_controls(replayState);
   m_imgui->render();
   m_imgui->end_frame();
 

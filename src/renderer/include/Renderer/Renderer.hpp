@@ -149,7 +149,6 @@ public:
   void end_frame();
   void end_frame(bool& autoFitEnabled);
   void end_frame(bool& autoFitEnabled, bool& homeRequested);
-  void end_frame(bool& autoFitEnabled, bool& homeRequested, ReplayGuiState& replayState);
 
   // --- Callback extension points ---
   void add_cursor_pos_callback(CursorPosCB cb);
