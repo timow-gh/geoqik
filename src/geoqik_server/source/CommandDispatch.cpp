@@ -5,8 +5,8 @@
 
 #include <algorithm>
 #include <boost/asio.hpp>
-#include <cstdlib>
 #include <cstdint>
+#include <cstdlib>
 #include <vector>
 
 namespace geoqik::server::dispatch {

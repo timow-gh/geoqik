@@ -16,7 +16,7 @@ void run(const std::string& pipeName) {
     constexpr DWORD pipeBufferSize = 65536;
 
     for (;;) {
-        const HANDLE pipeHandle = ::CreateNamedPipeA(
+        HANDLE pipeHandle = ::CreateNamedPipeA(
             pipeName.c_str(),
             PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED,
             PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT,
@@ -54,7 +54,7 @@ void run(const std::string& pipeName) {
         }
         ::CloseHandle(overlapped.hEvent);
 
-        std::thread([pipeHandle]() {
+        std::thread([pipeHandle]() mutable {
             boost::asio::io_context io;
             dispatch::PipeStream stream(io.get_executor(), pipeHandle);
             dispatch::handle_connection(stream);

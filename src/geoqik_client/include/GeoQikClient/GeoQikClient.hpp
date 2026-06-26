@@ -1,6 +1,8 @@
-#pragma once
+#ifndef GEOQIKCLIENT_HPP
+#define GEOQIKCLIENT_HPP
 
 #ifdef __cplusplus
+#  include <array>
 #  include <cstddef>
 #  include <cstdint>
 #else
@@ -10,11 +12,26 @@
 #endif
 
 #ifdef __cplusplus
-typedef struct { std::uint8_t value[16]; } geoqik_uuid_t; // NOLINT(modernize-avoid-c-arrays)
+inline constexpr std::size_t geoqikUuidByteCount = 16;
+
+struct geoqik_uuid_t { // NOLINT(readability-identifier-naming)
+    std::array<std::uint8_t, geoqikUuidByteCount> value{};
+};
 #else
 typedef struct { uint8_t value[16]; } geoqik_uuid_t;
 #endif
 
+#ifdef __cplusplus
+enum geoqik_error_code_t : int { // NOLINT(performance-enum-size,readability-identifier-naming): matches the C API error-code ABI.
+    GEOQIK_SUCCESS                   = 0,
+    GEOQIK_ERROR_NOT_INITIALIZED     = 1,
+    GEOQIK_ERROR_ALREADY_INITIALIZED = 2,
+    GEOQIK_ERROR_INVALID_PARAMETER   = 3,
+    GEOQIK_ERROR_WRONG_COLOR_SIZE    = 4,
+    GEOQIK_ERROR_MEMORY_ALLOCATION   = 5,
+    GEOQIK_ERROR_UNKNOWN             = 6
+};
+#else
 typedef enum {
     GEOQIK_SUCCESS                   = 0,
     GEOQIK_ERROR_NOT_INITIALIZED     = 1,
@@ -24,19 +41,26 @@ typedef enum {
     GEOQIK_ERROR_MEMORY_ALLOCATION   = 5,
     GEOQIK_ERROR_UNKNOWN             = 6
 } geoqik_error_code_t;
+#endif
 
+#ifdef __cplusplus
+struct geoqik_result_t { // NOLINT(readability-identifier-naming)
+    geoqik_error_code_t err{};
+    geoqik_uuid_t       geometryId{};
+};
+#else
 typedef struct {
     geoqik_error_code_t err;
     geoqik_uuid_t       geometryId;
 } geoqik_result_t;
+#endif
 
 #ifdef __cplusplus
 
-#include <GeoQikClient/detail/ProcessManager.hpp>
 #include <GeoQikClient/detail/Connection.hpp>
+#include <GeoQikClient/detail/ProcessManager.hpp>
 #include <GeoQikProtocol/Protocol.hpp>
 #include <algorithm>
-#include <cstdint>
 #include <vector>
 
 namespace geoqik_client_impl {
@@ -84,7 +108,7 @@ namespace geoqik_client_impl {
 
     geoqik_result_t result{};
     result.err = static_cast<geoqik_error_code_t>(resp.errorCode);
-    std::copy(resp.uuid.begin(), resp.uuid.end(), result.geometryId.value);
+    std::copy(resp.uuid.begin(), resp.uuid.end(), result.geometryId.value.begin());
     return result;
 }
 
@@ -119,3 +143,5 @@ namespace geoqik_client_impl {
 }
 
 #endif // __cplusplus
+
+#endif // GEOQIKCLIENT_HPP

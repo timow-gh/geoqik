@@ -1,4 +1,5 @@
-#pragma once
+#ifndef GEOQIK_CLIENT_DETAIL_CONNECTION_HPP
+#define GEOQIK_CLIENT_DETAIL_CONNECTION_HPP
 
 #include <GeoQikProtocol/Protocol.hpp>
 
@@ -48,7 +49,7 @@ public:
 
         while (std::chrono::steady_clock::now() < deadline) {
 #ifdef _WIN32
-            const HANDLE pipeHandle = ::CreateFileA(
+            HANDLE pipeHandle = ::CreateFileA(
                 pipeName.c_str(),
                 GENERIC_READ | GENERIC_WRITE,
                 0, nullptr,
@@ -121,3 +122,5 @@ inline void ensure_connected(const std::string& pipeName) {
 }
 
 } // namespace geoqik::client::detail
+
+#endif // GEOQIK_CLIENT_DETAIL_CONNECTION_HPP

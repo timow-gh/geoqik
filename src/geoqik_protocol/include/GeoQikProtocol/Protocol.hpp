@@ -1,4 +1,5 @@
-#pragma once
+#ifndef GEOQIK_PROTOCOL_PROTOCOL_HPP
+#define GEOQIK_PROTOCOL_PROTOCOL_HPP
 
 #include <array>
 #include <bit>
@@ -19,7 +20,7 @@ inline constexpr std::size_t responseFrameByteCount = 20;
 inline constexpr std::size_t pointPayloadByteCount = 3 * sizeof(double);
 inline constexpr std::size_t linePayloadByteCount = 6 * sizeof(double);
 
-enum class CommandId : std::uint32_t {
+enum class CommandId : std::uint32_t { // NOLINT(performance-enum-size): wire protocol uses 32-bit command IDs.
     Draw        = 1,
     AddPoint    = 2,
     AddLine     = 3,
@@ -79,3 +80,5 @@ template<typename T>
 }
 
 } // namespace geoqik::protocol
+
+#endif // GEOQIK_PROTOCOL_PROTOCOL_HPP

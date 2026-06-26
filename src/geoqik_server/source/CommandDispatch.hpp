@@ -1,4 +1,5 @@
-#pragma once
+#ifndef GEOQIK_SERVER_COMMAND_DISPATCH_HPP
+#define GEOQIK_SERVER_COMMAND_DISPATCH_HPP
 
 #ifdef _WIN32
 #include <boost/asio/io_context.hpp>
@@ -20,3 +21,5 @@ using PipeStream = boost::asio::local::stream_protocol::socket;
 void handle_connection(PipeStream& stream);
 
 } // namespace geoqik::server::dispatch
+
+#endif // GEOQIK_SERVER_COMMAND_DISPATCH_HPP

@@ -1,10 +1,11 @@
-#pragma once
+#ifndef GEOQIK_CLIENT_DETAIL_PROCESS_MANAGER_HPP
+#define GEOQIK_CLIENT_DETAIL_PROCESS_MANAGER_HPP
 
 #include <GeoQikProtocol/Protocol.hpp>
 
 #include <boost/process.hpp>
-#include <cstdlib>
 #include <cstdint>
+#include <cstdlib>
 #include <stdexcept>
 #include <string>
 
@@ -93,8 +94,10 @@ private:
 #endif
     }
 
-    boost::process::child child_{};
+    boost::process::child child_;
     std::string pipeName_;
 };
 
 } // namespace geoqik::client::detail
+
+#endif // GEOQIK_CLIENT_DETAIL_PROCESS_MANAGER_HPP
