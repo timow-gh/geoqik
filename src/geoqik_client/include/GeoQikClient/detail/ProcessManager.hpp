@@ -4,6 +4,7 @@
 
 #include <boost/process.hpp>
 #include <cstdlib>
+#include <cstdint>
 #include <stdexcept>
 #include <string>
 
@@ -23,10 +24,16 @@ namespace geoqik::client::detail {
 
 class ProcessManager {
 public:
-    static ProcessManager& instance() {
+    [[nodiscard]] static ProcessManager& instance() {
         static ProcessManager pm;
         return pm;
     }
+
+    ProcessManager(const ProcessManager&) = delete;
+    ProcessManager& operator=(const ProcessManager&) = delete;
+    ProcessManager(ProcessManager&&) = delete;
+    ProcessManager& operator=(ProcessManager&&) = delete;
+    ~ProcessManager() = default;
 
     void start() {
         namespace bp = boost::process;
@@ -43,9 +50,9 @@ public:
         }
 
 #ifdef _WIN32
-        const int selfPid = static_cast<int>(::GetCurrentProcessId());
+        const auto selfPid = static_cast<std::uint64_t>(::GetCurrentProcessId());
 #else
-        const int selfPid = static_cast<int>(::getpid());
+        const auto selfPid = static_cast<std::uint64_t>(::getpid());
 #endif
         pipeName_ = geoqik::protocol::make_pipe_name(selfPid);
 
@@ -56,23 +63,29 @@ public:
         }
     }
 
-    const std::string& pipe_name() const { return pipeName_; }
+    [[nodiscard]] const std::string& pipe_name() const noexcept { return pipeName_; }
 
-    bool is_running() { return child_.running(); }
+    [[nodiscard]] bool is_running() { return child_.running(); }
 
 private:
     ProcessManager() = default;
 
+    [[nodiscard]]
     static std::string get_env(const char* name) {
 #ifdef _WIN32
-        char* value = nullptr;
-        std::size_t size = 0;
-        if (_dupenv_s(&value, &size, name) != 0 || value == nullptr) {
+        const DWORD requiredSize = ::GetEnvironmentVariableA(name, nullptr, 0);
+        if (requiredSize == 0) {
             return {};
         }
 
-        std::string result(value);
-        std::free(value);
+        std::string result(requiredSize, '\0');
+        const DWORD copiedSize = ::GetEnvironmentVariableA(
+            name, result.data(), requiredSize);
+        if (copiedSize == 0) {
+            return {};
+        }
+
+        result.resize(copiedSize);
         return result;
 #else
         const char* value = std::getenv(name);
@@ -80,7 +93,7 @@ private:
 #endif
     }
 
-    boost::process::child child_;
+    boost::process::child child_{};
     std::string pipeName_;
 };
 

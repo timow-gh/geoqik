@@ -3,7 +3,7 @@
 #include <iostream>
 #include <string>
 
-int main(int argc, char* argv[]) {
+int main(int argc, char** argv) {
     std::string pipeName;
     for (int i = 1; i < argc - 1; ++i) {
         if (std::string(argv[i]) == "--pipe-name") {
@@ -16,7 +16,7 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    auto err = geoqik_init();
+    const auto err = geoqik_init();
     if (err != GEOQIK_SUCCESS) {
         std::cerr << "geoqik_init failed: " << geoqik_get_error_string(err) << '\n';
         return 1;

@@ -1,14 +1,16 @@
 #pragma once
 
 #include <GeoQikProtocol/Protocol.hpp>
+
 #include <boost/asio.hpp>
 #include <boost/system/error_code.hpp>
 #include <chrono>
-#include <thread>
-#include <stdexcept>
-#include <vector>
-#include <cstring>
+#include <cstdint>
 #include <optional>
+#include <stdexcept>
+#include <string>
+#include <thread>
+#include <vector>
 
 #ifdef _WIN32
 #  include <boost/asio/windows/stream_handle.hpp>
@@ -29,16 +31,24 @@ public:
         boost::asio::io_context::executor_type>;
 #endif
 
+    Connection() = default;
+    ~Connection() = default;
+
+    Connection(const Connection&) = delete;
+    Connection& operator=(const Connection&) = delete;
+    Connection(Connection&&) = delete;
+    Connection& operator=(Connection&&) = delete;
+
     void connect(const std::string& pipeName) {
         using namespace std::chrono_literals;
-        constexpr auto kTimeout  = 5000ms;
-        constexpr auto kInterval =   10ms;
+        constexpr auto connectionTimeout = 5000ms;
+        constexpr auto retryInterval = 10ms;
 
-        auto deadline = std::chrono::steady_clock::now() + kTimeout;
+        const auto deadline = std::chrono::steady_clock::now() + connectionTimeout;
 
         while (std::chrono::steady_clock::now() < deadline) {
 #ifdef _WIN32
-            HANDLE h = ::CreateFileA(
+            const HANDLE pipeHandle = ::CreateFileA(
                 pipeName.c_str(),
                 GENERIC_READ | GENERIC_WRITE,
                 0, nullptr,
@@ -46,8 +56,8 @@ public:
                 FILE_FLAG_OVERLAPPED,
                 nullptr);
 
-            if (h != INVALID_HANDLE_VALUE) {
-                stream_.emplace(io_.get_executor(), h);
+            if (pipeHandle != INVALID_HANDLE_VALUE) {
+                stream_.emplace(io_.get_executor(), pipeHandle);
                 return;
             }
 #else
@@ -60,23 +70,24 @@ public:
                 return;
             }
 #endif
-            std::this_thread::sleep_for(kInterval);
+            std::this_thread::sleep_for(retryInterval);
         }
         throw std::runtime_error(
             "geoqik: timed out connecting to server pipe: " + pipeName);
     }
 
+    [[nodiscard]]
     geoqik::protocol::ResponseFrame send_recv(
         geoqik::protocol::CommandId cmd,
-        const std::vector<uint8_t>& payload)
+        const std::vector<std::uint8_t>& payload)
     {
         namespace proto = geoqik::protocol;
 
-        proto::FrameHeader hdr{};
-        hdr.commandId    = static_cast<uint32_t>(cmd);
-        hdr.payloadBytes = static_cast<uint32_t>(payload.size());
+        proto::FrameHeader header{};
+        header.commandId = static_cast<std::uint32_t>(cmd);
+        header.payloadBytes = proto::payload_byte_count(payload.size());
         boost::asio::write(*stream_,
-            boost::asio::buffer(&hdr, sizeof(hdr)));
+            boost::asio::buffer(&header, sizeof(header)));
 
         if (!payload.empty()) {
             boost::asio::write(*stream_,
@@ -89,20 +100,16 @@ public:
         return resp;
     }
 
-    bool connected() const { return stream_.has_value(); }
+    [[nodiscard]] bool connected() const noexcept { return stream_.has_value(); }
 
 private:
     boost::asio::io_context io_;
 
-#ifdef _WIN32
     std::optional<StreamType> stream_;
-#else
-    std::optional<StreamType> stream_;
-#endif
 };
 
 inline Connection& thread_connection() {
-    thread_local Connection conn;
+    thread_local Connection conn; // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
     return conn;
 }
 

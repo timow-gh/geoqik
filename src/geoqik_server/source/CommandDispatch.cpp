@@ -1,28 +1,60 @@
 #include "CommandDispatch.hpp"
-#include <GeoQikProtocol/Protocol.hpp>
+
 #include <GeoQik/GeoQik.hpp>
+#include <GeoQikProtocol/Protocol.hpp>
+
+#include <algorithm>
 #include <boost/asio.hpp>
 #include <cstdlib>
-#include <iostream>
+#include <cstdint>
 #include <vector>
-#include <cstring>
 
 namespace geoqik::server::dispatch {
 
 namespace proto = geoqik::protocol;
 
-static void send_response(PipeStream& stream,
-                           geoqik_error_code_t err,
-                           const geoqik_uuid_t* uuid = nullptr)
+namespace {
+
+void send_response(PipeStream& stream,
+                   geoqik_error_code_t err,
+                   const geoqik_uuid_t* uuid = nullptr)
 {
     proto::ResponseFrame resp{};
-    resp.errorCode = static_cast<uint32_t>(err);
-    if (uuid) {
-        std::memcpy(resp.uuid, uuid->value, 16);
+    resp.errorCode = static_cast<std::uint32_t>(err);
+    if (uuid != nullptr) {
+        std::copy_n(uuid->value, proto::uuidByteCount, resp.uuid.begin());
     }
     boost::asio::write(stream,
         boost::asio::buffer(&resp, sizeof(resp)));
 }
+
+[[nodiscard]] bool payload_size_matches(proto::CommandId commandId, std::size_t payloadSize) {
+    switch (commandId) {
+    case proto::CommandId::Draw:
+    case proto::CommandId::WaitForExit:
+    case proto::CommandId::Cleanup:
+        return payloadSize == 0;
+    case proto::CommandId::AddPoint:
+        return payloadSize == proto::pointPayloadByteCount;
+    case proto::CommandId::AddLine:
+        return payloadSize == proto::linePayloadByteCount;
+    default:
+        return false;
+    }
+}
+
+template<typename T>
+[[nodiscard]] T read_field(const std::vector<std::uint8_t>& payload, std::size_t& offset) {
+    auto value = proto::read_pod<T>(payload, offset);
+    offset += sizeof(T);
+    return value;
+}
+
+[[noreturn]] void exit_success() {
+    std::exit(EXIT_SUCCESS); // NOLINT(concurrency-mt-unsafe)
+}
+
+} // namespace
 
 void handle_connection(PipeStream& stream) {
     for (;;) {
@@ -30,59 +62,66 @@ void handle_connection(PipeStream& stream) {
         boost::system::error_code ec;
         boost::asio::read(stream,
             boost::asio::buffer(&header, sizeof(header)), ec);
-        if (ec) return;
+        if (ec) {
+            return;
+        }
 
-        std::vector<uint8_t> payload(header.payloadBytes);
+        std::vector<std::uint8_t> payload(header.payloadBytes);
         if (header.payloadBytes > 0) {
             boost::asio::read(stream,
                 boost::asio::buffer(payload.data(), payload.size()), ec);
-            if (ec) return;
+            if (ec) {
+                return;
+            }
         }
 
         const auto cmd = static_cast<proto::CommandId>(header.commandId);
+        if (!payload_size_matches(cmd, payload.size())) {
+            send_response(stream, GEOQIK_ERROR_INVALID_PARAMETER);
+            return;
+        }
+
         switch (cmd) {
 
         case proto::CommandId::Draw: {
-            auto err = geoqik_draw();
+            const auto err = geoqik_draw();
             send_response(stream, err);
             break;
         }
 
         case proto::CommandId::AddPoint: {
-            const uint8_t* p = payload.data();
-            double x = proto::read_pod<double>(p);      p += 8;
-            double y = proto::read_pod<double>(p);      p += 8;
-            double z = proto::read_pod<double>(p);
-            auto result = geoqik_add_point(x, y, z);
+            std::size_t offset = 0;
+            const auto x = read_field<double>(payload, offset);
+            const auto y = read_field<double>(payload, offset);
+            const auto z = read_field<double>(payload, offset);
+            const auto result = geoqik_add_point(x, y, z);
             send_response(stream, result.err, &result.geometryId);
             break;
         }
 
         case proto::CommandId::AddLine: {
-            const uint8_t* p = payload.data();
-            double x1 = proto::read_pod<double>(p);  p += 8;
-            double y1 = proto::read_pod<double>(p);  p += 8;
-            double z1 = proto::read_pod<double>(p);  p += 8;
-            double x2 = proto::read_pod<double>(p);  p += 8;
-            double y2 = proto::read_pod<double>(p);  p += 8;
-            double z2 = proto::read_pod<double>(p);
-            auto err = geoqik_add_line(x1, y1, z1, x2, y2, z2);
+            std::size_t offset = 0;
+            const auto x1 = read_field<double>(payload, offset);
+            const auto y1 = read_field<double>(payload, offset);
+            const auto z1 = read_field<double>(payload, offset);
+            const auto x2 = read_field<double>(payload, offset);
+            const auto y2 = read_field<double>(payload, offset);
+            const auto z2 = read_field<double>(payload, offset);
+            const auto err = geoqik_add_line(x1, y1, z1, x2, y2, z2);
             send_response(stream, err);
             break;
         }
 
         case proto::CommandId::WaitForExit: {
-            auto err = geoqik_wait_for_exit_and_cleanup();
+            const auto err = geoqik_wait_for_exit_and_cleanup();
             send_response(stream, err);
-            std::exit(0); // NOLINT(concurrency-mt-unsafe)
-            break;
+            exit_success();
         }
 
         case proto::CommandId::Cleanup: {
-            auto err = geoqik_cleanup();
+            const auto err = geoqik_cleanup();
             send_response(stream, err);
-            std::exit(0); // NOLINT(concurrency-mt-unsafe)
-            break;
+            exit_success();
         }
 
         default:

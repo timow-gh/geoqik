@@ -3,41 +3,60 @@
 #include <GeoQikProtocol/Protocol.hpp>
 
 #ifdef _WIN32
-#include <windows.h>
 #include <boost/asio.hpp>
 #include <boost/asio/windows/stream_handle.hpp>
-#include <thread>
-#include <stdexcept>
+#include <cstdlib>
 #include <iostream>
+#include <thread>
+#include <windows.h>
 
 namespace geoqik::server {
 
 void run(const std::string& pipeName) {
+    constexpr DWORD pipeBufferSize = 65536;
+
     for (;;) {
-        HANDLE h = ::CreateNamedPipeA(
+        const HANDLE pipeHandle = ::CreateNamedPipeA(
             pipeName.c_str(),
             PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED,
             PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT,
             PIPE_UNLIMITED_INSTANCES,
-            /*outBuf=*/65536,
-            /*inBuf=*/ 65536,
+            pipeBufferSize,
+            pipeBufferSize,
             /*defaultTimeout=*/0,
             /*security=*/nullptr);
 
-        if (h == INVALID_HANDLE_VALUE) {
+        if (pipeHandle == INVALID_HANDLE_VALUE) {
             std::cerr << "CreateNamedPipe failed: " << ::GetLastError() << '\n';
-            std::exit(1);
+            std::exit(EXIT_FAILURE); // NOLINT(concurrency-mt-unsafe)
         }
 
-        OVERLAPPED ov{};
-        ov.hEvent = ::CreateEvent(nullptr, TRUE, FALSE, nullptr);
-        ::ConnectNamedPipe(h, &ov);
-        ::WaitForSingleObject(ov.hEvent, INFINITE);
-        ::CloseHandle(ov.hEvent);
+        OVERLAPPED overlapped{};
+        overlapped.hEvent = ::CreateEvent(nullptr, TRUE, FALSE, nullptr);
+        if (overlapped.hEvent == nullptr) {
+            std::cerr << "CreateEvent failed: " << ::GetLastError() << '\n';
+            ::CloseHandle(pipeHandle);
+            std::exit(EXIT_FAILURE); // NOLINT(concurrency-mt-unsafe)
+        }
 
-        std::thread([h]() {
+        const BOOL connected = ::ConnectNamedPipe(pipeHandle, &overlapped);
+        const DWORD connectError = (connected == FALSE) ? ::GetLastError() : ERROR_SUCCESS;
+        if ((connectError != ERROR_SUCCESS) && (connectError != ERROR_IO_PENDING)
+            && (connectError != ERROR_PIPE_CONNECTED)) {
+            std::cerr << "ConnectNamedPipe failed: " << connectError << '\n';
+            ::CloseHandle(overlapped.hEvent);
+            ::CloseHandle(pipeHandle);
+            std::exit(EXIT_FAILURE); // NOLINT(concurrency-mt-unsafe)
+        }
+
+        if (connectError == ERROR_IO_PENDING) {
+            ::WaitForSingleObject(overlapped.hEvent, INFINITE);
+        }
+        ::CloseHandle(overlapped.hEvent);
+
+        std::thread([pipeHandle]() {
             boost::asio::io_context io;
-            PipeStream stream(io.get_executor(), h);
+            dispatch::PipeStream stream(io.get_executor(), pipeHandle);
             dispatch::handle_connection(stream);
         }).detach();
     }
@@ -49,8 +68,11 @@ void run(const std::string& pipeName) {
 #ifndef _WIN32
 #include <boost/asio.hpp>
 #include <boost/asio/local/stream_protocol.hpp>
-#include <thread>
+#include <cstdlib>
 #include <filesystem>
+#include <iostream>
+#include <system_error>
+#include <thread>
 
 namespace asio = boost::asio;
 
@@ -60,7 +82,12 @@ void run(const std::string& socketPath) {
     namespace local = asio::local;
     asio::io_context io;
 
-    std::filesystem::remove(socketPath);
+    std::error_code removeError;
+    std::filesystem::remove(socketPath, removeError);
+    if (removeError) {
+        std::cerr << "Removing existing socket failed: " << removeError.message() << '\n';
+        std::exit(EXIT_FAILURE); // NOLINT(concurrency-mt-unsafe)
+    }
 
     local::stream_protocol::acceptor acceptor(
         io,
