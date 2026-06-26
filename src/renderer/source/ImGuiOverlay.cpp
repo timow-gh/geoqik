@@ -22,11 +22,13 @@ constexpr float controlPanelMinWidth = 280.0F;
 constexpr float controlPanelMaxWidth = 480.0F;
 constexpr float controlPanelTinyViewportMinWidth = 160.0F;
 constexpr float resizeGripWidth = 8.0F;
+constexpr float resizeGripLineInset = 2.0F;
+constexpr float controlPanelSideCount = 2.0F;
 
 float panel_max_width(float viewportWidth)
 {
   const float visibleWidth = std::max(controlPanelTinyViewportMinWidth,
-                                      viewportWidth - 2.0F * controlPanelMargin);
+                                      viewportWidth - controlPanelSideCount * controlPanelMargin);
   return std::min(controlPanelMaxWidth, visibleWidth);
 }
 
@@ -59,15 +61,22 @@ void render_panel_resize_grip(float& panelWidth, float viewportWidth, float heig
     panelWidth = clamp_panel_width(panelWidth + ImGui::GetIO().MouseDelta.x, viewportWidth);
   }
 
-  const ImU32 gripColor =
-      ImGui::GetColorU32(active ? ImGuiCol_ResizeGripActive
-                                : (hovered ? ImGuiCol_ResizeGripHovered : ImGuiCol_Border));
+  ImGuiCol gripColorIdx = ImGuiCol_Border;
+  if (active)
+  {
+    gripColorIdx = ImGuiCol_ResizeGripActive;
+  }
+  else if (hovered)
+  {
+    gripColorIdx = ImGuiCol_ResizeGripHovered;
+  }
+  const ImU32 gripColor = ImGui::GetColorU32(gripColorIdx);
   const ImVec2 gripMin = ImGui::GetItemRectMin();
   const ImVec2 gripMax = ImGui::GetItemRectMax();
   const float gripCenterX = (gripMin.x + gripMax.x) * 0.5F;
   ImDrawList* drawList = ImGui::GetWindowDrawList();
-  drawList->AddLine(ImVec2{gripCenterX, gripMin.y + 2.0F},
-                    ImVec2{gripCenterX, gripMax.y - 2.0F},
+  drawList->AddLine(ImVec2{gripCenterX, gripMin.y + resizeGripLineInset},
+                    ImVec2{gripCenterX, gripMax.y - resizeGripLineInset},
                     gripColor,
                     1.0F);
 }
@@ -150,7 +159,7 @@ void ImGuiOverlay::render()
                                    viewport->WorkPos.y + controlPanelMargin},
                             ImGuiCond_Always);
     ImGui::SetNextWindowSize(ImVec2{m_controlPanelWidth,
-                                    std::max(0.0F, viewport->WorkSize.y - 2.0F * controlPanelMargin)},
+                                    std::max(0.0F, viewport->WorkSize.y - controlPanelSideCount * controlPanelMargin)},
                              ImGuiCond_Always);
 
     constexpr ImGuiWindowFlags windowFlags =
@@ -163,7 +172,7 @@ void ImGuiOverlay::render()
     {
       const ImVec2 availableContentSize = ImGui::GetContentRegionAvail();
       const float contentWidth = std::max(1.0F, availableContentSize.x - resizeGripWidth);
-      if (ImGui::BeginChild("##ControlPanelContent", ImVec2{contentWidth, 0.0F}, false))
+      if (ImGui::BeginChild("##ControlPanelContent", ImVec2{contentWidth, 0.0F}, 0))
       {
         for (const auto& control : m_controls)
         {
@@ -194,7 +203,7 @@ void ImGuiOverlay::end_frame() // NOLINT(readability-convert-member-functions-to
 
 float ImGuiOverlay::get_reserved_control_panel_width() const
 {
-  return m_controlPanelWidth + 2.0F * controlPanelMargin;
+  return m_controlPanelWidth + controlPanelSideCount * controlPanelMargin;
 }
 
 bool ImGuiOverlay::wants_mouse() const // NOLINT(readability-convert-member-functions-to-static)

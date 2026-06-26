@@ -1,8 +1,8 @@
 #include <Renderer/Renderer.hpp>
 
 #include <algorithm>
-#include <cstdint>
 #include <cmath>
+#include <cstdint>
 
 namespace renderer
 {
@@ -433,7 +433,11 @@ void Renderer::add_key_callback(KeyCB cb)                 { m_keyCallbacks.push_
 
 void Renderer::update_scene_viewport()
 {
-  const double reservedWidth = m_imgui ? m_imgui->get_reserved_control_panel_width() : 0.0;
+  double reservedWidth = 0.0;
+  if (m_imgui)
+  {
+    reservedWidth = static_cast<double>(m_imgui->get_reserved_control_panel_width());
+  }
   m_sceneViewport =
       Renderer::calculate_scene_viewport(m_window.get_window_size(),
                                          m_window.get_framebuffer_size(),

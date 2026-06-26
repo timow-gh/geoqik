@@ -1561,7 +1561,7 @@ void Context::process_replay_entries(const std::chrono::high_resolution_clock::t
 
   if (m_replayEntryIndex >= m_replayEntries.size())
   {
-    m_isReplayPaused = true;
+    finish_replay();
     m_lastReplayTick = now;
     return;
   }
@@ -1577,7 +1577,7 @@ void Context::process_replay_entries(const std::chrono::high_resolution_clock::t
 
   if (is_replaying() && m_replayEntryIndex >= m_replayEntries.size())
   {
-    m_isReplayPaused = true;
+    finish_replay();
   }
 }
 
@@ -1598,7 +1598,7 @@ void Context::apply_replay_entries(std::size_t entriesToApply)
 
   if (is_replaying() && m_replayEntryIndex >= m_replayEntries.size())
   {
-    m_isReplayPaused = true;
+    finish_replay();
   }
 }
 
