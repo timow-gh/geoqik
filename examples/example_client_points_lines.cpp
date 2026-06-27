@@ -54,7 +54,7 @@ int main() {
     geoqik_add_points_options_t batchOpts{};
     batchOpts.color      = batchColors.data();
     batchOpts.colorCount = batchColors.size();
-    auto bpr = geoqik_add_points_opts(batchPts.data(), batchSize, &batchOpts);
+    auto bpr = geoqik_add_points_opts(batchPts.data(), batchPts.size(), &batchOpts);
     assert(bpr.err == GEOQIK_SUCCESS);
 
     for (std::size_t i = 0; i < batchSize; ++i) {
@@ -63,7 +63,7 @@ int main() {
     geoqik_update_points_options_t ubOpts{};
     ubOpts.color      = batchColors.data();
     ubOpts.colorCount = batchColors.size();
-    err = geoqik_update_points_opts(&bpr.geometryId, batchPts.data(), batchSize, &ubOpts);
+    err = geoqik_update_points_opts(&bpr.geometryId, batchPts.data(), batchPts.size(), &ubOpts);
     assert(err == GEOQIK_SUCCESS);
 
     err = geoqik_remove_point(&pr.geometryId);
@@ -99,10 +99,13 @@ int main() {
     geoqik_add_line_opts_t batchLineOpts{};
     batchLineOpts.color      = red;
     batchLineOpts.colorCount = 4;
-    auto blr = geoqik_add_lines_opts(linesData.data(), lineCount, &batchLineOpts);
+    auto blr = geoqik_add_lines_opts(linesData.data(), linesData.size(), &batchLineOpts);
     assert(blr.err == GEOQIK_SUCCESS);
 
     err = geoqik_remove_line(&lr.geometryId);
+    assert(err == GEOQIK_SUCCESS);
+
+    err = geoqik_replay_current_log(NULL);
     assert(err == GEOQIK_SUCCESS);
 
     err = geoqik_wait_for_exit_and_cleanup();

@@ -196,11 +196,11 @@ void send_api_response(PipeStream& stream,
         // pathLen (uint32) + format (int32)
         return payloadSize >= sizeof(std::uint32_t) + sizeof(std::int32_t);
     case proto::CommandId::ReplayLog:
-        // pathLen (uint32) + format (int32) + minimum options block (60 bytes)
-        return payloadSize >= sizeof(std::uint32_t) + sizeof(std::int32_t) + 60;
+        // pathLen (uint32) + format (int32) + minimum options block
+        return payloadSize >= sizeof(std::uint32_t) + sizeof(std::int32_t)
+                              + proto::replayOptionsMinByteCount;
     case proto::CommandId::ReplayCurrentLog:
-        // minimum options block (60 bytes)
-        return payloadSize >= 60;
+        return payloadSize >= proto::replayOptionsMinByteCount;
 
     default:
         return false;
@@ -623,7 +623,7 @@ void handle_connection(PipeStream& stream) {
                 opts.color      = colors.data();
                 opts.colorCount = static_cast<std::size_t>(colors.size());
             }
-            const auto result = geoqik_add_points_opts(points, static_cast<std::size_t>(count), &opts);
+            const auto result = geoqik_add_points_opts(points, static_cast<std::size_t>(count) * 3, &opts);
             send_api_response(stream, result.err, &result.geometryId);
             break;
         }
@@ -691,7 +691,7 @@ void handle_connection(PipeStream& stream) {
                 opts.color      = colors.data();
                 opts.colorCount = static_cast<std::size_t>(colors.size());
             }
-            const auto err = geoqik_update_points_opts(&id, points, static_cast<std::size_t>(count), &opts);
+            const auto err = geoqik_update_points_opts(&id, points, static_cast<std::size_t>(count) * 3, &opts);
             send_api_response(stream, err);
             break;
         }
@@ -763,7 +763,7 @@ void handle_connection(PipeStream& stream) {
                 opts.color      = colors.data();
                 opts.colorCount = static_cast<std::size_t>(colors.size());
             }
-            const auto result = geoqik_add_lines_opts(lines, static_cast<std::size_t>(count), &opts);
+            const auto result = geoqik_add_lines_opts(lines, static_cast<std::size_t>(count) * 6, &opts);
             send_api_response(stream, result.err, &result.geometryId);
             break;
         }
@@ -840,7 +840,7 @@ void handle_connection(PipeStream& stream) {
                 opts.color      = colors.data();
                 opts.colorCount = static_cast<std::size_t>(colors.size());
             }
-            const auto err = geoqik_update_lines_opts(&id, lines, static_cast<std::size_t>(count), &opts);
+            const auto err = geoqik_update_lines_opts(&id, lines, static_cast<std::size_t>(count) * 6, &opts);
             send_api_response(stream, err);
             break;
         }

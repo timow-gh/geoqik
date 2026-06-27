@@ -1483,7 +1483,7 @@ geoqik_result_t geoqik_add_lines_opts(const double* lines, size_t size, geoqik_a
     return geoqik_internal::invalid_parameter_result("geoqik_add_lines_opts", "parameters: lines, size; expected non-null lines and size multiple of 6");
   }
 
-  // count is the total number of doubles in the array; each line occupies 6 values (x1,y1,z1,x2,y2,z2)
+  // size is the total number of doubles in the array; each line occupies 6 values (x1,y1,z1,x2,y2,z2)
   std::vector<float> linesCopy(size);
   std::vector<float> colorsCopy;
   const std::size_t lineCount = size / lineCoordinateCount;

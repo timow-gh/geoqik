@@ -311,7 +311,7 @@ extern "C"
 
   /** \brief Adds a single point with extended options (idempotency key, per-point color). */
   GEOQIK_EXPORT geoqik_result_t geoqik_add_point_opts(double x, double y, double z, geoqik_add_points_options_t* options);
-  /** \brief Adds multiple points from a flat XYZ array (size = number of points). */
+  /** \brief Adds multiple points from a flat XYZ array (size = number of double values, must be a multiple of 3). */
   GEOQIK_EXPORT geoqik_result_t geoqik_add_points_opts(const double* points, size_t size, geoqik_add_points_options_t* options);
 
   /** \brief Updates the point identified by geometryId to a new position. */
@@ -320,7 +320,7 @@ extern "C"
   GEOQIK_EXPORT geoqik_error_code_t geoqik_update_point_with_color(const geoqik_uuid_t* geometryId, double x, double y, double z, float r, float g, float b, float a);
   /** \brief Updates the point identified by geometryId with extended options. */
   GEOQIK_EXPORT geoqik_error_code_t geoqik_update_point_opts(const geoqik_uuid_t* geometryId, double x, double y, double z, geoqik_update_points_options_t* options);
-  /** \brief Updates multiple points identified by geometryId from a flat XYZ array. */
+  /** \brief Updates multiple points identified by geometryId from a flat XYZ array (size = number of double values, must be a multiple of 3). */
   GEOQIK_EXPORT geoqik_error_code_t geoqik_update_points_opts(const geoqik_uuid_t* geometryId, const double* points, size_t size, geoqik_update_points_options_t* options);
 
   /** \brief Removes the point identified by geometryId. */
@@ -348,7 +348,7 @@ extern "C"
 
   /** \brief Adds a single line with extended options (idempotency key, per-line color). */
   GEOQIK_EXPORT geoqik_result_t geoqik_add_line_opts(double x1, double y1, double z1, double x2, double y2, double z2, geoqik_add_line_opts_t* options);
-  /** \brief Adds multiple lines from a flat array of endpoint pairs (size = number of lines). */
+  /** \brief Adds multiple lines from a flat array of endpoint pairs (size = number of double values, must be a multiple of 6). */
   GEOQIK_EXPORT geoqik_result_t geoqik_add_lines_opts(const double* lines, size_t size, geoqik_add_line_opts_t* options);
 
   /** \brief Updates the line identified by geometryId. */
@@ -374,7 +374,7 @@ extern "C"
                                                             double y2,
                                                             double z2,
                                                             geoqik_update_line_opts_t* options);
-  /** \brief Updates multiple lines identified by geometryId from a flat endpoint-pair array. */
+  /** \brief Updates multiple lines identified by geometryId from a flat endpoint-pair array (size = number of double values, must be a multiple of 6). */
   GEOQIK_EXPORT geoqik_error_code_t geoqik_update_lines_opts(const geoqik_uuid_t* geometryId, const double* lines, size_t size, geoqik_update_line_opts_t* options);
 
   /** \brief Removes the line identified by geometryId. */

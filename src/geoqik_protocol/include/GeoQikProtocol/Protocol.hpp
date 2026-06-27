@@ -260,6 +260,17 @@ inline constexpr std::size_t setMeshRenderingOptsPayloadByteCount =
 // StepReplayN / StepReplayBackwardN carry a single uint64 count.
 inline constexpr std::size_t stepReplayNPayloadByteCount = sizeof(std::uint64_t);
 
+// Minimum wire size of a serialized geoqik_replay_options_t:
+// 2x double + uint64 + int32 + uint64 + 6x uint32 count fields.
+inline constexpr std::size_t replayOptionsMinByteCount =
+    2 * sizeof(double) +
+    sizeof(std::uint64_t) +
+    sizeof(std::int32_t) +
+    sizeof(std::uint64_t) +
+    6 * sizeof(std::uint32_t);
+static_assert(replayOptionsMinByteCount == 60,
+    "replayOptionsMinByteCount must match the wire-format byte count");
+
 inline void write_idempotency_key(std::vector<std::uint8_t>& buf,
                                    const std::array<std::uint8_t, uuidByteCount>& key)
 {

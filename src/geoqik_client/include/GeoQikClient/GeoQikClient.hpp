@@ -644,18 +644,18 @@ inline void geoqik_init_default_window_settings(geoqik_window_settings_t* settin
 
 [[nodiscard]] inline const char* geoqik_get_error_string(geoqik_error_code_t result) {
     switch (result) {
-    case GEOQIK_SUCCESS:                   return "GEOQIK_SUCCESS";
-    case GEOQIK_ERROR_NOT_INITIALIZED:     return "GEOQIK_ERROR_NOT_INITIALIZED";
-    case GEOQIK_ERROR_ALREADY_INITIALIZED: return "GEOQIK_ERROR_ALREADY_INITIALIZED";
-    case GEOQIK_ERROR_INVALID_PARAMETER:   return "GEOQIK_ERROR_INVALID_PARAMETER";
-    case GEOQIK_ERROR_WRONG_COLOR_SIZE:    return "GEOQIK_ERROR_WRONG_COLOR_SIZE";
-    case GEOQIK_ERROR_MEMORY_ALLOCATION:   return "GEOQIK_ERROR_MEMORY_ALLOCATION";
-    case GEOQIK_ERROR_UNKNOWN:             return "GEOQIK_ERROR_UNKNOWN";
-    case GEOQIK_ERROR_RENDERER_INIT_FAILED: return "GEOQIK_ERROR_RENDERER_INIT_FAILED";
-    case GEOQIK_ERROR_IO:                  return "GEOQIK_ERROR_IO";
-    case GEOQIK_ERROR_UNSUPPORTED_FORMAT:  return "GEOQIK_ERROR_UNSUPPORTED_FORMAT";
-    case GEOQIK_ERROR_INVALID_STATE:       return "GEOQIK_ERROR_INVALID_STATE";
-    default:                               return "GEOQIK_ERROR_UNKNOWN";
+    case GEOQIK_SUCCESS:                    return "Success";
+    case GEOQIK_ERROR_NOT_INITIALIZED:      return "GeoQik not initialized";
+    case GEOQIK_ERROR_ALREADY_INITIALIZED:  return "GeoQik already initialized";
+    case GEOQIK_ERROR_INVALID_PARAMETER:    return "Invalid parameter";
+    case GEOQIK_ERROR_WRONG_COLOR_SIZE:     return "Wrong RGBA color size";
+    case GEOQIK_ERROR_MEMORY_ALLOCATION:    return "Memory allocation error";
+    case GEOQIK_ERROR_UNKNOWN:              return "Unknown error";
+    case GEOQIK_ERROR_RENDERER_INIT_FAILED: return "Renderer initialization failed";
+    case GEOQIK_ERROR_IO:                   return "I/O error";
+    case GEOQIK_ERROR_UNSUPPORTED_FORMAT:   return "Unsupported format";
+    case GEOQIK_ERROR_INVALID_STATE:        return "Invalid state";
+    default:                                return "Invalid error code";
     }
 }
 
@@ -1000,23 +1000,22 @@ inline void geoqik_clear_last_error() {
 [[nodiscard]] inline geoqik_result_t geoqik_add_points_opts(
     const double* points, std::size_t size, geoqik_add_points_options_t* options)
 {
-    if (points == nullptr && size > 0) {
+    if (points == nullptr || size == 0 || size % 3 != 0) {
         return geoqik_result_t{GEOQIK_ERROR_INVALID_PARAMETER, {}};
     }
     return geoqik_client_impl::execute_client_call("geoqik_add_points_opts",
         [&]() -> geoqik_result_t {
             namespace proto = geoqik::protocol;
+            const std::uint64_t pointCount = static_cast<std::uint64_t>(size / 3);
             std::vector<std::uint8_t> payload;
             payload.reserve(proto::uuidByteCount + sizeof(std::uint64_t)
-                            + size * 3 * sizeof(double) + 4);
+                            + size * sizeof(double) + sizeof(std::uint32_t));
             const geoqik_uuid_t emptyKey{};
             const geoqik_uuid_t& key = (options != nullptr) ? options->idempotencyKey : emptyKey;
             geoqik_client_impl::write_uuid(payload, key);
-            proto::write_pod(payload, static_cast<std::uint64_t>(size));
-            if (size > 0) {
-                const auto* bytes = reinterpret_cast<const std::uint8_t*>(points);
-                payload.insert(payload.end(), bytes, bytes + size * 3 * sizeof(double));
-            }
+            proto::write_pod(payload, pointCount);
+            const auto* bytes = reinterpret_cast<const std::uint8_t*>(points);
+            payload.insert(payload.end(), bytes, bytes + size * sizeof(double));
             const float* col    = (options != nullptr) ? options->color      : nullptr;
             const auto colCount = (options != nullptr) ? options->colorCount : 0;
             geoqik_client_impl::append_colors(payload, col, colCount);
@@ -1092,19 +1091,18 @@ inline void geoqik_clear_last_error() {
     const geoqik_uuid_t* geometryId, const double* points, std::size_t size,
     geoqik_update_points_options_t* options)
 {
-    if (geometryId == nullptr || (points == nullptr && size > 0)) {
+    if (geometryId == nullptr || points == nullptr || size == 0 || size % 3 != 0) {
         return GEOQIK_ERROR_INVALID_PARAMETER;
     }
     return geoqik_client_impl::execute_client_call("geoqik_update_points_opts",
         [&]() -> geoqik_error_code_t {
             namespace proto = geoqik::protocol;
+            const std::uint64_t pointCount = static_cast<std::uint64_t>(size / 3);
             std::vector<std::uint8_t> payload;
             geoqik_client_impl::write_uuid(payload, *geometryId);
-            proto::write_pod(payload, static_cast<std::uint64_t>(size));
-            if (size > 0) {
-                const auto* bytes = reinterpret_cast<const std::uint8_t*>(points);
-                payload.insert(payload.end(), bytes, bytes + size * 3 * sizeof(double));
-            }
+            proto::write_pod(payload, pointCount);
+            const auto* bytes = reinterpret_cast<const std::uint8_t*>(points);
+            payload.insert(payload.end(), bytes, bytes + size * sizeof(double));
             const float* col    = (options != nullptr) ? options->color      : nullptr;
             const auto colCount = (options != nullptr) ? options->colorCount : 0;
             geoqik_client_impl::append_colors(payload, col, colCount);
@@ -1178,21 +1176,20 @@ inline void geoqik_clear_last_error() {
 [[nodiscard]] inline geoqik_result_t geoqik_add_lines_opts(
     const double* lines, std::size_t size, geoqik_add_line_opts_t* options)
 {
-    if (lines == nullptr && size > 0) {
+    if (lines == nullptr || size == 0 || size % 6 != 0) {
         return geoqik_result_t{GEOQIK_ERROR_INVALID_PARAMETER, {}};
     }
     return geoqik_client_impl::execute_client_call("geoqik_add_lines_opts",
         [&]() -> geoqik_result_t {
             namespace proto = geoqik::protocol;
+            const std::uint64_t lineCount = static_cast<std::uint64_t>(size / 6);
             std::vector<std::uint8_t> payload;
             const geoqik_uuid_t emptyKey{};
             const geoqik_uuid_t& key = (options != nullptr) ? options->idempotencyKey : emptyKey;
             geoqik_client_impl::write_uuid(payload, key);
-            proto::write_pod(payload, static_cast<std::uint64_t>(size));
-            if (size > 0) {
-                const auto* bytes = reinterpret_cast<const std::uint8_t*>(lines);
-                payload.insert(payload.end(), bytes, bytes + size * 6 * sizeof(double));
-            }
+            proto::write_pod(payload, lineCount);
+            const auto* bytes = reinterpret_cast<const std::uint8_t*>(lines);
+            payload.insert(payload.end(), bytes, bytes + size * sizeof(double));
             const float* col    = (options != nullptr) ? options->color      : nullptr;
             const auto colCount = (options != nullptr) ? options->colorCount : 0;
             geoqik_client_impl::append_colors(payload, col, colCount);
@@ -1273,19 +1270,18 @@ inline void geoqik_clear_last_error() {
     const geoqik_uuid_t* geometryId, const double* lines, std::size_t size,
     geoqik_update_line_opts_t* options)
 {
-    if (geometryId == nullptr || (lines == nullptr && size > 0)) {
+    if (geometryId == nullptr || lines == nullptr || size == 0 || size % 6 != 0) {
         return GEOQIK_ERROR_INVALID_PARAMETER;
     }
     return geoqik_client_impl::execute_client_call("geoqik_update_lines_opts",
         [&]() -> geoqik_error_code_t {
             namespace proto = geoqik::protocol;
+            const std::uint64_t lineCount = static_cast<std::uint64_t>(size / 6);
             std::vector<std::uint8_t> payload;
             geoqik_client_impl::write_uuid(payload, *geometryId);
-            proto::write_pod(payload, static_cast<std::uint64_t>(size));
-            if (size > 0) {
-                const auto* bytes = reinterpret_cast<const std::uint8_t*>(lines);
-                payload.insert(payload.end(), bytes, bytes + size * 6 * sizeof(double));
-            }
+            proto::write_pod(payload, lineCount);
+            const auto* bytes = reinterpret_cast<const std::uint8_t*>(lines);
+            payload.insert(payload.end(), bytes, bytes + size * sizeof(double));
             const float* col    = (options != nullptr) ? options->color      : nullptr;
             const auto colCount = (options != nullptr) ? options->colorCount : 0;
             geoqik_client_impl::append_colors(payload, col, colCount);
