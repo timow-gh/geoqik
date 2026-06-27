@@ -35,6 +35,7 @@ typedef struct {
 #include <GeoQikClient/detail/ProcessManager.hpp>
 #include <GeoQikProtocol/Protocol.hpp>
 #include <algorithm>
+#include <cstddef>
 #include <cstring>
 #include <exception>
 #include <iterator>
@@ -42,6 +43,92 @@ typedef struct {
 #include <string>
 #include <type_traits>
 #include <vector>
+
+// ── Log format ────────────────────────────────────────────────────────────────
+// Mirror of geoqik_log_format_t from GeoQik.hpp — must be kept in sync.
+enum geoqik_log_format_t : int { // NOLINT(readability-identifier-naming,performance-enum-size)
+    GEOQIK_LOG_FORMAT_BINARY = 0
+};
+
+// ── Key enum ──────────────────────────────────────────────────────────────────
+// Mirror of geoqik_key_t from GeoQik.hpp — must be kept in sync.
+enum geoqik_key_t : int { // NOLINT(readability-identifier-naming,performance-enum-size)
+    GEOQIK_KEY_UNKNOWN = -1,
+    GEOQIK_KEY_SPACE = 32, GEOQIK_KEY_APOSTROPHE = 39, GEOQIK_KEY_COMMA = 44,
+    GEOQIK_KEY_MINUS = 45, GEOQIK_KEY_PERIOD = 46, GEOQIK_KEY_SLASH = 47,
+    GEOQIK_KEY_0 = 48, GEOQIK_KEY_1 = 49, GEOQIK_KEY_2 = 50, GEOQIK_KEY_3 = 51,
+    GEOQIK_KEY_4 = 52, GEOQIK_KEY_5 = 53, GEOQIK_KEY_6 = 54, GEOQIK_KEY_7 = 55,
+    GEOQIK_KEY_8 = 56, GEOQIK_KEY_9 = 57, GEOQIK_KEY_SEMICOLON = 59,
+    GEOQIK_KEY_EQUAL = 61,
+    GEOQIK_KEY_A = 65, GEOQIK_KEY_B = 66, GEOQIK_KEY_C = 67, GEOQIK_KEY_D = 68,
+    GEOQIK_KEY_E = 69, GEOQIK_KEY_F = 70, GEOQIK_KEY_G = 71, GEOQIK_KEY_H = 72,
+    GEOQIK_KEY_I = 73, GEOQIK_KEY_J = 74, GEOQIK_KEY_K = 75, GEOQIK_KEY_L = 76,
+    GEOQIK_KEY_M = 77, GEOQIK_KEY_N = 78, GEOQIK_KEY_O = 79, GEOQIK_KEY_P = 80,
+    GEOQIK_KEY_Q = 81, GEOQIK_KEY_R = 82, GEOQIK_KEY_S = 83, GEOQIK_KEY_T = 84,
+    GEOQIK_KEY_U = 85, GEOQIK_KEY_V = 86, GEOQIK_KEY_W = 87, GEOQIK_KEY_X = 88,
+    GEOQIK_KEY_Y = 89, GEOQIK_KEY_Z = 90,
+    GEOQIK_KEY_LEFT_BRACKET = 91, GEOQIK_KEY_BACKSLASH = 92,
+    GEOQIK_KEY_RIGHT_BRACKET = 93, GEOQIK_KEY_GRAVE_ACCENT = 96,
+    GEOQIK_KEY_WORLD_1 = 161, GEOQIK_KEY_WORLD_2 = 162,
+    GEOQIK_KEY_ESCAPE = 256, GEOQIK_KEY_ENTER = 257, GEOQIK_KEY_TAB = 258,
+    GEOQIK_KEY_BACKSPACE = 259, GEOQIK_KEY_INSERT = 260, GEOQIK_KEY_DELETE = 261,
+    GEOQIK_KEY_RIGHT = 262, GEOQIK_KEY_LEFT = 263, GEOQIK_KEY_DOWN = 264,
+    GEOQIK_KEY_UP = 265, GEOQIK_KEY_PAGE_UP = 266, GEOQIK_KEY_PAGE_DOWN = 267,
+    GEOQIK_KEY_HOME = 268, GEOQIK_KEY_END = 269,
+    GEOQIK_KEY_CAPS_LOCK = 280, GEOQIK_KEY_SCROLL_LOCK = 281,
+    GEOQIK_KEY_NUM_LOCK = 282, GEOQIK_KEY_PRINT_SCREEN = 283, GEOQIK_KEY_PAUSE = 284,
+    GEOQIK_KEY_F1  = 290, GEOQIK_KEY_F2  = 291, GEOQIK_KEY_F3  = 292,
+    GEOQIK_KEY_F4  = 293, GEOQIK_KEY_F5  = 294, GEOQIK_KEY_F6  = 295,
+    GEOQIK_KEY_F7  = 296, GEOQIK_KEY_F8  = 297, GEOQIK_KEY_F9  = 298,
+    GEOQIK_KEY_F10 = 299, GEOQIK_KEY_F11 = 300, GEOQIK_KEY_F12 = 301,
+    GEOQIK_KEY_F13 = 302, GEOQIK_KEY_F14 = 303, GEOQIK_KEY_F15 = 304,
+    GEOQIK_KEY_F16 = 305, GEOQIK_KEY_F17 = 306, GEOQIK_KEY_F18 = 307,
+    GEOQIK_KEY_F19 = 308, GEOQIK_KEY_F20 = 309, GEOQIK_KEY_F21 = 310,
+    GEOQIK_KEY_F22 = 311, GEOQIK_KEY_F23 = 312, GEOQIK_KEY_F24 = 313,
+    GEOQIK_KEY_F25 = 314,
+    GEOQIK_KEY_KP_0 = 320, GEOQIK_KEY_KP_1 = 321, GEOQIK_KEY_KP_2 = 322,
+    GEOQIK_KEY_KP_3 = 323, GEOQIK_KEY_KP_4 = 324, GEOQIK_KEY_KP_5 = 325,
+    GEOQIK_KEY_KP_6 = 326, GEOQIK_KEY_KP_7 = 327, GEOQIK_KEY_KP_8 = 328,
+    GEOQIK_KEY_KP_9 = 329, GEOQIK_KEY_KP_DECIMAL = 330, GEOQIK_KEY_KP_DIVIDE = 331,
+    GEOQIK_KEY_KP_MULTIPLY = 332, GEOQIK_KEY_KP_SUBTRACT = 333,
+    GEOQIK_KEY_KP_ADD = 334, GEOQIK_KEY_KP_ENTER = 335, GEOQIK_KEY_KP_EQUAL = 336,
+    GEOQIK_KEY_LEFT_SHIFT = 340, GEOQIK_KEY_LEFT_CONTROL = 341,
+    GEOQIK_KEY_LEFT_ALT = 342, GEOQIK_KEY_LEFT_SUPER = 343,
+    GEOQIK_KEY_RIGHT_SHIFT = 344, GEOQIK_KEY_RIGHT_CONTROL = 345,
+    GEOQIK_KEY_RIGHT_ALT = 346, GEOQIK_KEY_RIGHT_SUPER = 347,
+    GEOQIK_KEY_MENU = 348
+};
+
+// ── Replay options ────────────────────────────────────────────────────────────
+// Mirror of geoqik_replay_options_t from GeoQik.hpp — must be kept in sync.
+// Zero values in all fields mean "use DLL default" (same semantics as null pointer).
+struct geoqik_replay_options_t { // NOLINT(readability-identifier-naming)
+    double              entriesPerSecond{};           // 0 = default 60.0
+    double              speedMultiplier{};            // 0 = default 1.0
+    std::size_t         maxEntriesPerFrame{};         // 0 = default 1024
+    int                 startPaused{};                // 0 = play, non-zero = start paused
+    std::size_t         entriesPerStep{};             // 0 = default 1
+    const geoqik_key_t* stepKeys{};                  // null/empty = default: RIGHT, D
+    std::size_t         stepKeyCount{};
+    const geoqik_key_t* backwardStepKeys{};          // null/empty = default: LEFT, A
+    std::size_t         backwardStepKeyCount{};
+    const geoqik_key_t* resumeKeys{};                // null/empty = default: SPACE
+    std::size_t         resumeKeyCount{};
+    const geoqik_key_t* pauseKeys{};                 // null/empty = default: SPACE
+    std::size_t         pauseKeyCount{};
+    const geoqik_key_t* increaseEntriesPerStepKeys{};// null/empty = default: UP, W
+    std::size_t         increaseEntriesPerStepKeyCount{};
+    const geoqik_key_t* decreaseEntriesPerStepKeys{};// null/empty = default: DOWN, S
+    std::size_t         decreaseEntriesPerStepKeyCount{};
+};
+
+// ── Replay state ──────────────────────────────────────────────────────────────
+// Mirror of geoqik_replay_state_t from GeoQik.hpp — must be kept in sync.
+enum geoqik_replay_state_t : int { // NOLINT(readability-identifier-naming,performance-enum-size)
+    GEOQIK_REPLAY_INACTIVE = 0,
+    GEOQIK_REPLAY_PLAYING  = 1,
+    GEOQIK_REPLAY_PAUSED   = 2
+};
 
 namespace geoqik_client_impl {
 
@@ -348,6 +435,36 @@ inline void encode_add_mesh_opts(std::vector<std::uint8_t>& payload,
     const auto vtxSize   = (opts != nullptr) ? opts->vertexPointSize : 0.0f;
     proto::write_pod(payload, showVerts);
     proto::write_pod(payload, vtxSize);
+}
+
+// Serialize a geoqik_replay_options_t into payload bytes.
+// When opts is null, all fields are treated as zero (DLL default semantics).
+inline void encode_replay_options(std::vector<std::uint8_t>& payload,
+                                   const geoqik_replay_options_t* opts)
+{
+    namespace proto = geoqik::protocol;
+    const geoqik_replay_options_t zero{};
+    const geoqik_replay_options_t& o = (opts != nullptr) ? *opts : zero;
+
+    proto::write_pod(payload, o.entriesPerSecond);
+    proto::write_pod(payload, o.speedMultiplier);
+    proto::write_pod(payload, static_cast<std::uint64_t>(o.maxEntriesPerFrame));
+    proto::write_pod(payload, static_cast<std::int32_t>(o.startPaused));
+    proto::write_pod(payload, static_cast<std::uint64_t>(o.entriesPerStep));
+
+    auto write_key_array = [&](const geoqik_key_t* keys, std::size_t count) {
+        proto::write_pod(payload, static_cast<std::uint32_t>(count));
+        for (std::size_t i = 0; i < count; ++i) {
+            proto::write_pod(payload, static_cast<std::int32_t>(keys[i]));
+        }
+    };
+
+    write_key_array(o.stepKeys,                    o.stepKeyCount);
+    write_key_array(o.backwardStepKeys,            o.backwardStepKeyCount);
+    write_key_array(o.resumeKeys,                  o.resumeKeyCount);
+    write_key_array(o.pauseKeys,                   o.pauseKeyCount);
+    write_key_array(o.increaseEntriesPerStepKeys,  o.increaseEntriesPerStepKeyCount);
+    write_key_array(o.decreaseEntriesPerStepKeys,  o.decreaseEntriesPerStepKeyCount);
 }
 
 } // namespace geoqik_client_impl
@@ -1300,6 +1417,188 @@ inline void geoqik_clear_last_error() {
             const auto resp = geoqik_client_impl::call(
                 proto::CommandId::SetMeshRenderingOpts, payload);
             geoqik_client_impl::set_server_response_error(resp, "geoqik_set_mesh_rendering_opts");
+            return static_cast<geoqik_error_code_t>(resp.errorCode);
+        });
+}
+
+// ── Log & replay API ──────────────────────────────────────────────────────────
+
+[[nodiscard]] inline geoqik_error_code_t geoqik_save_log(
+    const char* path, geoqik_log_format_t format)
+{
+    if (path == nullptr) { return GEOQIK_ERROR_INVALID_PARAMETER; }
+    return geoqik_client_impl::execute_client_call("geoqik_save_log",
+        [&]() -> geoqik_error_code_t {
+            namespace proto = geoqik::protocol;
+            std::vector<std::uint8_t> payload;
+            proto::write_string(payload, std::string(path));
+            proto::write_pod(payload, static_cast<std::int32_t>(format));
+            const auto resp = geoqik_client_impl::call(proto::CommandId::SaveLog, payload);
+            geoqik_client_impl::set_server_response_error(resp, "geoqik_save_log");
+            return static_cast<geoqik_error_code_t>(resp.errorCode);
+        });
+}
+
+[[nodiscard]] inline geoqik_error_code_t geoqik_load_log(
+    const char* path, geoqik_log_format_t format)
+{
+    if (path == nullptr) { return GEOQIK_ERROR_INVALID_PARAMETER; }
+    return geoqik_client_impl::execute_client_call("geoqik_load_log",
+        [&]() -> geoqik_error_code_t {
+            namespace proto = geoqik::protocol;
+            std::vector<std::uint8_t> payload;
+            proto::write_string(payload, std::string(path));
+            proto::write_pod(payload, static_cast<std::int32_t>(format));
+            const auto resp = geoqik_client_impl::call(proto::CommandId::LoadLog, payload);
+            geoqik_client_impl::set_server_response_error(resp, "geoqik_load_log");
+            return static_cast<geoqik_error_code_t>(resp.errorCode);
+        });
+}
+
+[[nodiscard]] inline geoqik_error_code_t geoqik_replay_log(
+    const char* path, geoqik_log_format_t format,
+    const geoqik_replay_options_t* options)
+{
+    if (path == nullptr) { return GEOQIK_ERROR_INVALID_PARAMETER; }
+    return geoqik_client_impl::execute_client_call("geoqik_replay_log",
+        [&]() -> geoqik_error_code_t {
+            namespace proto = geoqik::protocol;
+            std::vector<std::uint8_t> payload;
+            proto::write_string(payload, std::string(path));
+            proto::write_pod(payload, static_cast<std::int32_t>(format));
+            geoqik_client_impl::encode_replay_options(payload, options);
+            const auto resp = geoqik_client_impl::call(proto::CommandId::ReplayLog, payload);
+            geoqik_client_impl::set_server_response_error(resp, "geoqik_replay_log");
+            return static_cast<geoqik_error_code_t>(resp.errorCode);
+        });
+}
+
+[[nodiscard]] inline geoqik_error_code_t geoqik_replay_current_log(
+    const geoqik_replay_options_t* options)
+{
+    return geoqik_client_impl::execute_client_call("geoqik_replay_current_log",
+        [&]() -> geoqik_error_code_t {
+            namespace proto = geoqik::protocol;
+            std::vector<std::uint8_t> payload;
+            geoqik_client_impl::encode_replay_options(payload, options);
+            const auto resp = geoqik_client_impl::call(proto::CommandId::ReplayCurrentLog, payload);
+            geoqik_client_impl::set_server_response_error(resp, "geoqik_replay_current_log");
+            return static_cast<geoqik_error_code_t>(resp.errorCode);
+        });
+}
+
+[[nodiscard]] inline geoqik_error_code_t geoqik_cancel_replay() {
+    return geoqik_client_impl::execute_client_call("geoqik_cancel_replay",
+        []() -> geoqik_error_code_t {
+            namespace proto = geoqik::protocol;
+            const auto resp = geoqik_client_impl::call(proto::CommandId::CancelReplay);
+            geoqik_client_impl::set_server_response_error(resp, "geoqik_cancel_replay");
+            return static_cast<geoqik_error_code_t>(resp.errorCode);
+        });
+}
+
+[[nodiscard]] inline geoqik_error_code_t geoqik_pause_replay() {
+    return geoqik_client_impl::execute_client_call("geoqik_pause_replay",
+        []() -> geoqik_error_code_t {
+            namespace proto = geoqik::protocol;
+            const auto resp = geoqik_client_impl::call(proto::CommandId::PauseReplay);
+            geoqik_client_impl::set_server_response_error(resp, "geoqik_pause_replay");
+            return static_cast<geoqik_error_code_t>(resp.errorCode);
+        });
+}
+
+[[nodiscard]] inline geoqik_error_code_t geoqik_resume_replay() {
+    return geoqik_client_impl::execute_client_call("geoqik_resume_replay",
+        []() -> geoqik_error_code_t {
+            namespace proto = geoqik::protocol;
+            const auto resp = geoqik_client_impl::call(proto::CommandId::ResumeReplay);
+            geoqik_client_impl::set_server_response_error(resp, "geoqik_resume_replay");
+            return static_cast<geoqik_error_code_t>(resp.errorCode);
+        });
+}
+
+[[nodiscard]] inline geoqik_error_code_t geoqik_step_replay() {
+    return geoqik_client_impl::execute_client_call("geoqik_step_replay",
+        []() -> geoqik_error_code_t {
+            namespace proto = geoqik::protocol;
+            const auto resp = geoqik_client_impl::call(proto::CommandId::StepReplay);
+            geoqik_client_impl::set_server_response_error(resp, "geoqik_step_replay");
+            return static_cast<geoqik_error_code_t>(resp.errorCode);
+        });
+}
+
+[[nodiscard]] inline geoqik_error_code_t geoqik_step_replay_n(std::size_t count) {
+    return geoqik_client_impl::execute_client_call("geoqik_step_replay_n",
+        [&]() -> geoqik_error_code_t {
+            namespace proto = geoqik::protocol;
+            std::vector<std::uint8_t> payload;
+            payload.reserve(proto::stepReplayNPayloadByteCount);
+            proto::write_pod(payload, static_cast<std::uint64_t>(count));
+            const auto resp = geoqik_client_impl::call(proto::CommandId::StepReplayN, payload);
+            geoqik_client_impl::set_server_response_error(resp, "geoqik_step_replay_n");
+            return static_cast<geoqik_error_code_t>(resp.errorCode);
+        });
+}
+
+[[nodiscard]] inline geoqik_error_code_t geoqik_step_replay_backward() {
+    return geoqik_client_impl::execute_client_call("geoqik_step_replay_backward",
+        []() -> geoqik_error_code_t {
+            namespace proto = geoqik::protocol;
+            const auto resp = geoqik_client_impl::call(proto::CommandId::StepReplayBackward);
+            geoqik_client_impl::set_server_response_error(resp, "geoqik_step_replay_backward");
+            return static_cast<geoqik_error_code_t>(resp.errorCode);
+        });
+}
+
+[[nodiscard]] inline geoqik_error_code_t geoqik_step_replay_backward_n(std::size_t count) {
+    return geoqik_client_impl::execute_client_call("geoqik_step_replay_backward_n",
+        [&]() -> geoqik_error_code_t {
+            namespace proto = geoqik::protocol;
+            std::vector<std::uint8_t> payload;
+            payload.reserve(proto::stepReplayNPayloadByteCount);
+            proto::write_pod(payload, static_cast<std::uint64_t>(count));
+            const auto resp = geoqik_client_impl::call(
+                proto::CommandId::StepReplayBackwardN, payload);
+            geoqik_client_impl::set_server_response_error(resp, "geoqik_step_replay_backward_n");
+            return static_cast<geoqik_error_code_t>(resp.errorCode);
+        });
+}
+
+[[nodiscard]] inline geoqik_error_code_t geoqik_get_replay_state(
+    geoqik_replay_state_t* state)
+{
+    if (state == nullptr) { return GEOQIK_ERROR_INVALID_PARAMETER; }
+    return geoqik_client_impl::execute_client_call("geoqik_get_replay_state",
+        [&]() -> geoqik_error_code_t {
+            namespace proto = geoqik::protocol;
+            const auto resp = geoqik_client_impl::call(proto::CommandId::GetReplayState);
+            geoqik_client_impl::set_server_response_error(resp, "geoqik_get_replay_state");
+            if (resp.errorCode == GEOQIK_SUCCESS) {
+                *state = static_cast<geoqik_replay_state_t>(
+                    proto::unpack_return_value<std::uint32_t>(resp.uuid));
+            }
+            return static_cast<geoqik_error_code_t>(resp.errorCode);
+        });
+}
+
+[[nodiscard]] inline geoqik_error_code_t geoqik_get_replay_progress(
+    std::size_t* currentEntry, std::size_t* totalEntries)
+{
+    if (currentEntry == nullptr || totalEntries == nullptr) {
+        return GEOQIK_ERROR_INVALID_PARAMETER;
+    }
+    return geoqik_client_impl::execute_client_call("geoqik_get_replay_progress",
+        [&]() -> geoqik_error_code_t {
+            namespace proto = geoqik::protocol;
+            const auto resp = geoqik_client_impl::call(proto::CommandId::GetReplayProgress);
+            geoqik_client_impl::set_server_response_error(resp, "geoqik_get_replay_progress");
+            if (resp.errorCode == GEOQIK_SUCCESS) {
+                std::uint64_t curU = 0, totU = 0;
+                std::memcpy(&curU, resp.uuid.data(),     sizeof(curU));
+                std::memcpy(&totU, resp.uuid.data() + 8, sizeof(totU));
+                *currentEntry = static_cast<std::size_t>(curU);
+                *totalEntries = static_cast<std::size_t>(totU);
+            }
             return static_cast<geoqik_error_code_t>(resp.errorCode);
         });
 }

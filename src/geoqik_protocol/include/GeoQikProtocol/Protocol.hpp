@@ -72,6 +72,20 @@ enum class CommandId : std::uint32_t { // NOLINT(performance-enum-size): wire pr
     UpdateMeshOpts       = 40,
     SetMeshOverlayOpts   = 41,
     SetMeshRenderingOpts = 42,
+
+    SaveLog              = 43,
+    LoadLog              = 44,
+    ReplayLog            = 45,
+    ReplayCurrentLog     = 46,
+    CancelReplay         = 47,
+    PauseReplay          = 48,
+    ResumeReplay         = 49,
+    StepReplay           = 50,
+    StepReplayN          = 51,
+    StepReplayBackward   = 52,
+    StepReplayBackwardN  = 53,
+    GetReplayState       = 54,
+    GetReplayProgress    = 55,
 };
 
 struct FrameHeader {
@@ -242,6 +256,9 @@ inline constexpr std::size_t setMeshOverlayOptsPayloadByteCount =
     uuidByteCount + 2 * sizeof(std::int32_t);
 inline constexpr std::size_t setMeshRenderingOptsPayloadByteCount =
     uuidByteCount + sizeof(std::uint32_t) + sizeof(std::int32_t);
+
+// StepReplayN / StepReplayBackwardN carry a single uint64 count.
+inline constexpr std::size_t stepReplayNPayloadByteCount = sizeof(std::uint64_t);
 
 inline void write_idempotency_key(std::vector<std::uint8_t>& buf,
                                    const std::array<std::uint8_t, uuidByteCount>& key)

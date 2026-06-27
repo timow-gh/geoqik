@@ -7,6 +7,7 @@
 #include <boost/asio.hpp>
 #include <cstdint>
 #include <cstdlib>
+#include <cstring>
 #include <string>
 #include <vector>
 
@@ -175,6 +176,32 @@ void send_api_response(PipeStream& stream,
     case proto::CommandId::AddMeshOpts:
     case proto::CommandId::UpdateMeshOpts:
         return payloadSize >= proto::uuidByteCount + sizeof(std::uint64_t);
+
+    // Fixed-size log / replay commands
+    case proto::CommandId::CancelReplay:
+    case proto::CommandId::PauseReplay:
+    case proto::CommandId::ResumeReplay:
+    case proto::CommandId::StepReplay:
+    case proto::CommandId::StepReplayBackward:
+    case proto::CommandId::GetReplayState:
+    case proto::CommandId::GetReplayProgress:
+        return payloadSize == 0;
+    case proto::CommandId::StepReplayN:
+    case proto::CommandId::StepReplayBackwardN:
+        return payloadSize == proto::stepReplayNPayloadByteCount;
+
+    // Variable-size log / replay commands — dispatch cases validate inline.
+    case proto::CommandId::SaveLog:
+    case proto::CommandId::LoadLog:
+        // pathLen (uint32) + format (int32)
+        return payloadSize >= sizeof(std::uint32_t) + sizeof(std::int32_t);
+    case proto::CommandId::ReplayLog:
+        // pathLen (uint32) + format (int32) + minimum options block (60 bytes)
+        return payloadSize >= sizeof(std::uint32_t) + sizeof(std::int32_t) + 60;
+    case proto::CommandId::ReplayCurrentLog:
+        // minimum options block (60 bytes)
+        return payloadSize >= 60;
+
     default:
         return false;
     }
@@ -252,6 +279,59 @@ struct ColorSlot {
         f = read_field<float>(payload, offset);
     }
     return s;
+}
+
+// Owns the key vectors whose lifetimes must outlive the geoqik_replay_options_t that points into them.
+struct ReplayOptionsData {
+    std::vector<geoqik_key_t> stepKeys;
+    std::vector<geoqik_key_t> backwardStepKeys;
+    std::vector<geoqik_key_t> resumeKeys;
+    std::vector<geoqik_key_t> pauseKeys;
+    std::vector<geoqik_key_t> increaseKeys;
+    std::vector<geoqik_key_t> decreaseKeys;
+    geoqik_replay_options_t opts{};
+};
+
+// Deserialize a geoqik_replay_options_t from the wire payload.
+// The returned ReplayOptionsData owns all key vectors; opts.xxxKeys point into them.
+// Never move opts out of its ReplayOptionsData — the pointers will dangle.
+[[nodiscard]] ReplayOptionsData read_replay_options(
+    const std::vector<std::uint8_t>& payload, std::size_t& offset)
+{
+    ReplayOptionsData data{};
+    auto& opts = data.opts;
+
+    opts.entriesPerSecond   = read_field<double>(payload, offset);
+    opts.speedMultiplier    = read_field<double>(payload, offset);
+    opts.maxEntriesPerFrame = static_cast<std::size_t>(read_field<std::uint64_t>(payload, offset));
+    opts.startPaused        = read_field<std::int32_t>(payload, offset);
+    opts.entriesPerStep     = static_cast<std::size_t>(read_field<std::uint64_t>(payload, offset));
+
+    auto read_key_array = [&](std::vector<geoqik_key_t>& keys,
+                               const geoqik_key_t*& optsField,
+                               std::size_t& optsCount) {
+        const auto count = read_field<std::uint32_t>(payload, offset);
+        if (count == 0) {
+            optsField = nullptr;
+            optsCount = 0;
+        } else {
+            keys.resize(count);
+            for (auto& k : keys) {
+                k = static_cast<geoqik_key_t>(read_field<std::int32_t>(payload, offset));
+            }
+            optsField = keys.data();
+            optsCount = keys.size();
+        }
+    };
+
+    read_key_array(data.stepKeys,         opts.stepKeys,                    opts.stepKeyCount);
+    read_key_array(data.backwardStepKeys, opts.backwardStepKeys,            opts.backwardStepKeyCount);
+    read_key_array(data.resumeKeys,       opts.resumeKeys,                  opts.resumeKeyCount);
+    read_key_array(data.pauseKeys,        opts.pauseKeys,                   opts.pauseKeyCount);
+    read_key_array(data.increaseKeys,     opts.increaseEntriesPerStepKeys,  opts.increaseEntriesPerStepKeyCount);
+    read_key_array(data.decreaseKeys,     opts.decreaseEntriesPerStepKeys,  opts.decreaseEntriesPerStepKeyCount);
+
+    return data;
 }
 
 [[noreturn]] void exit_success() {
@@ -893,6 +973,115 @@ void handle_connection(PipeStream& stream) {
                 surfaceVis};
             const auto err = geoqik_set_mesh_rendering_opts(&id, &opts);
             send_api_response(stream, err);
+            break;
+        }
+
+        case proto::CommandId::SaveLog: {
+            std::size_t offset = 0;
+            const std::string path = proto::read_string(payload, offset);
+            const auto fmt = static_cast<geoqik_log_format_t>(read_field<std::int32_t>(payload, offset));
+            const auto err = geoqik_save_log(path.empty() ? nullptr : path.c_str(), fmt);
+            send_api_response(stream, err);
+            break;
+        }
+
+        case proto::CommandId::LoadLog: {
+            std::size_t offset = 0;
+            const std::string path = proto::read_string(payload, offset);
+            const auto fmt = static_cast<geoqik_log_format_t>(read_field<std::int32_t>(payload, offset));
+            const auto err = geoqik_load_log(path.empty() ? nullptr : path.c_str(), fmt);
+            send_api_response(stream, err);
+            break;
+        }
+
+        case proto::CommandId::ReplayLog: {
+            std::size_t offset = 0;
+            const std::string path = proto::read_string(payload, offset);
+            const auto fmt  = static_cast<geoqik_log_format_t>(read_field<std::int32_t>(payload, offset));
+            const auto data = read_replay_options(payload, offset);
+            const auto err  = geoqik_replay_log(
+                path.empty() ? nullptr : path.c_str(), fmt, &data.opts);
+            send_api_response(stream, err);
+            break;
+        }
+
+        case proto::CommandId::ReplayCurrentLog: {
+            std::size_t offset = 0;
+            const auto data = read_replay_options(payload, offset);
+            const auto err  = geoqik_replay_current_log(&data.opts);
+            send_api_response(stream, err);
+            break;
+        }
+
+        case proto::CommandId::CancelReplay: {
+            const auto err = geoqik_cancel_replay();
+            send_api_response(stream, err);
+            break;
+        }
+
+        case proto::CommandId::PauseReplay: {
+            const auto err = geoqik_pause_replay();
+            send_api_response(stream, err);
+            break;
+        }
+
+        case proto::CommandId::ResumeReplay: {
+            const auto err = geoqik_resume_replay();
+            send_api_response(stream, err);
+            break;
+        }
+
+        case proto::CommandId::StepReplay: {
+            const auto err = geoqik_step_replay();
+            send_api_response(stream, err);
+            break;
+        }
+
+        case proto::CommandId::StepReplayN: {
+            std::size_t offset = 0;
+            const auto count = static_cast<std::size_t>(read_field<std::uint64_t>(payload, offset));
+            const auto err   = geoqik_step_replay_n(count);
+            send_api_response(stream, err);
+            break;
+        }
+
+        case proto::CommandId::StepReplayBackward: {
+            const auto err = geoqik_step_replay_backward();
+            send_api_response(stream, err);
+            break;
+        }
+
+        case proto::CommandId::StepReplayBackwardN: {
+            std::size_t offset = 0;
+            const auto count = static_cast<std::size_t>(read_field<std::uint64_t>(payload, offset));
+            const auto err   = geoqik_step_replay_backward_n(count);
+            send_api_response(stream, err);
+            break;
+        }
+
+        case proto::CommandId::GetReplayState: {
+            geoqik_replay_state_t state = GEOQIK_REPLAY_INACTIVE;
+            const auto err = geoqik_get_replay_state(&state);
+            geoqik_uuid_t fakeUuid{};
+            if (err == GEOQIK_SUCCESS) {
+                const auto packed = proto::pack_return_value(static_cast<std::uint32_t>(state));
+                std::copy(packed.begin(), packed.end(), fakeUuid.value);
+            }
+            send_api_response(stream, err, &fakeUuid);
+            break;
+        }
+
+        case proto::CommandId::GetReplayProgress: {
+            std::size_t current = 0, total = 0;
+            const auto err = geoqik_get_replay_progress(&current, &total);
+            geoqik_uuid_t fakeUuid{};
+            if (err == GEOQIK_SUCCESS) {
+                const std::uint64_t curU = static_cast<std::uint64_t>(current);
+                const std::uint64_t totU = static_cast<std::uint64_t>(total);
+                std::memcpy(fakeUuid.value,     &curU, sizeof(curU));
+                std::memcpy(fakeUuid.value + 8, &totU, sizeof(totU));
+            }
+            send_api_response(stream, err, &fakeUuid);
             break;
         }
 

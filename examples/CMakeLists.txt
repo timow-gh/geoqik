@@ -82,7 +82,8 @@ set(geoqik_client_examples
     example_client_poc
     example_client_settings
     example_client_points_lines
-    example_client_mesh)
+    example_client_mesh
+    example_client_log_replay)
 
 foreach(example IN LISTS geoqik_client_examples)
     add_geoqik_example(${example} CLIENT LIBRARIES geoqik::client)
