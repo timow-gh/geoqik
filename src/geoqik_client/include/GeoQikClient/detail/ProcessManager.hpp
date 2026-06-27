@@ -9,6 +9,7 @@
 #include <cstdlib>
 #include <stdexcept>
 #include <string>
+#include <system_error>
 
 #ifdef _WIN32
 #  ifndef WIN32_LEAN_AND_MEAN
@@ -91,7 +92,22 @@ public:
 
     [[nodiscard]] const std::string& pipe_name() const noexcept { return pipeName_; }
 
-    [[nodiscard]] bool is_running() { return child_.running(); }
+    [[nodiscard]] bool is_running() { return started_ && child_.running(); }
+
+    // Blocks until the server process has fully exited, then resets state so the
+    // next start() reliably spawns a fresh server. Must be called after a
+    // terminating command (Cleanup / WaitForExit) tells the server to exit:
+    // boost::process reports a just-signalled child as still running for a short
+    // window, so without an explicit wait the next start() can skip spawning and
+    // a later call connects to a leftover pipe instance of the dead server.
+    void wait_for_exit() {
+        if (started_) {
+            std::error_code ec;
+            child_.wait(ec);
+        }
+        started_ = false;
+        pipeName_.clear();
+    }
 
 private:
     ProcessManager() = default;

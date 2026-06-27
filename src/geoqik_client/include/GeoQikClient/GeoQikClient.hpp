@@ -352,10 +352,15 @@ template<typename Func>
     auto& pm = geoqik::client::detail::ProcessManager::instance();
     if (!pm.is_running()) {
         geoqik::client::detail::disconnect_thread_connection();
+        pm.wait_for_exit();
         return GEOQIK_SUCCESS;
     }
     const auto resp = call(cmd);
     geoqik::client::detail::disconnect_thread_connection();
+    // The server exits after acknowledging a terminating command. Block until the
+    // process is gone so the next geoqik_init() spawns a fresh server instead of
+    // connecting to a leftover pipe instance of the one that is exiting.
+    pm.wait_for_exit();
     set_server_response_error(resp, operation);
     return static_cast<geoqik_error_code_t>(resp.errorCode);
 }
