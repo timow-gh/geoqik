@@ -80,8 +80,9 @@ public:
         const auto selfPid = static_cast<std::uint64_t>(::getpid());
 #endif
         pipeName_ = geoqik::protocol::make_pipe_name(selfPid);
+        const auto pipeNameArgument = geoqik::protocol::make_pipe_name_argument(selfPid);
 
-        child_ = bp::child(exePath, "--pipe-name", pipeName_);
+        child_ = bp::child(exePath, "--pipe-name", pipeNameArgument);
 
         if (!child_.running()) {
             throw ServerStartError("geoqik process failed to start.");

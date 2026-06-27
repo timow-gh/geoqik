@@ -70,6 +70,22 @@ struct ResponseFrame {
 #endif
 }
 
+[[nodiscard]] inline std::string make_pipe_name_argument(std::uint64_t pid) {
+#ifdef _WIN32
+    return make_pipe_name(pid);
+#else
+    return "geoqik-" + std::to_string(pid);
+#endif
+}
+
+[[nodiscard]] inline std::string make_pipe_name_from_argument(const std::string& argument) {
+#ifdef _WIN32
+    return argument;
+#else
+    return std::string("\0", 1) + argument;
+#endif
+}
+
 [[nodiscard]] inline std::uint32_t payload_byte_count(std::size_t payloadSize) {
     constexpr auto maxPayloadSize = static_cast<std::size_t>(
         std::numeric_limits<std::uint32_t>::max());

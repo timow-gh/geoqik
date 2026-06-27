@@ -30,3 +30,28 @@ TEST(ProtocolTest, EmptyDiagnosticPayloadDecodesToEmptyDiagnostic)
   EXPECT_TRUE(actual.action.empty());
   EXPECT_TRUE(actual.details.empty());
 }
+
+TEST(ProtocolTest, PipeNameArgumentRoundTripsToPipeName)
+{
+  constexpr std::uint64_t pid = 12345;
+
+  const std::string pipeName = geoqik::protocol::make_pipe_name(pid);
+  const std::string argument = geoqik::protocol::make_pipe_name_argument(pid);
+
+  EXPECT_EQ(pipeName, geoqik::protocol::make_pipe_name_from_argument(argument));
+}
+
+#ifndef _WIN32
+TEST(ProtocolTest, UnixPipeNameArgumentDoesNotContainEmbeddedNull)
+{
+  constexpr std::uint64_t pid = 12345;
+
+  const std::string pipeName = geoqik::protocol::make_pipe_name(pid);
+  const std::string argument = geoqik::protocol::make_pipe_name_argument(pid);
+
+  ASSERT_FALSE(pipeName.empty());
+  EXPECT_EQ('\0', pipeName.front());
+  EXPECT_NE(std::string::npos, pipeName.find('\0'));
+  EXPECT_EQ(std::string::npos, argument.find('\0'));
+}
+#endif
