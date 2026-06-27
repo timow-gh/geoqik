@@ -1,6 +1,7 @@
 #ifndef GEOQIK_HPP
 #define GEOQIK_HPP
 
+#include "GeoQik/ApiTypes.h"
 #include "GeoQik/geoqik_export.h"
 #include <stddef.h>
 #include <stdint.h>
@@ -115,32 +116,6 @@ extern "C"
     int focus_on_show;           /* Whether the window should be focused when shown */
     int scale_to_monitor;        /* Whether to scale based on monitor content scale */
   } geoqik_window_settings_t;
-
-  typedef enum
-  {
-    GEOQIK_SUCCESS = 0,
-    GEOQIK_ERROR_NOT_INITIALIZED = 1,
-    GEOQIK_ERROR_ALREADY_INITIALIZED = 2,
-    GEOQIK_ERROR_INVALID_PARAMETER = 3,
-    GEOQIK_ERROR_WRONG_COLOR_SIZE = 4,
-    GEOQIK_ERROR_MEMORY_ALLOCATION = 5,
-    GEOQIK_ERROR_UNKNOWN = 6,
-    GEOQIK_ERROR_RENDERER_INIT_FAILED = 7,
-    GEOQIK_ERROR_IO = 8,
-    GEOQIK_ERROR_UNSUPPORTED_FORMAT = 9,
-    GEOQIK_ERROR_INVALID_STATE = 10
-  } geoqik_error_code_t;
-
-  typedef struct
-  {
-    size_t struct_size;
-    geoqik_error_code_t code;
-    const char* operation;
-    const char* what;
-    const char* why;
-    const char* action;
-    const char* details;
-  } geoqik_error_info_t;
 
   typedef enum
   {
@@ -300,17 +275,6 @@ extern "C"
     GEOQIK_REPLAY_PAUSED = 2
   } geoqik_replay_state_t;
 
-  typedef struct
-  {
-    uint8_t value[16];
-  } geoqik_uuid_t;
-
-  typedef struct
-  {
-    geoqik_error_code_t err;  /* The result code */
-    geoqik_uuid_t geometryId; /* The geometry ID, if applicable (zeroed otherwise) */
-  } geoqik_result_t;
-
   /** \brief Initializes GeoQik with default settings. Must be called once before any other function. */
   GEOQIK_EXPORT geoqik_error_code_t geoqik_init();
 
@@ -345,23 +309,10 @@ extern "C"
   /** \brief Adds a point at (x, y, z) with an explicit RGBA color. */
   GEOQIK_EXPORT geoqik_result_t geoqik_add_point_with_color(double x, double y, double z, float r, float g, float b, float a);
 
-  typedef struct
-  {
-    geoqik_uuid_t idempotencyKey; /**< Optional idempotency key for the point, ignored if the uuid is null. */
-    const float* color;           /**< Optional color used for the point (RGBA), ignored if the pointer is null. */
-    size_t colorCount;            /**< Number of floats in the color array, must be 0, 4, or number of points * 4 */
-  } geoqik_add_points_options_t;
-
   /** \brief Adds a single point with extended options (idempotency key, per-point color). */
   GEOQIK_EXPORT geoqik_result_t geoqik_add_point_opts(double x, double y, double z, geoqik_add_points_options_t* options);
   /** \brief Adds multiple points from a flat XYZ array (size = number of points). */
   GEOQIK_EXPORT geoqik_result_t geoqik_add_points_opts(const double* points, size_t size, geoqik_add_points_options_t* options);
-
-  typedef struct
-  {
-    const float* color; /**< Optional replacement color (RGBA), ignored if the pointer is null. */
-    size_t colorCount;  /**< Number of floats in the color array, must be 0, 4, or number of points * 4 */
-  } geoqik_update_points_options_t;
 
   /** \brief Updates the point identified by geometryId to a new position. */
   GEOQIK_EXPORT geoqik_error_code_t geoqik_update_point(const geoqik_uuid_t* geometryId, double x, double y, double z);
@@ -395,23 +346,10 @@ extern "C"
   /** \brief Gets the current default mesh color. */
   GEOQIK_EXPORT geoqik_error_code_t geoqik_get_mesh_color(float* r, float* g, float* b, float* a);
 
-  typedef struct
-  {
-    geoqik_uuid_t idempotencyKey; /**< Optional idempotency key for the line, ignored if the uuid is zeroed. */
-    const float* color;           /**< Optional color used for the line (RGBA), ignored if the pointer is null. */
-    size_t colorCount;            /**< Number of floats in the color array, must be 0, 4, or number of lines * 4 */
-  } geoqik_add_line_opts_t;
-
   /** \brief Adds a single line with extended options (idempotency key, per-line color). */
   GEOQIK_EXPORT geoqik_result_t geoqik_add_line_opts(double x1, double y1, double z1, double x2, double y2, double z2, geoqik_add_line_opts_t* options);
   /** \brief Adds multiple lines from a flat array of endpoint pairs (size = number of lines). */
   GEOQIK_EXPORT geoqik_result_t geoqik_add_lines_opts(const double* lines, size_t size, geoqik_add_line_opts_t* options);
-
-  typedef struct
-  {
-    const float* color; /**< Optional replacement color (RGBA), ignored if the pointer is null. */
-    size_t colorCount;  /**< Number of floats in the color array, must be 0, 4, or number of lines * 4 */
-  } geoqik_update_line_opts_t;
 
   /** \brief Updates the line identified by geometryId. */
   GEOQIK_EXPORT geoqik_error_code_t geoqik_update_line(const geoqik_uuid_t* geometryId, double x1, double y1, double z1, double x2, double y2, double z2);
@@ -442,30 +380,6 @@ extern "C"
   /** \brief Removes the line identified by geometryId. */
   GEOQIK_EXPORT geoqik_error_code_t geoqik_remove_line(const geoqik_uuid_t* geometryId);
 
-  typedef enum
-  {
-    GEOQIK_MESH_CULL_BACK  = 0, /**< Back faces culled (default OpenGL behavior). */
-    GEOQIK_MESH_CULL_FRONT = 1, /**< Front faces culled. */
-    GEOQIK_MESH_CULL_NONE  = 2  /**< No face culling. */
-  } geoqik_mesh_cull_mode_t;
-
-  typedef struct
-  {
-    geoqik_uuid_t idempotencyKey; /**< Optional idempotency key for the mesh, ignored if the uuid is zeroed. */
-    const float* normals;         /**< Optional per-vertex normals (XYZ interleaved), ignored if null. Size must be 0 or vertexCount*3. */
-    size_t normalsCount;          /**< Number of floats in the normals array. */
-    const float* color;           /**< Optional color (RGBA), ignored if null. Size must be 0, 4, or vertexCount*4. */
-    size_t colorCount;            /**< Number of floats in the color array. */
-    const uint32_t* segmentIndices;     /**< Pairs [i0,i1,...] indexing mesh vertices. NULL = auto-derive all triangle edges. */
-    size_t          segmentIndexCount;  /**< Number of uint32_t values in segmentIndices (must be even). */
-    const float*    segmentColor;       /**< Single RGBA [4 floats]. NULL = black (0,0,0,1). */
-    int             showSegments;       /**< Non-zero to show wireframe on add. */
-    float           segmentLineWidth;   /**< 0.0 = default 1.0. */
-    const float*    vertexColor;        /**< Single RGBA [4 floats]. NULL = white (1,1,1,1). */
-    int             showVertices;       /**< Non-zero to show vertex points on add. */
-    float           vertexPointSize;    /**< 0.0 = default 3.0. */
-  } geoqik_add_mesh_opts_t;
-
   /** \brief Adds a triangle mesh. vertices is a flat XYZ array (vertexCount positions); triangleIndices holds vertexCount triplets. Normals are auto-computed if not provided. */
   GEOQIK_EXPORT geoqik_result_t geoqik_add_mesh_opts(const float* vertices,
                                                        size_t vertexCount,
@@ -476,36 +390,15 @@ extern "C"
   /** \brief Removes the mesh identified by geometryId. */
   GEOQIK_EXPORT geoqik_error_code_t geoqik_remove_mesh(const geoqik_uuid_t* geometryId);
 
-  typedef struct
-  {
-    geoqik_uuid_t idempotencyKey; /**< Optional, ignored if zeroed. */
-    const float* normals;         /**< Optional per-vertex normals (XYZ), NULL to auto-compute. Size must be 0 or vertexCount*3. */
-    size_t normalsCount;          /**< Number of floats in the normals array. */
-    const float* color;           /**< Optional replacement color (RGBA). Size must be 0, 4, or vertexCount*4. */
-    size_t colorCount;            /**< Number of floats in the color array. */
-  } geoqik_update_mesh_opts_t;
-
   /** \brief Updates the vertices of the mesh identified by geometryId. */
   GEOQIK_EXPORT geoqik_error_code_t geoqik_update_mesh_opts(const geoqik_uuid_t* geometryId,
                                                             const float* vertices,
                                                             size_t vertexCount,
                                                             geoqik_update_mesh_opts_t* options);
 
-  typedef struct
-  {
-    int showSegments; /**< Non-zero = show, zero = hide. -1 = leave unchanged. */
-    int showVertices; /**< Non-zero = show, zero = hide. -1 = leave unchanged. */
-  } geoqik_mesh_overlay_opts_t;
-
   /** \brief Set per-mesh overlay visibility (wireframe segments and/or vertex points). */
   GEOQIK_EXPORT geoqik_error_code_t geoqik_set_mesh_overlay_opts(const geoqik_uuid_t* geometryId,
                                                                    const geoqik_mesh_overlay_opts_t* opts);
-
-  typedef struct
-  {
-    geoqik_mesh_cull_mode_t cullMode;       /**< Face culling mode. */
-    int                     surfaceVisible; /**< 0 = hide surface; non-zero = show (default). */
-  } geoqik_mesh_rendering_opts_t;
 
   /** \brief Set per-mesh rendering options (cull mode, surface visibility). Does not require re-submitting geometry. */
   GEOQIK_EXPORT geoqik_error_code_t geoqik_set_mesh_rendering_opts(const geoqik_uuid_t* geometryId,

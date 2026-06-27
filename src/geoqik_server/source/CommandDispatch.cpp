@@ -122,6 +122,59 @@ void send_api_response(PipeStream& stream,
         return payloadSize == proto::pointPayloadByteCount;
     case proto::CommandId::AddLine:
         return payloadSize == proto::linePayloadByteCount;
+    case proto::CommandId::IsApiInitialized:
+    case proto::CommandId::StopDrawing:
+    case proto::CommandId::RemoveAllGeometry:
+        return payloadSize == 0;
+    case proto::CommandId::SetPointSize:
+    case proto::CommandId::GetPointSize:
+    case proto::CommandId::SetLineWidth:
+    case proto::CommandId::GetLineWidth:
+        return payloadSize == proto::floatPayloadByteCount;
+    case proto::CommandId::SetPointColor:
+    case proto::CommandId::GetPointColor:
+    case proto::CommandId::SetLineColor:
+    case proto::CommandId::GetLineColor:
+    case proto::CommandId::SetMeshColor:
+    case proto::CommandId::GetMeshColor:
+        return payloadSize == proto::colorPayloadByteCount;
+    case proto::CommandId::TranslateGeometry:
+        return payloadSize == proto::translatePayloadByteCount;
+    case proto::CommandId::RotateGeometry:
+        return payloadSize == proto::rotatePayloadByteCount;
+    case proto::CommandId::AddPointWithColor:
+        return payloadSize == proto::addPointWithColorPayloadByteCount;
+    case proto::CommandId::UpdatePoint:
+        return payloadSize == proto::updatePointPayloadByteCount;
+    case proto::CommandId::UpdatePointWithColor:
+        return payloadSize == proto::updatePointWithColorPayloadByteCount;
+    case proto::CommandId::RemovePoint:
+    case proto::CommandId::RemoveLine:
+        return payloadSize == proto::removeGeometryPayloadByteCount;
+    case proto::CommandId::AddLineWithColor:
+        return payloadSize == proto::addLineWithColorPayloadByteCount;
+    case proto::CommandId::UpdateLine:
+        return payloadSize == proto::updateLinePayloadByteCount;
+    case proto::CommandId::UpdateLineWithColor:
+        return payloadSize == proto::updateLineWithColorPayloadByteCount;
+    case proto::CommandId::AddPointOpts:
+    case proto::CommandId::AddPointsOpts:
+    case proto::CommandId::UpdatePointOpts:
+    case proto::CommandId::UpdatePointsOpts:
+    case proto::CommandId::AddLineOpts:
+    case proto::CommandId::AddLinesOpts:
+    case proto::CommandId::UpdateLineOpts:
+    case proto::CommandId::UpdateLinesOpts:
+        return payloadSize >= proto::uuidByteCount + sizeof(std::uint32_t);
+    case proto::CommandId::RemoveMesh:
+        return payloadSize == proto::uuidByteCount;
+    case proto::CommandId::SetMeshOverlayOpts:
+        return payloadSize == proto::setMeshOverlayOptsPayloadByteCount;
+    case proto::CommandId::SetMeshRenderingOpts:
+        return payloadSize == proto::setMeshRenderingOptsPayloadByteCount;
+    case proto::CommandId::AddMeshOpts:
+    case proto::CommandId::UpdateMeshOpts:
+        return payloadSize >= proto::uuidByteCount + sizeof(std::uint64_t);
     default:
         return false;
     }
@@ -132,6 +185,73 @@ template<typename T>
     auto value = proto::read_pod<T>(payload, offset);
     offset += sizeof(T);
     return value;
+}
+
+[[nodiscard]] geoqik_uuid_t read_uuid(const std::vector<std::uint8_t>& payload,
+                                        std::size_t& offset)
+{
+    geoqik_uuid_t uuid{};
+    for (std::size_t i = 0; i < proto::uuidByteCount; ++i) {
+        uuid.value[i] = read_field<std::uint8_t>(payload, offset);
+    }
+    return uuid;
+}
+
+[[nodiscard]] bool uuid_is_zero(const geoqik_uuid_t& uuid) {
+    for (const auto byte : uuid.value) {
+        if (byte != 0) { return false; }
+    }
+    return true;
+}
+
+[[nodiscard]] std::vector<float> read_float_array(const std::vector<std::uint8_t>& payload,
+                                                    std::size_t& offset)
+{
+    const auto count = proto::read_pod<std::uint32_t>(payload, offset);
+    offset += sizeof(std::uint32_t);
+    if (count == 0) { return {}; }
+    const std::size_t byteLen = static_cast<std::size_t>(count) * sizeof(float);
+    if (offset + byteLen > payload.size()) {
+        throw std::out_of_range("geoqik protocol: float array payload truncated");
+    }
+    std::vector<float> arr(count);
+    std::memcpy(arr.data(), payload.data() + offset, byteLen);
+    offset += byteLen;
+    return arr;
+}
+
+[[nodiscard]] std::vector<std::uint32_t> read_uint32_array(
+    const std::vector<std::uint8_t>& payload, std::size_t& offset)
+{
+    const auto count = proto::read_pod<std::uint32_t>(payload, offset);
+    offset += sizeof(std::uint32_t);
+    if (count == 0) { return {}; }
+    const std::size_t byteLen = static_cast<std::size_t>(count) * sizeof(std::uint32_t);
+    if (offset + byteLen > payload.size()) {
+        throw std::out_of_range("geoqik protocol: uint32 array payload truncated");
+    }
+    std::vector<std::uint32_t> arr(count);
+    std::memcpy(arr.data(), payload.data() + offset, byteLen);
+    offset += byteLen;
+    return arr;
+}
+
+struct ColorSlot {
+    float rgba[4];
+    bool isZero() const {
+        return rgba[0] == 0.0f && rgba[1] == 0.0f &&
+               rgba[2] == 0.0f && rgba[3] == 0.0f;
+    }
+};
+
+[[nodiscard]] ColorSlot read_color_slot(const std::vector<std::uint8_t>& payload,
+                                         std::size_t& offset)
+{
+    ColorSlot s{};
+    for (float& f : s.rgba) {
+        f = read_field<float>(payload, offset);
+    }
+    return s;
 }
 
 [[noreturn]] void exit_success() {
@@ -207,6 +327,573 @@ void handle_connection(PipeStream& stream) {
             const auto err = geoqik_cleanup();
             send_api_response(stream, err);
             exit_success();
+        }
+
+        case proto::CommandId::IsApiInitialized: {
+            bool initialized = false;
+            const auto err = geoqik_is_api_initialized(&initialized);
+            geoqik_uuid_t fakeUuid{};
+            if (err == GEOQIK_SUCCESS) {
+                const auto packed = proto::pack_return_value(static_cast<std::uint8_t>(initialized ? 1 : 0));
+                std::copy(packed.begin(), packed.end(), fakeUuid.value);
+            }
+            send_api_response(stream, err, &fakeUuid);
+            break;
+        }
+
+        case proto::CommandId::StopDrawing: {
+            const auto err = geoqik_stop_drawing();
+            send_api_response(stream, err);
+            break;
+        }
+
+        case proto::CommandId::RemoveAllGeometry: {
+            const auto err = geoqik_remove_all_geometry();
+            send_api_response(stream, err);
+            break;
+        }
+
+        case proto::CommandId::SetPointSize: {
+            std::size_t offset = 0;
+            const auto size = read_field<float>(payload, offset);
+            const auto err = geoqik_set_point_size(size);
+            send_api_response(stream, err);
+            break;
+        }
+
+        case proto::CommandId::GetPointSize: {
+            float size = 0.0f;
+            const auto err = geoqik_get_point_size(&size);
+            geoqik_uuid_t fakeUuid{};
+            if (err == GEOQIK_SUCCESS) {
+                const auto packed = proto::pack_return_value(size);
+                std::copy(packed.begin(), packed.end(), fakeUuid.value);
+            }
+            send_api_response(stream, err, &fakeUuid);
+            break;
+        }
+
+        case proto::CommandId::SetPointColor: {
+            std::size_t offset = 0;
+            const auto r = read_field<float>(payload, offset);
+            const auto g = read_field<float>(payload, offset);
+            const auto b = read_field<float>(payload, offset);
+            const auto a = read_field<float>(payload, offset);
+            const auto err = geoqik_set_point_color(r, g, b, a);
+            send_api_response(stream, err);
+            break;
+        }
+
+        case proto::CommandId::GetPointColor: {
+            float r = 0.0f, g = 0.0f, b = 0.0f, a = 0.0f;
+            const auto err = geoqik_get_point_color(&r, &g, &b, &a);
+            geoqik_uuid_t fakeUuid{};
+            if (err == GEOQIK_SUCCESS) {
+                const auto packed = proto::pack_color_return(r, g, b, a);
+                std::copy(packed.begin(), packed.end(), fakeUuid.value);
+            }
+            send_api_response(stream, err, &fakeUuid);
+            break;
+        }
+
+        case proto::CommandId::SetLineWidth: {
+            std::size_t offset = 0;
+            const auto width = read_field<float>(payload, offset);
+            const auto err = geoqik_set_line_width(width);
+            send_api_response(stream, err);
+            break;
+        }
+
+        case proto::CommandId::GetLineWidth: {
+            float width = 0.0f;
+            const auto err = geoqik_get_line_width(&width);
+            geoqik_uuid_t fakeUuid{};
+            if (err == GEOQIK_SUCCESS) {
+                const auto packed = proto::pack_return_value(width);
+                std::copy(packed.begin(), packed.end(), fakeUuid.value);
+            }
+            send_api_response(stream, err, &fakeUuid);
+            break;
+        }
+
+        case proto::CommandId::SetLineColor: {
+            std::size_t offset = 0;
+            const auto r = read_field<float>(payload, offset);
+            const auto g = read_field<float>(payload, offset);
+            const auto b = read_field<float>(payload, offset);
+            const auto a = read_field<float>(payload, offset);
+            const auto err = geoqik_set_line_color(r, g, b, a);
+            send_api_response(stream, err);
+            break;
+        }
+
+        case proto::CommandId::GetLineColor: {
+            float r = 0.0f, g = 0.0f, b = 0.0f, a = 0.0f;
+            const auto err = geoqik_get_line_color(&r, &g, &b, &a);
+            geoqik_uuid_t fakeUuid{};
+            if (err == GEOQIK_SUCCESS) {
+                const auto packed = proto::pack_color_return(r, g, b, a);
+                std::copy(packed.begin(), packed.end(), fakeUuid.value);
+            }
+            send_api_response(stream, err, &fakeUuid);
+            break;
+        }
+
+        case proto::CommandId::SetMeshColor: {
+            std::size_t offset = 0;
+            const auto r = read_field<float>(payload, offset);
+            const auto g = read_field<float>(payload, offset);
+            const auto b = read_field<float>(payload, offset);
+            const auto a = read_field<float>(payload, offset);
+            const auto err = geoqik_set_mesh_color(r, g, b, a);
+            send_api_response(stream, err);
+            break;
+        }
+
+        case proto::CommandId::GetMeshColor: {
+            float r = 0.0f, g = 0.0f, b = 0.0f, a = 0.0f;
+            const auto err = geoqik_get_mesh_color(&r, &g, &b, &a);
+            geoqik_uuid_t fakeUuid{};
+            if (err == GEOQIK_SUCCESS) {
+                const auto packed = proto::pack_color_return(r, g, b, a);
+                std::copy(packed.begin(), packed.end(), fakeUuid.value);
+            }
+            send_api_response(stream, err, &fakeUuid);
+            break;
+        }
+
+        case proto::CommandId::TranslateGeometry: {
+            std::size_t offset = 0;
+            geoqik_uuid_t geometryId{};
+            for (auto& byte : geometryId.value) { byte = read_field<std::uint8_t>(payload, offset); }
+            const auto dx = read_field<double>(payload, offset);
+            const auto dy = read_field<double>(payload, offset);
+            const auto dz = read_field<double>(payload, offset);
+            const auto err = geoqik_translate_geometry(&geometryId, dx, dy, dz);
+            send_api_response(stream, err);
+            break;
+        }
+
+        case proto::CommandId::RotateGeometry: {
+            std::size_t offset = 0;
+            geoqik_uuid_t geometryId{};
+            for (auto& byte : geometryId.value) { byte = read_field<std::uint8_t>(payload, offset); }
+            const auto cx    = read_field<double>(payload, offset);
+            const auto cy    = read_field<double>(payload, offset);
+            const auto cz    = read_field<double>(payload, offset);
+            const auto ax    = read_field<double>(payload, offset);
+            const auto ay    = read_field<double>(payload, offset);
+            const auto az    = read_field<double>(payload, offset);
+            const auto angle = read_field<double>(payload, offset);
+            const auto err = geoqik_rotate_geometry(&geometryId, cx, cy, cz, ax, ay, az, angle);
+            send_api_response(stream, err);
+            break;
+        }
+
+        case proto::CommandId::AddPointWithColor: {
+            std::size_t offset = 0;
+            const auto x = read_field<double>(payload, offset);
+            const auto y = read_field<double>(payload, offset);
+            const auto z = read_field<double>(payload, offset);
+            const auto r = read_field<float>(payload, offset);
+            const auto g = read_field<float>(payload, offset);
+            const auto b = read_field<float>(payload, offset);
+            const auto a = read_field<float>(payload, offset);
+            const auto result = geoqik_add_point_with_color(x, y, z, r, g, b, a);
+            send_api_response(stream, result.err, &result.geometryId);
+            break;
+        }
+
+        case proto::CommandId::AddPointOpts: {
+            std::size_t offset = 0;
+            const geoqik_uuid_t key = read_uuid(payload, offset);
+            const auto x = read_field<double>(payload, offset);
+            const auto y = read_field<double>(payload, offset);
+            const auto z = read_field<double>(payload, offset);
+            const auto colors = proto::read_optional_colors(payload, offset);
+
+            geoqik_add_points_options_t opts{};
+            if (!uuid_is_zero(key)) { opts.idempotencyKey = key; }
+            if (!colors.empty()) {
+                opts.color      = colors.data();
+                opts.colorCount = static_cast<std::size_t>(colors.size());
+            }
+            const auto result = geoqik_add_point_opts(x, y, z, &opts);
+            send_api_response(stream, result.err, &result.geometryId);
+            break;
+        }
+
+        case proto::CommandId::AddPointsOpts: {
+            std::size_t offset = 0;
+            const geoqik_uuid_t key = read_uuid(payload, offset);
+            const auto count = read_field<std::uint64_t>(payload, offset);
+            const std::size_t coordBytes = count * 3 * sizeof(double);
+            if (offset + coordBytes > payload.size()) {
+                send_response(stream, GEOQIK_ERROR_INVALID_PARAMETER, nullptr,
+                    server_diagnostic(ServerDiagnosticId::InvalidPayload));
+                return;
+            }
+            const double* points = reinterpret_cast<const double*>(payload.data() + offset);
+            offset += coordBytes;
+            const auto colors = proto::read_optional_colors(payload, offset);
+
+            geoqik_add_points_options_t opts{};
+            if (!uuid_is_zero(key)) { opts.idempotencyKey = key; }
+            if (!colors.empty()) {
+                opts.color      = colors.data();
+                opts.colorCount = static_cast<std::size_t>(colors.size());
+            }
+            const auto result = geoqik_add_points_opts(points, static_cast<std::size_t>(count), &opts);
+            send_api_response(stream, result.err, &result.geometryId);
+            break;
+        }
+
+        case proto::CommandId::UpdatePoint: {
+            std::size_t offset = 0;
+            const geoqik_uuid_t id = read_uuid(payload, offset);
+            const auto x = read_field<double>(payload, offset);
+            const auto y = read_field<double>(payload, offset);
+            const auto z = read_field<double>(payload, offset);
+            const auto err = geoqik_update_point(&id, x, y, z);
+            send_api_response(stream, err);
+            break;
+        }
+
+        case proto::CommandId::UpdatePointWithColor: {
+            std::size_t offset = 0;
+            const geoqik_uuid_t id = read_uuid(payload, offset);
+            const auto x = read_field<double>(payload, offset);
+            const auto y = read_field<double>(payload, offset);
+            const auto z = read_field<double>(payload, offset);
+            const auto r = read_field<float>(payload, offset);
+            const auto g = read_field<float>(payload, offset);
+            const auto b = read_field<float>(payload, offset);
+            const auto a = read_field<float>(payload, offset);
+            const auto err = geoqik_update_point_with_color(&id, x, y, z, r, g, b, a);
+            send_api_response(stream, err);
+            break;
+        }
+
+        case proto::CommandId::UpdatePointOpts: {
+            std::size_t offset = 0;
+            const geoqik_uuid_t id = read_uuid(payload, offset);
+            const auto x = read_field<double>(payload, offset);
+            const auto y = read_field<double>(payload, offset);
+            const auto z = read_field<double>(payload, offset);
+            const auto colors = proto::read_optional_colors(payload, offset);
+
+            geoqik_update_points_options_t opts{};
+            if (!colors.empty()) {
+                opts.color      = colors.data();
+                opts.colorCount = static_cast<std::size_t>(colors.size());
+            }
+            const auto err = geoqik_update_point_opts(&id, x, y, z, &opts);
+            send_api_response(stream, err);
+            break;
+        }
+
+        case proto::CommandId::UpdatePointsOpts: {
+            std::size_t offset = 0;
+            const geoqik_uuid_t id = read_uuid(payload, offset);
+            const auto count = read_field<std::uint64_t>(payload, offset);
+            const std::size_t coordBytes = count * 3 * sizeof(double);
+            if (offset + coordBytes > payload.size()) {
+                send_response(stream, GEOQIK_ERROR_INVALID_PARAMETER, nullptr,
+                    server_diagnostic(ServerDiagnosticId::InvalidPayload));
+                return;
+            }
+            const double* points = reinterpret_cast<const double*>(payload.data() + offset);
+            offset += coordBytes;
+            const auto colors = proto::read_optional_colors(payload, offset);
+
+            geoqik_update_points_options_t opts{};
+            if (!colors.empty()) {
+                opts.color      = colors.data();
+                opts.colorCount = static_cast<std::size_t>(colors.size());
+            }
+            const auto err = geoqik_update_points_opts(&id, points, static_cast<std::size_t>(count), &opts);
+            send_api_response(stream, err);
+            break;
+        }
+
+        case proto::CommandId::RemovePoint: {
+            std::size_t offset = 0;
+            const geoqik_uuid_t id = read_uuid(payload, offset);
+            const auto err = geoqik_remove_point(&id);
+            send_api_response(stream, err);
+            break;
+        }
+
+        case proto::CommandId::AddLineWithColor: {
+            std::size_t offset = 0;
+            const auto x1 = read_field<double>(payload, offset);
+            const auto y1 = read_field<double>(payload, offset);
+            const auto z1 = read_field<double>(payload, offset);
+            const auto x2 = read_field<double>(payload, offset);
+            const auto y2 = read_field<double>(payload, offset);
+            const auto z2 = read_field<double>(payload, offset);
+            const auto r  = read_field<float>(payload, offset);
+            const auto g  = read_field<float>(payload, offset);
+            const auto b  = read_field<float>(payload, offset);
+            const auto a  = read_field<float>(payload, offset);
+            const auto err = geoqik_add_line_with_color(x1, y1, z1, x2, y2, z2, r, g, b, a);
+            send_api_response(stream, err);
+            break;
+        }
+
+        case proto::CommandId::AddLineOpts: {
+            std::size_t offset = 0;
+            const geoqik_uuid_t key = read_uuid(payload, offset);
+            const auto x1 = read_field<double>(payload, offset);
+            const auto y1 = read_field<double>(payload, offset);
+            const auto z1 = read_field<double>(payload, offset);
+            const auto x2 = read_field<double>(payload, offset);
+            const auto y2 = read_field<double>(payload, offset);
+            const auto z2 = read_field<double>(payload, offset);
+            const auto colors = proto::read_optional_colors(payload, offset);
+
+            geoqik_add_line_opts_t opts{};
+            if (!uuid_is_zero(key)) { opts.idempotencyKey = key; }
+            if (!colors.empty()) {
+                opts.color      = colors.data();
+                opts.colorCount = static_cast<std::size_t>(colors.size());
+            }
+            const auto result = geoqik_add_line_opts(x1, y1, z1, x2, y2, z2, &opts);
+            send_api_response(stream, result.err, &result.geometryId);
+            break;
+        }
+
+        case proto::CommandId::AddLinesOpts: {
+            std::size_t offset = 0;
+            const geoqik_uuid_t key = read_uuid(payload, offset);
+            const auto count = read_field<std::uint64_t>(payload, offset);
+            const std::size_t coordBytes = count * 6 * sizeof(double);
+            if (offset + coordBytes > payload.size()) {
+                send_response(stream, GEOQIK_ERROR_INVALID_PARAMETER, nullptr,
+                    server_diagnostic(ServerDiagnosticId::InvalidPayload));
+                return;
+            }
+            const double* lines = reinterpret_cast<const double*>(payload.data() + offset);
+            offset += coordBytes;
+            const auto colors = proto::read_optional_colors(payload, offset);
+
+            geoqik_add_line_opts_t opts{};
+            if (!uuid_is_zero(key)) { opts.idempotencyKey = key; }
+            if (!colors.empty()) {
+                opts.color      = colors.data();
+                opts.colorCount = static_cast<std::size_t>(colors.size());
+            }
+            const auto result = geoqik_add_lines_opts(lines, static_cast<std::size_t>(count), &opts);
+            send_api_response(stream, result.err, &result.geometryId);
+            break;
+        }
+
+        case proto::CommandId::UpdateLine: {
+            std::size_t offset = 0;
+            const geoqik_uuid_t id = read_uuid(payload, offset);
+            const auto x1 = read_field<double>(payload, offset);
+            const auto y1 = read_field<double>(payload, offset);
+            const auto z1 = read_field<double>(payload, offset);
+            const auto x2 = read_field<double>(payload, offset);
+            const auto y2 = read_field<double>(payload, offset);
+            const auto z2 = read_field<double>(payload, offset);
+            const auto err = geoqik_update_line(&id, x1, y1, z1, x2, y2, z2);
+            send_api_response(stream, err);
+            break;
+        }
+
+        case proto::CommandId::UpdateLineWithColor: {
+            std::size_t offset = 0;
+            const geoqik_uuid_t id = read_uuid(payload, offset);
+            const auto x1 = read_field<double>(payload, offset);
+            const auto y1 = read_field<double>(payload, offset);
+            const auto z1 = read_field<double>(payload, offset);
+            const auto x2 = read_field<double>(payload, offset);
+            const auto y2 = read_field<double>(payload, offset);
+            const auto z2 = read_field<double>(payload, offset);
+            const auto r  = read_field<float>(payload, offset);
+            const auto g  = read_field<float>(payload, offset);
+            const auto b  = read_field<float>(payload, offset);
+            const auto a  = read_field<float>(payload, offset);
+            const auto err = geoqik_update_line_with_color(&id, x1, y1, z1, x2, y2, z2, r, g, b, a);
+            send_api_response(stream, err);
+            break;
+        }
+
+        case proto::CommandId::UpdateLineOpts: {
+            std::size_t offset = 0;
+            const geoqik_uuid_t id = read_uuid(payload, offset);
+            const auto x1 = read_field<double>(payload, offset);
+            const auto y1 = read_field<double>(payload, offset);
+            const auto z1 = read_field<double>(payload, offset);
+            const auto x2 = read_field<double>(payload, offset);
+            const auto y2 = read_field<double>(payload, offset);
+            const auto z2 = read_field<double>(payload, offset);
+            const auto colors = proto::read_optional_colors(payload, offset);
+
+            geoqik_update_line_opts_t opts{};
+            if (!colors.empty()) {
+                opts.color      = colors.data();
+                opts.colorCount = static_cast<std::size_t>(colors.size());
+            }
+            const auto err = geoqik_update_line_opts(&id, x1, y1, z1, x2, y2, z2, &opts);
+            send_api_response(stream, err);
+            break;
+        }
+
+        case proto::CommandId::UpdateLinesOpts: {
+            std::size_t offset = 0;
+            const geoqik_uuid_t id = read_uuid(payload, offset);
+            const auto count = read_field<std::uint64_t>(payload, offset);
+            const std::size_t coordBytes = count * 6 * sizeof(double);
+            if (offset + coordBytes > payload.size()) {
+                send_response(stream, GEOQIK_ERROR_INVALID_PARAMETER, nullptr,
+                    server_diagnostic(ServerDiagnosticId::InvalidPayload));
+                return;
+            }
+            const double* lines = reinterpret_cast<const double*>(payload.data() + offset);
+            offset += coordBytes;
+            const auto colors = proto::read_optional_colors(payload, offset);
+
+            geoqik_update_line_opts_t opts{};
+            if (!colors.empty()) {
+                opts.color      = colors.data();
+                opts.colorCount = static_cast<std::size_t>(colors.size());
+            }
+            const auto err = geoqik_update_lines_opts(&id, lines, static_cast<std::size_t>(count), &opts);
+            send_api_response(stream, err);
+            break;
+        }
+
+        case proto::CommandId::RemoveLine: {
+            std::size_t offset = 0;
+            const geoqik_uuid_t id = read_uuid(payload, offset);
+            const auto err = geoqik_remove_line(&id);
+            send_api_response(stream, err);
+            break;
+        }
+
+        case proto::CommandId::AddMeshOpts: {
+            std::size_t offset = 0;
+            const geoqik_uuid_t key = read_uuid(payload, offset);
+
+            const auto vertexCount   = read_field<std::uint64_t>(payload, offset);
+            const auto triangleCount = read_field<std::uint64_t>(payload, offset);
+
+            const std::size_t vertBytes = static_cast<std::size_t>(vertexCount) * 3 * sizeof(float);
+            const std::size_t triBytes  = static_cast<std::size_t>(triangleCount) * 3 * sizeof(std::uint32_t);
+            if (offset + vertBytes + triBytes > payload.size()) {
+                send_response(stream, GEOQIK_ERROR_INVALID_PARAMETER, nullptr,
+                    server_diagnostic(ServerDiagnosticId::InvalidPayload));
+                return;
+            }
+            const float*    vertices = reinterpret_cast<const float*>(payload.data() + offset);
+            offset += vertBytes;
+            const std::uint32_t* triIdx = reinterpret_cast<const std::uint32_t*>(payload.data() + offset);
+            offset += triBytes;
+
+            const auto normals   = read_float_array(payload, offset);
+            const auto colors    = read_float_array(payload, offset);
+            const auto segIdx    = read_uint32_array(payload, offset);
+            const auto segColor  = read_color_slot(payload, offset);
+            const auto showSegs  = read_field<std::int32_t>(payload, offset);
+            const auto segWidth  = read_field<float>(payload, offset);
+            const auto vtxColor  = read_color_slot(payload, offset);
+            const auto showVerts = read_field<std::int32_t>(payload, offset);
+            const auto vtxSize   = read_field<float>(payload, offset);
+
+            geoqik_add_mesh_opts_t opts{};
+            if (!uuid_is_zero(key)) { opts.idempotencyKey = key; }
+            if (!normals.empty()) {
+                opts.normals      = normals.data();
+                opts.normalsCount = normals.size();
+            }
+            if (!colors.empty()) {
+                opts.color      = colors.data();
+                opts.colorCount = colors.size();
+            }
+            if (!segIdx.empty()) {
+                opts.segmentIndices    = segIdx.data();
+                opts.segmentIndexCount = segIdx.size();
+            }
+            opts.segmentColor     = segColor.isZero() ? nullptr : segColor.rgba;
+            opts.showSegments     = showSegs;
+            opts.segmentLineWidth = segWidth;
+            opts.vertexColor      = vtxColor.isZero() ? nullptr : vtxColor.rgba;
+            opts.showVertices     = showVerts;
+            opts.vertexPointSize  = vtxSize;
+
+            const auto result = geoqik_add_mesh_opts(
+                vertices, static_cast<std::size_t>(vertexCount),
+                triIdx,   static_cast<std::size_t>(triangleCount),
+                &opts);
+            send_api_response(stream, result.err, &result.geometryId);
+            break;
+        }
+
+        case proto::CommandId::RemoveMesh: {
+            std::size_t offset = 0;
+            const geoqik_uuid_t id = read_uuid(payload, offset);
+            const auto err = geoqik_remove_mesh(&id);
+            send_api_response(stream, err);
+            break;
+        }
+
+        case proto::CommandId::UpdateMeshOpts: {
+            std::size_t offset = 0;
+            const geoqik_uuid_t id = read_uuid(payload, offset);
+
+            const auto vertexCount = read_field<std::uint64_t>(payload, offset);
+            const std::size_t vertBytes = static_cast<std::size_t>(vertexCount) * 3 * sizeof(float);
+            if (offset + vertBytes > payload.size()) {
+                send_response(stream, GEOQIK_ERROR_INVALID_PARAMETER, nullptr,
+                    server_diagnostic(ServerDiagnosticId::InvalidPayload));
+                return;
+            }
+            const float* vertices = reinterpret_cast<const float*>(payload.data() + offset);
+            offset += vertBytes;
+
+            const auto normals = read_float_array(payload, offset);
+            const auto colors  = read_float_array(payload, offset);
+
+            geoqik_update_mesh_opts_t opts{};
+            if (!normals.empty()) {
+                opts.normals      = normals.data();
+                opts.normalsCount = normals.size();
+            }
+            if (!colors.empty()) {
+                opts.color      = colors.data();
+                opts.colorCount = colors.size();
+            }
+
+            const auto err = geoqik_update_mesh_opts(
+                &id, vertices, static_cast<std::size_t>(vertexCount), &opts);
+            send_api_response(stream, err);
+            break;
+        }
+
+        case proto::CommandId::SetMeshOverlayOpts: {
+            std::size_t offset = 0;
+            const geoqik_uuid_t id  = read_uuid(payload, offset);
+            const auto showSegments = read_field<std::int32_t>(payload, offset);
+            const auto showVertices = read_field<std::int32_t>(payload, offset);
+            geoqik_mesh_overlay_opts_t opts{showSegments, showVertices};
+            const auto err = geoqik_set_mesh_overlay_opts(&id, &opts);
+            send_api_response(stream, err);
+            break;
+        }
+
+        case proto::CommandId::SetMeshRenderingOpts: {
+            std::size_t offset = 0;
+            const geoqik_uuid_t id = read_uuid(payload, offset);
+            const auto cullModeRaw = read_field<std::uint32_t>(payload, offset);
+            const auto surfaceVis  = read_field<std::int32_t>(payload, offset);
+            geoqik_mesh_rendering_opts_t opts{
+                static_cast<geoqik_mesh_cull_mode_t>(cullModeRaw),
+                surfaceVis};
+            const auto err = geoqik_set_mesh_rendering_opts(&id, &opts);
+            send_api_response(stream, err);
+            break;
         }
 
         default:

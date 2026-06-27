@@ -12,6 +12,7 @@ find_package(Boost REQUIRED)
 find_package(boost_process CONFIG REQUIRED)
 
 target_link_libraries(geoqik_client INTERFACE
+    geoqik::api_types
     geoqik::protocol
     Boost::process)
 

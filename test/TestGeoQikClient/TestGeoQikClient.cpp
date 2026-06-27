@@ -74,8 +74,6 @@ TEST_F(GeoQikClientTest, DISABLED_WaitForExitAndCleanupExitsServer) {
     // TearDown calls geoqik_cleanup() — should not crash even though server has exited.
 }
 
-// --- Double-init test (depends on Plan 001) ---------------------------------
-
 TEST_F(GeoQikClientTest, DoubleInitIsIdempotent) {
     ASSERT_EQ(GEOQIK_SUCCESS, geoqik_init());
     // Second call must not start a new server or corrupt state.
@@ -107,8 +105,6 @@ TEST_F(GeoQikClientTest, ServerNotFoundSetsClientError) {
     // Restore correct path for TearDown.
     set_server_path();
 }
-
-// --- Stale-connection test (depends on Plan 003) ----------------------------
 
 // DISABLED: depends on geoqik_wait_for_exit_and_cleanup(), which blocks until the
 // user closes the server's viewer window, so this test hangs in an unattended/CI
