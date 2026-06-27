@@ -110,3 +110,32 @@ add_custom_target(run-example-renderer-standalone
     COMMENT "Running example_renderer_standalone"
     VERBATIM
 )
+
+# PoC client example: links geoqik::client (no DLL), requires geoqik_server at runtime.
+if (MSVC)
+    add_executable(example_client_poc WIN32 example_client_poc.cpp)
+else()
+    add_executable(example_client_poc example_client_poc.cpp)
+endif()
+
+target_link_libraries(example_client_poc PRIVATE geoqik::client)
+
+set_target_properties(example_client_poc PROPERTIES
+    LANGUAGE CXX
+    LINKER_LANGUAGE CXX
+    DEBUG_POSTFIX d)
+
+if (WIN32 AND MSVC)
+    set_target_properties(example_client_poc PROPERTIES
+        LINK_FLAGS "/ENTRY:mainCRTStartup")
+endif()
+
+target_compile_features(example_client_poc PRIVATE cxx_std_23)
+
+add_warnings_and_compile_options(example_client_poc "${${PROJECT_NAME}_WARNINGS_AS_ERRORS}")
+
+# Boost.Asio headers (scheduler.ipp) trigger a false-positive -Wnull-dereference with GCC 14.
+# Suppress it only for this target since we cannot mark third-party headers as system headers here.
+if (NOT MSVC)
+    target_compile_options(example_client_poc PRIVATE -Wno-null-dereference)
+endif()

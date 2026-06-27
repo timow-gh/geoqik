@@ -124,8 +124,23 @@ extern "C"
     GEOQIK_ERROR_INVALID_PARAMETER = 3,
     GEOQIK_ERROR_WRONG_COLOR_SIZE = 4,
     GEOQIK_ERROR_MEMORY_ALLOCATION = 5,
-    GEOQIK_ERROR_UNKNOWN = 6
+    GEOQIK_ERROR_UNKNOWN = 6,
+    GEOQIK_ERROR_RENDERER_INIT_FAILED = 7,
+    GEOQIK_ERROR_IO = 8,
+    GEOQIK_ERROR_UNSUPPORTED_FORMAT = 9,
+    GEOQIK_ERROR_INVALID_STATE = 10
   } geoqik_error_code_t;
+
+  typedef struct
+  {
+    size_t struct_size;
+    geoqik_error_code_t code;
+    const char* operation;
+    const char* what;
+    const char* why;
+    const char* action;
+    const char* details;
+  } geoqik_error_info_t;
 
   typedef enum
   {
@@ -310,6 +325,8 @@ extern "C"
 
   /* Get error message for result code */
   GEOQIK_EXPORT const char* geoqik_get_error_string(geoqik_error_code_t result);
+  GEOQIK_EXPORT geoqik_error_code_t geoqik_get_last_error_info(geoqik_error_info_t* info);
+  GEOQIK_EXPORT void geoqik_clear_last_error(void);
 
   GEOQIK_EXPORT geoqik_error_code_t geoqik_generate_uuid(geoqik_uuid_t* uuid);
 

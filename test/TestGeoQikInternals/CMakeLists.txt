@@ -30,6 +30,13 @@ function(create_renderer_test testName)
     set_property(GLOBAL APPEND PROPERTY ${PROJECT_NAME}_COVERAGE_TESTS ${testName})
 endfunction()
 
+function(create_protocol_test testName)
+    add_executable(${testName} ${testName}.cpp)
+    target_link_libraries(${testName} PRIVATE gtest gtest_main geoqik::protocol)
+    add_test(NAME geoqik.${testName} COMMAND ${testName})
+    set_property(GLOBAL APPEND PROPERTY ${PROJECT_NAME}_COVERAGE_TESTS ${testName})
+endfunction()
+
 function(create_geoqik_opengl_program_unit_test testName)
     add_executable(${testName}
             ${testName}.cpp
@@ -64,6 +71,7 @@ create_geoqik_internal_test(MeshBufferTest)
 create_renderer_test(InputCaptureStateTest)
 create_renderer_test(InputStateTest)
 set_tests_properties(geoqik.InputStateTest PROPERTIES RESOURCE_LOCK geoqik_glfw)
+create_protocol_test(ProtocolTest)
 create_renderer_test(RendererViewportTest)
 create_geoqik_internal_test(WindowSettingsTest)
 target_link_libraries(WindowSettingsTest PRIVATE geoqik::geoqik)

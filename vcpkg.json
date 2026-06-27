@@ -13,6 +13,8 @@
     {
       "name": "stduuid",
       "features": [ "system-gen" ]
-    }
+    },
+    "boost-asio",
+    "boost-process"
   ]
 }
