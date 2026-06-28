@@ -7,6 +7,7 @@
 #include <boost/asio/windows/stream_handle.hpp>
 #include <cstdlib>
 #include <iostream>
+#include <sddl.h>
 #include <thread>
 #include <windows.h>
 
@@ -14,8 +15,28 @@ namespace geoqik::server {
 
 void run(const std::string& pipeName) {
     constexpr DWORD pipeBufferSize = 65536;
+    constexpr const char* pipeSecurityDescriptor =
+        "D:P"
+        "(A;;GA;;;SY)"
+        "(A;;GA;;;BA)"
+        "(A;;GA;;;OW)"
+        "(A;;GA;;;WD)";
 
     for (;;) {
+        PSECURITY_DESCRIPTOR securityDescriptor = nullptr;
+        if (::ConvertStringSecurityDescriptorToSecurityDescriptorA(
+                pipeSecurityDescriptor,
+                SDDL_REVISION_1,
+                &securityDescriptor,
+                nullptr) == FALSE) {
+            std::cerr << "CreateNamedPipe security setup failed: " << ::GetLastError() << '\n';
+            std::exit(EXIT_FAILURE); // NOLINT(concurrency-mt-unsafe)
+        }
+        SECURITY_ATTRIBUTES securityAttributes{};
+        securityAttributes.nLength = sizeof(securityAttributes);
+        securityAttributes.lpSecurityDescriptor = securityDescriptor;
+        securityAttributes.bInheritHandle = FALSE;
+
         HANDLE pipeHandle = ::CreateNamedPipeA(
             pipeName.c_str(),
             PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED,
@@ -24,7 +45,8 @@ void run(const std::string& pipeName) {
             pipeBufferSize,
             pipeBufferSize,
             /*defaultTimeout=*/0,
-            /*security=*/nullptr);
+            &securityAttributes);
+        ::LocalFree(securityDescriptor);
 
         if (pipeHandle == INVALID_HANDLE_VALUE) {
             std::cerr << "CreateNamedPipe failed: " << ::GetLastError() << '\n';

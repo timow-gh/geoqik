@@ -1,23 +1,30 @@
 #ifndef GEOQIK_CLIENT_DETAIL_CONNECTION_HPP
 #define GEOQIK_CLIENT_DETAIL_CONNECTION_HPP
 
-#include <GeoQikProtocol/Protocol.hpp>
+#include <GeoQikClient/detail/Protocol.hpp>
 
-#include <boost/asio.hpp>
-#include <boost/system/error_code.hpp>
 #include <chrono>
+#include <cstddef>
 #include <cstdint>
-#include <optional>
+#include <cstring>
 #include <stdexcept>
 #include <string>
 #include <thread>
 #include <vector>
 
 #ifdef _WIN32
-#  include <boost/asio/windows/stream_handle.hpp>
+#  ifndef WIN32_LEAN_AND_MEAN
+#    define WIN32_LEAN_AND_MEAN
+#  endif
+#  ifndef NOMINMAX
+#    define NOMINMAX
+#  endif
 #  include <windows.h>
 #else
-#  include <boost/asio/local/stream_protocol.hpp>
+#  include <cerrno>
+#  include <sys/socket.h>
+#  include <sys/un.h>
+#  include <unistd.h>
 #endif
 
 namespace geoqik::client::detail {
@@ -56,16 +63,8 @@ public:
 
 class Connection {
 public:
-#ifdef _WIN32
-    using StreamType = boost::asio::windows::basic_stream_handle<boost::asio::io_context::executor_type>;
-#else
-    using StreamType = boost::asio::basic_stream_socket<
-        boost::asio::local::stream_protocol,
-        boost::asio::io_context::executor_type>;
-#endif
-
     Connection() = default;
-    ~Connection() = default;
+    ~Connection() { disconnect(); }
 
     Connection(const Connection&) = delete;
     Connection& operator=(const Connection&) = delete;
@@ -78,31 +77,10 @@ public:
         constexpr auto retryInterval = 10ms;
 
         const auto deadline = std::chrono::steady_clock::now() + connectionTimeout;
-
         while (std::chrono::steady_clock::now() < deadline) {
-#ifdef _WIN32
-            HANDLE pipeHandle = ::CreateFileA(
-                pipeName.c_str(),
-                GENERIC_READ | GENERIC_WRITE,
-                0, nullptr,
-                OPEN_EXISTING,
-                FILE_FLAG_OVERLAPPED,
-                nullptr);
-
-            if (pipeHandle != INVALID_HANDLE_VALUE) {
-                stream_.emplace(io_.get_executor(), pipeHandle);
+            if (try_connect(pipeName)) {
                 return;
             }
-#else
-            boost::system::error_code ec;
-            StreamType sock(io_.get_executor());
-            sock.connect(
-                boost::asio::local::stream_protocol::endpoint(pipeName), ec);
-            if (!ec) {
-                stream_.emplace(std::move(sock));
-                return;
-            }
-#endif
             std::this_thread::sleep_for(retryInterval);
         }
         throw IpcConnectionError(
@@ -120,12 +98,10 @@ public:
             proto::FrameHeader header{};
             header.commandId = static_cast<std::uint32_t>(cmd);
             header.payloadBytes = proto::payload_byte_count(payload.size());
-            boost::asio::write(*stream_,
-                boost::asio::buffer(&header, sizeof(header)));
+            write_exact(&header, sizeof(header));
 
             if (!payload.empty()) {
-                boost::asio::write(*stream_,
-                    boost::asio::buffer(payload.data(), payload.size()));
+                write_exact(payload.data(), payload.size());
             }
         } catch (const std::exception& e) {
             disconnect();
@@ -134,13 +110,11 @@ public:
 
         proto::ResponseHeader responseHeader{};
         try {
-            boost::asio::read(*stream_,
-                boost::asio::buffer(&responseHeader, sizeof(responseHeader)));
+            read_exact(&responseHeader, sizeof(responseHeader));
 
             std::vector<std::uint8_t> diagnosticPayload(responseHeader.diagnosticBytes);
             if (responseHeader.diagnosticBytes > 0) {
-                boost::asio::read(*stream_,
-                    boost::asio::buffer(diagnosticPayload.data(), diagnosticPayload.size()));
+                read_exact(diagnosticPayload.data(), diagnosticPayload.size());
             }
 
             proto::ResponseFrame resp{};
@@ -157,19 +131,194 @@ public:
         }
     }
 
-    [[nodiscard]] bool connected() const noexcept { return stream_.has_value(); }
-
-    void disconnect() noexcept {
-        boost::system::error_code ec;
-        if (stream_.has_value()) {
-            stream_->close(ec);
-        }
-        stream_.reset();
+    [[nodiscard]] bool connected() const noexcept {
+#ifdef _WIN32
+        return pipeHandle_ != INVALID_HANDLE_VALUE;
+#else
+        return socketFd_ >= 0;
+#endif
     }
 
-    boost::asio::io_context io_;
+    void disconnect() noexcept {
+#ifdef _WIN32
+        if (pipeHandle_ != INVALID_HANDLE_VALUE) {
+            ::CloseHandle(pipeHandle_);
+            pipeHandle_ = INVALID_HANDLE_VALUE;
+        }
+#else
+        if (socketFd_ >= 0) {
+            ::close(socketFd_);
+            socketFd_ = -1;
+        }
+#endif
+    }
 
-    std::optional<StreamType> stream_;
+private:
+    [[nodiscard]] bool try_connect(const std::string& pipeName) {
+#ifdef _WIN32
+        HANDLE handle = ::CreateFileA(
+            pipeName.c_str(),
+            GENERIC_READ | GENERIC_WRITE,
+            0,
+            nullptr,
+            OPEN_EXISTING,
+            FILE_FLAG_OVERLAPPED,
+            nullptr);
+
+        if (handle != INVALID_HANDLE_VALUE) {
+            pipeHandle_ = handle;
+            return true;
+        }
+
+        if (::GetLastError() == ERROR_PIPE_BUSY) {
+            ::WaitNamedPipeA(pipeName.c_str(), 10);
+        }
+        return false;
+#else
+        const int fd = ::socket(AF_UNIX, SOCK_STREAM, 0);
+        if (fd < 0) {
+            return false;
+        }
+
+        sockaddr_un addr{};
+        addr.sun_family = AF_UNIX;
+        const std::size_t maxPathBytes = sizeof(addr.sun_path);
+        if (pipeName.size() > maxPathBytes) {
+            ::close(fd);
+            throw IpcConnectionError("geoqik: socket name is too long");
+        }
+        std::memcpy(addr.sun_path, pipeName.data(), pipeName.size());
+
+        const auto addrLen = static_cast<socklen_t>(
+            offsetof(sockaddr_un, sun_path) + pipeName.size());
+        if (::connect(fd, reinterpret_cast<sockaddr*>(&addr), addrLen) == 0) {
+            socketFd_ = fd;
+            return true;
+        }
+
+        ::close(fd);
+        return false;
+#endif
+    }
+
+    void write_exact(const void* data, std::size_t byteCount) {
+        const auto* cursor = static_cast<const std::uint8_t*>(data);
+        std::size_t remaining = byteCount;
+        while (remaining > 0) {
+#ifdef _WIN32
+            const DWORD written = write_overlapped(cursor, remaining);
+            cursor += written;
+            remaining -= written;
+#else
+            const ssize_t written = ::write(socketFd_, cursor, remaining);
+            if (written < 0) {
+                if (errno == EINTR) {
+                    continue;
+                }
+                throw std::runtime_error("geoqik: socket write failed: " + std::string(std::strerror(errno)));
+            }
+            if (written == 0) {
+                throw std::runtime_error("geoqik: socket write returned zero bytes");
+            }
+            cursor += static_cast<std::size_t>(written);
+            remaining -= static_cast<std::size_t>(written);
+#endif
+        }
+    }
+
+    void read_exact(void* data, std::size_t byteCount) {
+        auto* cursor = static_cast<std::uint8_t*>(data);
+        std::size_t remaining = byteCount;
+        while (remaining > 0) {
+#ifdef _WIN32
+            const DWORD read = read_overlapped(cursor, remaining);
+            cursor += read;
+            remaining -= read;
+#else
+            const ssize_t bytesRead = ::read(socketFd_, cursor, remaining);
+            if (bytesRead < 0) {
+                if (errno == EINTR) {
+                    continue;
+                }
+                throw std::runtime_error("geoqik: socket read failed: " + std::string(std::strerror(errno)));
+            }
+            if (bytesRead == 0) {
+                throw std::runtime_error("geoqik: socket closed while reading");
+            }
+            cursor += static_cast<std::size_t>(bytesRead);
+            remaining -= static_cast<std::size_t>(bytesRead);
+#endif
+        }
+    }
+
+#ifdef _WIN32
+    [[nodiscard]] DWORD write_overlapped(const std::uint8_t* data, std::size_t byteCount) {
+        return transfer_overlapped(
+            [&](OVERLAPPED& overlapped, DWORD chunk) {
+                return ::WriteFile(pipeHandle_, data, chunk, nullptr, &overlapped);
+            },
+            byteCount,
+            "geoqik: pipe write failed");
+    }
+
+    [[nodiscard]] DWORD read_overlapped(std::uint8_t* data, std::size_t byteCount) {
+        return transfer_overlapped(
+            [&](OVERLAPPED& overlapped, DWORD chunk) {
+                return ::ReadFile(pipeHandle_, data, chunk, nullptr, &overlapped);
+            },
+            byteCount,
+            "geoqik: pipe read failed");
+    }
+
+    template<typename TransferFunc>
+    [[nodiscard]] DWORD transfer_overlapped(
+        TransferFunc&& transfer,
+        std::size_t byteCount,
+        const char* failureMessage)
+    {
+        OVERLAPPED overlapped{};
+        overlapped.hEvent = ::CreateEventA(nullptr, TRUE, FALSE, nullptr);
+        if (overlapped.hEvent == nullptr) {
+            throw std::runtime_error("geoqik: could not create pipe event");
+        }
+
+        const DWORD chunk = byteCount > static_cast<std::size_t>(MAXDWORD)
+            ? MAXDWORD
+            : static_cast<DWORD>(byteCount);
+
+        const BOOL started = transfer(overlapped, chunk);
+        DWORD transferred = 0;
+        if (started == FALSE) {
+            const DWORD error = ::GetLastError();
+            if (error != ERROR_IO_PENDING) {
+                ::CloseHandle(overlapped.hEvent);
+                throw std::runtime_error(
+                    std::string(failureMessage) + " with error " + std::to_string(error));
+            }
+            if (::WaitForSingleObject(overlapped.hEvent, INFINITE) != WAIT_OBJECT_0) {
+                ::CloseHandle(overlapped.hEvent);
+                throw std::runtime_error(failureMessage);
+            }
+        }
+
+        if (::GetOverlappedResult(pipeHandle_, &overlapped, &transferred, FALSE) == FALSE
+            || transferred == 0) {
+            const DWORD error = ::GetLastError();
+            ::CloseHandle(overlapped.hEvent);
+            throw std::runtime_error(
+                std::string(failureMessage) + " with error " + std::to_string(error));
+        }
+
+        ::CloseHandle(overlapped.hEvent);
+        return transferred;
+    }
+#endif
+
+#ifdef _WIN32
+    HANDLE pipeHandle_ = INVALID_HANDLE_VALUE;
+#else
+    int socketFd_ = -1;
+#endif
 };
 
 inline Connection& thread_connection() {
