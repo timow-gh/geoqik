@@ -140,14 +140,1300 @@ typedef struct {
 } geoqik_client_error_info_t;
 
 #ifdef __cplusplus
-#  include <GeoQikClient/detail/ClientTypes.hpp>
+#ifndef GEOQIK_CLIENT_DETAIL_CLIENT_TYPES_HPP
+#define GEOQIK_CLIENT_DETAIL_CLIENT_TYPES_HPP
+
+#include <cstddef>
+#include <cstdint>
+
+// Mirror of geoqik_settings_t from GeoQik.hpp — must be kept in sync.
+// Defined here so that ProcessManager.hpp can use these types without
+// depending on GeoQikClient.hpp
+struct geoqik_settings_t { // NOLINT(readability-identifier-naming)
+    std::int64_t maxMessageQueueSize{};
+    std::size_t initialPointCapacity{};
+    std::size_t initialLineCapacity{};
+    std::size_t initialMeshCapacity{};
+    float defaultMeshColor[4]{};
+    float meshHeadLightColor[3]{};
+    float meshHeadLightIntensity{};
+    float meshFillLightDirection[3]{};
+    float meshFillLightColor[3]{};
+    float meshFillLightIntensity{};
+    float meshAmbientColor[3]{};
+    float meshAmbientIntensity{};
+    float meshShininess{};
+    std::size_t capacityGrowthFactor{};
+    float defaultPointSize{};
+    float defaultLineWidth{};
+    float defaultPointColor[4]{};
+    float defaultLineColor[4]{};
+    float backgroundColor[4]{};
+    double cameraFarPlaneMultiplier{};
+    int autoFitCameraEnabled{};
+    int autoFitZoomInEnabled{};
+    double autoFitZoomOutPadding{};
+    double autoFitMinViewportOccupancy{};
+    double autoFitTargetViewportOccupancy{};
+    std::int64_t autoFitSuppressAfterUserCameraInteractionMs{};
+    std::int64_t minGeometryProcessingTimeMs{};
+    std::int64_t maxFrameProcessingTimeMs{};
+    std::size_t updateSceneFrequency{};
+};
+
+struct geoqik_window_settings_t { // NOLINT(readability-identifier-naming)
+    const char* title{};
+    std::uint32_t width{};
+    std::uint32_t height{};
+    int red_bits{};
+    int green_bits{};
+    int blue_bits{};
+    int alpha_bits{};
+    int depth_bits{};
+    int stencil_bits{};
+    int accum_red_bits{};
+    int accum_green_bits{};
+    int accum_blue_bits{};
+    int accum_alpha_bits{};
+    int aux_buffers{};
+    int samples{};
+    int refresh_rate{};
+    int stereo{};
+    int srgb_capable{};
+    int double_buffer{};
+    int resizable{};
+    int visible{};
+    int decorated{};
+    int focused{};
+    int auto_iconify{};
+    int floating{};
+    int maximized{};
+    int center_cursor{};
+    int transparent_framebuffer{};
+    int focus_on_show{};
+    int scale_to_monitor{};
+};
+
+#endif // GEOQIK_CLIENT_DETAIL_CLIENT_TYPES_HPP
 #endif
 
 #ifdef __cplusplus
 
-#include <GeoQikClient/detail/Connection.hpp>
-#include <GeoQikClient/detail/ProcessManager.hpp>
-#include <GeoQikClient/detail/Protocol.hpp>
+#ifndef GEOQIK_PROTOCOL_PROTOCOL_HPP
+#define GEOQIK_PROTOCOL_PROTOCOL_HPP
+
+#include <array>
+#include <bit>
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+#include <limits>
+#include <stdexcept>
+#include <string>
+#include <type_traits>
+#include <vector>
+
+namespace geoqik::protocol {
+
+inline constexpr std::size_t uuidByteCount = 16;
+inline constexpr std::size_t frameHeaderByteCount = 8;
+inline constexpr std::size_t responseHeaderByteCount = 24;
+inline constexpr std::size_t pointPayloadByteCount = 3 * sizeof(double);
+inline constexpr std::size_t linePayloadByteCount = 6 * sizeof(double);
+
+inline constexpr std::size_t floatPayloadByteCount     = sizeof(float);           // 4
+inline constexpr std::size_t colorPayloadByteCount     = 4 * sizeof(float);       // 16
+inline constexpr std::size_t uuidPayloadByteCount      = uuidByteCount;           // 16
+inline constexpr std::size_t translatePayloadByteCount = uuidByteCount + 3 * sizeof(double); // 40
+inline constexpr std::size_t rotatePayloadByteCount    = uuidByteCount + 7 * sizeof(double); // 72
+
+enum class CommandId : std::uint32_t { // NOLINT(performance-enum-size): wire protocol uses 32-bit command IDs.
+    Draw        = 1,
+    AddPoint    = 2,
+    AddLine     = 3,
+    WaitForExit = 4,
+    Cleanup     = 5,
+
+    IsApiInitialized   = 6,
+    StopDrawing        = 7,
+    InitWithSettings   = 8,   // no wire IPC; settings passed at server startup via temp file
+    SetPointSize       = 9,
+    GetPointSize       = 10,
+    SetPointColor      = 11,
+    GetPointColor      = 12,
+    SetLineWidth       = 13,
+    GetLineWidth       = 14,
+    SetLineColor       = 15,
+    GetLineColor       = 16,
+    SetMeshColor       = 17,
+    GetMeshColor       = 18,
+    RemoveAllGeometry  = 19,
+    TranslateGeometry  = 20,
+    RotateGeometry     = 21,
+
+    AddPointWithColor    = 22,
+    AddPointOpts         = 23,
+    AddPointsOpts        = 24,
+    UpdatePoint          = 25,
+    UpdatePointWithColor = 26,
+    UpdatePointOpts      = 27,
+    UpdatePointsOpts     = 28,
+    RemovePoint          = 29,
+    AddLineWithColor     = 30,
+    AddLineOpts          = 31,
+    AddLinesOpts         = 32,
+    UpdateLine           = 33,
+    UpdateLineWithColor  = 34,
+    UpdateLineOpts       = 35,
+    UpdateLinesOpts      = 36,
+    RemoveLine           = 37,
+
+    AddMeshOpts          = 38,
+    RemoveMesh           = 39,
+    UpdateMeshOpts       = 40,
+    SetMeshOverlayOpts   = 41,
+    SetMeshRenderingOpts = 42,
+
+    SaveLog              = 43,
+    LoadLog              = 44,
+    ReplayLog            = 45,
+    ReplayCurrentLog     = 46,
+    CancelReplay         = 47,
+    PauseReplay          = 48,
+    ResumeReplay         = 49,
+    StepReplay           = 50,
+    StepReplayN          = 51,
+    StepReplayBackward   = 52,
+    StepReplayBackwardN  = 53,
+    GetReplayState       = 54,
+    GetReplayProgress    = 55,
+};
+
+struct FrameHeader {
+    std::uint32_t commandId{};
+    std::uint32_t payloadBytes{};
+};
+static_assert(sizeof(FrameHeader) == frameHeaderByteCount);
+
+struct ResponseHeader {
+    std::uint32_t errorCode{};
+    std::uint32_t diagnosticBytes{};
+    std::array<std::uint8_t, uuidByteCount> uuid{};
+};
+static_assert(sizeof(ResponseHeader) == responseHeaderByteCount);
+
+struct DiagnosticText {
+    std::string operation;
+    std::string what;
+    std::string why;
+    std::string action;
+    std::string details;
+};
+
+struct ResponseFrame {
+    std::uint32_t errorCode{};
+    std::array<std::uint8_t, uuidByteCount> uuid{};
+    DiagnosticText diagnostic;
+};
+
+// On Linux, a leading null byte places the socket in the kernel's abstract
+// namespace rather than the filesystem. This eliminates the TOCTOU race where a
+// local attacker could watch for the server's unlink(), then race to place a
+// symlink at /tmp/geoqik-<pid>.sock before bind() runs — potentially redirecting
+// the bind to an arbitrary file or causing a denial-of-service. An abstract
+// socket has no filesystem entry to race against and vanishes when the server
+// exits.
+[[nodiscard]] inline std::string make_pipe_name(std::uint64_t pid) {
+#ifdef _WIN32
+    return R"(\\.\pipe\geoqik-)" + std::to_string(pid);
+#else
+    return std::string("\0geoqik-", 8) + std::to_string(pid);
+#endif
+}
+
+[[nodiscard]] inline std::string make_pipe_name_argument(std::uint64_t pid) {
+#ifdef _WIN32
+    return make_pipe_name(pid);
+#else
+    return "geoqik-" + std::to_string(pid);
+#endif
+}
+
+[[nodiscard]] inline std::string make_pipe_name_from_argument(const std::string& argument) {
+#ifdef _WIN32
+    return argument;
+#else
+    return std::string("\0", 1) + argument;
+#endif
+}
+
+[[nodiscard]] inline std::uint32_t payload_byte_count(std::size_t payloadSize) {
+    constexpr auto maxPayloadSize = static_cast<std::size_t>(
+        std::numeric_limits<std::uint32_t>::max());
+    if (payloadSize > maxPayloadSize) {
+        throw std::length_error("geoqik protocol payload is too large");
+    }
+
+    return static_cast<std::uint32_t>(payloadSize);
+}
+
+// Append sizeof(T) bytes of val into buf.
+template<typename T>
+void write_pod(std::vector<std::uint8_t>& buf, const T& val) {
+    static_assert(std::is_trivially_copyable_v<T>);
+    const auto bytes = std::bit_cast<std::array<std::uint8_t, sizeof(T)>>(val);
+    buf.insert(buf.end(), bytes.begin(), bytes.end());
+}
+
+// Read sizeof(T) bytes from data into a T value.
+template<typename T>
+[[nodiscard]] T read_pod(const std::vector<std::uint8_t>& data, std::size_t offset) {
+    static_assert(std::is_trivially_copyable_v<T>);
+    if ((offset > data.size()) || (data.size() - offset < sizeof(T))) {
+        throw std::out_of_range("geoqik protocol payload is too small");
+    }
+
+    T val{};
+    std::memcpy(&val, data.data() + offset, sizeof(T));
+    return val;
+}
+
+inline void write_string(std::vector<std::uint8_t>& buf, const std::string& value) {
+    write_pod(buf, payload_byte_count(value.size()));
+    buf.insert(buf.end(), value.begin(), value.end());
+}
+
+[[nodiscard]] inline std::string read_string(const std::vector<std::uint8_t>& data, std::size_t& offset) {
+    const std::uint32_t size = read_pod<std::uint32_t>(data, offset);
+    offset += sizeof(std::uint32_t);
+    if ((offset > data.size()) || (data.size() - offset < size)) {
+        throw std::out_of_range("geoqik protocol diagnostic payload is too small");
+    }
+
+    std::string value(reinterpret_cast<const char*>(data.data() + offset), size);
+    offset += size;
+    return value;
+}
+
+[[nodiscard]] inline std::vector<std::uint8_t> encode_diagnostic(const DiagnosticText& diagnostic) {
+    std::vector<std::uint8_t> payload;
+    write_string(payload, diagnostic.operation);
+    write_string(payload, diagnostic.what);
+    write_string(payload, diagnostic.why);
+    write_string(payload, diagnostic.action);
+    write_string(payload, diagnostic.details);
+    return payload;
+}
+
+[[nodiscard]] inline DiagnosticText decode_diagnostic(const std::vector<std::uint8_t>& payload) {
+    DiagnosticText diagnostic;
+    if (payload.empty()) {
+        return diagnostic;
+    }
+
+    std::size_t offset = 0;
+    diagnostic.operation = read_string(payload, offset);
+    diagnostic.what = read_string(payload, offset);
+    diagnostic.why = read_string(payload, offset);
+    diagnostic.action = read_string(payload, offset);
+    diagnostic.details = read_string(payload, offset);
+    if (offset != payload.size()) {
+        throw std::out_of_range("geoqik protocol diagnostic payload has trailing bytes");
+    }
+    return diagnostic;
+}
+
+template<typename T>
+[[nodiscard]] std::array<std::uint8_t, uuidByteCount> pack_return_value(const T& val) {
+    static_assert(std::is_trivially_copyable_v<T>);
+    static_assert(sizeof(T) <= uuidByteCount);
+    std::array<std::uint8_t, uuidByteCount> out{};
+    std::memcpy(out.data(), &val, sizeof(T));
+    return out;
+}
+
+[[nodiscard]] inline std::array<std::uint8_t, uuidByteCount> pack_color_return(
+    float r, float g, float b, float a)
+{
+    std::array<float, 4> rgba{r, g, b, a};
+    return pack_return_value(rgba);
+}
+
+inline constexpr std::size_t addPointWithColorPayloadByteCount =
+    3 * sizeof(double) + 4 * sizeof(float);
+inline constexpr std::size_t updatePointPayloadByteCount =
+    uuidByteCount + 3 * sizeof(double);
+inline constexpr std::size_t updatePointWithColorPayloadByteCount =
+    uuidByteCount + 3 * sizeof(double) + 4 * sizeof(float);
+inline constexpr std::size_t removeGeometryPayloadByteCount = uuidByteCount;
+inline constexpr std::size_t addLineWithColorPayloadByteCount =
+    6 * sizeof(double) + 4 * sizeof(float);
+inline constexpr std::size_t updateLinePayloadByteCount =
+    uuidByteCount + 6 * sizeof(double);
+inline constexpr std::size_t updateLineWithColorPayloadByteCount =
+    uuidByteCount + 6 * sizeof(double) + 4 * sizeof(float);
+
+inline constexpr std::size_t setMeshOverlayOptsPayloadByteCount =
+    uuidByteCount + 2 * sizeof(std::int32_t);
+inline constexpr std::size_t setMeshRenderingOptsPayloadByteCount =
+    uuidByteCount + sizeof(std::uint32_t) + sizeof(std::int32_t);
+
+// StepReplayN / StepReplayBackwardN carry a single uint64 count.
+inline constexpr std::size_t stepReplayNPayloadByteCount = sizeof(std::uint64_t);
+
+// Minimum wire size of a serialized geoqik_replay_options_t:
+// 2x double + uint64 + int32 + uint64 + 6x uint32 count fields.
+inline constexpr std::size_t replayOptionsMinByteCount =
+    2 * sizeof(double) +
+    sizeof(std::uint64_t) +
+    sizeof(std::int32_t) +
+    sizeof(std::uint64_t) +
+    6 * sizeof(std::uint32_t);
+static_assert(replayOptionsMinByteCount == 60,
+    "replayOptionsMinByteCount must match the wire-format byte count");
+
+inline void write_idempotency_key(std::vector<std::uint8_t>& buf,
+                                   const std::array<std::uint8_t, uuidByteCount>& key)
+{
+    buf.insert(buf.end(), key.begin(), key.end());
+}
+
+inline void write_optional_colors(std::vector<std::uint8_t>& buf,
+                                   const float* colorData,
+                                   std::uint32_t colorCount)
+{
+    write_pod(buf, colorCount);
+    if (colorData != nullptr && colorCount > 0) {
+        const auto* bytes = reinterpret_cast<const std::uint8_t*>(colorData);
+        buf.insert(buf.end(), bytes, bytes + colorCount * sizeof(float));
+    }
+}
+
+[[nodiscard]] inline std::vector<float> read_optional_colors(
+    const std::vector<std::uint8_t>& payload,
+    std::size_t& offset)
+{
+    const auto colorCount = read_pod<std::uint32_t>(payload, offset);
+    offset += sizeof(std::uint32_t);
+    if (colorCount == 0) { return {}; }
+    const std::size_t colorBytes = colorCount * sizeof(float);
+    if (offset + colorBytes > payload.size()) {
+        throw std::out_of_range("geoqik protocol: color payload truncated");
+    }
+    std::vector<float> colors(colorCount);
+    std::memcpy(colors.data(), payload.data() + offset, colorBytes);
+    offset += colorBytes;
+    return colors;
+}
+
+inline void write_optional_single_color(std::vector<std::uint8_t>& buf,
+                                         const float* colorPtr,
+                                         bool hasColor)
+{
+    constexpr float kZero[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+    const float* src = (hasColor && colorPtr != nullptr) ? colorPtr : kZero;
+    write_pod(buf, src[0]);
+    write_pod(buf, src[1]);
+    write_pod(buf, src[2]);
+    write_pod(buf, src[3]);
+}
+
+inline void write_optional_float_array(std::vector<std::uint8_t>& buf,
+                                        const float* data,
+                                        std::uint32_t count)
+{
+    write_pod(buf, count);
+    if (data != nullptr && count > 0) {
+        const auto* bytes = reinterpret_cast<const std::uint8_t*>(data);
+        buf.insert(buf.end(), bytes, bytes + count * sizeof(float));
+    }
+}
+
+inline void write_optional_uint32_array(std::vector<std::uint8_t>& buf,
+                                         const std::uint32_t* data,
+                                         std::uint32_t count)
+{
+    write_pod(buf, count);
+    if (data != nullptr && count > 0) {
+        const auto* bytes = reinterpret_cast<const std::uint8_t*>(data);
+        buf.insert(buf.end(), bytes, bytes + count * sizeof(std::uint32_t));
+    }
+}
+
+template<typename T>
+[[nodiscard]] T unpack_return_value(const std::array<std::uint8_t, uuidByteCount>& uuid) {
+    static_assert(std::is_trivially_copyable_v<T>);
+    static_assert(sizeof(T) <= uuidByteCount);
+    T val{};
+    std::memcpy(&val, uuid.data(), sizeof(T));
+    return val;
+}
+
+} // namespace geoqik::protocol
+
+#endif // GEOQIK_PROTOCOL_PROTOCOL_HPP
+
+#ifndef GEOQIK_CLIENT_DETAIL_CONNECTION_HPP
+#define GEOQIK_CLIENT_DETAIL_CONNECTION_HPP
+
+#include <chrono>
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+#include <stdexcept>
+#include <string>
+#include <thread>
+#include <vector>
+
+#ifdef _WIN32
+#  ifndef WIN32_LEAN_AND_MEAN
+#    define WIN32_LEAN_AND_MEAN
+#  endif
+#  ifndef NOMINMAX
+#    define NOMINMAX
+#  endif
+#  include <windows.h>
+#else
+#  include <cerrno>
+#  include <sys/socket.h>
+#  include <sys/un.h>
+#  include <unistd.h>
+#endif
+
+namespace geoqik::client::detail {
+
+class IpcConnectionError : public std::runtime_error {
+public:
+    explicit IpcConnectionError(const std::string& message)
+        : std::runtime_error(message)
+    {
+    }
+};
+
+class IpcWriteError : public std::runtime_error {
+public:
+    explicit IpcWriteError(const std::string& message)
+        : std::runtime_error(message)
+    {
+    }
+};
+
+class IpcReadError : public std::runtime_error {
+public:
+    explicit IpcReadError(const std::string& message)
+        : std::runtime_error(message)
+    {
+    }
+};
+
+class ProtocolError : public std::runtime_error {
+public:
+    explicit ProtocolError(const std::string& message)
+        : std::runtime_error(message)
+    {
+    }
+};
+
+class Connection {
+public:
+    Connection() = default;
+    ~Connection() { disconnect(); }
+
+    Connection(const Connection&) = delete;
+    Connection& operator=(const Connection&) = delete;
+    Connection(Connection&&) = delete;
+    Connection& operator=(Connection&&) = delete;
+
+    void connect(const std::string& pipeName) {
+        using namespace std::chrono_literals;
+        constexpr auto connectionTimeout = 5000ms;
+        constexpr auto retryInterval = 10ms;
+
+        const auto deadline = std::chrono::steady_clock::now() + connectionTimeout;
+        while (std::chrono::steady_clock::now() < deadline) {
+            if (try_connect(pipeName)) {
+                return;
+            }
+            std::this_thread::sleep_for(retryInterval);
+        }
+        throw IpcConnectionError(
+            "geoqik: timed out connecting to server pipe: " + pipeName);
+    }
+
+    [[nodiscard]]
+    geoqik::protocol::ResponseFrame send_recv(
+        geoqik::protocol::CommandId cmd,
+        const std::vector<std::uint8_t>& payload)
+    {
+        namespace proto = geoqik::protocol;
+
+        try {
+            proto::FrameHeader header{};
+            header.commandId = static_cast<std::uint32_t>(cmd);
+            header.payloadBytes = proto::payload_byte_count(payload.size());
+            write_exact(&header, sizeof(header));
+
+            if (!payload.empty()) {
+                write_exact(payload.data(), payload.size());
+            }
+        } catch (const std::exception& e) {
+            disconnect();
+            throw IpcWriteError(e.what());
+        }
+
+        proto::ResponseHeader responseHeader{};
+        try {
+            read_exact(&responseHeader, sizeof(responseHeader));
+
+            std::vector<std::uint8_t> diagnosticPayload(responseHeader.diagnosticBytes);
+            if (responseHeader.diagnosticBytes > 0) {
+                read_exact(diagnosticPayload.data(), diagnosticPayload.size());
+            }
+
+            proto::ResponseFrame resp{};
+            resp.errorCode = responseHeader.errorCode;
+            resp.uuid = responseHeader.uuid;
+            resp.diagnostic = proto::decode_diagnostic(diagnosticPayload);
+            return resp;
+        } catch (const std::out_of_range& e) {
+            disconnect();
+            throw ProtocolError(e.what());
+        } catch (const std::exception& e) {
+            disconnect();
+            throw IpcReadError(e.what());
+        }
+    }
+
+    [[nodiscard]] bool connected() const noexcept {
+#ifdef _WIN32
+        return pipeHandle_ != INVALID_HANDLE_VALUE;
+#else
+        return socketFd_ >= 0;
+#endif
+    }
+
+    void disconnect() noexcept {
+#ifdef _WIN32
+        if (pipeHandle_ != INVALID_HANDLE_VALUE) {
+            ::CloseHandle(pipeHandle_);
+            pipeHandle_ = INVALID_HANDLE_VALUE;
+        }
+#else
+        if (socketFd_ >= 0) {
+            ::close(socketFd_);
+            socketFd_ = -1;
+        }
+#endif
+    }
+
+private:
+    [[nodiscard]] bool try_connect(const std::string& pipeName) {
+#ifdef _WIN32
+        HANDLE handle = ::CreateFileA(
+            pipeName.c_str(),
+            GENERIC_READ | GENERIC_WRITE,
+            0,
+            nullptr,
+            OPEN_EXISTING,
+            FILE_FLAG_OVERLAPPED,
+            nullptr);
+
+        if (handle != INVALID_HANDLE_VALUE) {
+            pipeHandle_ = handle;
+            return true;
+        }
+
+        if (::GetLastError() == ERROR_PIPE_BUSY) {
+            ::WaitNamedPipeA(pipeName.c_str(), 10);
+        }
+        return false;
+#else
+        const int fd = ::socket(AF_UNIX, SOCK_STREAM, 0);
+        if (fd < 0) {
+            return false;
+        }
+
+        sockaddr_un addr{};
+        addr.sun_family = AF_UNIX;
+        const std::size_t maxPathBytes = sizeof(addr.sun_path);
+        if (pipeName.size() > maxPathBytes) {
+            ::close(fd);
+            throw IpcConnectionError("geoqik: socket name is too long");
+        }
+        std::memcpy(addr.sun_path, pipeName.data(), pipeName.size());
+
+        const auto addrLen = static_cast<socklen_t>(
+            offsetof(sockaddr_un, sun_path) + pipeName.size());
+        if (::connect(fd, reinterpret_cast<sockaddr*>(&addr), addrLen) == 0) {
+            socketFd_ = fd;
+            return true;
+        }
+
+        ::close(fd);
+        return false;
+#endif
+    }
+
+    void write_exact(const void* data, std::size_t byteCount) {
+        const auto* cursor = static_cast<const std::uint8_t*>(data);
+        std::size_t remaining = byteCount;
+        while (remaining > 0) {
+#ifdef _WIN32
+            const DWORD written = write_overlapped(cursor, remaining);
+            cursor += written;
+            remaining -= written;
+#else
+            const ssize_t written = ::write(socketFd_, cursor, remaining);
+            if (written < 0) {
+                if (errno == EINTR) {
+                    continue;
+                }
+                throw std::runtime_error("geoqik: socket write failed: " + std::string(std::strerror(errno)));
+            }
+            if (written == 0) {
+                throw std::runtime_error("geoqik: socket write returned zero bytes");
+            }
+            cursor += static_cast<std::size_t>(written);
+            remaining -= static_cast<std::size_t>(written);
+#endif
+        }
+    }
+
+    void read_exact(void* data, std::size_t byteCount) {
+        auto* cursor = static_cast<std::uint8_t*>(data);
+        std::size_t remaining = byteCount;
+        while (remaining > 0) {
+#ifdef _WIN32
+            const DWORD read = read_overlapped(cursor, remaining);
+            cursor += read;
+            remaining -= read;
+#else
+            const ssize_t bytesRead = ::read(socketFd_, cursor, remaining);
+            if (bytesRead < 0) {
+                if (errno == EINTR) {
+                    continue;
+                }
+                throw std::runtime_error("geoqik: socket read failed: " + std::string(std::strerror(errno)));
+            }
+            if (bytesRead == 0) {
+                throw std::runtime_error("geoqik: socket closed while reading");
+            }
+            cursor += static_cast<std::size_t>(bytesRead);
+            remaining -= static_cast<std::size_t>(bytesRead);
+#endif
+        }
+    }
+
+#ifdef _WIN32
+    [[nodiscard]] DWORD write_overlapped(const std::uint8_t* data, std::size_t byteCount) {
+        return transfer_overlapped(
+            [&](OVERLAPPED& overlapped, DWORD chunk) {
+                return ::WriteFile(pipeHandle_, data, chunk, nullptr, &overlapped);
+            },
+            byteCount,
+            "geoqik: pipe write failed");
+    }
+
+    [[nodiscard]] DWORD read_overlapped(std::uint8_t* data, std::size_t byteCount) {
+        return transfer_overlapped(
+            [&](OVERLAPPED& overlapped, DWORD chunk) {
+                return ::ReadFile(pipeHandle_, data, chunk, nullptr, &overlapped);
+            },
+            byteCount,
+            "geoqik: pipe read failed");
+    }
+
+    template<typename TransferFunc>
+    [[nodiscard]] DWORD transfer_overlapped(
+        TransferFunc&& transfer,
+        std::size_t byteCount,
+        const char* failureMessage)
+    {
+        OVERLAPPED overlapped{};
+        overlapped.hEvent = ::CreateEventA(nullptr, TRUE, FALSE, nullptr);
+        if (overlapped.hEvent == nullptr) {
+            throw std::runtime_error("geoqik: could not create pipe event");
+        }
+
+        const DWORD chunk = byteCount > static_cast<std::size_t>(MAXDWORD)
+            ? MAXDWORD
+            : static_cast<DWORD>(byteCount);
+
+        const BOOL started = transfer(overlapped, chunk);
+        DWORD transferred = 0;
+        if (started == FALSE) {
+            const DWORD error = ::GetLastError();
+            if (error != ERROR_IO_PENDING) {
+                ::CloseHandle(overlapped.hEvent);
+                throw std::runtime_error(
+                    std::string(failureMessage) + " with error " + std::to_string(error));
+            }
+            if (::WaitForSingleObject(overlapped.hEvent, INFINITE) != WAIT_OBJECT_0) {
+                ::CloseHandle(overlapped.hEvent);
+                throw std::runtime_error(failureMessage);
+            }
+        }
+
+        if (::GetOverlappedResult(pipeHandle_, &overlapped, &transferred, FALSE) == FALSE
+            || transferred == 0) {
+            const DWORD error = ::GetLastError();
+            ::CloseHandle(overlapped.hEvent);
+            throw std::runtime_error(
+                std::string(failureMessage) + " with error " + std::to_string(error));
+        }
+
+        ::CloseHandle(overlapped.hEvent);
+        return transferred;
+    }
+#endif
+
+#ifdef _WIN32
+    HANDLE pipeHandle_ = INVALID_HANDLE_VALUE;
+#else
+    int socketFd_ = -1;
+#endif
+};
+
+inline Connection& thread_connection() {
+    thread_local Connection conn; // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
+    return conn;
+}
+
+inline void ensure_connected(const std::string& pipeName) {
+    auto& conn = thread_connection();
+    if (!conn.connected()) {
+        conn.connect(pipeName);
+    }
+}
+
+inline void disconnect_thread_connection() noexcept {
+    thread_connection().disconnect();
+}
+
+} // namespace geoqik::client::detail
+
+#endif // GEOQIK_CLIENT_DETAIL_CONNECTION_HPP
+
+#ifndef GEOQIK_CLIENT_DETAIL_PROCESS_MANAGER_HPP
+#define GEOQIK_CLIENT_DETAIL_PROCESS_MANAGER_HPP
+
+
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <fstream>
+#include <stdexcept>
+#include <string>
+#include <string_view>
+#include <system_error>
+#include <vector>
+
+#ifdef _WIN32
+#  ifndef WIN32_LEAN_AND_MEAN
+#    define WIN32_LEAN_AND_MEAN
+#  endif
+#  ifndef NOMINMAX
+#    define NOMINMAX
+#  endif
+#  include <windows.h>
+#else
+#  include <cerrno>
+#  include <cstring>
+#  include <sys/types.h>
+#  include <sys/wait.h>
+#  include <unistd.h>
+#endif
+
+namespace geoqik::client::detail {
+
+class ServerExecutableNotFoundError : public std::runtime_error {
+public:
+    explicit ServerExecutableNotFoundError(const std::string& message)
+        : std::runtime_error(message)
+    {
+    }
+};
+
+class ServerStartError : public std::runtime_error {
+public:
+    explicit ServerStartError(const std::string& message)
+        : std::runtime_error(message)
+    {
+    }
+};
+
+class ProcessManager {
+public:
+    [[nodiscard]] static ProcessManager& instance() {
+        static ProcessManager pm;
+        return pm;
+    }
+
+    ProcessManager(const ProcessManager&) = delete;
+    ProcessManager& operator=(const ProcessManager&) = delete;
+    ProcessManager(ProcessManager&&) = delete;
+    ProcessManager& operator=(ProcessManager&&) = delete;
+
+    ~ProcessManager() {
+#ifdef _WIN32
+        close_process_handles();
+#endif
+    }
+
+    void set_settings(const geoqik_settings_t& settings,
+                      const geoqik_window_settings_t& windowSettings)
+    {
+        customSettings_ = settings;
+        customWindowSettings_ = windowSettings;
+        customWindowTitle_ = windowSettings.title ? windowSettings.title : "GeoQik";
+        customWindowSettings_.title = customWindowTitle_.c_str();
+        hasCustomSettings_ = true;
+    }
+
+    void start() {
+        if (started_ && is_child_running()) {
+            return;
+        }
+        reset_child_state();
+        pipeName_.clear();
+
+        const std::string exePath = resolve_server_executable();
+        if (exePath.empty()) {
+            throw ServerExecutableNotFoundError(
+                "geoqik executable not found. Set GEOQIK_EXE_PATH or add geoqik_server/geoqik to PATH.");
+        }
+
+#ifdef _WIN32
+        const auto selfPid = static_cast<std::uint64_t>(::GetCurrentProcessId());
+#else
+        const auto selfPid = static_cast<std::uint64_t>(::getpid());
+#endif
+        pipeName_ = geoqik::protocol::make_pipe_name(selfPid);
+        const auto pipeNameArgument = geoqik::protocol::make_pipe_name_argument(selfPid);
+
+        std::string settingsFilePath;
+        if (hasCustomSettings_) {
+            settingsFilePath = write_settings_file(customSettings_, customWindowSettings_);
+        }
+
+        std::vector<std::string> args{
+            exePath,
+            "--pipe-name",
+            pipeNameArgument,
+        };
+        if (!settingsFilePath.empty()) {
+            args.emplace_back("--settings-file");
+            args.emplace_back(settingsFilePath);
+        }
+
+        launch_process(exePath, args);
+
+        if (!is_child_running()) {
+            reset_child_state();
+            throw ServerStartError("geoqik process failed to start.");
+        }
+
+        started_ = true;
+        hasCustomSettings_ = false;
+    }
+
+    [[nodiscard]] const std::string& pipe_name() const noexcept { return pipeName_; }
+
+    [[nodiscard]] bool is_running() { return started_ && is_child_running(); }
+
+    // Blocks until the server process has fully exited, then resets state so the
+    // next start() reliably spawns a fresh server after Cleanup / WaitForExit.
+    void wait_for_exit() {
+        if (started_) {
+#ifdef _WIN32
+            if (processInfo_.hProcess != nullptr) {
+                ::WaitForSingleObject(processInfo_.hProcess, INFINITE);
+            }
+#else
+            if (childPid_ > 0) {
+                int status = 0;
+                while (::waitpid(childPid_, &status, 0) < 0 && errno == EINTR) {
+                }
+            }
+#endif
+        }
+        reset_child_state();
+        pipeName_.clear();
+    }
+
+private:
+    ProcessManager() = default;
+
+    [[nodiscard]]
+    static std::string write_settings_file(
+        const geoqik_settings_t& settings,
+        const geoqik_window_settings_t& ws)
+    {
+#ifdef _WIN32
+        char tmpPath[MAX_PATH];
+        if (::GetTempPathA(MAX_PATH, tmpPath) == 0) {
+            throw ServerStartError("geoqik: GetTempPath failed");
+        }
+        char tmpFile[MAX_PATH];
+        if (::GetTempFileNameA(tmpPath, "gqs", 0, tmpFile) == 0) {
+            throw ServerStartError("geoqik: GetTempFileName failed");
+        }
+        const std::string path(tmpFile);
+#else
+        char tmp[] = "/tmp/geoqik-settings-XXXXXX";
+        const int fd = ::mkstemp(tmp);
+        if (fd < 0) {
+            throw ServerStartError("geoqik: mkstemp failed");
+        }
+        ::close(fd);
+        const std::string path(tmp);
+#endif
+
+        std::ofstream file(path, std::ios::binary | std::ios::trunc);
+        if (!file) {
+            throw ServerStartError("geoqik: cannot write settings file: " + path);
+        }
+
+        file.write("GQST", 4);
+        file.write(reinterpret_cast<const char*>(&settings), sizeof(settings));
+
+        const std::string title = ws.title ? ws.title : "GeoQik";
+        const auto titleLen = static_cast<std::uint32_t>(title.size());
+        file.write(reinterpret_cast<const char*>(&titleLen), 4);
+        file.write(title.data(), static_cast<std::streamsize>(titleLen));
+
+        auto write_u32 = [&](std::uint32_t v) {
+            file.write(reinterpret_cast<const char*>(&v), 4); };
+        auto write_i32 = [&](int v) {
+            file.write(reinterpret_cast<const char*>(&v), 4); };
+
+        write_u32(ws.width);
+        write_u32(ws.height);
+        write_i32(ws.red_bits);
+        write_i32(ws.green_bits);
+        write_i32(ws.blue_bits);
+        write_i32(ws.alpha_bits);
+        write_i32(ws.depth_bits);
+        write_i32(ws.stencil_bits);
+        write_i32(ws.accum_red_bits);
+        write_i32(ws.accum_green_bits);
+        write_i32(ws.accum_blue_bits);
+        write_i32(ws.accum_alpha_bits);
+        write_i32(ws.aux_buffers);
+        write_i32(ws.samples);
+        write_i32(ws.refresh_rate);
+        write_i32(ws.stereo);
+        write_i32(ws.srgb_capable);
+        write_i32(ws.double_buffer);
+        write_i32(ws.resizable);
+        write_i32(ws.visible);
+        write_i32(ws.decorated);
+        write_i32(ws.focused);
+        write_i32(ws.auto_iconify);
+        write_i32(ws.floating);
+        write_i32(ws.maximized);
+        write_i32(ws.center_cursor);
+        write_i32(ws.transparent_framebuffer);
+        write_i32(ws.focus_on_show);
+        write_i32(ws.scale_to_monitor);
+
+        file.close();
+        return path;
+    }
+
+    [[nodiscard]]
+    static std::string get_env(const char* name) {
+#ifdef _WIN32
+        const DWORD requiredSize = ::GetEnvironmentVariableA(name, nullptr, 0);
+        if (requiredSize == 0) {
+            return {};
+        }
+
+        std::string result(requiredSize, '\0');
+        const DWORD copiedSize = ::GetEnvironmentVariableA(
+            name, result.data(), requiredSize);
+        if (copiedSize == 0) {
+            return {};
+        }
+
+        result.resize(copiedSize);
+        return result;
+#else
+        const char* value = std::getenv(name);
+        return value == nullptr ? std::string{} : std::string(value);
+#endif
+    }
+
+    [[nodiscard]]
+    static bool is_executable_file(const std::string& path) {
+        if (path.empty()) {
+            return false;
+        }
+#ifdef _WIN32
+        const DWORD attrs = ::GetFileAttributesA(path.c_str());
+        return attrs != INVALID_FILE_ATTRIBUTES && (attrs & FILE_ATTRIBUTE_DIRECTORY) == 0;
+#else
+        return ::access(path.c_str(), X_OK) == 0;
+#endif
+    }
+
+    [[nodiscard]]
+    static bool has_path_separator(std::string_view value) {
+        return value.find('/') != std::string_view::npos
+            || value.find('\\') != std::string_view::npos;
+    }
+
+    [[nodiscard]]
+    static std::string join_path(std::string_view directory, std::string_view file) {
+        if (directory.empty()) {
+            return std::string(file);
+        }
+#ifdef _WIN32
+        constexpr char separator = '\\';
+#else
+        constexpr char separator = '/';
+#endif
+        std::string result(directory);
+        if (result.back() != '/' && result.back() != '\\') {
+            result.push_back(separator);
+        }
+        result.append(file);
+        return result;
+    }
+
+    [[nodiscard]]
+    static std::vector<std::string_view> split_path_list(const std::string& paths) {
+#ifdef _WIN32
+        constexpr char separator = ';';
+#else
+        constexpr char separator = ':';
+#endif
+        std::vector<std::string_view> result;
+        std::string_view view(paths);
+        while (!view.empty()) {
+            const std::size_t pos = view.find(separator);
+            result.push_back(view.substr(0, pos));
+            if (pos == std::string_view::npos) {
+                break;
+            }
+            view.remove_prefix(pos + 1);
+        }
+        return result;
+    }
+
+    [[nodiscard]]
+    static std::vector<std::string> executable_names(std::string_view baseName) {
+#ifdef _WIN32
+        const std::string name(baseName);
+        if (name.find('.') != std::string::npos) {
+            return {name};
+        }
+        return {name + ".exe", name};
+#else
+        return {std::string(baseName)};
+#endif
+    }
+
+    [[nodiscard]]
+    static std::string search_path_for(std::string_view baseName) {
+        if (has_path_separator(baseName)) {
+            const std::string path(baseName);
+            return is_executable_file(path) ? path : std::string{};
+        }
+
+        const auto pathEnv = get_env("PATH");
+        for (const auto directory : split_path_list(pathEnv)) {
+            for (const auto& name : executable_names(baseName)) {
+                const std::string candidate = join_path(directory, name);
+                if (is_executable_file(candidate)) {
+                    return candidate;
+                }
+            }
+        }
+        return {};
+    }
+
+    [[nodiscard]]
+    static std::string resolve_server_executable() {
+        if (const auto env = get_env("GEOQIK_EXE_PATH"); !env.empty()) {
+            return is_executable_file(env) ? env : std::string{};
+        }
+        if (auto path = search_path_for("geoqik_server"); !path.empty()) {
+            return path;
+        }
+        return search_path_for("geoqik");
+    }
+
+#ifdef _WIN32
+    [[nodiscard]]
+    static std::string quote_windows_arg(const std::string& arg) {
+        if (arg.empty()) {
+            return "\"\"";
+        }
+
+        bool needsQuotes = false;
+        for (const char ch : arg) {
+            if (ch == ' ' || ch == '\t' || ch == '"') {
+                needsQuotes = true;
+                break;
+            }
+        }
+        if (!needsQuotes) {
+            return arg;
+        }
+
+        std::string quoted;
+        quoted.push_back('"');
+        std::size_t backslashes = 0;
+        for (const char ch : arg) {
+            if (ch == '\\') {
+                ++backslashes;
+            } else if (ch == '"') {
+                quoted.append(backslashes * 2 + 1, '\\');
+                quoted.push_back(ch);
+                backslashes = 0;
+            } else {
+                quoted.append(backslashes, '\\');
+                backslashes = 0;
+                quoted.push_back(ch);
+            }
+        }
+        quoted.append(backslashes * 2, '\\');
+        quoted.push_back('"');
+        return quoted;
+    }
+
+    [[nodiscard]]
+    static std::string build_command_line(const std::vector<std::string>& args) {
+        std::string commandLine;
+        for (const auto& arg : args) {
+            if (!commandLine.empty()) {
+                commandLine.push_back(' ');
+            }
+            commandLine += quote_windows_arg(arg);
+        }
+        return commandLine;
+    }
+
+    void launch_process(const std::string& exePath, const std::vector<std::string>& args) {
+        STARTUPINFOA startupInfo{};
+        startupInfo.cb = sizeof(startupInfo);
+        PROCESS_INFORMATION processInfo{};
+        std::string commandLine = build_command_line(args);
+
+        const BOOL created = ::CreateProcessA(
+            exePath.c_str(),
+            commandLine.data(),
+            nullptr,
+            nullptr,
+            FALSE,
+            0,
+            nullptr,
+            nullptr,
+            &startupInfo,
+            &processInfo);
+
+        if (created == FALSE) {
+            throw ServerStartError("geoqik: CreateProcess failed with error " + std::to_string(::GetLastError()));
+        }
+
+        processInfo_ = processInfo;
+    }
+
+    [[nodiscard]]
+    bool is_child_running() {
+        if (processInfo_.hProcess == nullptr) {
+            return false;
+        }
+        const DWORD waitResult = ::WaitForSingleObject(processInfo_.hProcess, 0);
+        if (waitResult == WAIT_TIMEOUT) {
+            return true;
+        }
+        close_process_handles();
+        return false;
+    }
+
+    void close_process_handles() noexcept {
+        if (processInfo_.hThread != nullptr) {
+            ::CloseHandle(processInfo_.hThread);
+        }
+        if (processInfo_.hProcess != nullptr) {
+            ::CloseHandle(processInfo_.hProcess);
+        }
+        processInfo_ = PROCESS_INFORMATION{};
+    }
+#else
+    [[noreturn]]
+    static void exec_child(const std::string& exePath, const std::vector<std::string>& args) {
+        std::vector<char*> argv;
+        argv.reserve(args.size() + 1);
+        for (const auto& arg : args) {
+            argv.push_back(const_cast<char*>(arg.c_str()));
+        }
+        argv.push_back(nullptr);
+        ::execv(exePath.c_str(), argv.data());
+        ::_exit(127);
+    }
+
+    void launch_process(const std::string& exePath, const std::vector<std::string>& args) {
+        const pid_t pid = ::fork();
+        if (pid < 0) {
+            throw ServerStartError("geoqik: fork failed: " + std::string(std::strerror(errno)));
+        }
+        if (pid == 0) {
+            exec_child(exePath, args);
+        }
+        childPid_ = pid;
+    }
+
+    [[nodiscard]]
+    bool is_child_running() {
+        if (childPid_ <= 0) {
+            return false;
+        }
+
+        int status = 0;
+        const pid_t result = ::waitpid(childPid_, &status, WNOHANG);
+        if (result == 0) {
+            return true;
+        }
+        if (result == childPid_) {
+            childPid_ = -1;
+            return false;
+        }
+        if (result < 0 && errno == EINTR) {
+            return true;
+        }
+        childPid_ = -1;
+        return false;
+    }
+#endif
+
+    void reset_child_state() noexcept {
+        started_ = false;
+#ifdef _WIN32
+        close_process_handles();
+#else
+        childPid_ = -1;
+#endif
+    }
+
+#ifdef _WIN32
+    PROCESS_INFORMATION processInfo_{};
+#else
+    pid_t childPid_ = -1;
+#endif
+    std::string pipeName_;
+    bool started_ = false;
+    bool hasCustomSettings_ = false;
+    geoqik_settings_t customSettings_{};
+    geoqik_window_settings_t customWindowSettings_{};
+    std::string customWindowTitle_;
+};
+
+} // namespace geoqik::client::detail
+
+#endif // GEOQIK_CLIENT_DETAIL_PROCESS_MANAGER_HPP
 #include <algorithm>
 #include <cstddef>
 #include <cstring>

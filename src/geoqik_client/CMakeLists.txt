@@ -14,8 +14,8 @@ if (WIN32)
 endif()
 
 if (${PROJECT_NAME}_INSTALL)
-    install(DIRECTORY "include/GeoQikClient"
-            DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+    install(FILES "include/GeoQikClient/GeoQikClient.hpp"
+            DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/GeoQikClient"
             COMPONENT dev)
 
     install(TARGETS geoqik_client
