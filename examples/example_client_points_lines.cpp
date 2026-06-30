@@ -11,7 +11,7 @@ constexpr float blue[]  = {0.0f, 0.0f, 1.0f, 1.0f};
 } // namespace
 
 int main() {
-    auto err = geoqik_init();
+    [[maybe_unused]] auto err = geoqik_init();
     assert(err == GEOQIK_SUCCESS && "geoqik_init failed; is GEOQIK_EXE_PATH set?");
 
     err = geoqik_draw();
@@ -99,7 +99,7 @@ int main() {
     geoqik_add_line_opts_t batchLineOpts{};
     batchLineOpts.color      = red;
     batchLineOpts.colorCount = 4;
-    auto blr = geoqik_add_lines_opts(linesData.data(), linesData.size(), &batchLineOpts);
+    [[maybe_unused]] auto blr = geoqik_add_lines_opts(linesData.data(), linesData.size(), &batchLineOpts);
     assert(blr.err == GEOQIK_SUCCESS);
 
     err = geoqik_remove_line(&lr.geometryId);

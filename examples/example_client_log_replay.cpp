@@ -16,14 +16,14 @@
 #include <string>
 
 int main() {
-    auto err = geoqik_init();
+    [[maybe_unused]] auto err = geoqik_init();
     assert(err == GEOQIK_SUCCESS && "geoqik_init failed — is GEOQIK_EXE_PATH set?");
 
     err = geoqik_draw();
     assert(err == GEOQIK_SUCCESS);
 
     for (int i = 0; i < 10; ++i) {
-        const auto pr = geoqik_add_point(static_cast<double>(i) * 0.1, 0.0, 0.0);
+        [[maybe_unused]] const auto pr = geoqik_add_point(static_cast<double>(i) * 0.1, 0.0, 0.0);
         assert(pr.err == GEOQIK_SUCCESS);
     }
 

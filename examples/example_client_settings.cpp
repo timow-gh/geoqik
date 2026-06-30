@@ -18,14 +18,15 @@ int main() {
     assert(geoqik_get_error_string(GEOQIK_ERROR_NOT_INITIALIZED) != nullptr);
 
     geoqik_uuid_t uuid{};
-    assert(geoqik_generate_uuid(&uuid) == GEOQIK_SUCCESS);
+    [[maybe_unused]] const auto uuidErr = geoqik_generate_uuid(&uuid);
+    assert(uuidErr == GEOQIK_SUCCESS);
 
     settings.defaultPointSize = 8.0f;
     windowSettings.width  = 800;
     windowSettings.height = 600;
     windowSettings.title  = "GeoQik Settings Test";
 
-    auto err = geoqik_init_with_settings(&settings, &windowSettings);
+    [[maybe_unused]] auto err = geoqik_init_with_settings(&settings, &windowSettings);
     assert(err == GEOQIK_SUCCESS && "geoqik_init_with_settings failed; is GEOQIK_EXE_PATH set?");
 
     bool initialized = false;
@@ -74,16 +75,16 @@ int main() {
     assert(err == GEOQIK_SUCCESS);
 
     for (int i = 0; i < 20; ++i) {
-        const auto result = geoqik_add_point(static_cast<double>(i) * 0.1, 0.0, 0.0);
+        [[maybe_unused]] const auto result = geoqik_add_point(static_cast<double>(i) * 0.1, 0.0, 0.0);
         assert(result.err == GEOQIK_SUCCESS);
     }
 
     err = geoqik_remove_all_geometry();
     assert(err == GEOQIK_SUCCESS);
 
-    const auto pointA = geoqik_add_point(0.0, 1.0, 0.0);
+    [[maybe_unused]] const auto pointA = geoqik_add_point(0.0, 1.0, 0.0);
     assert(pointA.err == GEOQIK_SUCCESS);
-    const auto pointB = geoqik_add_point(1.0, 0.0, 0.0);
+    [[maybe_unused]] const auto pointB = geoqik_add_point(1.0, 0.0, 0.0);
     assert(pointB.err == GEOQIK_SUCCESS);
 
     err = geoqik_wait_for_exit_and_cleanup();
