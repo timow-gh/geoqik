@@ -113,6 +113,10 @@ void send_api_response(PipeStream& stream,
     send_response(stream, err, uuid, err == GEOQIK_SUCCESS ? proto::DiagnosticText{} : last_api_diagnostic());
 }
 
+[[nodiscard]] inline bool would_overflow_size_t(std::uint64_t a, std::uint64_t b) {
+    return b != 0 && a > std::numeric_limits<std::size_t>::max() / b;
+}
+
 [[nodiscard]] bool payload_size_matches(proto::CommandId commandId, std::size_t payloadSize) {
     switch (commandId) {
     case proto::CommandId::Draw:
@@ -166,7 +170,7 @@ void send_api_response(PipeStream& stream,
     case proto::CommandId::AddLinesOpts:
     case proto::CommandId::UpdateLineOpts:
     case proto::CommandId::UpdateLinesOpts:
-        return payloadSize >= proto::uuidByteCount + sizeof(std::uint32_t);
+        return payloadSize >= proto::uuidByteCount + sizeof(std::uint64_t);
     case proto::CommandId::RemoveMesh:
         return payloadSize == proto::uuidByteCount;
     case proto::CommandId::SetMeshOverlayOpts:
@@ -350,6 +354,13 @@ void handle_connection(PipeStream& stream) {
             return;
         }
 
+        constexpr std::uint32_t maxPayloadBytes = 64u * 1024u * 1024u; // 64 MiB
+        if (header.payloadBytes > maxPayloadBytes) {
+            send_response(stream, GEOQIK_ERROR_INVALID_PARAMETER, nullptr,
+                server_diagnostic(ServerDiagnosticId::InvalidPayload,
+                    "payload exceeds 64 MiB limit"));
+            return;
+        }
         std::vector<std::uint8_t> payload(header.payloadBytes);
         if (header.payloadBytes > 0) {
             boost::asio::read(stream,
@@ -607,7 +618,12 @@ void handle_connection(PipeStream& stream) {
             std::size_t offset = 0;
             const geoqik_uuid_t key = read_uuid(payload, offset);
             const auto count = read_field<std::uint64_t>(payload, offset);
-            const std::size_t coordBytes = count * 3 * sizeof(double);
+            if (would_overflow_size_t(count, 3 * sizeof(double))) {
+                send_response(stream, GEOQIK_ERROR_INVALID_PARAMETER, nullptr,
+                    server_diagnostic(ServerDiagnosticId::InvalidPayload));
+                return;
+            }
+            const std::size_t coordBytes = static_cast<std::size_t>(count) * 3 * sizeof(double);
             if (offset + coordBytes > payload.size()) {
                 send_response(stream, GEOQIK_ERROR_INVALID_PARAMETER, nullptr,
                     server_diagnostic(ServerDiagnosticId::InvalidPayload));
@@ -676,7 +692,12 @@ void handle_connection(PipeStream& stream) {
             std::size_t offset = 0;
             const geoqik_uuid_t id = read_uuid(payload, offset);
             const auto count = read_field<std::uint64_t>(payload, offset);
-            const std::size_t coordBytes = count * 3 * sizeof(double);
+            if (would_overflow_size_t(count, 3 * sizeof(double))) {
+                send_response(stream, GEOQIK_ERROR_INVALID_PARAMETER, nullptr,
+                    server_diagnostic(ServerDiagnosticId::InvalidPayload));
+                return;
+            }
+            const std::size_t coordBytes = static_cast<std::size_t>(count) * 3 * sizeof(double);
             if (offset + coordBytes > payload.size()) {
                 send_response(stream, GEOQIK_ERROR_INVALID_PARAMETER, nullptr,
                     server_diagnostic(ServerDiagnosticId::InvalidPayload));
@@ -747,7 +768,12 @@ void handle_connection(PipeStream& stream) {
             std::size_t offset = 0;
             const geoqik_uuid_t key = read_uuid(payload, offset);
             const auto count = read_field<std::uint64_t>(payload, offset);
-            const std::size_t coordBytes = count * 6 * sizeof(double);
+            if (would_overflow_size_t(count, 6 * sizeof(double))) {
+                send_response(stream, GEOQIK_ERROR_INVALID_PARAMETER, nullptr,
+                    server_diagnostic(ServerDiagnosticId::InvalidPayload));
+                return;
+            }
+            const std::size_t coordBytes = static_cast<std::size_t>(count) * 6 * sizeof(double);
             if (offset + coordBytes > payload.size()) {
                 send_response(stream, GEOQIK_ERROR_INVALID_PARAMETER, nullptr,
                     server_diagnostic(ServerDiagnosticId::InvalidPayload));
@@ -825,7 +851,12 @@ void handle_connection(PipeStream& stream) {
             std::size_t offset = 0;
             const geoqik_uuid_t id = read_uuid(payload, offset);
             const auto count = read_field<std::uint64_t>(payload, offset);
-            const std::size_t coordBytes = count * 6 * sizeof(double);
+            if (would_overflow_size_t(count, 6 * sizeof(double))) {
+                send_response(stream, GEOQIK_ERROR_INVALID_PARAMETER, nullptr,
+                    server_diagnostic(ServerDiagnosticId::InvalidPayload));
+                return;
+            }
+            const std::size_t coordBytes = static_cast<std::size_t>(count) * 6 * sizeof(double);
             if (offset + coordBytes > payload.size()) {
                 send_response(stream, GEOQIK_ERROR_INVALID_PARAMETER, nullptr,
                     server_diagnostic(ServerDiagnosticId::InvalidPayload));
@@ -860,9 +891,16 @@ void handle_connection(PipeStream& stream) {
             const auto vertexCount   = read_field<std::uint64_t>(payload, offset);
             const auto triangleCount = read_field<std::uint64_t>(payload, offset);
 
+            if (would_overflow_size_t(vertexCount, 3 * sizeof(float)) ||
+                would_overflow_size_t(triangleCount, 3 * sizeof(std::uint32_t))) {
+                send_response(stream, GEOQIK_ERROR_INVALID_PARAMETER, nullptr,
+                    server_diagnostic(ServerDiagnosticId::InvalidPayload));
+                return;
+            }
             const std::size_t vertBytes = static_cast<std::size_t>(vertexCount) * 3 * sizeof(float);
             const std::size_t triBytes  = static_cast<std::size_t>(triangleCount) * 3 * sizeof(std::uint32_t);
-            if (offset + vertBytes + triBytes > payload.size()) {
+            if (vertBytes > payload.size() || triBytes > payload.size() - vertBytes ||
+                offset + vertBytes + triBytes > payload.size()) {
                 send_response(stream, GEOQIK_ERROR_INVALID_PARAMETER, nullptr,
                     server_diagnostic(ServerDiagnosticId::InvalidPayload));
                 return;
@@ -924,6 +962,11 @@ void handle_connection(PipeStream& stream) {
             const geoqik_uuid_t id = read_uuid(payload, offset);
 
             const auto vertexCount = read_field<std::uint64_t>(payload, offset);
+            if (would_overflow_size_t(vertexCount, 3 * sizeof(float))) {
+                send_response(stream, GEOQIK_ERROR_INVALID_PARAMETER, nullptr,
+                    server_diagnostic(ServerDiagnosticId::InvalidPayload));
+                return;
+            }
             const std::size_t vertBytes = static_cast<std::size_t>(vertexCount) * 3 * sizeof(float);
             if (offset + vertBytes > payload.size()) {
                 send_response(stream, GEOQIK_ERROR_INVALID_PARAMETER, nullptr,
