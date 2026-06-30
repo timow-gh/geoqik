@@ -87,6 +87,8 @@ if (${PROJECT_NAME}_STATIC_ANALYSIS)
 endif ()
 
 target_link_libraries(${TARGET_NAME}
+        PUBLIC
+        geoqik::api_types
         PRIVATE
         geoqik_internal_objects
         $<BUILD_LOCAL_INTERFACE:geoqik::core>
@@ -137,7 +139,7 @@ target_compile_definitions(geoqik_internals PUBLIC GEOQIK_STATIC_DEFINE)
 
 target_link_libraries(geoqik_internals
         PUBLIC
-        geoqik_internal_objects
+        geoqik::api_types geoqik_internal_objects
         stduuid linal::linal Geometry::Geometry geoqik::core renderer::renderer)
 
 target_compile_features(geoqik_internals PRIVATE cxx_std_23)

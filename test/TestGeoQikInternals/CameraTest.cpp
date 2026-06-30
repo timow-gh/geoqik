@@ -1,3 +1,4 @@
+#include "GeoQikTestMatchers.hpp"
 #include <Renderer/Camera.hpp>
 #include <gtest/gtest.h>
 #include <cmath>
@@ -6,14 +7,6 @@ namespace
 {
 
 constexpr double tolerance = 1.0e-9;
-
-void expect_near(const linal::double3& actual, const linal::double3& expected)
-{
-  for (linal::double3::size_type i = 0; i < 3; ++i)
-  {
-    EXPECT_NEAR(actual[i], expected[i], tolerance);
-  }
-}
 
 renderer::Camera make_camera()
 {
@@ -30,12 +23,12 @@ TEST(CameraTest, CreatesPerspectiveRaysThroughViewport)
   renderer::Camera camera = make_camera();
 
   const renderer::PickRay centerRay = camera.get_center_ray();
-  expect_near(centerRay.origin, linal::double3{0.0, 0.0, 10.0});
-  expect_near(centerRay.direction, linal::double3{0.0, 0.0, -1.0});
+  EXPECT_TRUE(Double3Near(centerRay.origin, linal::double3{0.0, 0.0, 10.0}, tolerance));
+  EXPECT_TRUE(Double3Near(centerRay.direction, linal::double3{0.0, 0.0, -1.0}, tolerance));
 
   const renderer::PickRay ndcRay = camera.get_ray_from_ndc(0.0, 0.0);
-  expect_near(ndcRay.origin, centerRay.origin);
-  expect_near(ndcRay.direction, centerRay.direction);
+  EXPECT_TRUE(Double3Near(ndcRay.origin, centerRay.origin, tolerance));
+  EXPECT_TRUE(Double3Near(ndcRay.direction, centerRay.direction, tolerance));
 
   const renderer::PickRay cornerRay = camera.create_perspective_ray(100.0, 100.0);
   EXPECT_GT(cornerRay.direction[0], 0.0);
@@ -52,12 +45,12 @@ TEST(CameraTest, CreatesOrthographicRaysWithOffsetOrigins)
   camera.set_viewport(0, 0, 100, 50);
 
   const renderer::PickRay centerRay = camera.get_center_ray();
-  expect_near(centerRay.origin, linal::double3{0.0, 0.0, 10.0});
-  expect_near(centerRay.direction, linal::double3{0.0, 0.0, -1.0});
+  EXPECT_TRUE(Double3Near(centerRay.origin, linal::double3{0.0, 0.0, 10.0}, tolerance));
+  EXPECT_TRUE(Double3Near(centerRay.direction, linal::double3{0.0, 0.0, -1.0}, tolerance));
 
   const renderer::PickRay cornerRay = camera.create_orthographic_ray(100.0, 50.0);
-  expect_near(cornerRay.origin, linal::double3{10.0, 5.0, 10.0});
-  expect_near(cornerRay.direction, centerRay.direction);
+  EXPECT_TRUE(Double3Near(cornerRay.origin, linal::double3{10.0, 5.0, 10.0}, tolerance));
+  EXPECT_TRUE(Double3Near(cornerRay.direction, centerRay.direction, tolerance));
 }
 
 TEST(CameraTest, ConvertsScreenAndNormalizedCoordinates)

@@ -1568,7 +1568,8 @@ void Context::process_replay_entries(const std::chrono::high_resolution_clock::t
 
   if (m_replayEntryIndex >= m_replayEntries.size())
   {
-    finish_replay();
+    m_isReplayPaused = true;
+    m_replayEntryBudget = 0.0;
     m_lastReplayTick = now;
     return;
   }
@@ -1584,28 +1585,32 @@ void Context::process_replay_entries(const std::chrono::high_resolution_clock::t
 
   if (is_replaying() && m_replayEntryIndex >= m_replayEntries.size())
   {
-    finish_replay();
+    m_isReplayPaused = true;
+    m_replayEntryBudget = 0.0;
   }
 }
 
 void Context::apply_replay_entries(std::size_t entriesToApply)
 {
+  std::size_t appliedEntryCount = 0;
   for (std::size_t i = 0; i < entriesToApply && is_replaying() && m_replayEntryIndex < m_replayEntries.size(); ++i)
   {
     m_replayUndoStack.push_back(create_replay_undo_frame(m_replayEntries[m_replayEntryIndex]));
     apply_log_entry(m_replayEntries[m_replayEntryIndex]);
     ++m_replayEntryIndex;
+    ++appliedEntryCount;
     if (m_replayEntryBudget >= 1.0)
     {
       m_replayEntryBudget -= 1.0;
     }
   }
 
-  m_geometryMessagesProcessedThisFrame += entriesToApply;
+  m_geometryMessagesProcessedThisFrame += appliedEntryCount;
 
   if (is_replaying() && m_replayEntryIndex >= m_replayEntries.size())
   {
-    finish_replay();
+    m_isReplayPaused = true;
+    m_replayEntryBudget = 0.0;
   }
 }
 

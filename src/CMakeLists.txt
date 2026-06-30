@@ -1,5 +1,6 @@
 set(project_export_set_name "${PROJECT_NAME}TargetsExportSet")
 
+add_subdirectory(geoqik_api_types)
 add_subdirectory(geoqik_protocol)
 add_subdirectory(core)
 add_subdirectory(renderer)

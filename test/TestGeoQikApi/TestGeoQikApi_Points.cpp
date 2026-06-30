@@ -1,32 +1,49 @@
-#include <GeoQik/GeoQik.hpp>
+#include "GeoQikApiTestBase.hpp"
 #include <cmath>
 #include <cstring>
-#include <gtest/gtest.h>
+#include <tuple>
 
-class TestGeoQikApi_Points : public ::testing::Test
+class TestGeoQikApi_Points : public GeoQikApiTestBase
 {
 };
 
-namespace
+struct RgbaParams
 {
+  float r, g, b, a;
+};
 
-geoqik_error_code_t init_hidden_geoqik(const geoqik_settings_t* settings = nullptr)
+class PointColorTest : public GeoQikApiTestBase,
+                       public ::testing::WithParamInterface<RgbaParams>
 {
-  geoqik_window_settings_t windowSettings;
-  geoqik_init_default_window_settings(&windowSettings);
-  windowSettings.visible = 0;
+};
 
-  if (settings != nullptr)
-  {
-    return geoqik_init_with_settings(settings, &windowSettings);
-  }
+TEST_P(PointColorTest, ColorRoundTrip)
+{
+  ASSERT_EQ(GEOQIK_SUCCESS, init_hidden_geoqik());
+  const RgbaParams p = GetParam();
+  geoqik_set_point_color(p.r, p.g, p.b, p.a);
 
-  geoqik_settings_t defaultSettings;
-  geoqik_create_default_settings(&defaultSettings);
-  return geoqik_init_with_settings(&defaultSettings, &windowSettings);
+  float rr, rg, rb, ra;
+  geoqik_get_point_color(&rr, &rg, &rb, &ra);
+
+  EXPECT_FLOAT_EQ(p.r, rr);
+  EXPECT_FLOAT_EQ(p.g, rg);
+  EXPECT_FLOAT_EQ(p.b, rb);
+  EXPECT_FLOAT_EQ(p.a, ra);
+  geoqik_cleanup();
 }
 
-} // namespace
+INSTANTIATE_TEST_SUITE_P(
+    PointColors,
+    PointColorTest,
+    ::testing::Values(
+        RgbaParams{1.0f, 0.0f, 0.0f, 1.0f},  // pure red
+        RgbaParams{0.0f, 1.0f, 0.0f, 1.0f},  // pure green
+        RgbaParams{0.0f, 0.0f, 1.0f, 1.0f},  // pure blue
+        RgbaParams{0.0f, 0.0f, 0.0f, 0.0f},  // fully transparent black
+        RgbaParams{1.0f, 1.0f, 1.0f, 1.0f},  // opaque white
+        RgbaParams{0.7f, 0.8f, 0.9f, 0.6f}   // original hardcoded values
+    ));
 
 TEST_F(TestGeoQikApi_Points, AddPoint)
 {
@@ -98,32 +115,6 @@ TEST_F(TestGeoQikApi_Points, PointSizeGetSet)
   geoqik_get_point_size(&retrievedSize);
   EXPECT_EQ(newSize, retrievedSize);
 
-  geoqik_cleanup();
-}
-
-TEST_F(TestGeoQikApi_Points, PointColorGetSet)
-{
-  ASSERT_EQ(GEOQIK_SUCCESS, init_hidden_geoqik());
-
-  float initialR;
-  float initialG;
-  float initialB;
-  float initialA;
-  geoqik_get_point_color(&initialR, &initialG, &initialB, &initialA);
-
-  const float newR = 0.7f;
-  const float newG = 0.8f;
-  const float newB = 0.9f;
-  const float newA = 0.6f;
-  geoqik_set_point_color(newR, newG, newB, newA);
-
-  float retrievedR, retrievedG, retrievedB, retrievedA;
-  geoqik_get_point_color(&retrievedR, &retrievedG, &retrievedB, &retrievedA);
-
-  EXPECT_FLOAT_EQ(newR, retrievedR);
-  EXPECT_FLOAT_EQ(newG, retrievedG);
-  EXPECT_FLOAT_EQ(newB, retrievedB);
-  EXPECT_FLOAT_EQ(newA, retrievedA);
   geoqik_cleanup();
 }
 

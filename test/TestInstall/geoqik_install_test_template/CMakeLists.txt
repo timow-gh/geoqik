@@ -71,3 +71,9 @@ if (BUILD_SHARED_LIBS)
 else()
     install(TARGETS ${TARGET_NAME} RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 endif()
+
+add_executable(use_installdir_client client_main.cpp)
+target_compile_features(use_installdir_client PRIVATE cxx_std_23)
+target_link_libraries(use_installdir_client PRIVATE geoqik::client)
+
+install(TARGETS use_installdir_client RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})

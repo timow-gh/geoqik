@@ -20,12 +20,72 @@ inline constexpr std::size_t responseHeaderByteCount = 24;
 inline constexpr std::size_t pointPayloadByteCount = 3 * sizeof(double);
 inline constexpr std::size_t linePayloadByteCount = 6 * sizeof(double);
 
+inline constexpr std::size_t floatPayloadByteCount     = sizeof(float);           // 4
+inline constexpr std::size_t colorPayloadByteCount     = 4 * sizeof(float);       // 16
+inline constexpr std::size_t uuidPayloadByteCount      = uuidByteCount;           // 16
+inline constexpr std::size_t translatePayloadByteCount = uuidByteCount + 3 * sizeof(double); // 40
+inline constexpr std::size_t rotatePayloadByteCount    = uuidByteCount + 7 * sizeof(double); // 72
+
 enum class CommandId : std::uint32_t { // NOLINT(performance-enum-size): wire protocol uses 32-bit command IDs.
     Draw        = 1,
     AddPoint    = 2,
     AddLine     = 3,
     WaitForExit = 4,
     Cleanup     = 5,
+
+    IsApiInitialized   = 6,
+    StopDrawing        = 7,
+    InitWithSettings   = 8,   // no wire IPC; settings passed at server startup via temp file
+    SetPointSize       = 9,
+    GetPointSize       = 10,
+    SetPointColor      = 11,
+    GetPointColor      = 12,
+    SetLineWidth       = 13,
+    GetLineWidth       = 14,
+    SetLineColor       = 15,
+    GetLineColor       = 16,
+    SetMeshColor       = 17,
+    GetMeshColor       = 18,
+    RemoveAllGeometry  = 19,
+    TranslateGeometry  = 20,
+    RotateGeometry     = 21,
+
+    AddPointWithColor    = 22,
+    AddPointOpts         = 23,
+    AddPointsOpts        = 24,
+    UpdatePoint          = 25,
+    UpdatePointWithColor = 26,
+    UpdatePointOpts      = 27,
+    UpdatePointsOpts     = 28,
+    RemovePoint          = 29,
+    AddLineWithColor     = 30,
+    AddLineOpts          = 31,
+    AddLinesOpts         = 32,
+    UpdateLine           = 33,
+    UpdateLineWithColor  = 34,
+    UpdateLineOpts       = 35,
+    UpdateLinesOpts      = 36,
+    RemoveLine           = 37,
+
+    AddMeshOpts          = 38,
+    RemoveMesh           = 39,
+    UpdateMeshOpts       = 40,
+    SetMeshOverlayOpts   = 41,
+    SetMeshRenderingOpts = 42,
+
+    SaveLog              = 43,
+    LoadLog              = 44,
+    ReplayLog            = 45,
+    ReplayCurrentLog     = 46,
+    CancelReplay         = 47,
+    PauseReplay          = 48,
+    ResumeReplay         = 49,
+    StepReplay           = 50,
+    StepReplayN          = 51,
+    StepReplayBackward   = 52,
+    StepReplayBackwardN  = 53,
+    GetReplayState       = 54,
+    GetReplayProgress    = 55,
 };
 
 struct FrameHeader {
@@ -160,6 +220,132 @@ inline void write_string(std::vector<std::uint8_t>& buf, const std::string& valu
         throw std::out_of_range("geoqik protocol diagnostic payload has trailing bytes");
     }
     return diagnostic;
+}
+
+template<typename T>
+[[nodiscard]] std::array<std::uint8_t, uuidByteCount> pack_return_value(const T& val) {
+    static_assert(std::is_trivially_copyable_v<T>);
+    static_assert(sizeof(T) <= uuidByteCount);
+    std::array<std::uint8_t, uuidByteCount> out{};
+    std::memcpy(out.data(), &val, sizeof(T));
+    return out;
+}
+
+[[nodiscard]] inline std::array<std::uint8_t, uuidByteCount> pack_color_return(
+    float r, float g, float b, float a)
+{
+    std::array<float, 4> rgba{r, g, b, a};
+    return pack_return_value(rgba);
+}
+
+inline constexpr std::size_t addPointWithColorPayloadByteCount =
+    3 * sizeof(double) + 4 * sizeof(float);
+inline constexpr std::size_t updatePointPayloadByteCount =
+    uuidByteCount + 3 * sizeof(double);
+inline constexpr std::size_t updatePointWithColorPayloadByteCount =
+    uuidByteCount + 3 * sizeof(double) + 4 * sizeof(float);
+inline constexpr std::size_t removeGeometryPayloadByteCount = uuidByteCount;
+inline constexpr std::size_t addLineWithColorPayloadByteCount =
+    6 * sizeof(double) + 4 * sizeof(float);
+inline constexpr std::size_t updateLinePayloadByteCount =
+    uuidByteCount + 6 * sizeof(double);
+inline constexpr std::size_t updateLineWithColorPayloadByteCount =
+    uuidByteCount + 6 * sizeof(double) + 4 * sizeof(float);
+
+inline constexpr std::size_t setMeshOverlayOptsPayloadByteCount =
+    uuidByteCount + 2 * sizeof(std::int32_t);
+inline constexpr std::size_t setMeshRenderingOptsPayloadByteCount =
+    uuidByteCount + sizeof(std::uint32_t) + sizeof(std::int32_t);
+
+// StepReplayN / StepReplayBackwardN carry a single uint64 count.
+inline constexpr std::size_t stepReplayNPayloadByteCount = sizeof(std::uint64_t);
+
+// Minimum wire size of a serialized geoqik_replay_options_t:
+// 2x double + uint64 + int32 + uint64 + 6x uint32 count fields.
+inline constexpr std::size_t replayOptionsMinByteCount =
+    2 * sizeof(double) +
+    sizeof(std::uint64_t) +
+    sizeof(std::int32_t) +
+    sizeof(std::uint64_t) +
+    6 * sizeof(std::uint32_t);
+static_assert(replayOptionsMinByteCount == 60,
+    "replayOptionsMinByteCount must match the wire-format byte count");
+
+inline void write_idempotency_key(std::vector<std::uint8_t>& buf,
+                                   const std::array<std::uint8_t, uuidByteCount>& key)
+{
+    buf.insert(buf.end(), key.begin(), key.end());
+}
+
+inline void write_optional_colors(std::vector<std::uint8_t>& buf,
+                                   const float* colorData,
+                                   std::uint32_t colorCount)
+{
+    write_pod(buf, colorCount);
+    if (colorData != nullptr && colorCount > 0) {
+        const auto* bytes = reinterpret_cast<const std::uint8_t*>(colorData);
+        buf.insert(buf.end(), bytes, bytes + colorCount * sizeof(float));
+    }
+}
+
+[[nodiscard]] inline std::vector<float> read_optional_colors(
+    const std::vector<std::uint8_t>& payload,
+    std::size_t& offset)
+{
+    const auto colorCount = read_pod<std::uint32_t>(payload, offset);
+    offset += sizeof(std::uint32_t);
+    if (colorCount == 0) { return {}; }
+    const std::size_t colorBytes = colorCount * sizeof(float);
+    if (offset + colorBytes > payload.size()) {
+        throw std::out_of_range("geoqik protocol: color payload truncated");
+    }
+    std::vector<float> colors(colorCount);
+    std::memcpy(colors.data(), payload.data() + offset, colorBytes);
+    offset += colorBytes;
+    return colors;
+}
+
+inline void write_optional_single_color(std::vector<std::uint8_t>& buf,
+                                         const float* colorPtr,
+                                         bool hasColor)
+{
+    constexpr float kZero[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+    const float* src = (hasColor && colorPtr != nullptr) ? colorPtr : kZero;
+    write_pod(buf, src[0]);
+    write_pod(buf, src[1]);
+    write_pod(buf, src[2]);
+    write_pod(buf, src[3]);
+}
+
+inline void write_optional_float_array(std::vector<std::uint8_t>& buf,
+                                        const float* data,
+                                        std::uint32_t count)
+{
+    write_pod(buf, count);
+    if (data != nullptr && count > 0) {
+        const auto* bytes = reinterpret_cast<const std::uint8_t*>(data);
+        buf.insert(buf.end(), bytes, bytes + count * sizeof(float));
+    }
+}
+
+inline void write_optional_uint32_array(std::vector<std::uint8_t>& buf,
+                                         const std::uint32_t* data,
+                                         std::uint32_t count)
+{
+    write_pod(buf, count);
+    if (data != nullptr && count > 0) {
+        const auto* bytes = reinterpret_cast<const std::uint8_t*>(data);
+        buf.insert(buf.end(), bytes, bytes + count * sizeof(std::uint32_t));
+    }
+}
+
+template<typename T>
+[[nodiscard]] T unpack_return_value(const std::array<std::uint8_t, uuidByteCount>& uuid) {
+    static_assert(std::is_trivially_copyable_v<T>);
+    static_assert(sizeof(T) <= uuidByteCount);
+    T val{};
+    std::memcpy(&val, uuid.data(), sizeof(T));
+    return val;
 }
 
 } // namespace geoqik::protocol

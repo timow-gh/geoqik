@@ -11,15 +11,62 @@
 #include <barrier>
 #include <cassert>
 #include <cmath>
+#include <cstdlib>
 #include <iostream>
 #include <thread>
 
+namespace {
+
+void print_last_client_error(const char* operation, geoqik_error_code_t err) {
+    std::cerr << operation << " failed with API code " << static_cast<int>(err) << '\n';
+
+    geoqik_client_error_info_t info{};
+    info.struct_size = sizeof(info);
+    if (geoqik_client_get_last_error_info(&info) != GEOQIK_SUCCESS) {
+        return;
+    }
+
+    if (info.client_code != GEOQIK_CLIENT_SUCCESS) {
+        std::cerr << "client code: " << static_cast<int>(info.client_code) << '\n';
+    }
+    if (info.operation != nullptr && info.operation[0] != '\0') {
+        std::cerr << "operation: " << info.operation << '\n';
+    }
+    if (info.what != nullptr && info.what[0] != '\0') {
+        std::cerr << "what: " << info.what << '\n';
+    }
+    if (info.why != nullptr && info.why[0] != '\0') {
+        std::cerr << "why: " << info.why << '\n';
+    }
+    if (info.action != nullptr && info.action[0] != '\0') {
+        std::cerr << "action: " << info.action << '\n';
+    }
+    if (info.details != nullptr && info.details[0] != '\0') {
+        std::cerr << "details: " << info.details << '\n';
+    }
+}
+
+bool check_success(geoqik_error_code_t err, const char* operation) {
+    if (err == GEOQIK_SUCCESS) {
+        return true;
+    }
+
+    print_last_client_error(operation, err);
+    return false;
+}
+
+} // namespace
+
 int main() {
-    [[maybe_unused]] auto err = geoqik_init();
-    assert(err == GEOQIK_SUCCESS && "geoqik_init failed; is GEOQIK_EXE_PATH set?");
+    auto err = geoqik_init();
+    if (!check_success(err, "geoqik_init")) {
+        return EXIT_FAILURE;
+    }
 
     err = geoqik_draw();
-    assert(err == GEOQIK_SUCCESS);
+    if (!check_success(err, "geoqik_draw")) {
+        return EXIT_FAILURE;
+    }
 
     constexpr std::size_t threadCount = 4;
     constexpr std::size_t stepsPerThread = 250;
@@ -57,7 +104,9 @@ int main() {
               << " points and lines added from " << threadCount << " threads.\n";
 
     err = geoqik_wait_for_exit_and_cleanup();
-    assert(err == GEOQIK_SUCCESS);
+    if (!check_success(err, "geoqik_wait_for_exit_and_cleanup")) {
+        return EXIT_FAILURE;
+    }
 
     return 0;
 }

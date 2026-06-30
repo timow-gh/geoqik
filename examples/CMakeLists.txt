@@ -1,141 +1,90 @@
-macro(create_example_exe name)
+function(add_geoqik_example target)
+    set(options CLIENT NO_TIDY)
+    set(oneValueArgs)
+    set(multiValueArgs LIBRARIES)
+    cmake_parse_arguments(ARG "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
+
     if (MSVC)
-        add_executable(${name} WIN32 ${name}.cpp)
+        add_executable(${target} WIN32 ${target}.cpp)
     else()
-        add_executable(${name} ${name}.cpp)
-    endif()
-    target_link_libraries(${name} PRIVATE geoqik::geoqik linal::linal)
-    set_target_properties(${name}
-            PROPERTIES
-            LANGUAGE CXX
-            LINKER_LANGUAGE CXX
-            DEBUG_POSTFIX d)
-
-    if(WIN32 AND MSVC)
-        set_target_properties(${name} PROPERTIES LINK_FLAGS "/ENTRY:mainCRTStartup")
+        add_executable(${target} ${target}.cpp)
     endif()
 
-    add_warnings_and_compile_options(${name} "${${PROJECT_NAME}_WARNINGS_AS_ERRORS}")
-    if (${PROJECT_NAME}_STATIC_ANALYSIS)
-        enable_static_analysis(${name} "${${PROJECT_NAME}_WARNINGS_AS_ERRORS}")
-    endif ()
-endmacro()
-
-create_example_exe(example_spiral)
-add_custom_target(run-example-spiral
-    COMMAND $<TARGET_FILE:example_spiral> ${ARGS}
-    DEPENDS example_spiral
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-    COMMENT "Running example_spiral"
-    VERBATIM
-)
-
-create_example_exe(example_transformations)
-add_custom_target(run-example-transformations
-    COMMAND $<TARGET_FILE:example_transformations> ${ARGS}
-    DEPENDS example_transformations
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-    COMMENT "Running example_transformations"
-    VERBATIM
-)
-
-create_example_exe(example_grid)
-
-create_example_exe(example_removing_geometry)
-target_link_libraries(example_removing_geometry PRIVATE linal::linal)
-add_custom_target(run-example-removing-geometry
-    COMMAND $<TARGET_FILE:example_removing_geometry> ${ARGS}
-    DEPENDS example_removing_geometry
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-    COMMENT "Running example_removing_geometry"
-    VERBATIM
-)
-
-create_example_exe(example_curve)
-target_link_libraries(example_curve PRIVATE Geometry::Geometry linal::linal)
-add_custom_target(run-example-curve
-    COMMAND $<TARGET_FILE:example_curve> ${ARGS}
-    DEPENDS example_curve
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-    COMMENT "Running example_curve"
-    VERBATIM
-)
-
-create_example_exe(example_sphere)
-target_link_libraries(example_sphere PRIVATE linal::linal)
-add_custom_target(run-example-sphere
-    COMMAND $<TARGET_FILE:example_sphere> ${ARGS}
-    DEPENDS example_sphere
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-    COMMENT "Running example_sphere"
-    VERBATIM
-)
-
-create_example_exe(example_mesh)
-set_target_properties(example_mesh PROPERTIES CXX_CLANG_TIDY "")
-add_custom_target(run-example-mesh
-    COMMAND $<TARGET_FILE:example_mesh> ${ARGS}
-    DEPENDS example_mesh
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-    COMMENT "Running example_mesh"
-    VERBATIM
-)
-
-
-if (MSVC)
-    add_executable(example_renderer_standalone WIN32 example_renderer_standalone.cpp)
-else()
-    add_executable(example_renderer_standalone example_renderer_standalone.cpp)
-endif()
-target_link_libraries(example_renderer_standalone PRIVATE renderer::renderer linal::linal)
-set_target_properties(example_renderer_standalone
+    target_link_libraries(${target} PRIVATE ${ARG_LIBRARIES})
+    set_target_properties(${target}
         PROPERTIES
         LANGUAGE CXX
         LINKER_LANGUAGE CXX
         DEBUG_POSTFIX d)
-set_target_properties(example_renderer_standalone PROPERTIES CXX_CLANG_TIDY "")
-if(WIN32 AND MSVC)
-    set_target_properties(example_renderer_standalone PROPERTIES LINK_FLAGS "/ENTRY:mainCRTStartup")
-endif()
-add_warnings_and_compile_options(example_renderer_standalone "${${PROJECT_NAME}_WARNINGS_AS_ERRORS}")
-if (${PROJECT_NAME}_STATIC_ANALYSIS)
-    enable_static_analysis(example_renderer_standalone "${${PROJECT_NAME}_WARNINGS_AS_ERRORS}")
-endif ()
 
-set_target_properties(example_renderer_standalone PROPERTIES CXX_CLANG_TIDY "")
-add_custom_target(run-example-renderer-standalone
-    COMMAND $<TARGET_FILE:example_renderer_standalone> ${ARGS}
-    DEPENDS example_renderer_standalone
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-    COMMENT "Running example_renderer_standalone"
-    VERBATIM
-)
+    if (WIN32 AND MSVC)
+        set_target_properties(${target} PROPERTIES LINK_FLAGS "/ENTRY:mainCRTStartup")
+    endif()
 
-# PoC client example: links geoqik::client (no DLL), requires geoqik_server at runtime.
-if (MSVC)
-    add_executable(example_client_poc WIN32 example_client_poc.cpp)
-else()
-    add_executable(example_client_poc example_client_poc.cpp)
-endif()
+    if (ARG_CLIENT)
+        target_compile_features(${target} PRIVATE cxx_std_23)
+        if (NOT MSVC)
+            target_compile_options(${target} PRIVATE -Wno-null-dereference)
+        endif()
+    endif()
 
-target_link_libraries(example_client_poc PRIVATE geoqik::client)
+    add_warnings_and_compile_options(${target} "${${PROJECT_NAME}_WARNINGS_AS_ERRORS}")
+    if (${PROJECT_NAME}_STATIC_ANALYSIS)
+        enable_static_analysis(${target} "${${PROJECT_NAME}_WARNINGS_AS_ERRORS}")
+    endif()
 
-set_target_properties(example_client_poc PROPERTIES
-    LANGUAGE CXX
-    LINKER_LANGUAGE CXX
-    DEBUG_POSTFIX d)
+    if (ARG_NO_TIDY)
+        set_target_properties(${target} PROPERTIES CXX_CLANG_TIDY "")
+    endif()
+endfunction()
 
-if (WIN32 AND MSVC)
-    set_target_properties(example_client_poc PROPERTIES
-        LINK_FLAGS "/ENTRY:mainCRTStartup")
-endif()
+function(add_geoqik_example_run_target target)
+    string(REGEX REPLACE "^example_" "" run_suffix "${target}")
+    string(REPLACE "_" "-" run_suffix "${run_suffix}")
 
-target_compile_features(example_client_poc PRIVATE cxx_std_23)
+    add_custom_target(run-example-${run_suffix}
+        COMMAND $<TARGET_FILE:${target}> ${ARGS}
+        DEPENDS ${target}
+        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+        COMMENT "Running ${target}"
+        VERBATIM)
+endfunction()
 
-add_warnings_and_compile_options(example_client_poc "${${PROJECT_NAME}_WARNINGS_AS_ERRORS}")
+set(geoqik_examples
+    example_spiral
+    example_transformations
+    example_grid
+    example_removing_geometry
+    example_sphere)
 
-# Boost.Asio headers (scheduler.ipp) trigger a false-positive -Wnull-dereference with GCC 14.
-# Suppress it only for this target since we cannot mark third-party headers as system headers here.
-if (NOT MSVC)
-    target_compile_options(example_client_poc PRIVATE -Wno-null-dereference)
-endif()
+foreach(example IN LISTS geoqik_examples)
+    add_geoqik_example(${example} LIBRARIES geoqik::geoqik linal::linal)
+endforeach()
+
+add_geoqik_example(example_curve LIBRARIES geoqik::geoqik linal::linal Geometry::Geometry)
+add_geoqik_example(example_mesh NO_TIDY LIBRARIES geoqik::geoqik linal::linal)
+add_geoqik_example(example_renderer_standalone NO_TIDY LIBRARIES renderer::renderer linal::linal)
+
+set(geoqik_run_examples
+    example_spiral
+    example_transformations
+    example_removing_geometry
+    example_curve
+    example_sphere
+    example_mesh
+    example_renderer_standalone)
+
+foreach(example IN LISTS geoqik_run_examples)
+    add_geoqik_example_run_target(${example})
+endforeach()
+
+set(geoqik_client_examples
+    example_client_poc
+    example_client_settings
+    example_client_points_lines
+    example_client_mesh
+    example_client_log_replay)
+
+foreach(example IN LISTS geoqik_client_examples)
+    add_geoqik_example(${example} CLIENT NO_TIDY LIBRARIES geoqik::client)
+endforeach()

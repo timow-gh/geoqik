@@ -1,32 +1,20 @@
-#include <GeoQik/GeoQik.hpp>
+#include "GeoQikApiTestBase.hpp"
+#include <chrono>
 #include <cmath>
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
-#include <gtest/gtest.h>
 #include <iterator>
 #include <string>
 #include <thread>
 #include <vector>
 
-class GeoQikTestApi : public ::testing::Test
+class GeoQikTestApi : public GeoQikApiTestBase
 {
 };
 
 namespace
 {
-
-void init_hidden_geoqik()
-{
-  geoqik_window_settings_t windowSettings;
-  geoqik_init_default_window_settings(&windowSettings);
-  windowSettings.visible = 0;
-
-  geoqik_settings_t geoSettings;
-  geoqik_create_default_settings(&geoSettings);
-
-  ASSERT_EQ(GEOQIK_SUCCESS, geoqik_init_with_settings(&geoSettings, &windowSettings));
-}
 
 std::vector<char> read_binary_file(const std::filesystem::path& path)
 {
@@ -70,6 +58,26 @@ std::vector<float> read_add_point_x_values(const std::filesystem::path& path)
   }
 
   return values;
+}
+
+void wait_for_replay_to_reach_end()
+{
+  const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+  std::size_t currentEntry = 0;
+  std::size_t totalEntries = 0;
+
+  while (std::chrono::steady_clock::now() < deadline)
+  {
+    ASSERT_EQ(GEOQIK_SUCCESS, geoqik_get_replay_progress(&currentEntry, &totalEntries));
+    if (totalEntries > 0 && currentEntry == totalEntries)
+    {
+      return;
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+  }
+
+  FAIL() << "Replay did not reach the end before the test deadline; progress "
+         << currentEntry << " / " << totalEntries;
 }
 
 } // namespace
@@ -135,7 +143,7 @@ TEST_F(GeoQikTestApi, InitializationStatusAndErrorStrings)
   EXPECT_STREQ("Invalid state", geoqik_get_error_string(GEOQIK_ERROR_INVALID_STATE));
   EXPECT_STREQ("Invalid error code", geoqik_get_error_string(static_cast<geoqik_error_code_t>(42)));
 
-  init_hidden_geoqik();
+  ASSERT_EQ(GEOQIK_SUCCESS, init_hidden_geoqik());
   ASSERT_EQ(GEOQIK_SUCCESS, geoqik_is_api_initialized(&isInitialized));
   EXPECT_TRUE(isInitialized);
   geoqik_cleanup();
@@ -189,7 +197,7 @@ TEST_F(GeoQikTestApi, LastErrorInfoIsThreadLocal)
 
 TEST_F(GeoQikTestApi, InitWhileInitializedReturnsAlreadyInitialized)
 {
-  init_hidden_geoqik();
+  ASSERT_EQ(GEOQIK_SUCCESS, init_hidden_geoqik());
 
   geoqik_settings_t geoSettings;
   geoqik_create_default_settings(&geoSettings);
@@ -203,7 +211,7 @@ TEST_F(GeoQikTestApi, InitWhileInitializedReturnsAlreadyInitialized)
 
 TEST_F(GeoQikTestApi, CombinedOperations)
 {
-  init_hidden_geoqik();
+  ASSERT_EQ(GEOQIK_SUCCESS, init_hidden_geoqik());
 
   geoqik_set_point_size(4.0f);
   geoqik_set_point_color(1.0f, 0.0f, 0.0f, 1.0f); // Red
@@ -254,7 +262,7 @@ TEST_F(GeoQikTestApi, InitDestroySequence)
 {
   for (int i = 0; i < 3; i++)
   {
-    init_hidden_geoqik();
+    ASSERT_EQ(GEOQIK_SUCCESS, init_hidden_geoqik());
     geoqik_add_point(0.0, 0.0, 0.0);
     geoqik_draw();
     geoqik_cleanup();
@@ -263,7 +271,7 @@ TEST_F(GeoQikTestApi, InitDestroySequence)
 
 TEST_F(GeoQikTestApi, Draw)
 {
-  init_hidden_geoqik();
+  ASSERT_EQ(GEOQIK_SUCCESS, init_hidden_geoqik());
 
   geoqik_add_point(0.0, 0.0, 0.0);
   geoqik_add_line(0.0, 0.0, 0.0, 1.0, 1.0, 1.0);
@@ -283,7 +291,7 @@ TEST_F(GeoQikTestApi, SaveLoadLogRoundTrip)
   std::filesystem::remove(firstPath);
   std::filesystem::remove(secondPath);
 
-  init_hidden_geoqik();
+  ASSERT_EQ(GEOQIK_SUCCESS, init_hidden_geoqik());
 
   geoqik_set_point_size(6.0f);
   geoqik_set_point_color(1.0f, 0.0f, 0.0f, 1.0f);
@@ -332,7 +340,7 @@ TEST_F(GeoQikTestApi, SaveLoadLogValidation)
   EXPECT_EQ(GEOQIK_ERROR_NOT_INITIALIZED, geoqik_save_log(validPath.string().c_str(), GEOQIK_LOG_FORMAT_BINARY));
   EXPECT_EQ(GEOQIK_ERROR_NOT_INITIALIZED, geoqik_load_log(validPath.string().c_str(), GEOQIK_LOG_FORMAT_BINARY));
 
-  init_hidden_geoqik();
+  ASSERT_EQ(GEOQIK_SUCCESS, init_hidden_geoqik());
 
   EXPECT_EQ(GEOQIK_ERROR_INVALID_PARAMETER, geoqik_save_log("", GEOQIK_LOG_FORMAT_BINARY));
   EXPECT_EQ(GEOQIK_ERROR_UNSUPPORTED_FORMAT, geoqik_save_log(validPath.string().c_str(), static_cast<geoqik_log_format_t>(42)));
@@ -406,7 +414,7 @@ TEST_F(GeoQikTestApi, ReplayLogValidation)
   EXPECT_EQ(GEOQIK_ERROR_NOT_INITIALIZED, geoqik_resume_replay());
   EXPECT_EQ(GEOQIK_ERROR_NOT_INITIALIZED, geoqik_step_replay());
 
-  init_hidden_geoqik();
+  ASSERT_EQ(GEOQIK_SUCCESS, init_hidden_geoqik());
 
   EXPECT_EQ(GEOQIK_ERROR_IO, geoqik_replay_log(missingPath.string().c_str(), GEOQIK_LOG_FORMAT_BINARY, nullptr));
 
@@ -437,7 +445,7 @@ TEST_F(GeoQikTestApi, ReplayLogRoundTrip)
   std::filesystem::remove(firstPath);
   std::filesystem::remove(secondPath);
 
-  init_hidden_geoqik();
+  ASSERT_EQ(GEOQIK_SUCCESS, init_hidden_geoqik());
 
   ASSERT_EQ(GEOQIK_SUCCESS, geoqik_set_point_size(5.0f));
   ASSERT_EQ(GEOQIK_SUCCESS, geoqik_add_point(1.0, 2.0, 3.0).err);
@@ -449,6 +457,8 @@ TEST_F(GeoQikTestApi, ReplayLogRoundTrip)
   options.entriesPerSecond = 100000.0;
   options.maxEntriesPerFrame = 100000;
   ASSERT_EQ(GEOQIK_SUCCESS, geoqik_replay_log(firstPath.string().c_str(), GEOQIK_LOG_FORMAT_BINARY, &options));
+  wait_for_replay_to_reach_end();
+  ASSERT_EQ(GEOQIK_SUCCESS, geoqik_cancel_replay());
   ASSERT_EQ(GEOQIK_SUCCESS, geoqik_save_log(secondPath.string().c_str(), GEOQIK_LOG_FORMAT_BINARY));
 
   EXPECT_EQ(read_binary_file(firstPath), read_binary_file(secondPath));
@@ -465,7 +475,7 @@ TEST_F(GeoQikTestApi, ReplayCurrentLogRoundTrip)
   std::filesystem::remove(beforePath);
   std::filesystem::remove(afterPath);
 
-  init_hidden_geoqik();
+  ASSERT_EQ(GEOQIK_SUCCESS, init_hidden_geoqik());
 
   ASSERT_EQ(GEOQIK_SUCCESS, geoqik_set_line_width(3.0f));
   ASSERT_EQ(GEOQIK_SUCCESS, geoqik_add_line(0.0, 0.0, 0.0, 1.0, 0.0, 0.0));
@@ -476,6 +486,8 @@ TEST_F(GeoQikTestApi, ReplayCurrentLogRoundTrip)
   options.entriesPerSecond = 100000.0;
   options.maxEntriesPerFrame = 100000;
   ASSERT_EQ(GEOQIK_SUCCESS, geoqik_replay_current_log(&options));
+  wait_for_replay_to_reach_end();
+  ASSERT_EQ(GEOQIK_SUCCESS, geoqik_cancel_replay());
   ASSERT_EQ(GEOQIK_SUCCESS, geoqik_save_log(afterPath.string().c_str(), GEOQIK_LOG_FORMAT_BINARY));
 
   EXPECT_EQ(read_binary_file(beforePath), read_binary_file(afterPath));
@@ -485,23 +497,25 @@ TEST_F(GeoQikTestApi, ReplayCurrentLogRoundTrip)
   geoqik_cleanup();
 }
 
-TEST_F(GeoQikTestApi, ReplayDefersQueuedMessagesUntilDone)
+TEST_F(GeoQikTestApi, ReplayDefersQueuedMessagesUntilManualEnd)
 {
   const std::filesystem::path replayPath = std::filesystem::temp_directory_path() / "geoqik_api_replay_deferred_source.gqklog";
   const std::filesystem::path actualPath = std::filesystem::temp_directory_path() / "geoqik_api_replay_deferred_actual.gqklog";
   std::filesystem::remove(replayPath);
   std::filesystem::remove(actualPath);
 
-  init_hidden_geoqik();
+  ASSERT_EQ(GEOQIK_SUCCESS, init_hidden_geoqik());
 
   ASSERT_EQ(GEOQIK_SUCCESS, geoqik_add_point(1.0, 0.0, 0.0).err);
   ASSERT_EQ(GEOQIK_SUCCESS, geoqik_save_log(replayPath.string().c_str(), GEOQIK_LOG_FORMAT_BINARY));
 
   geoqik_replay_options_t options{};
-  options.entriesPerSecond = 1.0;
-  options.maxEntriesPerFrame = 1;
+  options.entriesPerSecond = 100000.0;
+  options.maxEntriesPerFrame = 100000;
   ASSERT_EQ(GEOQIK_SUCCESS, geoqik_replay_log(replayPath.string().c_str(), GEOQIK_LOG_FORMAT_BINARY, &options));
+  wait_for_replay_to_reach_end();
   ASSERT_EQ(GEOQIK_SUCCESS, geoqik_add_point(2.0, 0.0, 0.0).err);
+  ASSERT_EQ(GEOQIK_SUCCESS, geoqik_cancel_replay());
   ASSERT_EQ(GEOQIK_SUCCESS, geoqik_save_log(actualPath.string().c_str(), GEOQIK_LOG_FORMAT_BINARY));
 
   const std::vector<float> xValues = read_add_point_x_values(actualPath);
@@ -514,12 +528,46 @@ TEST_F(GeoQikTestApi, ReplayDefersQueuedMessagesUntilDone)
   geoqik_cleanup();
 }
 
+TEST_F(GeoQikTestApi, ReplayRemainsActiveAtEndForManualReverse)
+{
+  const std::filesystem::path path = std::filesystem::temp_directory_path() / "geoqik_api_replay_manual_reverse.gqklog";
+  std::filesystem::remove(path);
+
+  ASSERT_EQ(GEOQIK_SUCCESS, init_hidden_geoqik());
+
+  for (int i = 0; i < 3; ++i)
+  {
+    ASSERT_EQ(GEOQIK_SUCCESS, geoqik_add_point(static_cast<double>(i), 0.0, 0.0).err);
+  }
+  ASSERT_EQ(GEOQIK_SUCCESS, geoqik_save_log(path.string().c_str(), GEOQIK_LOG_FORMAT_BINARY));
+
+  geoqik_replay_options_t options{};
+  options.entriesPerSecond = 100000.0;
+  options.maxEntriesPerFrame = 100000;
+  ASSERT_EQ(GEOQIK_SUCCESS, geoqik_replay_log(path.string().c_str(), GEOQIK_LOG_FORMAT_BINARY, &options));
+  wait_for_replay_to_reach_end();
+
+  geoqik_replay_state_t state = GEOQIK_REPLAY_INACTIVE;
+  std::size_t currentEntry = 0;
+  std::size_t totalEntries = 0;
+  ASSERT_EQ(GEOQIK_SUCCESS, geoqik_get_replay_state(&state));
+  EXPECT_EQ(GEOQIK_REPLAY_PAUSED, state);
+  ASSERT_EQ(GEOQIK_SUCCESS, geoqik_step_replay_backward_n(1));
+  ASSERT_EQ(GEOQIK_SUCCESS, geoqik_get_replay_progress(&currentEntry, &totalEntries));
+  EXPECT_EQ(3, totalEntries);
+  EXPECT_EQ(2, currentEntry);
+
+  ASSERT_EQ(GEOQIK_SUCCESS, geoqik_cancel_replay());
+  std::filesystem::remove(path);
+  geoqik_cleanup();
+}
+
 TEST_F(GeoQikTestApi, CancelReplayAllowsSubsequentCallsToComplete)
 {
   const std::filesystem::path path = std::filesystem::temp_directory_path() / "geoqik_api_replay_cancel.gqklog";
   std::filesystem::remove(path);
 
-  init_hidden_geoqik();
+  ASSERT_EQ(GEOQIK_SUCCESS, init_hidden_geoqik());
 
   for (int i = 0; i < 8; ++i)
   {
@@ -544,7 +592,7 @@ TEST_F(GeoQikTestApi, PauseStepAndResumeReplayExposeStateAndProgress)
   const std::filesystem::path path = std::filesystem::temp_directory_path() / "geoqik_api_replay_controls.gqklog";
   std::filesystem::remove(path);
 
-  init_hidden_geoqik();
+  ASSERT_EQ(GEOQIK_SUCCESS, init_hidden_geoqik());
 
   for (int i = 0; i < 5; ++i)
   {
