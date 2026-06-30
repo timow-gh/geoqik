@@ -12,5 +12,7 @@ add_dependencies(TestGeoQikClient geoqik_server)
 
 add_test(NAME geoqik.TestGeoQikClient COMMAND TestGeoQikClient)
 set_tests_properties(geoqik.TestGeoQikClient PROPERTIES
+    # Prevents tests from running in parallel.
+    RESOURCE_LOCK geoqik_glfw
     TIMEOUT 90)
 set_property(GLOBAL APPEND PROPERTY ${PROJECT_NAME}_COVERAGE_TESTS TestGeoQikClient)
