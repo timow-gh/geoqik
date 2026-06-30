@@ -126,7 +126,7 @@ TEST(CameraInteractorTest, ScrollDoesNotBlockWhenGroundPlaneIsNotHit)
   renderer::InputState inputState;
   renderer::CameraInteractor interactor = make_interactor(inputState);
   inputState.cursorPosState = renderer::CursorPosState{400.0, 300.0};
-  interactor.set_ground_plane(Geometry::Planed{linal::double3{0.0, 0.0, 100.0}, linal::double3{1.0, 0.0, 0.0}});
+  interactor.set_ground_plane(renderer::Plane{linal::double3{0.0, 0.0, 100.0}, linal::double3{1.0, 0.0, 0.0}});
 
   const linal::double3 initialPosition = interactor.get_position();
   interactor.on_scroll(0.0, 1.0);

@@ -6,9 +6,9 @@
 #include <Renderer/CameraAutoFit.hpp>
 #include <Renderer/PickRay.hpp>
 #include <Renderer/CameraProjectionType.hpp>
+#include <Renderer/Plane.hpp>
 #include <Renderer/RayPlaneIntersection.hpp>
 #include <Renderer/Warnings.hpp>
-#include <Geometry/Plane.hpp>
 #include <algorithm>
 RENDERER_DISABLE_ALL_WARNINGS
 #define GLM_ENABLE_EXPERIMENTAL
@@ -26,8 +26,8 @@ struct CameraSettings
   Camera m_camera;
   glm::mat4 m_currentMVP{};                                                 /**< Precalculated the current model view projection matrix. */
   CameraProjectionType m_projectionType{CameraProjectionType::PERSPECTIVE}; /**< Whether to use projection matrix or ortho matrix. */
-  Geometry::Planed m_groundPlane{linal::double3{0.0, 0.0, 0.0},
-                                 linal::double3{0.0, 0.0, 1.0}}; /**< The coefficients of the plane pan and rotate default plane. */
+  Plane m_groundPlane{linal::double3{0.0, 0.0, 0.0},
+                      linal::double3{0.0, 0.0, 1.0}}; /**< The pan and rotate default plane. */
 
   double m_zoomPerspFactor{0.2};                                 /**< The zoom factor used to translate the camera in perspective mode. */
   double m_zoomOrthoFactor{0.05};                                /**< The zoom factor used to translate the camera in ortho mode. */
@@ -157,7 +157,7 @@ public:
     update_mvp();
   }
 
-  void set_ground_plane(const Geometry::Planed& groundPlane) { m_groundPlane = groundPlane; }
+  void set_ground_plane(const Plane& groundPlane) { m_groundPlane = groundPlane; }
 
   void set_viewport(std::uint32_t x, std::uint32_t y, std::uint32_t width, std::uint32_t height)
   {

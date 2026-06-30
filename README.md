@@ -63,9 +63,9 @@ int main()
     geoqik_set_point_color(1.0f, 0.0f, 0.0f, 1.0f); // red
     geoqik_set_line_width(2.0f);
 
-    geoqik_draw(); // open the window; geometry added before this call is rendered on the first frame
+    geoqik_draw(); // geometry added before this call is rendered on the first frame
 
-    geoqik_add_point(1.0, 0.0, 0.0);  // rendered immediately — window is already open
+    geoqik_add_point(1.0, 0.0, 0.0);
     geoqik_add_line(0.0, 0.0, 0.0,  1.0, 0.0, 0.0);
 
     geoqik_wait_for_exit_and_cleanup(); // blocks until the window is closed
@@ -94,16 +94,12 @@ GeoQik records every geometry event in memory. You can save this log to disk and
 // Save the current session
 geoqik_save_log("session.geoqik", GEOQIK_LOG_FORMAT_BINARY);
 
-// In a later run: load and replay over time
+// In a later run: load and replay
 geoqik_init();
 geoqik_draw();
-geoqik_replay_log("session.geoqik", GEOQIK_LOG_FORMAT_BINARY, NULL); // NULL = default options
+geoqik_replay_log("session.geoqik", GEOQIK_LOG_FORMAT_BINARY, NULL); // NULL = replay with default options
 geoqik_wait_for_exit_and_cleanup();
 ```
-
-Use `geoqik_replay_options_t` to control playback speed, key bindings, and step mode.
-
-All API functions except `geoqik_init()` are thread-safe and can be called concurrently.
 
 ## Building from source
 

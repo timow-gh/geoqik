@@ -5,5 +5,4 @@ if (${PROJECT_NAME}_TESTS)
 endif ()
 
 add_subdirectory(fmt)
-add_subdirectory(geometry)
 add_subdirectory(linal)

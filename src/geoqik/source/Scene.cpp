@@ -223,7 +223,7 @@ void Scene::set_default_mesh_color(float r, float g, float b, float a)
   m_meshBuffer->set_default_color(r, g, b, a);
 }
 
-Geometry::Sphere<float> Scene::calc_bounding_sphere(const linal::float3& center) const
+BoundingSphere Scene::calc_bounding_sphere(const linal::float3& center) const
 {
   float maxRadiusSq = 0.0F;
 
@@ -245,7 +245,7 @@ Geometry::Sphere<float> Scene::calc_bounding_sphere(const linal::float3& center)
     calc_max_radius_squared(meshVertices, center, maxRadiusSq);
   }
 
-  return Geometry::Sphere<float>{center, std::sqrt(maxRadiusSq)};
+  return BoundingSphere{center, std::sqrt(maxRadiusSq)};
 }
 
 linal::float3 Scene::calc_scene_centroid() const

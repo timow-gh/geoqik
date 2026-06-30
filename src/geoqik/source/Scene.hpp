@@ -5,7 +5,6 @@
 #include "GeometryBuffers/MeshBuffer.hpp"
 #include "GeometryBuffers/PointBuffer.hpp"
 #include "GeoQikSettings.hpp"
-#include <Geometry/Sphere.hpp>
 #include <cstddef>
 #include <memory>
 #include <optional>
@@ -21,6 +20,15 @@ struct SceneSnapshot
   MeshBufferSnapshot meshBuffer;
   float pointSize{3.0f};
   float lineWidth{1.0f};
+};
+
+struct BoundingSphere
+{
+  linal::float3 center{0.0f, 0.0f, 0.0f};
+  float radius{0.0f};
+
+  [[nodiscard]] float get_radius() const { return radius; }
+  [[nodiscard]] const linal::float3& get_center() const { return center; }
 };
 
 class Scene
@@ -116,7 +124,7 @@ public:
   [[nodiscard]] const LineBuffer& get_line_buffer() const { return *m_lineBuffer; }
   [[nodiscard]] LineBuffer& get_line_buffer() { return *m_lineBuffer; }
 
-  [[nodiscard]] Geometry::Sphere<float> calc_bounding_sphere(const linal::float3& center) const;
+  [[nodiscard]] BoundingSphere calc_bounding_sphere(const linal::float3& center) const;
   [[nodiscard]] linal::float3 calc_scene_centroid() const;
 
 private:

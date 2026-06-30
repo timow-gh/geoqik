@@ -61,7 +61,7 @@ foreach(example IN LISTS geoqik_examples)
     add_geoqik_example(${example} LIBRARIES geoqik::geoqik linal::linal)
 endforeach()
 
-add_geoqik_example(example_curve LIBRARIES geoqik::geoqik linal::linal Geometry::Geometry)
+add_geoqik_example(example_curve LIBRARIES geoqik::geoqik linal::linal)
 add_geoqik_example(example_mesh NO_TIDY LIBRARIES geoqik::geoqik linal::linal)
 add_geoqik_example(example_renderer_standalone NO_TIDY LIBRARIES renderer::renderer linal::linal)
 
