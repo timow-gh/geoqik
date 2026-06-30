@@ -2,8 +2,8 @@
 #define RENDERER_RAYPLANEINTERSECTION_HPP
 
 #include <Renderer/Assert.hpp>
+#include <Renderer/Plane.hpp>
 #include <linal/linal.hpp>
-#include <Geometry/Plane.hpp>
 
 namespace renderer
 {
@@ -17,7 +17,7 @@ namespace renderer
  */
 [[nodiscard]] inline bool ray_plane_intersection(const linal::double3& rayOrigin,
                                                  const linal::double3& rayDir,
-                                                 const Geometry::Planed& plane,
+                                                 const Plane& plane,
                                                  linal::double3& result,
                                                  double eps = 1e-6) {
   RENDERER_ASSERT(!linal::is_zero(rayDir));

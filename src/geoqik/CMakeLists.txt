@@ -39,8 +39,7 @@ target_link_libraries(geoqik_internal_objects
         $<BUILD_LOCAL_INTERFACE:geoqik::core>
         $<BUILD_LOCAL_INTERFACE:renderer::renderer>
         $<BUILD_LOCAL_INTERFACE:fmt::fmt>
-        $<BUILD_LOCAL_INTERFACE:linal::linal>
-        $<BUILD_LOCAL_INTERFACE:Geometry::Geometry>)
+        $<BUILD_LOCAL_INTERFACE:linal::linal>)
 
 target_compile_features(geoqik_internal_objects PRIVATE cxx_std_23)
 set_target_properties(geoqik_internal_objects PROPERTIES POSITION_INDEPENDENT_CODE ON)
@@ -96,7 +95,6 @@ target_link_libraries(${TARGET_NAME}
         $<BUILD_LOCAL_INTERFACE:imgui::imgui>
         $<BUILD_LOCAL_INTERFACE:fmt::fmt>
         $<BUILD_LOCAL_INTERFACE:linal::linal>
-        $<BUILD_LOCAL_INTERFACE:Geometry::Geometry>
 )
 
 if (${PROJECT_NAME}_INSTALL)
@@ -140,7 +138,7 @@ target_compile_definitions(geoqik_internals PUBLIC GEOQIK_STATIC_DEFINE)
 target_link_libraries(geoqik_internals
         PUBLIC
         geoqik::api_types geoqik_internal_objects
-        stduuid linal::linal Geometry::Geometry geoqik::core renderer::renderer)
+        stduuid linal::linal geoqik::core renderer::renderer)
 
 target_compile_features(geoqik_internals PRIVATE cxx_std_23)
 

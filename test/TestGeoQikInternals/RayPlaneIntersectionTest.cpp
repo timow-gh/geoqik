@@ -10,7 +10,7 @@ constexpr double tolerance = 1.0e-12;
 
 TEST(RayPlaneIntersectionTest, FindsIntersectionInFrontOfRay)
 {
-  const Geometry::Planed plane{linal::double3{0.0, 0.0, 0.0}, linal::double3{0.0, 0.0, 1.0}};
+  const renderer::Plane plane{linal::double3{0.0, 0.0, 0.0}, linal::double3{0.0, 0.0, 1.0}};
   linal::double3 result{0.0};
 
   const bool hit = renderer::ray_plane_intersection(linal::double3{1.0, 2.0, 5.0}, linal::double3{0.0, 0.0, -1.0}, plane, result);
@@ -23,7 +23,7 @@ TEST(RayPlaneIntersectionTest, FindsIntersectionInFrontOfRay)
 
 TEST(RayPlaneIntersectionTest, RejectsParallelRay)
 {
-  const Geometry::Planed plane{linal::double3{0.0, 0.0, 0.0}, linal::double3{0.0, 0.0, 1.0}};
+  const renderer::Plane plane{linal::double3{0.0, 0.0, 0.0}, linal::double3{0.0, 0.0, 1.0}};
   linal::double3 result{9.0, 9.0, 9.0};
 
   const bool hit = renderer::ray_plane_intersection(linal::double3{0.0, 0.0, 5.0}, linal::double3{1.0, 0.0, 0.0}, plane, result);
@@ -34,7 +34,7 @@ TEST(RayPlaneIntersectionTest, RejectsParallelRay)
 
 TEST(RayPlaneIntersectionTest, RejectsIntersectionBehindRayOrigin)
 {
-  const Geometry::Planed plane{linal::double3{0.0, 0.0, 0.0}, linal::double3{0.0, 0.0, 1.0}};
+  const renderer::Plane plane{linal::double3{0.0, 0.0, 0.0}, linal::double3{0.0, 0.0, 1.0}};
   linal::double3 result{9.0, 9.0, 9.0};
 
   const bool hit = renderer::ray_plane_intersection(linal::double3{0.0, 0.0, 5.0}, linal::double3{0.0, 0.0, 1.0}, plane, result);

@@ -10,6 +10,7 @@ set(renderer_HEADER_FILES
         include/Renderer/CameraProjectionType.hpp
         include/Renderer/MathConstants.hpp
         include/Renderer/PickRay.hpp
+        include/Renderer/Plane.hpp
         include/Renderer/Color.hpp
         include/Renderer/Viewport.hpp
         include/Renderer/Camera.hpp
@@ -64,7 +65,6 @@ target_link_libraries(${TARGET_NAME}
         glad::glad
         glfw
         $<BUILD_LOCAL_INTERFACE:linal::linal>
-        Geometry::Geometry
         PRIVATE
         imgui::imgui
 )
