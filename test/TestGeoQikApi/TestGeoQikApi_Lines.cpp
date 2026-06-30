@@ -1,31 +1,48 @@
-#include <GeoQik/GeoQik.hpp>
+#include "GeoQikApiTestBase.hpp"
 #include <cmath>
-#include <gtest/gtest.h>
+#include <tuple>
 
-class GeoQikTest_Lines : public ::testing::Test
+class GeoQikTest_Lines : public GeoQikApiTestBase
 {
 };
 
-namespace
+struct LineRgbaParams
 {
+  float r, g, b, a;
+};
 
-geoqik_error_code_t init_hidden_geoqik(const geoqik_settings_t* settings = nullptr)
+class LineColorTest : public GeoQikApiTestBase,
+                      public ::testing::WithParamInterface<LineRgbaParams>
 {
-  geoqik_window_settings_t windowSettings;
-  geoqik_init_default_window_settings(&windowSettings);
-  windowSettings.visible = 0;
+};
 
-  if (settings != nullptr)
-  {
-    return geoqik_init_with_settings(settings, &windowSettings);
-  }
+TEST_P(LineColorTest, ColorRoundTrip)
+{
+  ASSERT_EQ(GEOQIK_SUCCESS, init_hidden_geoqik());
+  const LineRgbaParams p = GetParam();
+  geoqik_set_line_color(p.r, p.g, p.b, p.a);
 
-  geoqik_settings_t defaultSettings;
-  geoqik_create_default_settings(&defaultSettings);
-  return geoqik_init_with_settings(&defaultSettings, &windowSettings);
+  float rr, rg, rb, ra;
+  geoqik_get_line_color(&rr, &rg, &rb, &ra);
+
+  EXPECT_FLOAT_EQ(p.r, rr);
+  EXPECT_FLOAT_EQ(p.g, rg);
+  EXPECT_FLOAT_EQ(p.b, rb);
+  EXPECT_FLOAT_EQ(p.a, ra);
+  geoqik_cleanup();
 }
 
-} // namespace
+INSTANTIATE_TEST_SUITE_P(
+    LineColors,
+    LineColorTest,
+    ::testing::Values(
+        LineRgbaParams{1.0f, 0.0f, 0.0f, 1.0f},  // pure red
+        LineRgbaParams{0.0f, 1.0f, 0.0f, 1.0f},  // pure green
+        LineRgbaParams{0.0f, 0.0f, 1.0f, 1.0f},  // pure blue
+        LineRgbaParams{0.0f, 0.0f, 0.0f, 0.0f},  // fully transparent black
+        LineRgbaParams{1.0f, 1.0f, 1.0f, 1.0f},  // opaque white
+        LineRgbaParams{0.2f, 0.3f, 0.4f, 0.5f}   // original hardcoded values
+    ));
 
 
 TEST_F(GeoQikTest_Lines, AddLine)
@@ -76,35 +93,6 @@ TEST_F(GeoQikTest_Lines, LineWidthGetSet)
   float retrievedWidth;
   geoqik_get_line_width(&retrievedWidth);
   EXPECT_FLOAT_EQ(newWidth, retrievedWidth);
-  geoqik_cleanup();
-}
-
-TEST_F(GeoQikTest_Lines, LineColorGetSet)
-{
-  ASSERT_EQ(GEOQIK_SUCCESS, init_hidden_geoqik());
-
-  float initialR;
-  float initialG;
-  float initialB;
-  float initialA;
-  geoqik_get_line_color(&initialR, &initialG, &initialB, &initialA);
-
-  const float newR = 0.2f;
-  const float newG = 0.3f;
-  const float newB = 0.4f;
-  const float newA = 0.5f;
-  geoqik_set_line_color(newR, newG, newB, newA);
-
-  float retrievedR;
-  float retrievedG;
-  float retrievedB;
-  float retrievedA;
-  geoqik_get_line_color(&retrievedR, &retrievedG, &retrievedB, &retrievedA);
-
-  EXPECT_FLOAT_EQ(newR, retrievedR);
-  EXPECT_FLOAT_EQ(newG, retrievedG);
-  EXPECT_FLOAT_EQ(newB, retrievedB);
-  EXPECT_FLOAT_EQ(newA, retrievedA);
   geoqik_cleanup();
 }
 

@@ -1,9 +1,10 @@
+#include "GeoQikTestMatchers.hpp"
 #include "GeometryBuffers/MeshBuffer.hpp"
 #include "Core/UUID.hpp"
 #include <array>
-#include <cmath>
 #include <gtest/gtest.h>
 #include <span>
+#include <tuple>
 #include <vector>
 
 template <class T>
@@ -69,11 +70,10 @@ TEST_F(MeshBufferTest, AddMesh_ComputedFlatNormals)
 
   for (std::size_t i = 0; i < gotNormals.size() / 3; ++i)
   {
-    float nx = gotNormals[i*3 + 0];
-    float ny = gotNormals[i*3 + 1];
-    float nz = gotNormals[i*3 + 2];
-    float len = std::sqrt(nx*nx + ny*ny + nz*nz);
-    EXPECT_NEAR(len, 1.0f, 1e-5f) << "Normal at vertex " << i << " is not unit length";
+    EXPECT_TRUE(UnitVec3f(
+        std::make_tuple(gotNormals[i * 3], gotNormals[i * 3 + 1], gotNormals[i * 3 + 2]),
+        1e-5f))
+        << "Normal at vertex " << i << " is not unit length";
   }
 }
 
