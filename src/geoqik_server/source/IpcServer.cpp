@@ -19,8 +19,7 @@ void run(const std::string& pipeName) {
         "D:P"
         "(A;;GA;;;SY)"
         "(A;;GA;;;BA)"
-        "(A;;GA;;;OW)"
-        "(A;;GA;;;WD)";
+        "(A;;GA;;;OW)";
 
     for (;;) {
         PSECURITY_DESCRIPTOR securityDescriptor = nullptr;

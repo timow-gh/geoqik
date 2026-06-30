@@ -481,6 +481,9 @@ inline constexpr std::size_t setMeshRenderingOptsPayloadByteCount =
 // StepReplayN / StepReplayBackwardN carry a single uint64 count.
 inline constexpr std::size_t stepReplayNPayloadByteCount = sizeof(std::uint64_t);
 
+// Maximum size for diagnostic payloads to prevent unbounded memory allocation
+inline constexpr std::uint32_t maxDiagnosticPayloadBytes = 64u * 1024u; // 64 KiB
+
 // Minimum wire size of a serialized geoqik_replay_options_t:
 // 2x double + uint64 + int32 + uint64 + 6x uint32 count fields.
 inline constexpr std::size_t replayOptionsMinByteCount =
@@ -684,6 +687,11 @@ public:
         proto::ResponseHeader responseHeader{};
         try {
             read_exact(&responseHeader, sizeof(responseHeader));
+
+            if (responseHeader.diagnosticBytes > proto::maxDiagnosticPayloadBytes) {
+                disconnect();
+                throw ProtocolError("diagnostic payload exceeds maximum size");
+            }
 
             std::vector<std::uint8_t> diagnosticPayload(responseHeader.diagnosticBytes);
             if (responseHeader.diagnosticBytes > 0) {
