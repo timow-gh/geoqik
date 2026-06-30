@@ -310,3 +310,106 @@ TEST_F(GeoQikClientTest, DISABLED_CallAfterServerExitReturnsIpcError) {
     // Should be a connection or write error, not success.
     EXPECT_NE(GEOQIK_CLIENT_SUCCESS, info.client_code);
 }
+
+// --- Mesh API tests ---------------------------------------------------------
+
+TEST_F(GeoQikClientTest, AddMeshOptsMinimalReturnsSuccessAndUuid) {
+    ASSERT_EQ(GEOQIK_SUCCESS, geoqik_init());
+
+    const float vertices[] = { 0.f,0.f,0.f, 1.f,0.f,0.f, 0.f,1.f,0.f };
+    const std::uint32_t indices[] = { 0, 1, 2 };
+    const auto result = geoqik_add_mesh_opts(vertices, 3, indices, 1, nullptr);
+
+    EXPECT_EQ(GEOQIK_SUCCESS, result.err);
+    bool allZero = true;
+    for (const auto byte : result.geometryId.value) {
+        if (byte != 0) { allZero = false; break; }
+    }
+    EXPECT_FALSE(allZero) << "Expected a non-zero UUID from geoqik_add_mesh_opts";
+}
+
+TEST_F(GeoQikClientTest, AddMeshOptsWithColorReturnsSuccess) {
+    ASSERT_EQ(GEOQIK_SUCCESS, geoqik_init());
+
+    const float vertices[] = { 0.f,0.f,0.f, 1.f,0.f,0.f, 0.f,1.f,0.f };
+    const std::uint32_t indices[] = { 0, 1, 2 };
+    const float color[] = { 0.5f, 0.2f, 0.8f, 1.0f };
+
+    geoqik_add_mesh_opts_t opts{};
+    opts.color      = color;
+    opts.colorCount = 4;
+
+    const auto result = geoqik_add_mesh_opts(vertices, 3, indices, 1, &opts);
+    EXPECT_EQ(GEOQIK_SUCCESS, result.err);
+}
+
+TEST_F(GeoQikClientTest, AddMeshOptsWithSegmentOverlayReturnsSuccess) {
+    ASSERT_EQ(GEOQIK_SUCCESS, geoqik_init());
+
+    const float vertices[] = { 0.f,0.f,0.f, 1.f,0.f,0.f, 0.f,1.f,0.f };
+    const std::uint32_t indices[] = { 0, 1, 2 };
+    const std::uint32_t segmentIndices[] = { 0, 1, 1, 2, 2, 0 };  // 3 edges
+    const float segColor[] = { 0.f, 1.f, 0.f, 1.f };
+
+    geoqik_add_mesh_opts_t opts{};
+    opts.segmentIndices    = segmentIndices;
+    opts.segmentIndexCount = 6;
+    opts.segmentColor      = segColor;
+    opts.showSegments      = 1;
+    opts.segmentLineWidth  = 2.0f;
+
+    const auto result = geoqik_add_mesh_opts(vertices, 3, indices, 1, &opts);
+    EXPECT_EQ(GEOQIK_SUCCESS, result.err);
+}
+
+TEST_F(GeoQikClientTest, RemoveMeshReturnsSuccess) {
+    ASSERT_EQ(GEOQIK_SUCCESS, geoqik_init());
+
+    const float vertices[] = { 0.f,0.f,0.f, 1.f,0.f,0.f, 0.f,1.f,0.f };
+    const std::uint32_t indices[] = { 0, 1, 2 };
+    const auto addResult = geoqik_add_mesh_opts(vertices, 3, indices, 1, nullptr);
+    ASSERT_EQ(GEOQIK_SUCCESS, addResult.err);
+
+    EXPECT_EQ(GEOQIK_SUCCESS, geoqik_remove_mesh(&addResult.geometryId));
+}
+
+TEST_F(GeoQikClientTest, UpdateMeshOptsReturnsSuccess) {
+    ASSERT_EQ(GEOQIK_SUCCESS, geoqik_init());
+
+    const float vertices[] = { 0.f,0.f,0.f, 1.f,0.f,0.f, 0.f,1.f,0.f };
+    const std::uint32_t indices[] = { 0, 1, 2 };
+    const auto addResult = geoqik_add_mesh_opts(vertices, 3, indices, 1, nullptr);
+    ASSERT_EQ(GEOQIK_SUCCESS, addResult.err);
+
+    const float updated[] = { 0.f,0.f,0.f, 2.f,0.f,0.f, 0.f,2.f,0.f };
+    EXPECT_EQ(GEOQIK_SUCCESS,
+        geoqik_update_mesh_opts(&addResult.geometryId, updated, 3, nullptr));
+}
+
+TEST_F(GeoQikClientTest, SetMeshOverlayOptsReturnsSuccess) {
+    ASSERT_EQ(GEOQIK_SUCCESS, geoqik_init());
+
+    const float vertices[] = { 0.f,0.f,0.f, 1.f,0.f,0.f, 0.f,1.f,0.f };
+    const std::uint32_t indices[] = { 0, 1, 2 };
+    const auto addResult = geoqik_add_mesh_opts(vertices, 3, indices, 1, nullptr);
+    ASSERT_EQ(GEOQIK_SUCCESS, addResult.err);
+
+    geoqik_mesh_overlay_opts_t overlayOpts{ /*showSegments=*/1, /*showVertices=*/1 };
+    EXPECT_EQ(GEOQIK_SUCCESS,
+        geoqik_set_mesh_overlay_opts(&addResult.geometryId, &overlayOpts));
+}
+
+TEST_F(GeoQikClientTest, SetMeshRenderingOptsReturnsSuccess) {
+    ASSERT_EQ(GEOQIK_SUCCESS, geoqik_init());
+
+    const float vertices[] = { 0.f,0.f,0.f, 1.f,0.f,0.f, 0.f,1.f,0.f };
+    const std::uint32_t indices[] = { 0, 1, 2 };
+    const auto addResult = geoqik_add_mesh_opts(vertices, 3, indices, 1, nullptr);
+    ASSERT_EQ(GEOQIK_SUCCESS, addResult.err);
+
+    geoqik_mesh_rendering_opts_t renderOpts{};
+    renderOpts.cullMode      = GEOQIK_MESH_CULL_NONE;
+    renderOpts.surfaceVisible = 1;
+    EXPECT_EQ(GEOQIK_SUCCESS,
+        geoqik_set_mesh_rendering_opts(&addResult.geometryId, &renderOpts));
+}
