@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include <type_traits>
 #include <string>
 #include <vector>
 
@@ -115,6 +116,14 @@ void send_api_response(PipeStream& stream,
 
 [[nodiscard]] inline bool would_overflow_size_t(std::uint64_t a, std::uint64_t b) {
     return b != 0 && a > std::numeric_limits<std::size_t>::max() / b;
+}
+
+[[nodiscard]] inline std::size_t wire_count_to_size(std::uint64_t value) {
+    if constexpr (std::is_same_v<std::uint64_t, std::size_t>) {
+        return value;
+    } else {
+        return static_cast<std::size_t>(value);
+    }
 }
 
 [[nodiscard]] bool payload_size_matches(proto::CommandId commandId, std::size_t payloadSize) {
@@ -307,9 +316,9 @@ struct ReplayOptionsData {
 
     opts.entriesPerSecond   = read_field<double>(payload, offset);
     opts.speedMultiplier    = read_field<double>(payload, offset);
-    opts.maxEntriesPerFrame = static_cast<std::size_t>(read_field<std::uint64_t>(payload, offset));
+    opts.maxEntriesPerFrame = wire_count_to_size(read_field<std::uint64_t>(payload, offset));
     opts.startPaused        = read_field<std::int32_t>(payload, offset);
-    opts.entriesPerStep     = static_cast<std::size_t>(read_field<std::uint64_t>(payload, offset));
+    opts.entriesPerStep     = wire_count_to_size(read_field<std::uint64_t>(payload, offset));
 
     auto read_key_array = [&](std::vector<geoqik_key_t>& keys,
                                const geoqik_key_t*& optsField,
@@ -607,7 +616,7 @@ void handle_connection(PipeStream& stream) {
             if (!uuid_is_zero(key)) { opts.idempotencyKey = key; }
             if (!colors.empty()) {
                 opts.color      = colors.data();
-                opts.colorCount = static_cast<std::size_t>(colors.size());
+                opts.colorCount = colors.size();
             }
             const auto result = geoqik_add_point_opts(x, y, z, &opts);
             send_api_response(stream, result.err, &result.geometryId);
@@ -637,7 +646,7 @@ void handle_connection(PipeStream& stream) {
             if (!uuid_is_zero(key)) { opts.idempotencyKey = key; }
             if (!colors.empty()) {
                 opts.color      = colors.data();
-                opts.colorCount = static_cast<std::size_t>(colors.size());
+                opts.colorCount = colors.size();
             }
             const auto result = geoqik_add_points_opts(points, static_cast<std::size_t>(count) * 3, &opts);
             send_api_response(stream, result.err, &result.geometryId);
@@ -681,7 +690,7 @@ void handle_connection(PipeStream& stream) {
             geoqik_update_points_options_t opts{};
             if (!colors.empty()) {
                 opts.color      = colors.data();
-                opts.colorCount = static_cast<std::size_t>(colors.size());
+                opts.colorCount = colors.size();
             }
             const auto err = geoqik_update_point_opts(&id, x, y, z, &opts);
             send_api_response(stream, err);
@@ -710,7 +719,7 @@ void handle_connection(PipeStream& stream) {
             geoqik_update_points_options_t opts{};
             if (!colors.empty()) {
                 opts.color      = colors.data();
-                opts.colorCount = static_cast<std::size_t>(colors.size());
+                opts.colorCount = colors.size();
             }
             const auto err = geoqik_update_points_opts(&id, points, static_cast<std::size_t>(count) * 3, &opts);
             send_api_response(stream, err);
@@ -757,7 +766,7 @@ void handle_connection(PipeStream& stream) {
             if (!uuid_is_zero(key)) { opts.idempotencyKey = key; }
             if (!colors.empty()) {
                 opts.color      = colors.data();
-                opts.colorCount = static_cast<std::size_t>(colors.size());
+                opts.colorCount = colors.size();
             }
             const auto result = geoqik_add_line_opts(x1, y1, z1, x2, y2, z2, &opts);
             send_api_response(stream, result.err, &result.geometryId);
@@ -787,7 +796,7 @@ void handle_connection(PipeStream& stream) {
             if (!uuid_is_zero(key)) { opts.idempotencyKey = key; }
             if (!colors.empty()) {
                 opts.color      = colors.data();
-                opts.colorCount = static_cast<std::size_t>(colors.size());
+                opts.colorCount = colors.size();
             }
             const auto result = geoqik_add_lines_opts(lines, static_cast<std::size_t>(count) * 6, &opts);
             send_api_response(stream, result.err, &result.geometryId);
@@ -840,7 +849,7 @@ void handle_connection(PipeStream& stream) {
             geoqik_update_line_opts_t opts{};
             if (!colors.empty()) {
                 opts.color      = colors.data();
-                opts.colorCount = static_cast<std::size_t>(colors.size());
+                opts.colorCount = colors.size();
             }
             const auto err = geoqik_update_line_opts(&id, x1, y1, z1, x2, y2, z2, &opts);
             send_api_response(stream, err);
@@ -869,7 +878,7 @@ void handle_connection(PipeStream& stream) {
             geoqik_update_line_opts_t opts{};
             if (!colors.empty()) {
                 opts.color      = colors.data();
-                opts.colorCount = static_cast<std::size_t>(colors.size());
+                opts.colorCount = colors.size();
             }
             const auto err = geoqik_update_lines_opts(&id, lines, static_cast<std::size_t>(count) * 6, &opts);
             send_api_response(stream, err);
@@ -1082,7 +1091,7 @@ void handle_connection(PipeStream& stream) {
 
         case proto::CommandId::StepReplayN: {
             std::size_t offset = 0;
-            const auto count = static_cast<std::size_t>(read_field<std::uint64_t>(payload, offset));
+            const auto count = wire_count_to_size(read_field<std::uint64_t>(payload, offset));
             const auto err   = geoqik_step_replay_n(count);
             send_api_response(stream, err);
             break;
@@ -1096,7 +1105,7 @@ void handle_connection(PipeStream& stream) {
 
         case proto::CommandId::StepReplayBackwardN: {
             std::size_t offset = 0;
-            const auto count = static_cast<std::size_t>(read_field<std::uint64_t>(payload, offset));
+            const auto count = wire_count_to_size(read_field<std::uint64_t>(payload, offset));
             const auto err   = geoqik_step_replay_backward_n(count);
             send_api_response(stream, err);
             break;

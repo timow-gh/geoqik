@@ -86,5 +86,5 @@ set(geoqik_client_examples
     example_client_log_replay)
 
 foreach(example IN LISTS geoqik_client_examples)
-    add_geoqik_example(${example} CLIENT LIBRARIES geoqik::client)
+    add_geoqik_example(${example} CLIENT NO_TIDY LIBRARIES geoqik::client)
 endforeach()
