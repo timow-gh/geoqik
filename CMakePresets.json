@@ -1047,8 +1047,8 @@
       "displayName": "gcc Debug + TSAN Tests",
       "description": "Tests with ThreadSanitizer enabled",
       "inherits": [
-        "test-unix-common",
         "test-tsan-common",
+        "test-unix-common",
         "test-debug"
       ],
       "configurePreset": "conf-gcc-debug-tsan"
@@ -1079,8 +1079,8 @@
       "displayName": "clang Debug + TSAN Tests",
       "description": "Tests with ThreadSanitizer enabled",
       "inherits": [
-        "test-unix-common",
         "test-tsan-common",
+        "test-unix-common",
         "test-debug"
       ],
       "configurePreset": "conf-clang-debug-tsan"
@@ -1111,8 +1111,8 @@
       "displayName": "gcc RelWithDebInfo + TSAN Tests",
       "description": "Tests with ThreadSanitizer enabled",
       "inherits": [
-        "test-unix-common",
         "test-tsan-common",
+        "test-unix-common",
         "test-relwithdebinfo"
       ],
       "configurePreset": "conf-gcc-relwithdebinfo-tsan"
@@ -1143,8 +1143,8 @@
       "displayName": "clang RelWithDebInfo + TSAN Tests",
       "description": "Tests with ThreadSanitizer enabled",
       "inherits": [
-        "test-unix-common",
         "test-tsan-common",
+        "test-unix-common",
         "test-relwithdebinfo"
       ],
       "configurePreset": "conf-clang-relwithdebinfo-tsan"
