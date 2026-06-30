@@ -126,6 +126,14 @@ void send_api_response(PipeStream& stream,
     }
 }
 
+[[nodiscard]] inline std::uint64_t size_to_wire_count(std::size_t value) {
+    if constexpr (std::is_same_v<std::size_t, std::uint64_t>) {
+        return value;
+    } else {
+        return static_cast<std::uint64_t>(value);
+    }
+}
+
 [[nodiscard]] bool payload_size_matches(proto::CommandId commandId, std::size_t payloadSize) {
     switch (commandId) {
     case proto::CommandId::Draw:
@@ -632,7 +640,7 @@ void handle_connection(PipeStream& stream) {
                     server_diagnostic(ServerDiagnosticId::InvalidPayload));
                 return;
             }
-            const std::size_t coordBytes = static_cast<std::size_t>(count) * 3 * sizeof(double);
+            const std::size_t coordBytes = wire_count_to_size(count) * 3 * sizeof(double);
             if (offset + coordBytes > payload.size()) {
                 send_response(stream, GEOQIK_ERROR_INVALID_PARAMETER, nullptr,
                     server_diagnostic(ServerDiagnosticId::InvalidPayload));
@@ -648,7 +656,7 @@ void handle_connection(PipeStream& stream) {
                 opts.color      = colors.data();
                 opts.colorCount = colors.size();
             }
-            const auto result = geoqik_add_points_opts(points, static_cast<std::size_t>(count) * 3, &opts);
+            const auto result = geoqik_add_points_opts(points, wire_count_to_size(count) * 3, &opts);
             send_api_response(stream, result.err, &result.geometryId);
             break;
         }
@@ -706,7 +714,7 @@ void handle_connection(PipeStream& stream) {
                     server_diagnostic(ServerDiagnosticId::InvalidPayload));
                 return;
             }
-            const std::size_t coordBytes = static_cast<std::size_t>(count) * 3 * sizeof(double);
+            const std::size_t coordBytes = wire_count_to_size(count) * 3 * sizeof(double);
             if (offset + coordBytes > payload.size()) {
                 send_response(stream, GEOQIK_ERROR_INVALID_PARAMETER, nullptr,
                     server_diagnostic(ServerDiagnosticId::InvalidPayload));
@@ -721,7 +729,7 @@ void handle_connection(PipeStream& stream) {
                 opts.color      = colors.data();
                 opts.colorCount = colors.size();
             }
-            const auto err = geoqik_update_points_opts(&id, points, static_cast<std::size_t>(count) * 3, &opts);
+            const auto err = geoqik_update_points_opts(&id, points, wire_count_to_size(count) * 3, &opts);
             send_api_response(stream, err);
             break;
         }
@@ -782,7 +790,7 @@ void handle_connection(PipeStream& stream) {
                     server_diagnostic(ServerDiagnosticId::InvalidPayload));
                 return;
             }
-            const std::size_t coordBytes = static_cast<std::size_t>(count) * 6 * sizeof(double);
+            const std::size_t coordBytes = wire_count_to_size(count) * 6 * sizeof(double);
             if (offset + coordBytes > payload.size()) {
                 send_response(stream, GEOQIK_ERROR_INVALID_PARAMETER, nullptr,
                     server_diagnostic(ServerDiagnosticId::InvalidPayload));
@@ -798,7 +806,7 @@ void handle_connection(PipeStream& stream) {
                 opts.color      = colors.data();
                 opts.colorCount = colors.size();
             }
-            const auto result = geoqik_add_lines_opts(lines, static_cast<std::size_t>(count) * 6, &opts);
+            const auto result = geoqik_add_lines_opts(lines, wire_count_to_size(count) * 6, &opts);
             send_api_response(stream, result.err, &result.geometryId);
             break;
         }
@@ -865,7 +873,7 @@ void handle_connection(PipeStream& stream) {
                     server_diagnostic(ServerDiagnosticId::InvalidPayload));
                 return;
             }
-            const std::size_t coordBytes = static_cast<std::size_t>(count) * 6 * sizeof(double);
+            const std::size_t coordBytes = wire_count_to_size(count) * 6 * sizeof(double);
             if (offset + coordBytes > payload.size()) {
                 send_response(stream, GEOQIK_ERROR_INVALID_PARAMETER, nullptr,
                     server_diagnostic(ServerDiagnosticId::InvalidPayload));
@@ -880,7 +888,7 @@ void handle_connection(PipeStream& stream) {
                 opts.color      = colors.data();
                 opts.colorCount = colors.size();
             }
-            const auto err = geoqik_update_lines_opts(&id, lines, static_cast<std::size_t>(count) * 6, &opts);
+            const auto err = geoqik_update_lines_opts(&id, lines, wire_count_to_size(count) * 6, &opts);
             send_api_response(stream, err);
             break;
         }
@@ -906,8 +914,8 @@ void handle_connection(PipeStream& stream) {
                     server_diagnostic(ServerDiagnosticId::InvalidPayload));
                 return;
             }
-            const std::size_t vertBytes = static_cast<std::size_t>(vertexCount) * 3 * sizeof(float);
-            const std::size_t triBytes  = static_cast<std::size_t>(triangleCount) * 3 * sizeof(std::uint32_t);
+            const std::size_t vertBytes = wire_count_to_size(vertexCount) * 3 * sizeof(float);
+            const std::size_t triBytes  = wire_count_to_size(triangleCount) * 3 * sizeof(std::uint32_t);
             if (vertBytes > payload.size() || triBytes > payload.size() - vertBytes ||
                 offset + vertBytes + triBytes > payload.size()) {
                 send_response(stream, GEOQIK_ERROR_INVALID_PARAMETER, nullptr,
@@ -951,8 +959,8 @@ void handle_connection(PipeStream& stream) {
             opts.vertexPointSize  = vtxSize;
 
             const auto result = geoqik_add_mesh_opts(
-                vertices, static_cast<std::size_t>(vertexCount),
-                triIdx,   static_cast<std::size_t>(triangleCount),
+                vertices, wire_count_to_size(vertexCount),
+                triIdx,   wire_count_to_size(triangleCount),
                 &opts);
             send_api_response(stream, result.err, &result.geometryId);
             break;
@@ -976,7 +984,7 @@ void handle_connection(PipeStream& stream) {
                     server_diagnostic(ServerDiagnosticId::InvalidPayload));
                 return;
             }
-            const std::size_t vertBytes = static_cast<std::size_t>(vertexCount) * 3 * sizeof(float);
+            const std::size_t vertBytes = wire_count_to_size(vertexCount) * 3 * sizeof(float);
             if (offset + vertBytes > payload.size()) {
                 send_response(stream, GEOQIK_ERROR_INVALID_PARAMETER, nullptr,
                     server_diagnostic(ServerDiagnosticId::InvalidPayload));
@@ -999,7 +1007,7 @@ void handle_connection(PipeStream& stream) {
             }
 
             const auto err = geoqik_update_mesh_opts(
-                &id, vertices, static_cast<std::size_t>(vertexCount), &opts);
+                &id, vertices, wire_count_to_size(vertexCount), &opts);
             send_api_response(stream, err);
             break;
         }
@@ -1128,8 +1136,8 @@ void handle_connection(PipeStream& stream) {
             const auto err = geoqik_get_replay_progress(&current, &total);
             geoqik_uuid_t fakeUuid{};
             if (err == GEOQIK_SUCCESS) {
-                const std::uint64_t curU = static_cast<std::uint64_t>(current);
-                const std::uint64_t totU = static_cast<std::uint64_t>(total);
+                const std::uint64_t curU = size_to_wire_count(current);
+                const std::uint64_t totU = size_to_wire_count(total);
                 std::memcpy(fakeUuid.value,     &curU, sizeof(curU));
                 std::memcpy(fakeUuid.value + 8, &totU, sizeof(totU));
             }

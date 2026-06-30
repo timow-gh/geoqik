@@ -1792,6 +1792,22 @@ inline void append_colors(std::vector<std::uint8_t>& buf,
     proto::write_optional_colors(buf, color, static_cast<std::uint32_t>(colorCount));
 }
 
+[[nodiscard]] inline std::uint64_t size_to_wire_count(std::size_t value) {
+    if constexpr (std::is_same_v<std::size_t, std::uint64_t>) {
+        return value;
+    } else {
+        return static_cast<std::uint64_t>(value);
+    }
+}
+
+[[nodiscard]] inline std::size_t wire_count_to_size(std::uint64_t value) {
+    if constexpr (std::is_same_v<std::uint64_t, std::size_t>) {
+        return value;
+    } else {
+        return static_cast<std::size_t>(value);
+    }
+}
+
 inline void encode_add_mesh_opts(std::vector<std::uint8_t>& payload,
                                   const geoqik_add_mesh_opts_t* opts,
                                   const float* vertices,  std::size_t vertexCount,
@@ -1802,8 +1818,8 @@ inline void encode_add_mesh_opts(std::vector<std::uint8_t>& payload,
     const geoqik_uuid_t& key = (opts != nullptr) ? opts->idempotencyKey : emptyKey;
     write_uuid(payload, key);
 
-    proto::write_pod(payload, static_cast<std::uint64_t>(vertexCount));
-    proto::write_pod(payload, static_cast<std::uint64_t>(triangleCount));
+    proto::write_pod(payload, size_to_wire_count(vertexCount));
+    proto::write_pod(payload, size_to_wire_count(triangleCount));
     if (vertexCount > 0 && vertices != nullptr) {
         const auto* b = reinterpret_cast<const std::uint8_t*>(vertices);
         payload.insert(payload.end(), b, b + vertexCount * 3 * sizeof(float));
@@ -1856,9 +1872,9 @@ inline void encode_replay_options(std::vector<std::uint8_t>& payload,
 
     proto::write_pod(payload, o.entriesPerSecond);
     proto::write_pod(payload, o.speedMultiplier);
-    proto::write_pod(payload, static_cast<std::uint64_t>(o.maxEntriesPerFrame));
+    proto::write_pod(payload, size_to_wire_count(o.maxEntriesPerFrame));
     proto::write_pod(payload, static_cast<std::int32_t>(o.startPaused));
-    proto::write_pod(payload, static_cast<std::uint64_t>(o.entriesPerStep));
+    proto::write_pod(payload, size_to_wire_count(o.entriesPerStep));
 
     auto write_key_array = [&](const geoqik_key_t* keys, std::size_t count) {
         proto::write_pod(payload, static_cast<std::uint32_t>(count));
@@ -2414,7 +2430,7 @@ inline void geoqik_clear_last_error() {
     return geoqik_client_impl::execute_client_call("geoqik_add_points_opts",
         [&]() -> geoqik_result_t {
             namespace proto = geoqik::protocol;
-            const std::uint64_t pointCount = static_cast<std::uint64_t>(size / 3);
+            const std::uint64_t pointCount = geoqik_client_impl::size_to_wire_count(size / 3);
             std::vector<std::uint8_t> payload;
             payload.reserve(proto::uuidByteCount + sizeof(std::uint64_t)
                             + size * sizeof(double) + sizeof(std::uint32_t));
@@ -2505,7 +2521,7 @@ inline void geoqik_clear_last_error() {
     return geoqik_client_impl::execute_client_call("geoqik_update_points_opts",
         [&]() -> geoqik_error_code_t {
             namespace proto = geoqik::protocol;
-            const std::uint64_t pointCount = static_cast<std::uint64_t>(size / 3);
+            const std::uint64_t pointCount = geoqik_client_impl::size_to_wire_count(size / 3);
             std::vector<std::uint8_t> payload;
             geoqik_client_impl::write_uuid(payload, *geometryId);
             proto::write_pod(payload, pointCount);
@@ -2590,7 +2606,7 @@ inline void geoqik_clear_last_error() {
     return geoqik_client_impl::execute_client_call("geoqik_add_lines_opts",
         [&]() -> geoqik_result_t {
             namespace proto = geoqik::protocol;
-            const std::uint64_t lineCount = static_cast<std::uint64_t>(size / 6);
+            const std::uint64_t lineCount = geoqik_client_impl::size_to_wire_count(size / 6);
             std::vector<std::uint8_t> payload;
             const geoqik_uuid_t emptyKey{};
             const geoqik_uuid_t& key = (options != nullptr) ? options->idempotencyKey : emptyKey;
@@ -2684,7 +2700,7 @@ inline void geoqik_clear_last_error() {
     return geoqik_client_impl::execute_client_call("geoqik_update_lines_opts",
         [&]() -> geoqik_error_code_t {
             namespace proto = geoqik::protocol;
-            const std::uint64_t lineCount = static_cast<std::uint64_t>(size / 6);
+            const std::uint64_t lineCount = geoqik_client_impl::size_to_wire_count(size / 6);
             std::vector<std::uint8_t> payload;
             geoqik_client_impl::write_uuid(payload, *geometryId);
             proto::write_pod(payload, lineCount);
@@ -2768,7 +2784,7 @@ inline void geoqik_clear_last_error() {
             namespace proto = geoqik::protocol;
             std::vector<std::uint8_t> payload;
             geoqik_client_impl::write_uuid(payload, *geometryId);
-            proto::write_pod(payload, static_cast<std::uint64_t>(vertexCount));
+            proto::write_pod(payload, geoqik_client_impl::size_to_wire_count(vertexCount));
             if (vertexCount > 0 && vertices != nullptr) {
                 const auto* b = reinterpret_cast<const std::uint8_t*>(vertices);
                 payload.insert(payload.end(), b, b + vertexCount * 3 * sizeof(float));
@@ -2937,7 +2953,7 @@ inline void geoqik_clear_last_error() {
             namespace proto = geoqik::protocol;
             std::vector<std::uint8_t> payload;
             payload.reserve(proto::stepReplayNPayloadByteCount);
-            proto::write_pod(payload, static_cast<std::uint64_t>(count));
+            proto::write_pod(payload, geoqik_client_impl::size_to_wire_count(count));
             const auto resp = geoqik_client_impl::call(proto::CommandId::StepReplayN, payload);
             geoqik_client_impl::set_server_response_error(resp, "geoqik_step_replay_n");
             return static_cast<geoqik_error_code_t>(resp.errorCode);
@@ -2960,7 +2976,7 @@ inline void geoqik_clear_last_error() {
             namespace proto = geoqik::protocol;
             std::vector<std::uint8_t> payload;
             payload.reserve(proto::stepReplayNPayloadByteCount);
-            proto::write_pod(payload, static_cast<std::uint64_t>(count));
+            proto::write_pod(payload, geoqik_client_impl::size_to_wire_count(count));
             const auto resp = geoqik_client_impl::call(
                 proto::CommandId::StepReplayBackwardN, payload);
             geoqik_client_impl::set_server_response_error(resp, "geoqik_step_replay_backward_n");
@@ -3000,8 +3016,8 @@ inline void geoqik_clear_last_error() {
                 std::uint64_t curU = 0, totU = 0;
                 std::memcpy(&curU, resp.uuid.data(),     sizeof(curU));
                 std::memcpy(&totU, resp.uuid.data() + 8, sizeof(totU));
-                *currentEntry = static_cast<std::size_t>(curU);
-                *totalEntries = static_cast<std::size_t>(totU);
+                *currentEntry = geoqik_client_impl::wire_count_to_size(curU);
+                *totalEntries = geoqik_client_impl::wire_count_to_size(totU);
             }
             return static_cast<geoqik_error_code_t>(resp.errorCode);
         });
