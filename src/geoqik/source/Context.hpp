@@ -208,12 +208,13 @@ private:
   void consume_replay_gui_commands(const ReplayGuiState& state);
   [[nodiscard]] bool should_stop_processing_messages(const std::chrono::high_resolution_clock::time_point& frameStartTime,
                                                      const std::chrono::high_resolution_clock::time_point& messageProcessingStartTime) const;
-  [[nodiscard]] bool process_message_queue(ConcurrentQueue<GeoQikMessage>& messageQueue,
-                                           const std::chrono::high_resolution_clock::time_point& frameStartTime);
+  void process_message_queue(ConcurrentQueue<GeoQikMessage>& messageQueue,
+                             const std::chrono::high_resolution_clock::time_point& frameStartTime);
   void defer_or_handle_message(GeoQikMessage&& message);
-  bool process_message(const GeoQikMessage& message, bool recordLogEntry);
-  bool process_deferred_messages();
-  bool process_deferred_messages_before_cleanup();
+  void process_message(const GeoQikMessage& message);
+  void process_one_deferred_message();
+  void process_deferred_messages();
+  void process_deferred_messages_before_cleanup();
   [[nodiscard]] bool is_known_idempotency_key(const core::UUID* key);
   void replay_log_entries(const std::vector<GeoQikLogEntry>& entries);
   void apply_log_entry(const GeoQikLogEntry& entry);

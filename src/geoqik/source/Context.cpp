@@ -701,7 +701,11 @@ void Context::run_event_loop()
     consume_replay_gui_commands(replayState);
 
     process_replay_entries(std::chrono::high_resolution_clock::now());
-    if (!is_replaying() && process_deferred_messages())
+    if (!is_replaying())
+    {
+      process_deferred_messages();
+    }
+    if (m_windowShouldClose)
     {
       return;
     }
@@ -709,7 +713,8 @@ void Context::run_event_loop()
 #ifdef PRINT_FRAME_INFO
     const std::chrono::high_resolution_clock::time_point messageProcessingStartTime = std::chrono::high_resolution_clock::now();
 #endif
-    if (process_message_queue(messageQueue, frameStartTime))
+    process_message_queue(messageQueue, frameStartTime);
+    if (m_windowShouldClose)
     {
       return;
     }
@@ -918,7 +923,7 @@ bool Context::should_stop_processing_messages(const std::chrono::high_resolution
   return minimumProcessingTimeReached && (now - frameStartTime) >= m_geoqikSettings.maxFrameProcessingTime;
 }
 
-bool Context::process_message_queue(ConcurrentQueue<GeoQikMessage>& messageQueue,
+void Context::process_message_queue(ConcurrentQueue<GeoQikMessage>& messageQueue,
                                     const std::chrono::high_resolution_clock::time_point& frameStartTime)
 {
   m_geometryMessagesProcessedThisFrame = 0;
@@ -927,7 +932,7 @@ bool Context::process_message_queue(ConcurrentQueue<GeoQikMessage>& messageQueue
   {
     if (should_stop_processing_messages(frameStartTime, messageProcessingStartTime))
     {
-      return false;
+      return;
     }
 
     std::optional<GeoQikMessage> message = messageQueue.dequeue();
@@ -939,11 +944,9 @@ bool Context::process_message_queue(ConcurrentQueue<GeoQikMessage>& messageQueue
     defer_or_handle_message(std::move(*message));
     if (m_windowShouldClose)
     {
-      return true;
+      return;
     }
   }
-
-  return false;
 }
 
 bool Context::cleanup()
@@ -1687,80 +1690,61 @@ void Context::defer_or_handle_message(GeoQikMessage&& message)
     return;
   }
 
+  // Cleanup is a control message (see is_control_message), so it always
+  // takes this branch rather than being deferred above — drain whatever is
+  // still pending before shutting down.
   if (std::holds_alternative<Cleanup>(message))
   {
     cancel_replay();
-    if (process_deferred_messages_before_cleanup())
+    process_deferred_messages_before_cleanup();
+    if (m_windowShouldClose)
     {
       return;
     }
   }
 
-  if (process_message(message, true))
-  {
-    m_windowShouldClose.store(true);
-  }
-  else if (!is_replaying())
+  process_message(message);
+  if (!m_windowShouldClose && !is_replaying())
   {
     process_deferred_messages();
   }
 }
 
-bool Context::process_message(const GeoQikMessage& message, bool recordLogEntry)
+void Context::process_message(const GeoQikMessage& message)
 {
-  if (recordLogEntry)
+  if (auto logEntry = create_log_entry(message))
   {
-    if (auto logEntry = create_log_entry(message))
-    {
-      m_messageLog.push_back(std::move(*logEntry));
-    }
+    m_messageLog.push_back(std::move(*logEntry));
   }
 
-  return std::visit(
-      [this](const auto& value)
-      {
-        using T = std::decay_t<decltype(value)>;
-        handle_message(value);
-        return std::is_same_v<T, Cleanup>;
-      },
-      message);
+  std::visit([this](const auto& value) { handle_message(value); }, message);
 }
 
-bool Context::process_deferred_messages()
+void Context::process_one_deferred_message()
 {
-  while (!m_deferredMessages.empty() && !is_replaying())
+  GeoQikMessage message = std::move(m_deferredMessages.front());
+  m_deferredMessages.pop_front();
+  process_message(message);
+}
+
+void Context::process_deferred_messages()
+{
+  while (!m_deferredMessages.empty() && !is_replaying() && !m_windowShouldClose)
   {
-    GeoQikMessage message = std::move(m_deferredMessages.front());
-    m_deferredMessages.pop_front();
-
-    if (process_message(message, true))
-    {
-      m_windowShouldClose.store(true);
-      return true;
-    }
+    process_one_deferred_message();
   }
-  return false;
 }
 
-bool Context::process_deferred_messages_before_cleanup()
+void Context::process_deferred_messages_before_cleanup()
 {
-  while (!m_deferredMessages.empty())
+  while (!m_deferredMessages.empty() && !m_windowShouldClose)
   {
     if (is_replaying())
     {
       cancel_replay();
     }
-
-    GeoQikMessage message = std::move(m_deferredMessages.front());
-    m_deferredMessages.pop_front();
-
-    if (process_message(message, true))
-    {
-      m_windowShouldClose.store(true);
-      return true;
-    }
+    process_one_deferred_message();
   }
-  return false;
 }
 
 bool Context::is_known_idempotency_key(const core::UUID* key)
