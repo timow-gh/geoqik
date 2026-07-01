@@ -43,6 +43,7 @@ if (IS_TOP_LEVEL_PROJECT)
     option(${PROJECT_NAME}_STATIC_ANALYSIS "" ON)
     option(${PROJECT_NAME}_USE_CPPCHECK "" OFF)
     option(${PROJECT_NAME}_TESTS "" ON)
+    option(${PROJECT_NAME}_EXAMPLES "" ON)
 else ()
     option(${PROJECT_NAME}_USE_SCCACHE "Use sccache" OFF)
     option(${PROJECT_NAME}_USE_WARNINGS "Compile using warnings." OFF)
@@ -50,6 +51,7 @@ else ()
     option(${PROJECT_NAME}_STATIC_ANALYSIS "" OFF)
     option(${PROJECT_NAME}_USE_CPPCHECK "" OFF)
     option(${PROJECT_NAME}_TESTS "" OFF)
+    option(${PROJECT_NAME}_EXAMPLES "" OFF)
 endif ()
 # It is possible to exclude this project from installation by setting the following option to OFF.
 # This is useful if you want to use this project as a subproject in another project.
@@ -82,7 +84,9 @@ find_package(Boost REQUIRED)
 
 add_subdirectory(src)
 
-add_subdirectory(examples)
+if (${PROJECT_NAME}_EXAMPLES)
+    add_subdirectory(examples)
+endif()
 
 if (${PROJECT_NAME}_TESTS)
     include(CTest)
