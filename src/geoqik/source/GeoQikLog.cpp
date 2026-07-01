@@ -1,5 +1,7 @@
 #include "GeoQikLog.hpp"
 #include "GeoQikMessageSerialization.hpp"
+#include "GeoQikMessageJsonSerialization.hpp"
+#include <nlohmann/json.hpp>
 #include <array>
 #include <bit>
 #include <cstdint>
@@ -141,6 +143,60 @@ std::vector<GeoQikLogEntry> load_log_binary(const std::filesystem::path& path)
   for (std::uint64_t i = 0; i < entryCount; ++i)
   {
     entries.push_back(reader.read());
+  }
+
+  return entries;
+}
+
+void save_log_json(const std::filesystem::path& path, std::span<const GeoQikLogEntry> entries)
+{
+  std::ofstream stream(path, std::ios::binary);
+  if (!stream)
+  {
+    throw std::runtime_error("Failed to open GeoQik log for writing");
+  }
+
+  nlohmann::json jsonArray = nlohmann::json::array();
+  for (const GeoQikLogEntry& entry: entries)
+  {
+    jsonArray.push_back(to_json(entry));
+  }
+
+  stream << jsonArray;
+  if (!stream)
+  {
+    throw std::runtime_error("Failed to write GeoQik log");
+  }
+}
+
+std::vector<GeoQikLogEntry> load_log_json(const std::filesystem::path& path)
+{
+  std::ifstream stream(path, std::ios::binary);
+  if (!stream)
+  {
+    throw std::runtime_error("Failed to open GeoQik log for reading");
+  }
+
+  nlohmann::json jsonArray;
+  try
+  {
+    jsonArray = nlohmann::json::parse(stream);
+  }
+  catch (const nlohmann::json::parse_error& e)
+  {
+    throw std::runtime_error(std::string("Failed to parse GeoQik JSON log: ") + e.what());
+  }
+
+  if (!jsonArray.is_array())
+  {
+    throw std::runtime_error("Invalid GeoQik JSON log: expected a top-level array");
+  }
+
+  std::vector<GeoQikLogEntry> entries;
+  entries.reserve(jsonArray.size());
+  for (const auto& element: jsonArray)
+  {
+    entries.push_back(from_json(element));
   }
 
   return entries;

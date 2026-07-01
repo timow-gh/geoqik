@@ -12,6 +12,7 @@ set(geoqik_SOURCE_FILES
         source/GeoQik.cpp
         source/GeoQikLog.hpp
         source/GeoQikMessageSerialization.hpp
+        source/GeoQikMessageJsonSerialization.hpp
         source/GeoQikMessages.hpp
         source/GeoQikReplayUndo.hpp
         source/GeoQikSettings.hpp
@@ -25,6 +26,7 @@ set(geoqik_INTERNAL_SOURCE_FILES
         source/Scene.cpp
         source/GeoQikLog.cpp
         source/GeoQikMessageSerialization.cpp
+        source/GeoQikMessageJsonSerialization.cpp
         source/GeoQikReplayUndo.cpp)
 
 add_library(geoqik_internal_objects OBJECT ${geoqik_INTERNAL_SOURCE_FILES})
@@ -39,7 +41,8 @@ target_link_libraries(geoqik_internal_objects
         $<BUILD_LOCAL_INTERFACE:geoqik::core>
         $<BUILD_LOCAL_INTERFACE:renderer::renderer>
         $<BUILD_LOCAL_INTERFACE:fmt::fmt>
-        $<BUILD_LOCAL_INTERFACE:linal::linal>)
+        $<BUILD_LOCAL_INTERFACE:linal::linal>
+        $<BUILD_LOCAL_INTERFACE:nlohmann_json::nlohmann_json>)
 
 target_compile_features(geoqik_internal_objects PRIVATE cxx_std_23)
 set_target_properties(geoqik_internal_objects PROPERTIES POSITION_INDEPENDENT_CODE ON)

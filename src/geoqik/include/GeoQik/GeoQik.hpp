@@ -119,7 +119,8 @@ extern "C"
 
   typedef enum
   {
-    GEOQIK_LOG_FORMAT_BINARY = 0
+    GEOQIK_LOG_FORMAT_BINARY = 0,
+    GEOQIK_LOG_FORMAT_JSON = 1
   } geoqik_log_format_t;
 
   typedef enum
