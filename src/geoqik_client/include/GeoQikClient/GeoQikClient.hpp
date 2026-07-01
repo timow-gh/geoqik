@@ -1455,7 +1455,8 @@ private:
 // ── Log format ────────────────────────────────────────────────────────────────
 // Mirror of geoqik_log_format_t from GeoQik.hpp — must be kept in sync.
 enum geoqik_log_format_t : int { // NOLINT(readability-identifier-naming,performance-enum-size)
-    GEOQIK_LOG_FORMAT_BINARY = 0
+    GEOQIK_LOG_FORMAT_BINARY = 0,
+    GEOQIK_LOG_FORMAT_JSON = 1
 };
 
 // ── Key enum ──────────────────────────────────────────────────────────────────

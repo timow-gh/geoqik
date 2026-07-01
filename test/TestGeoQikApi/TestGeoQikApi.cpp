@@ -328,6 +328,50 @@ TEST_F(GeoQikTestApi, SaveLoadLogRoundTrip)
   geoqik_cleanup();
 }
 
+TEST_F(GeoQikTestApi, SaveLoadLogRoundTripJson)
+{
+  const std::filesystem::path firstPath = std::filesystem::temp_directory_path() / "geoqik_api_log_roundtrip_first.gqklog.json";
+  const std::filesystem::path secondPath = std::filesystem::temp_directory_path() / "geoqik_api_log_roundtrip_second.gqklog.json";
+  std::filesystem::remove(firstPath);
+  std::filesystem::remove(secondPath);
+
+  ASSERT_EQ(GEOQIK_SUCCESS, init_hidden_geoqik());
+
+  geoqik_set_point_size(6.0f);
+  geoqik_set_point_color(1.0f, 0.0f, 0.0f, 1.0f);
+  geoqik_result_t point = geoqik_add_point(1.0, 2.0, 3.0);
+  ASSERT_EQ(GEOQIK_SUCCESS, point.err);
+
+  const double points[] = {0.0, 0.0, 0.0, 1.0, 1.0, 1.0};
+  const float pointColors[] = {0.0f, 1.0f, 0.0f, 1.0f};
+  geoqik_add_points_options_t pointOptions{};
+  pointOptions.color = pointColors;
+  pointOptions.colorCount = 4;
+  ASSERT_EQ(GEOQIK_SUCCESS, geoqik_add_points_opts(points, sizeof(points) / sizeof(points[0]), &pointOptions).err);
+
+  geoqik_set_line_width(2.0f);
+  geoqik_set_line_color(0.0f, 0.0f, 1.0f, 1.0f);
+  geoqik_result_t line = geoqik_add_line_opts(0.0, 0.0, 0.0, 1.0, 0.0, 0.0, nullptr);
+  ASSERT_EQ(GEOQIK_SUCCESS, line.err);
+
+  const double lines[] = {0.0, 0.0, 0.0, 0.0, 1.0, 0.0};
+  ASSERT_EQ(GEOQIK_SUCCESS, geoqik_add_lines_opts(lines, sizeof(lines) / sizeof(lines[0]), nullptr).err);
+
+  ASSERT_EQ(GEOQIK_SUCCESS, geoqik_translate_geometry(&point.geometryId, 1.0, 2.0, 3.0));
+  ASSERT_EQ(GEOQIK_SUCCESS, geoqik_rotate_geometry(&line.geometryId, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 45.0));
+
+  ASSERT_EQ(GEOQIK_SUCCESS, geoqik_save_log(firstPath.string().c_str(), GEOQIK_LOG_FORMAT_JSON));
+  ASSERT_EQ(GEOQIK_SUCCESS, geoqik_remove_all_geometry());
+  ASSERT_EQ(GEOQIK_SUCCESS, geoqik_load_log(firstPath.string().c_str(), GEOQIK_LOG_FORMAT_JSON));
+  ASSERT_EQ(GEOQIK_SUCCESS, geoqik_save_log(secondPath.string().c_str(), GEOQIK_LOG_FORMAT_JSON));
+
+  EXPECT_EQ(read_binary_file(firstPath), read_binary_file(secondPath));
+
+  std::filesystem::remove(firstPath);
+  std::filesystem::remove(secondPath);
+  geoqik_cleanup();
+}
+
 TEST_F(GeoQikTestApi, SaveLoadLogValidation)
 {
   const std::filesystem::path validPath = std::filesystem::temp_directory_path() / "geoqik_api_validation_log.gqklog";
@@ -346,6 +390,18 @@ TEST_F(GeoQikTestApi, SaveLoadLogValidation)
   EXPECT_EQ(GEOQIK_ERROR_UNSUPPORTED_FORMAT, geoqik_save_log(validPath.string().c_str(), static_cast<geoqik_log_format_t>(42)));
   EXPECT_EQ(GEOQIK_ERROR_UNSUPPORTED_FORMAT, geoqik_load_log(validPath.string().c_str(), static_cast<geoqik_log_format_t>(42)));
   EXPECT_EQ(GEOQIK_ERROR_IO, geoqik_load_log(missingPath.string().c_str(), GEOQIK_LOG_FORMAT_BINARY));
+
+  const std::filesystem::path validJsonPath = std::filesystem::temp_directory_path() / "geoqik_api_validation_log.gqklog.json";
+  const std::filesystem::path missingJsonPath = std::filesystem::temp_directory_path() / "geoqik_api_missing_log.gqklog.json";
+  std::filesystem::remove(validJsonPath);
+  std::filesystem::remove(missingJsonPath);
+
+  EXPECT_EQ(GEOQIK_ERROR_INVALID_PARAMETER, geoqik_save_log("", GEOQIK_LOG_FORMAT_JSON));
+  EXPECT_EQ(GEOQIK_SUCCESS, geoqik_save_log(validJsonPath.string().c_str(), GEOQIK_LOG_FORMAT_JSON));
+  EXPECT_EQ(GEOQIK_SUCCESS, geoqik_load_log(validJsonPath.string().c_str(), GEOQIK_LOG_FORMAT_JSON));
+  EXPECT_EQ(GEOQIK_ERROR_IO, geoqik_load_log(missingJsonPath.string().c_str(), GEOQIK_LOG_FORMAT_JSON));
+
+  std::filesystem::remove(validJsonPath);
 
   geoqik_cleanup();
 }

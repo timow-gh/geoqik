@@ -963,14 +963,22 @@ bool Context::cleanup()
 
 geoqik_error_code_t Context::save_log(const char* path, geoqik_log_format_t format) const
 {
-  if (path == nullptr || path[0] == '\0' || format != GEOQIK_LOG_FORMAT_BINARY)
+  if (path == nullptr || path[0] == '\0' ||
+      (format != GEOQIK_LOG_FORMAT_BINARY && format != GEOQIK_LOG_FORMAT_JSON))
   {
     return GEOQIK_ERROR_INVALID_PARAMETER;
   }
 
   try
   {
-    save_log_binary(path, m_messageLog);
+    if (format == GEOQIK_LOG_FORMAT_JSON)
+    {
+      save_log_json(path, m_messageLog);
+    }
+    else
+    {
+      save_log_binary(path, m_messageLog);
+    }
     return GEOQIK_SUCCESS;
   }
   catch (const std::bad_alloc&)
@@ -985,7 +993,8 @@ geoqik_error_code_t Context::save_log(const char* path, geoqik_log_format_t form
 
 geoqik_error_code_t Context::load_log(const char* path, geoqik_log_format_t format)
 {
-  if (path == nullptr || path[0] == '\0' || format != GEOQIK_LOG_FORMAT_BINARY)
+  if (path == nullptr || path[0] == '\0' ||
+      (format != GEOQIK_LOG_FORMAT_BINARY && format != GEOQIK_LOG_FORMAT_JSON))
   {
     return GEOQIK_ERROR_INVALID_PARAMETER;
   }
@@ -997,7 +1006,8 @@ geoqik_error_code_t Context::load_log(const char* path, geoqik_log_format_t form
       return GEOQIK_ERROR_UNKNOWN;
     }
 
-    std::vector<GeoQikLogEntry> loadedEntries = load_log_binary(path);
+    std::vector<GeoQikLogEntry> loadedEntries =
+        format == GEOQIK_LOG_FORMAT_JSON ? load_log_json(path) : load_log_binary(path);
     remove_all_geometry();
     m_idempotencySet.clear();
     replay_log_entries(loadedEntries);
@@ -1016,7 +1026,8 @@ geoqik_error_code_t Context::load_log(const char* path, geoqik_log_format_t form
 
 geoqik_error_code_t Context::replay_log(const char* path, geoqik_log_format_t format, const ReplayOptions& options)
 {
-  if (path == nullptr || path[0] == '\0' || format != GEOQIK_LOG_FORMAT_BINARY)
+  if (path == nullptr || path[0] == '\0' ||
+      (format != GEOQIK_LOG_FORMAT_BINARY && format != GEOQIK_LOG_FORMAT_JSON))
   {
     return GEOQIK_ERROR_INVALID_PARAMETER;
   }
@@ -1028,7 +1039,8 @@ geoqik_error_code_t Context::replay_log(const char* path, geoqik_log_format_t fo
       return GEOQIK_ERROR_UNKNOWN;
     }
 
-    std::vector<GeoQikLogEntry> loadedEntries = load_log_binary(path);
+    std::vector<GeoQikLogEntry> loadedEntries =
+        format == GEOQIK_LOG_FORMAT_JSON ? load_log_json(path) : load_log_binary(path);
     start_replay(std::move(loadedEntries), options);
     return GEOQIK_SUCCESS;
   }

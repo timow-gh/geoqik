@@ -245,8 +245,8 @@ constexpr std::array<ApiDiagnosticEntry, 16> apiDiagnosticCatalog = {{
      ErrorDomain::Io,
      "Unsupported format",
      "The requested format is not supported.",
-     "GeoQik currently supports only GEOQIK_LOG_FORMAT_BINARY.",
-     "Pass GEOQIK_LOG_FORMAT_BINARY."},
+     "GeoQik supports GEOQIK_LOG_FORMAT_BINARY and GEOQIK_LOG_FORMAT_JSON.",
+     "Pass GEOQIK_LOG_FORMAT_BINARY or GEOQIK_LOG_FORMAT_JSON."},
     {ApiDiagnosticId::InvalidState,
      GEOQIK_ERROR_INVALID_STATE,
      ErrorDomain::Api,
@@ -1988,9 +1988,9 @@ geoqik_error_code_t geoqik_stop_drawing()
 
 geoqik_error_code_t geoqik_save_log(const char* path, geoqik_log_format_t format)
 {
-  if (path == nullptr || path[0] == '\0' || format != GEOQIK_LOG_FORMAT_BINARY)
+  if (path == nullptr || path[0] == '\0' || (format != GEOQIK_LOG_FORMAT_BINARY && format != GEOQIK_LOG_FORMAT_JSON))
   {
-    if (format != GEOQIK_LOG_FORMAT_BINARY)
+    if (format != GEOQIK_LOG_FORMAT_BINARY && format != GEOQIK_LOG_FORMAT_JSON)
     {
       return geoqik_internal::fail(ApiDiagnosticId::UnsupportedFormat, "geoqik_save_log", "parameter: format");
     }
@@ -2022,9 +2022,9 @@ geoqik_error_code_t geoqik_save_log(const char* path, geoqik_log_format_t format
 
 geoqik_error_code_t geoqik_load_log(const char* path, geoqik_log_format_t format)
 {
-  if (path == nullptr || path[0] == '\0' || format != GEOQIK_LOG_FORMAT_BINARY)
+  if (path == nullptr || path[0] == '\0' || (format != GEOQIK_LOG_FORMAT_BINARY && format != GEOQIK_LOG_FORMAT_JSON))
   {
-    if (format != GEOQIK_LOG_FORMAT_BINARY)
+    if (format != GEOQIK_LOG_FORMAT_BINARY && format != GEOQIK_LOG_FORMAT_JSON)
     {
       return geoqik_internal::fail(ApiDiagnosticId::UnsupportedFormat, "geoqik_load_log", "parameter: format");
     }
@@ -2056,9 +2056,9 @@ geoqik_error_code_t geoqik_load_log(const char* path, geoqik_log_format_t format
 
 geoqik_error_code_t geoqik_replay_log(const char* path, geoqik_log_format_t format, const geoqik_replay_options_t* options)
 {
-  if (path == nullptr || path[0] == '\0' || format != GEOQIK_LOG_FORMAT_BINARY)
+  if (path == nullptr || path[0] == '\0' || (format != GEOQIK_LOG_FORMAT_BINARY && format != GEOQIK_LOG_FORMAT_JSON))
   {
-    if (format != GEOQIK_LOG_FORMAT_BINARY)
+    if (format != GEOQIK_LOG_FORMAT_BINARY && format != GEOQIK_LOG_FORMAT_JSON)
     {
       return geoqik_internal::fail(ApiDiagnosticId::UnsupportedFormat, "geoqik_replay_log", "parameter: format");
     }
