@@ -67,7 +67,7 @@ target_include_directories(${TARGET_NAME}
         $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/../include>)
 
-target_compile_definitions(${TARGET_NAME} PUBLIC OPENGL_STATIC_DEFINE)
+target_compile_definitions(${TARGET_NAME} PUBLIC OPENGL_STATIC_DEFINE GLFW_INCLUDE_NONE)
 
 add_library(renderer::opengl ALIAS ${TARGET_NAME})
 
