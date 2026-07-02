@@ -4,29 +4,27 @@
 #include "GeoQikMessages.hpp"
 #include <iosfwd>
 
-namespace geoqik
-{
+namespace geoqik {
 
-class MessageWriter
-{
-public:
-  explicit MessageWriter(std::ostream& stream);
+class MessageWriter {
+  public:
+    explicit MessageWriter(std::ostream& stream);
 
-  void write(const GeoQikLogEntry& message);
+    void write(const GeoQikLogEntry& message);
 
-private:
-  std::ostream& m_stream;
+  private:
+    std::ostream& m_stream;
 };
 
-class MessageReader
-{
-public:
-  explicit MessageReader(std::istream& stream);
+class MessageReader {
+  public:
+    explicit MessageReader(std::istream& stream);
 
-  [[nodiscard]] GeoQikLogEntry read();
+    [[nodiscard]]
+    GeoQikLogEntry read();
 
-private:
-  std::istream& m_stream;
+  private:
+    std::istream& m_stream;
 };
 
 } // namespace geoqik

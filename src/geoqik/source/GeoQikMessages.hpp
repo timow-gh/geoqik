@@ -1,309 +1,283 @@
 #ifndef GEOQIKMESSAGES_HPP
 #define GEOQIKMESSAGES_HPP
 
-#include <Renderer/Color.hpp>
 #include "Core/UUID.hpp"
 #include "GeometryBuffers/MeshBuffer.hpp"
-
+#include <Renderer/Color.hpp>
 #include <functional>
 #include <variant>
 #include <vector>
 
-namespace geoqik
-{
+namespace geoqik {
 
 using renderer::Color;
 
 class Context;
 
-struct GeoQikMessageCommonData
-{
-  core::UUID geometryId;
-  core::UUID idempotencyId;
-  std::vector<float> rgba;
+struct GeoQikMessageCommonData {
+    core::UUID geometryId;
+    core::UUID idempotencyId;
+    std::vector<float> rgba;
 
-  [[nodiscard]] bool operator==(const GeoQikMessageCommonData&) const = default;
+    [[nodiscard]]
+    bool operator==(const GeoQikMessageCommonData&) const = default;
 };
 
-struct AddPointWithOpts
-{
-  float x, y, z;
-  GeoQikMessageCommonData commonData;
+struct AddPointWithOpts {
+    float x, y, z;
+    GeoQikMessageCommonData commonData;
 
-  [[nodiscard]] bool operator==(const AddPointWithOpts&) const = default;
+    [[nodiscard]]
+    bool operator==(const AddPointWithOpts&) const = default;
 };
 
-struct AddPointsWithOpts
-{
-  std::vector<float> points;
-  GeoQikMessageCommonData commonData;
+struct AddPointsWithOpts {
+    std::vector<float> points;
+    GeoQikMessageCommonData commonData;
 
-  [[nodiscard]] bool operator==(const AddPointsWithOpts&) const = default;
+    [[nodiscard]]
+    bool operator==(const AddPointsWithOpts&) const = default;
 };
 
-struct UpdatePointWithOpts
-{
-  core::UUID handle;
-  float x, y, z;
-  std::vector<float> rgba;
+struct UpdatePointWithOpts {
+    core::UUID handle;
+    float x, y, z;
+    std::vector<float> rgba;
 
-  [[nodiscard]] bool operator==(const UpdatePointWithOpts&) const = default;
+    [[nodiscard]]
+    bool operator==(const UpdatePointWithOpts&) const = default;
 };
 
-struct UpdatePointsWithOpts
-{
-  core::UUID handle;
-  std::vector<float> points;
-  std::vector<float> rgba;
+struct UpdatePointsWithOpts {
+    core::UUID handle;
+    std::vector<float> points;
+    std::vector<float> rgba;
 
-  [[nodiscard]] bool operator==(const UpdatePointsWithOpts&) const = default;
+    [[nodiscard]]
+    bool operator==(const UpdatePointsWithOpts&) const = default;
 };
 
-struct RemovePoint
-{
-  core::UUID handle;
+struct RemovePoint {
+    core::UUID handle;
 
-  [[nodiscard]] bool operator==(const RemovePoint&) const = default;
+    [[nodiscard]]
+    bool operator==(const RemovePoint&) const = default;
 };
 
-struct SetPointSize
-{
-  float size;
+struct SetPointSize {
+    float size;
 
-  [[nodiscard]] bool operator==(const SetPointSize&) const = default;
+    [[nodiscard]]
+    bool operator==(const SetPointSize&) const = default;
 };
 
-struct SetPointColor
-{
-  Color color;
+struct SetPointColor {
+    Color color;
 
-  [[nodiscard]] bool operator==(const SetPointColor&) const = default;
+    [[nodiscard]]
+    bool operator==(const SetPointColor&) const = default;
 };
 
-struct AddLineWithOpts
-{
-  float x1, y1, z1;
-  float x2, y2, z2;
-  GeoQikMessageCommonData commonData;
+struct AddLineWithOpts {
+    float x1, y1, z1;
+    float x2, y2, z2;
+    GeoQikMessageCommonData commonData;
 
-  [[nodiscard]] bool operator==(const AddLineWithOpts&) const = default;
+    [[nodiscard]]
+    bool operator==(const AddLineWithOpts&) const = default;
 };
 
-struct AddLinesWithOpts
-{
-  std::vector<float> lines;
-  GeoQikMessageCommonData commonData;
+struct AddLinesWithOpts {
+    std::vector<float> lines;
+    GeoQikMessageCommonData commonData;
 
-  [[nodiscard]] bool operator==(const AddLinesWithOpts&) const = default;
+    [[nodiscard]]
+    bool operator==(const AddLinesWithOpts&) const = default;
 };
 
-struct UpdateLineWithOpts
-{
-  core::UUID handle;
-  float x1, y1, z1;
-  float x2, y2, z2;
-  std::vector<float> rgba;
+struct UpdateLineWithOpts {
+    core::UUID handle;
+    float x1, y1, z1;
+    float x2, y2, z2;
+    std::vector<float> rgba;
 
-  [[nodiscard]] bool operator==(const UpdateLineWithOpts&) const = default;
+    [[nodiscard]]
+    bool operator==(const UpdateLineWithOpts&) const = default;
 };
 
-struct UpdateLinesWithOpts
-{
-  core::UUID handle;
-  std::vector<float> lines;
-  std::vector<float> rgba;
+struct UpdateLinesWithOpts {
+    core::UUID handle;
+    std::vector<float> lines;
+    std::vector<float> rgba;
 
-  [[nodiscard]] bool operator==(const UpdateLinesWithOpts&) const = default;
+    [[nodiscard]]
+    bool operator==(const UpdateLinesWithOpts&) const = default;
 };
 
-struct RemoveLine
-{
-  core::UUID handle;
+struct RemoveLine {
+    core::UUID handle;
 
-  [[nodiscard]] bool operator==(const RemoveLine&) const = default;
+    [[nodiscard]]
+    bool operator==(const RemoveLine&) const = default;
 };
 
-struct SetLineWidth
-{
-  float width;
+struct SetLineWidth {
+    float width;
 
-  [[nodiscard]] bool operator==(const SetLineWidth&) const = default;
+    [[nodiscard]]
+    bool operator==(const SetLineWidth&) const = default;
 };
 
-struct SetLineColor
-{
-  Color color;
+struct SetLineColor {
+    Color color;
 
-  [[nodiscard]] bool operator==(const SetLineColor&) const = default;
+    [[nodiscard]]
+    bool operator==(const SetLineColor&) const = default;
 };
 
-struct SetMeshColor
-{
-  Color color;
+struct SetMeshColor {
+    Color color;
 
-  [[nodiscard]] bool operator==(const SetMeshColor&) const = default;
+    [[nodiscard]]
+    bool operator==(const SetMeshColor&) const = default;
 };
 
-struct GetMeshColor
-{
-  std::function<void(Context& context)> callback;
+struct GetMeshColor {
+    std::function<void(Context& context)> callback;
 };
 
-struct AddMeshWithOpts
-{
-  std::vector<float> vertices;
-  std::vector<float> normals;
-  std::vector<float> colors;
-  std::vector<std::uint32_t> triangleIndices;
-  GeoQikMessageCommonData commonData;
-  std::vector<std::uint32_t> segmentIndices;    // empty = auto-derive; non-empty = user-supplied pairs
-  std::vector<float>         segmentColors;     // single RGBA [4 floats] or empty (use default black)
-  float                      segmentLineWidth{1.0f};
-  bool                       showSegments{false};
-  std::vector<float>         vertexColors;     // single RGBA [4 floats] or empty (use default white)
-  float                      vertexPointSize{3.0f};
-  bool                       showVertices{false};
+struct AddMeshWithOpts {
+    std::vector<float> vertices;
+    std::vector<float> normals;
+    std::vector<float> colors;
+    std::vector<std::uint32_t> triangleIndices;
+    GeoQikMessageCommonData commonData;
+    std::vector<std::uint32_t> segmentIndices; // empty = auto-derive; non-empty = user-supplied pairs
+    std::vector<float> segmentColors;          // single RGBA [4 floats] or empty (use default black)
+    float segmentLineWidth{1.0f};
+    bool showSegments{false};
+    std::vector<float> vertexColors; // single RGBA [4 floats] or empty (use default white)
+    float vertexPointSize{3.0f};
+    bool showVertices{false};
 
-  [[nodiscard]] bool operator==(const AddMeshWithOpts&) const = default;
+    [[nodiscard]]
+    bool operator==(const AddMeshWithOpts&) const = default;
 };
 
-struct RemoveMesh
-{
-  core::UUID handle;
+struct RemoveMesh {
+    core::UUID handle;
 
-  [[nodiscard]] bool operator==(const RemoveMesh&) const = default;
+    [[nodiscard]]
+    bool operator==(const RemoveMesh&) const = default;
 };
 
-struct UpdateMeshWithOpts
-{
-  core::UUID handle;
-  std::vector<float> vertices;
-  std::vector<float> normals;
-  std::vector<float> colors;
+struct UpdateMeshWithOpts {
+    core::UUID handle;
+    std::vector<float> vertices;
+    std::vector<float> normals;
+    std::vector<float> colors;
 
-  [[nodiscard]] bool operator==(const UpdateMeshWithOpts&) const = default;
+    [[nodiscard]]
+    bool operator==(const UpdateMeshWithOpts&) const = default;
 };
 
-struct SetMeshOverlayOpts
-{
-  core::UUID handle;
-  bool showSegments{false};
-  bool showVertices{false};
+struct SetMeshOverlayOpts {
+    core::UUID handle;
+    bool showSegments{false};
+    bool showVertices{false};
 
-  [[nodiscard]] bool operator==(const SetMeshOverlayOpts&) const = default;
+    [[nodiscard]]
+    bool operator==(const SetMeshOverlayOpts&) const = default;
 };
 
-struct SetMeshRenderingOpts
-{
-  core::UUID   handle;
-  MeshCullMode cullMode{MeshCullMode::back};
-  bool         surfaceVisible{true};
+struct SetMeshRenderingOpts {
+    core::UUID handle;
+    MeshCullMode cullMode{MeshCullMode::back};
+    bool surfaceVisible{true};
 
-  bool operator==(const SetMeshRenderingOpts&) const = default;
+    bool operator==(const SetMeshRenderingOpts&) const = default;
 };
 
-struct RemoveAllGeometry
-{
-  [[nodiscard]] bool operator==(const RemoveAllGeometry&) const = default;
+struct RemoveAllGeometry {
+    [[nodiscard]]
+    bool operator==(const RemoveAllGeometry&) const = default;
 };
 
-struct TranslateGeometry
-{
-  core::UUID handle;
-  float dx, dy, dz;
+struct TranslateGeometry {
+    core::UUID handle;
+    float dx, dy, dz;
 
-  [[nodiscard]] bool operator==(const TranslateGeometry&) const = default;
+    [[nodiscard]]
+    bool operator==(const TranslateGeometry&) const = default;
 };
 
-struct RotateGeometry
-{
-  core::UUID handle;
-  float centerX, centerY, centerZ;
-  float axisX, axisY, axisZ;
-  float angle;
+struct RotateGeometry {
+    core::UUID handle;
+    float centerX, centerY, centerZ;
+    float axisX, axisY, axisZ;
+    float angle;
 
-  [[nodiscard]] bool operator==(const RotateGeometry&) const = default;
+    [[nodiscard]]
+    bool operator==(const RotateGeometry&) const = default;
 };
 
-struct Draw
-{
+struct Draw {};
+
+struct StopDraw {};
+
+struct SaveLog {
+    std::function<void(Context& context)> callback;
 };
 
-struct StopDraw
-{
+struct LoadLog {
+    std::function<void(Context& context)> callback;
 };
 
-struct SaveLog
-{
-  std::function<void(Context& context)> callback;
+struct ReplayLog {
+    std::function<void(Context& context)> callback;
 };
 
-struct LoadLog
-{
-  std::function<void(Context& context)> callback;
+struct ReplayCurrentLog {
+    std::function<void(Context& context)> callback;
 };
 
-struct ReplayLog
-{
-  std::function<void(Context& context)> callback;
+struct PauseReplay {};
+
+struct ResumeReplay {};
+
+struct StepReplay {
+    std::size_t count;
 };
 
-struct ReplayCurrentLog
-{
-  std::function<void(Context& context)> callback;
+struct StepReplayBackward {
+    std::size_t count;
 };
 
-struct PauseReplay
-{
+struct GetReplayState {
+    std::function<void(Context& context)> callback;
 };
 
-struct ResumeReplay
-{
+struct GetReplayProgress {
+    std::function<void(Context& context)> callback;
 };
 
-struct StepReplay
-{
-  std::size_t count;
+struct GetPointSize {
+    std::function<void(Context& context)> callback;
 };
 
-struct StepReplayBackward
-{
-  std::size_t count;
+struct GetPointColor {
+    std::function<void(Context& context)> callback;
 };
 
-struct GetReplayState
-{
-  std::function<void(Context& context)> callback;
+struct GetLineWidth {
+    std::function<void(Context& context)> callback;
 };
 
-struct GetReplayProgress
-{
-  std::function<void(Context& context)> callback;
+struct GetLineColor {
+    std::function<void(Context& context)> callback;
 };
 
-struct GetPointSize
-{
-  std::function<void(Context& context)> callback;
-};
-
-struct GetPointColor
-{
-  std::function<void(Context& context)> callback;
-};
-
-struct GetLineWidth
-{
-  std::function<void(Context& context)> callback;
-};
-
-struct GetLineColor
-{
-  std::function<void(Context& context)> callback;
-};
-
-struct Cleanup
-{
-};
+struct Cleanup {};
 
 using GeoQikLogEntry = std::variant<AddPointWithOpts,
                                     AddPointsWithOpts,

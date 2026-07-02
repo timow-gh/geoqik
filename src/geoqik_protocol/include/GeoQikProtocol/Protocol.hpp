@@ -20,72 +20,72 @@ inline constexpr std::size_t responseHeaderByteCount = 24;
 inline constexpr std::size_t pointPayloadByteCount = 3 * sizeof(double);
 inline constexpr std::size_t linePayloadByteCount = 6 * sizeof(double);
 
-inline constexpr std::size_t floatPayloadByteCount     = sizeof(float);           // 4
-inline constexpr std::size_t colorPayloadByteCount     = 4 * sizeof(float);       // 16
-inline constexpr std::size_t uuidPayloadByteCount      = uuidByteCount;           // 16
+inline constexpr std::size_t floatPayloadByteCount = sizeof(float);                          // 4
+inline constexpr std::size_t colorPayloadByteCount = 4 * sizeof(float);                      // 16
+inline constexpr std::size_t uuidPayloadByteCount = uuidByteCount;                           // 16
 inline constexpr std::size_t translatePayloadByteCount = uuidByteCount + 3 * sizeof(double); // 40
-inline constexpr std::size_t rotatePayloadByteCount    = uuidByteCount + 7 * sizeof(double); // 72
+inline constexpr std::size_t rotatePayloadByteCount = uuidByteCount + 7 * sizeof(double);    // 72
 
 enum class CommandId : std::uint32_t { // NOLINT(performance-enum-size): wire protocol uses 32-bit command IDs.
-    Draw        = 1,
-    AddPoint    = 2,
-    AddLine     = 3,
+    Draw = 1,
+    AddPoint = 2,
+    AddLine = 3,
     WaitForExit = 4,
-    Cleanup     = 5,
+    Cleanup = 5,
 
-    IsApiInitialized   = 6,
-    StopDrawing        = 7,
-    InitWithSettings   = 8,   // no wire IPC; settings passed at server startup via temp file
-    SetPointSize       = 9,
-    GetPointSize       = 10,
-    SetPointColor      = 11,
-    GetPointColor      = 12,
-    SetLineWidth       = 13,
-    GetLineWidth       = 14,
-    SetLineColor       = 15,
-    GetLineColor       = 16,
-    SetMeshColor       = 17,
-    GetMeshColor       = 18,
-    RemoveAllGeometry  = 19,
-    TranslateGeometry  = 20,
-    RotateGeometry     = 21,
+    IsApiInitialized = 6,
+    StopDrawing = 7,
+    InitWithSettings = 8, // no wire IPC; settings passed at server startup via temp file
+    SetPointSize = 9,
+    GetPointSize = 10,
+    SetPointColor = 11,
+    GetPointColor = 12,
+    SetLineWidth = 13,
+    GetLineWidth = 14,
+    SetLineColor = 15,
+    GetLineColor = 16,
+    SetMeshColor = 17,
+    GetMeshColor = 18,
+    RemoveAllGeometry = 19,
+    TranslateGeometry = 20,
+    RotateGeometry = 21,
 
-    AddPointWithColor    = 22,
-    AddPointOpts         = 23,
-    AddPointsOpts        = 24,
-    UpdatePoint          = 25,
+    AddPointWithColor = 22,
+    AddPointOpts = 23,
+    AddPointsOpts = 24,
+    UpdatePoint = 25,
     UpdatePointWithColor = 26,
-    UpdatePointOpts      = 27,
-    UpdatePointsOpts     = 28,
-    RemovePoint          = 29,
-    AddLineWithColor     = 30,
-    AddLineOpts          = 31,
-    AddLinesOpts         = 32,
-    UpdateLine           = 33,
-    UpdateLineWithColor  = 34,
-    UpdateLineOpts       = 35,
-    UpdateLinesOpts      = 36,
-    RemoveLine           = 37,
+    UpdatePointOpts = 27,
+    UpdatePointsOpts = 28,
+    RemovePoint = 29,
+    AddLineWithColor = 30,
+    AddLineOpts = 31,
+    AddLinesOpts = 32,
+    UpdateLine = 33,
+    UpdateLineWithColor = 34,
+    UpdateLineOpts = 35,
+    UpdateLinesOpts = 36,
+    RemoveLine = 37,
 
-    AddMeshOpts          = 38,
-    RemoveMesh           = 39,
-    UpdateMeshOpts       = 40,
-    SetMeshOverlayOpts   = 41,
+    AddMeshOpts = 38,
+    RemoveMesh = 39,
+    UpdateMeshOpts = 40,
+    SetMeshOverlayOpts = 41,
     SetMeshRenderingOpts = 42,
 
-    SaveLog              = 43,
-    LoadLog              = 44,
-    ReplayLog            = 45,
-    ReplayCurrentLog     = 46,
-    CancelReplay         = 47,
-    PauseReplay          = 48,
-    ResumeReplay         = 49,
-    StepReplay           = 50,
-    StepReplayN          = 51,
-    StepReplayBackward   = 52,
-    StepReplayBackwardN  = 53,
-    GetReplayState       = 54,
-    GetReplayProgress    = 55,
+    SaveLog = 43,
+    LoadLog = 44,
+    ReplayLog = 45,
+    ReplayCurrentLog = 46,
+    CancelReplay = 47,
+    PauseReplay = 48,
+    ResumeReplay = 49,
+    StepReplay = 50,
+    StepReplayN = 51,
+    StepReplayBackward = 52,
+    StepReplayBackwardN = 53,
+    GetReplayState = 54,
+    GetReplayProgress = 55,
 };
 
 struct FrameHeader {
@@ -118,11 +118,12 @@ struct ResponseFrame {
 // On Linux, a leading null byte places the socket in the kernel's abstract
 // namespace rather than the filesystem. This eliminates the TOCTOU race where a
 // local attacker could watch for the server's unlink(), then race to place a
-// symlink at /tmp/geoqik-<pid>.sock before bind() runs — potentially redirecting
+// symlink at /tmp/geoqik-<pid>.sock before bind() runs ΓÇö potentially redirecting
 // the bind to an arbitrary file or causing a denial-of-service. An abstract
 // socket has no filesystem entry to race against and vanishes when the server
 // exits.
-[[nodiscard]] inline std::string make_pipe_name(std::uint64_t pid) {
+[[nodiscard]]
+inline std::string make_pipe_name(std::uint64_t pid) {
 #ifdef _WIN32
     return R"(\\.\pipe\geoqik-)" + std::to_string(pid);
 #else
@@ -130,7 +131,8 @@ struct ResponseFrame {
 #endif
 }
 
-[[nodiscard]] inline std::string make_pipe_name_argument(std::uint64_t pid) {
+[[nodiscard]]
+inline std::string make_pipe_name_argument(std::uint64_t pid) {
 #ifdef _WIN32
     return make_pipe_name(pid);
 #else
@@ -138,7 +140,8 @@ struct ResponseFrame {
 #endif
 }
 
-[[nodiscard]] inline std::string make_pipe_name_from_argument(const std::string& argument) {
+[[nodiscard]]
+inline std::string make_pipe_name_from_argument(const std::string& argument) {
 #ifdef _WIN32
     return argument;
 #else
@@ -146,9 +149,9 @@ struct ResponseFrame {
 #endif
 }
 
-[[nodiscard]] inline std::uint32_t payload_byte_count(std::size_t payloadSize) {
-    constexpr auto maxPayloadSize = static_cast<std::size_t>(
-        std::numeric_limits<std::uint32_t>::max());
+[[nodiscard]]
+inline std::uint32_t payload_byte_count(std::size_t payloadSize) {
+    constexpr auto maxPayloadSize = static_cast<std::size_t>(std::numeric_limits<std::uint32_t>::max());
     if (payloadSize > maxPayloadSize) {
         throw std::length_error("geoqik protocol payload is too large");
     }
@@ -157,7 +160,7 @@ struct ResponseFrame {
 }
 
 // Append sizeof(T) bytes of val into buf.
-template<typename T>
+template <typename T>
 void write_pod(std::vector<std::uint8_t>& buf, const T& val) {
     static_assert(std::is_trivially_copyable_v<T>);
     const auto bytes = std::bit_cast<std::array<std::uint8_t, sizeof(T)>>(val);
@@ -165,8 +168,9 @@ void write_pod(std::vector<std::uint8_t>& buf, const T& val) {
 }
 
 // Read sizeof(T) bytes from data into a T value.
-template<typename T>
-[[nodiscard]] T read_pod(const std::vector<std::uint8_t>& data, std::size_t offset) {
+template <typename T>
+[[nodiscard]]
+T read_pod(const std::vector<std::uint8_t>& data, std::size_t offset) {
     static_assert(std::is_trivially_copyable_v<T>);
     if ((offset > data.size()) || (data.size() - offset < sizeof(T))) {
         throw std::out_of_range("geoqik protocol payload is too small");
@@ -182,7 +186,8 @@ inline void write_string(std::vector<std::uint8_t>& buf, const std::string& valu
     buf.insert(buf.end(), value.begin(), value.end());
 }
 
-[[nodiscard]] inline std::string read_string(const std::vector<std::uint8_t>& data, std::size_t& offset) {
+[[nodiscard]]
+inline std::string read_string(const std::vector<std::uint8_t>& data, std::size_t& offset) {
     const std::uint32_t size = read_pod<std::uint32_t>(data, offset);
     offset += sizeof(std::uint32_t);
     if ((offset > data.size()) || (data.size() - offset < size)) {
@@ -194,7 +199,8 @@ inline void write_string(std::vector<std::uint8_t>& buf, const std::string& valu
     return value;
 }
 
-[[nodiscard]] inline std::vector<std::uint8_t> encode_diagnostic(const DiagnosticText& diagnostic) {
+[[nodiscard]]
+inline std::vector<std::uint8_t> encode_diagnostic(const DiagnosticText& diagnostic) {
     std::vector<std::uint8_t> payload;
     write_string(payload, diagnostic.operation);
     write_string(payload, diagnostic.what);
@@ -204,7 +210,8 @@ inline void write_string(std::vector<std::uint8_t>& buf, const std::string& valu
     return payload;
 }
 
-[[nodiscard]] inline DiagnosticText decode_diagnostic(const std::vector<std::uint8_t>& payload) {
+[[nodiscard]]
+inline DiagnosticText decode_diagnostic(const std::vector<std::uint8_t>& payload) {
     DiagnosticText diagnostic;
     if (payload.empty()) {
         return diagnostic;
@@ -222,8 +229,9 @@ inline void write_string(std::vector<std::uint8_t>& buf, const std::string& valu
     return diagnostic;
 }
 
-template<typename T>
-[[nodiscard]] std::array<std::uint8_t, uuidByteCount> pack_return_value(const T& val) {
+template <typename T>
+[[nodiscard]]
+std::array<std::uint8_t, uuidByteCount> pack_return_value(const T& val) {
     static_assert(std::is_trivially_copyable_v<T>);
     static_assert(sizeof(T) <= uuidByteCount);
     std::array<std::uint8_t, uuidByteCount> out{};
@@ -231,29 +239,23 @@ template<typename T>
     return out;
 }
 
-[[nodiscard]] inline std::array<std::uint8_t, uuidByteCount> pack_color_return(
-    float r, float g, float b, float a)
-{
+[[nodiscard]]
+inline std::array<std::uint8_t, uuidByteCount> pack_color_return(float r, float g, float b, float a) {
     std::array<float, 4> rgba{r, g, b, a};
     return pack_return_value(rgba);
 }
 
-inline constexpr std::size_t addPointWithColorPayloadByteCount =
-    3 * sizeof(double) + 4 * sizeof(float);
-inline constexpr std::size_t updatePointPayloadByteCount =
-    uuidByteCount + 3 * sizeof(double);
+inline constexpr std::size_t addPointWithColorPayloadByteCount = 3 * sizeof(double) + 4 * sizeof(float);
+inline constexpr std::size_t updatePointPayloadByteCount = uuidByteCount + 3 * sizeof(double);
 inline constexpr std::size_t updatePointWithColorPayloadByteCount =
     uuidByteCount + 3 * sizeof(double) + 4 * sizeof(float);
 inline constexpr std::size_t removeGeometryPayloadByteCount = uuidByteCount;
-inline constexpr std::size_t addLineWithColorPayloadByteCount =
-    6 * sizeof(double) + 4 * sizeof(float);
-inline constexpr std::size_t updateLinePayloadByteCount =
-    uuidByteCount + 6 * sizeof(double);
+inline constexpr std::size_t addLineWithColorPayloadByteCount = 6 * sizeof(double) + 4 * sizeof(float);
+inline constexpr std::size_t updateLinePayloadByteCount = uuidByteCount + 6 * sizeof(double);
 inline constexpr std::size_t updateLineWithColorPayloadByteCount =
     uuidByteCount + 6 * sizeof(double) + 4 * sizeof(float);
 
-inline constexpr std::size_t setMeshOverlayOptsPayloadByteCount =
-    uuidByteCount + 2 * sizeof(std::int32_t);
+inline constexpr std::size_t setMeshOverlayOptsPayloadByteCount = uuidByteCount + 2 * sizeof(std::int32_t);
 inline constexpr std::size_t setMeshRenderingOptsPayloadByteCount =
     uuidByteCount + sizeof(std::uint32_t) + sizeof(std::int32_t);
 
@@ -262,25 +264,16 @@ inline constexpr std::size_t stepReplayNPayloadByteCount = sizeof(std::uint64_t)
 
 // Minimum wire size of a serialized geoqik_replay_options_t:
 // 2x double + uint64 + int32 + uint64 + 6x uint32 count fields.
-inline constexpr std::size_t replayOptionsMinByteCount =
-    2 * sizeof(double) +
-    sizeof(std::uint64_t) +
-    sizeof(std::int32_t) +
-    sizeof(std::uint64_t) +
-    6 * sizeof(std::uint32_t);
-static_assert(replayOptionsMinByteCount == 60,
-    "replayOptionsMinByteCount must match the wire-format byte count");
+inline constexpr std::size_t replayOptionsMinByteCount = 2 * sizeof(double) + sizeof(std::uint64_t) +
+                                                         sizeof(std::int32_t) + sizeof(std::uint64_t) +
+                                                         6 * sizeof(std::uint32_t);
+static_assert(replayOptionsMinByteCount == 60, "replayOptionsMinByteCount must match the wire-format byte count");
 
-inline void write_idempotency_key(std::vector<std::uint8_t>& buf,
-                                   const std::array<std::uint8_t, uuidByteCount>& key)
-{
+inline void write_idempotency_key(std::vector<std::uint8_t>& buf, const std::array<std::uint8_t, uuidByteCount>& key) {
     buf.insert(buf.end(), key.begin(), key.end());
 }
 
-inline void write_optional_colors(std::vector<std::uint8_t>& buf,
-                                   const float* colorData,
-                                   std::uint32_t colorCount)
-{
+inline void write_optional_colors(std::vector<std::uint8_t>& buf, const float* colorData, std::uint32_t colorCount) {
     write_pod(buf, colorCount);
     if (colorData != nullptr && colorCount > 0) {
         const auto* bytes = reinterpret_cast<const std::uint8_t*>(colorData);
@@ -288,13 +281,13 @@ inline void write_optional_colors(std::vector<std::uint8_t>& buf,
     }
 }
 
-[[nodiscard]] inline std::vector<float> read_optional_colors(
-    const std::vector<std::uint8_t>& payload,
-    std::size_t& offset)
-{
+[[nodiscard]]
+inline std::vector<float> read_optional_colors(const std::vector<std::uint8_t>& payload, std::size_t& offset) {
     const auto colorCount = read_pod<std::uint32_t>(payload, offset);
     offset += sizeof(std::uint32_t);
-    if (colorCount == 0) { return {}; }
+    if (colorCount == 0) {
+        return {};
+    }
     const std::size_t colorBytes = colorCount * sizeof(float);
     if (offset + colorBytes > payload.size()) {
         throw std::out_of_range("geoqik protocol: color payload truncated");
@@ -305,10 +298,7 @@ inline void write_optional_colors(std::vector<std::uint8_t>& buf,
     return colors;
 }
 
-inline void write_optional_single_color(std::vector<std::uint8_t>& buf,
-                                         const float* colorPtr,
-                                         bool hasColor)
-{
+inline void write_optional_single_color(std::vector<std::uint8_t>& buf, const float* colorPtr, bool hasColor) {
     constexpr float kZero[4] = {0.0f, 0.0f, 0.0f, 0.0f};
     const float* src = (hasColor && colorPtr != nullptr) ? colorPtr : kZero;
     write_pod(buf, src[0]);
@@ -317,10 +307,7 @@ inline void write_optional_single_color(std::vector<std::uint8_t>& buf,
     write_pod(buf, src[3]);
 }
 
-inline void write_optional_float_array(std::vector<std::uint8_t>& buf,
-                                        const float* data,
-                                        std::uint32_t count)
-{
+inline void write_optional_float_array(std::vector<std::uint8_t>& buf, const float* data, std::uint32_t count) {
     write_pod(buf, count);
     if (data != nullptr && count > 0) {
         const auto* bytes = reinterpret_cast<const std::uint8_t*>(data);
@@ -328,10 +315,8 @@ inline void write_optional_float_array(std::vector<std::uint8_t>& buf,
     }
 }
 
-inline void write_optional_uint32_array(std::vector<std::uint8_t>& buf,
-                                         const std::uint32_t* data,
-                                         std::uint32_t count)
-{
+inline void
+write_optional_uint32_array(std::vector<std::uint8_t>& buf, const std::uint32_t* data, std::uint32_t count) {
     write_pod(buf, count);
     if (data != nullptr && count > 0) {
         const auto* bytes = reinterpret_cast<const std::uint8_t*>(data);
@@ -339,8 +324,9 @@ inline void write_optional_uint32_array(std::vector<std::uint8_t>& buf,
     }
 }
 
-template<typename T>
-[[nodiscard]] T unpack_return_value(const std::array<std::uint8_t, uuidByteCount>& uuid) {
+template <typename T>
+[[nodiscard]]
+T unpack_return_value(const std::array<std::uint8_t, uuidByteCount>& uuid) {
     static_assert(std::is_trivially_copyable_v<T>);
     static_assert(sizeof(T) <= uuidByteCount);
     T val{};

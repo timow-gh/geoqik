@@ -23,11 +23,10 @@ void run(const std::string& pipeName) {
 
     for (;;) {
         PSECURITY_DESCRIPTOR securityDescriptor = nullptr;
-        if (::ConvertStringSecurityDescriptorToSecurityDescriptorA(
-                pipeSecurityDescriptor,
-                SDDL_REVISION_1,
-                &securityDescriptor,
-                nullptr) == FALSE) {
+        if (::ConvertStringSecurityDescriptorToSecurityDescriptorA(pipeSecurityDescriptor,
+                                                                   SDDL_REVISION_1,
+                                                                   &securityDescriptor,
+                                                                   nullptr) == FALSE) {
             std::cerr << "CreateNamedPipe security setup failed: " << ::GetLastError() << '\n';
             std::exit(EXIT_FAILURE); // NOLINT(concurrency-mt-unsafe)
         }
@@ -36,15 +35,14 @@ void run(const std::string& pipeName) {
         securityAttributes.lpSecurityDescriptor = securityDescriptor;
         securityAttributes.bInheritHandle = FALSE;
 
-        HANDLE pipeHandle = ::CreateNamedPipeA(
-            pipeName.c_str(),
-            PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED,
-            PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT,
-            PIPE_UNLIMITED_INSTANCES,
-            pipeBufferSize,
-            pipeBufferSize,
-            /*defaultTimeout=*/0,
-            &securityAttributes);
+        HANDLE pipeHandle = ::CreateNamedPipeA(pipeName.c_str(),
+                                               PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED,
+                                               PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT,
+                                               PIPE_UNLIMITED_INSTANCES,
+                                               pipeBufferSize,
+                                               pipeBufferSize,
+                                               /*defaultTimeout=*/0,
+                                               &securityAttributes);
         ::LocalFree(securityDescriptor);
 
         if (pipeHandle == INVALID_HANDLE_VALUE) {
@@ -62,8 +60,8 @@ void run(const std::string& pipeName) {
 
         const BOOL connected = ::ConnectNamedPipe(pipeHandle, &overlapped);
         const DWORD connectError = (connected == FALSE) ? ::GetLastError() : ERROR_SUCCESS;
-        if ((connectError != ERROR_SUCCESS) && (connectError != ERROR_IO_PENDING)
-            && (connectError != ERROR_PIPE_CONNECTED)) {
+        if ((connectError != ERROR_SUCCESS) && (connectError != ERROR_IO_PENDING) &&
+            (connectError != ERROR_PIPE_CONNECTED)) {
             std::cerr << "ConnectNamedPipe failed: " << connectError << '\n';
             ::CloseHandle(overlapped.hEvent);
             ::CloseHandle(pipeHandle);
@@ -101,17 +99,13 @@ void run(const std::string& socketPath) {
     namespace local = asio::local;
     asio::io_context io;
 
-    local::stream_protocol::acceptor acceptor(
-        io,
-        local::stream_protocol::endpoint(socketPath));
+    local::stream_protocol::acceptor acceptor(io, local::stream_protocol::endpoint(socketPath));
 
     for (;;) {
         local::stream_protocol::socket socket(io);
         acceptor.accept(socket);
 
-        std::thread([s = std::move(socket)]() mutable {
-            dispatch::handle_connection(s);
-        }).detach();
+        std::thread([s = std::move(socket)]() mutable { dispatch::handle_connection(s); }).detach();
     }
 }
 

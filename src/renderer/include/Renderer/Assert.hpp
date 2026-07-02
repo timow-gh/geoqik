@@ -16,21 +16,17 @@
 #if defined(NDEBUG) && NDEBUG
 #define RENDERER_ASSERT(...)
 #else
-#define RENDERER_ASSERT(...)                                                                       \
-  do                                                                                               \
-  {                                                                                                \
-    if (__VA_ARGS__) [[likely]]                                                                    \
-    {                                                                                              \
-    }                                                                                              \
-    else                                                                                           \
-    {                                                                                              \
-      const std::string _renderer_assert_msg =                                                     \
-          std::string(__FILE__) + ":" + std::to_string(__LINE__) +                                 \
-          ": internal check failed in '" + __func__ + "': '" #__VA_ARGS__ "'\n";                   \
-      std::fputs(_renderer_assert_msg.c_str(), stderr);                                            \
-      RENDERER_ASSERT_TRAP();                                                                      \
-    }                                                                                              \
-  } while (false)
+#define RENDERER_ASSERT(...)                                                                                           \
+    do {                                                                                                               \
+        if (__VA_ARGS__) [[likely]] {                                                                                  \
+        } else {                                                                                                       \
+            const std::string _renderer_assert_msg = std::string(__FILE__) + ":" + std::to_string(__LINE__) +          \
+                                                     ": internal check failed in '" + __func__ +                       \
+                                                     "': '" #__VA_ARGS__ "'\n";                                        \
+            std::fputs(_renderer_assert_msg.c_str(), stderr);                                                          \
+            RENDERER_ASSERT_TRAP();                                                                                    \
+        }                                                                                                              \
+    } while (false)
 #endif
 
 #endif // RENDERER_ASSERT_HPP

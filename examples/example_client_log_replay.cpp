@@ -15,20 +15,23 @@
 #include <iostream>
 #include <string>
 
-int main() {
-    [[maybe_unused]] auto err = geoqik_init();
+int
+main()
+{
+    [[maybe_unused]]
+    auto err = geoqik_init();
     assert(err == GEOQIK_SUCCESS && "geoqik_init failed — is GEOQIK_EXE_PATH set?");
 
     err = geoqik_draw();
     assert(err == GEOQIK_SUCCESS);
 
     for (int i = 0; i < 10; ++i) {
-        [[maybe_unused]] const auto pr = geoqik_add_point(static_cast<double>(i) * 0.1, 0.0, 0.0);
+        [[maybe_unused]]
+        const auto pr = geoqik_add_point(static_cast<double>(i) * 0.1, 0.0, 0.0);
         assert(pr.err == GEOQIK_SUCCESS);
     }
 
-    const std::string logPath =
-        (std::filesystem::temp_directory_path() / "geoqik_plan024_test.gql").string();
+    const std::string logPath = (std::filesystem::temp_directory_path() / "geoqik_plan024_test.gql").string();
 
     err = geoqik_save_log(logPath.c_str(), GEOQIK_LOG_FORMAT_BINARY);
     assert(err == GEOQIK_SUCCESS && "geoqik_save_log failed");

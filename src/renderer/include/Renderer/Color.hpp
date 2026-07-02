@@ -4,8 +4,7 @@
 #include <array>
 #include <cstddef>
 
-namespace renderer
-{
+namespace renderer {
 
 inline constexpr std::size_t ColorChannelCount = 4;
 using Color = std::array<float, ColorChannelCount>;

@@ -1,10 +1,9 @@
 #include "OpenGL/ShaderSources.hpp"
 
-namespace opengl
-{
+namespace opengl {
 std::string line_vertex_shader_source() {
-  return
-      R"(#version 330
+    return
+        R"(#version 330
 
 uniform mat4 u_MVP;
 
@@ -20,8 +19,8 @@ void main() {
 }
 
 std::string line_fragment_shader_source() {
-  return
-      R"(#version 330
+    return
+        R"(#version 330
 
 in vec4 v_color;
 
@@ -33,8 +32,8 @@ void main() {
 )";
 }
 std::string point_color_vertex_shader_source() {
-  return
-      R"(#version 330
+    return
+        R"(#version 330
 
 uniform mat4 u_MVP;
 uniform float u_pointSize;
@@ -51,8 +50,8 @@ void main() {
 })";
 }
 std::string point_color_fragment_shader_source() {
-  return
-      R"(#version 330
+    return
+        R"(#version 330
 
 in vec4 v_color;
 
@@ -64,8 +63,8 @@ void main() {
 }
 
 std::string mesh_vertex_shader_source() {
-  return
-      R"(#version 330
+    return
+        R"(#version 330
 
     uniform mat4 u_model;
     uniform mat4 u_view;
@@ -89,8 +88,8 @@ std::string mesh_vertex_shader_source() {
 }
 
 std::string mesh_fragment_shader_source() {
-  return
-      R"(#version 330
+    return
+        R"(#version 330
 
     in vec4 v_color;
     in vec3 v_normal;

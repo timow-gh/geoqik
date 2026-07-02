@@ -6,16 +6,15 @@
 #include <glad/glad.h>
 #include <string_view>
 
-namespace opengl
-{
+namespace opengl {
 
 RENDERER_SUPPRESS_STL_DLL_WARNINGS_BEGIN
 
 struct OPENGL_EXPORT OpenGLConfig {
-  int majorVersion = 3;
-  int minorVersion = 3;
-  std::string_view glsl_version = "#version 330";
-  bool debug{false};
+    int majorVersion = 3;
+    int minorVersion = 3;
+    std::string_view glsl_version = "#version 330";
+    bool debug{false};
 };
 
 RENDERER_SUPPRESS_STL_DLL_WARNINGS_END

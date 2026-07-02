@@ -5,28 +5,27 @@
 #include "OpenGL/opengl_export.h"
 #include <optional>
 
-namespace opengl
-{
+namespace opengl {
 
-class OPENGL_EXPORT VertexArray
-{
-  std::optional<GLuint> m_id;
+class OPENGL_EXPORT VertexArray {
+    std::optional<GLuint> m_id;
 
-public:
-  explicit VertexArray(GLuint id);
-  VertexArray(const VertexArray&) = delete;
-  VertexArray& operator=(const VertexArray&) = delete;
-  VertexArray(VertexArray&& other) noexcept;
-  VertexArray& operator=(VertexArray&& other) noexcept;
+  public:
+    explicit VertexArray(GLuint id);
+    VertexArray(const VertexArray&) = delete;
+    VertexArray& operator=(const VertexArray&) = delete;
+    VertexArray(VertexArray&& other) noexcept;
+    VertexArray& operator=(VertexArray&& other) noexcept;
 
-  ~VertexArray();
+    ~VertexArray();
 
-  void reset() noexcept;
+    void reset() noexcept;
 
-  [[nodiscard]] static std::optional<VertexArray> create();
+    [[nodiscard]]
+    static std::optional<VertexArray> create();
 
-  void bind() const;
-  static void unbind();
+    void bind() const;
+    static void unbind();
 };
 
 } // namespace opengl

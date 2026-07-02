@@ -5,12 +5,11 @@
 #include "OpenGL/SignedIntId.hpp"
 #include "OpenGL/opengl_export.h"
 
-namespace opengl
-{
+namespace opengl {
 
 class OPENGL_EXPORT Location : public SignedIntId {
-public:
-  using SignedIntId::SignedIntId;
+  public:
+    using SignedIntId::SignedIntId;
 };
 
 } // namespace opengl
