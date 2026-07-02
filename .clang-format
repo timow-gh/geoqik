@@ -1,16 +1,15 @@
-ColumnLimit: '100'
-IndentWidth: '2'
+ColumnLimit: '120'
+IndentWidth: '4'
 Language: Cpp
 AlignAfterOpenBracket: Align
-AlignTrailingComments:
-  Kind: Always
-  OverEmptyLines: 2
+AlignTrailingComments: true
 ReflowComments: true
 AllowAllArgumentsOnNextLine: false
 AlwaysBreakBeforeMultilineStrings: true
 AlwaysBreakTemplateDeclarations: 'Yes'
+BreakAfterAttributes: Always
 PackConstructorInitializers: Never
-PenaltyBreakBeforeMemberAccess: 0
+PenaltyBreakBeforeFirstCallParameter: 0
 BinPackArguments: false
 BinPackParameters: false
 AllowAllParametersOfDeclarationOnNextLine: false
@@ -21,8 +20,20 @@ AllowShortFunctionsOnASingleLine: InlineOnly
 AllowShortIfStatementsOnASingleLine: Never
 AllowShortLambdasOnASingleLine: All
 AllowShortLoopsOnASingleLine: false
-AlwaysBreakAfterReturnType: None
-BreakBeforeBraces: Allman
+AlwaysBreakAfterReturnType: All
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterCaseLabel: false
+  AfterClass: true
+  AfterControlStatement: Never
+  AfterEnum: true
+  AfterFunction: true
+  AfterNamespace: true
+  AfterStruct: true
+  AfterUnion: true
+  BeforeCatch: false
+  BeforeElse: false
+  IndentBraces: false
 BreakBeforeBinaryOperators: None
 BreakBeforeConceptDeclarations: true
 BreakBeforeTernaryOperators: true
