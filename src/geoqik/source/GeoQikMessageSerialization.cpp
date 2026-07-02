@@ -337,7 +337,7 @@ GeoQikLogEntry MessageReader::read() {
     case serialized_message_type_value(SerializedMessageType::RemoveLine): return RemoveLine{read_uuid(m_stream)};
     case serialized_message_type_value(SerializedMessageType::SetLineWidth):
         return SetLineWidth{read_pod<float>(m_stream)};
-    case serialized_message_type_value(SerializedMessageType::SetLineColor): return SetLineColor{read_color(m_stream)};
+    case serialized_message_type_value(SerializedMessageType::SetLineColor):      return SetLineColor{read_color(m_stream)};
     case serialized_message_type_value(SerializedMessageType::RemoveAllGeometry): return RemoveAllGeometry{};
     case serialized_message_type_value(SerializedMessageType::TranslateGeometry):
         return TranslateGeometry{read_uuid(m_stream),
@@ -391,7 +391,7 @@ GeoQikLogEntry MessageReader::read() {
         }
         return msg;
     }
-    case serialized_message_type_value(SerializedMessageType::RemoveMesh): return RemoveMesh{read_uuid(m_stream)};
+    case serialized_message_type_value(SerializedMessageType::RemoveMesh):         return RemoveMesh{read_uuid(m_stream)};
     case serialized_message_type_value(SerializedMessageType::UpdateMeshWithOpts): {
         auto handle = read_uuid(m_stream);
         std::vector<float> verts = read_float_vector(m_stream);

@@ -427,9 +427,9 @@ class Camera {
     [[nodiscard]]
     PickRay get_ray(double screenX, double screenY) const {
         switch (m_activeProjection) {
-        case CameraProjectionType::PERSPECTIVE: return create_perspective_ray(screenX, screenY);
+        case CameraProjectionType::PERSPECTIVE:  return create_perspective_ray(screenX, screenY);
         case CameraProjectionType::ORTHOGRAPHIC: return create_orthographic_ray(screenX, screenY);
-        default: RENDERER_ASSERT(false); return {};
+        default:                                 RENDERER_ASSERT(false); return {};
         }
     }
 
@@ -560,9 +560,9 @@ class Camera {
     void update_projection_matrix() const {
         if (m_projectionDirty) {
             switch (m_activeProjection) {
-            case CameraProjectionType::PERSPECTIVE: m_projection = compute_perspective_matrix(); break;
+            case CameraProjectionType::PERSPECTIVE:  m_projection = compute_perspective_matrix(); break;
             case CameraProjectionType::ORTHOGRAPHIC: m_projection = compute_orthographic_matrix(); break;
-            default: RENDERER_ASSERT(false); break;
+            default:                                 RENDERER_ASSERT(false); break;
             }
             m_projectionDirty = false;
         }

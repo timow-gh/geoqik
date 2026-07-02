@@ -97,10 +97,10 @@ class GeoQikErrorCategory : public std::error_category {
     [[nodiscard]]
     std::string message(int ev) const override {
         switch (static_cast<ErrorDomain>(static_cast<std::uint8_t>(ev))) {
-        case ErrorDomain::Api: return "api error";
+        case ErrorDomain::Api:      return "api error";
         case ErrorDomain::Renderer: return "renderer error";
-        case ErrorDomain::Io: return "io error";
-        default: return "unknown geoqik error";
+        case ErrorDomain::Io:       return "io error";
+        default:                    return "unknown geoqik error";
         }
     }
 };
@@ -1723,9 +1723,9 @@ geoqik_error_code_t geoqik_set_mesh_rendering_opts(const geoqik_uuid_t* geometry
 
         switch (options->cullMode) {
         case GEOQIK_MESH_CULL_FRONT: message.cullMode = geoqik::MeshCullMode::front; break;
-        case GEOQIK_MESH_CULL_NONE: message.cullMode = geoqik::MeshCullMode::none; break;
+        case GEOQIK_MESH_CULL_NONE:  message.cullMode = geoqik::MeshCullMode::none; break;
         case GEOQIK_MESH_CULL_BACK:
-        default: message.cullMode = geoqik::MeshCullMode::back; break;
+        default:                     message.cullMode = geoqik::MeshCullMode::back; break;
         }
 
         return enqueue(GeoQikMessage{message});

@@ -1712,7 +1712,7 @@ inline geoqik_error_code_t fallback_api_code(ClientDiagnosticId id) {
     case ClientDiagnosticId::Unknown:
     case ClientDiagnosticId::ServerApiFailure:
     case ClientDiagnosticId::Success:
-    default: return GEOQIK_ERROR_UNKNOWN;
+    default:                                           return GEOQIK_ERROR_UNKNOWN;
     }
 }
 
@@ -2114,18 +2114,18 @@ inline void geoqik_init_default_window_settings(geoqik_window_settings_t* settin
 [[nodiscard]]
 inline const char* geoqik_get_error_string(geoqik_error_code_t result) {
     switch (result) {
-    case GEOQIK_SUCCESS: return "Success";
-    case GEOQIK_ERROR_NOT_INITIALIZED: return "GeoQik not initialized";
-    case GEOQIK_ERROR_ALREADY_INITIALIZED: return "GeoQik already initialized";
-    case GEOQIK_ERROR_INVALID_PARAMETER: return "Invalid parameter";
-    case GEOQIK_ERROR_WRONG_COLOR_SIZE: return "Wrong RGBA color size";
-    case GEOQIK_ERROR_MEMORY_ALLOCATION: return "Memory allocation error";
-    case GEOQIK_ERROR_UNKNOWN: return "Unknown error";
+    case GEOQIK_SUCCESS:                    return "Success";
+    case GEOQIK_ERROR_NOT_INITIALIZED:      return "GeoQik not initialized";
+    case GEOQIK_ERROR_ALREADY_INITIALIZED:  return "GeoQik already initialized";
+    case GEOQIK_ERROR_INVALID_PARAMETER:    return "Invalid parameter";
+    case GEOQIK_ERROR_WRONG_COLOR_SIZE:     return "Wrong RGBA color size";
+    case GEOQIK_ERROR_MEMORY_ALLOCATION:    return "Memory allocation error";
+    case GEOQIK_ERROR_UNKNOWN:              return "Unknown error";
     case GEOQIK_ERROR_RENDERER_INIT_FAILED: return "Renderer initialization failed";
-    case GEOQIK_ERROR_IO: return "I/O error";
-    case GEOQIK_ERROR_UNSUPPORTED_FORMAT: return "Unsupported format";
-    case GEOQIK_ERROR_INVALID_STATE: return "Invalid state";
-    default: return "Invalid error code";
+    case GEOQIK_ERROR_IO:                   return "I/O error";
+    case GEOQIK_ERROR_UNSUPPORTED_FORMAT:   return "Unsupported format";
+    case GEOQIK_ERROR_INVALID_STATE:        return "Invalid state";
+    default:                                return "Invalid error code";
     }
 }
 

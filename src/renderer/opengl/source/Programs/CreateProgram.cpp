@@ -17,14 +17,14 @@ class ProgramCreationErrorCategory : public std::error_category {
     [[nodiscard]]
     std::string message(int ev) const override {
         switch (static_cast<ProgramCreationFailureStage>(ev)) {
-        case ProgramCreationFailureStage::Success: return "success";
-        case ProgramCreationFailureStage::VertexShaderCreation: return "vertex shader creation failed";
-        case ProgramCreationFailureStage::VertexShaderCompilation: return "vertex shader compilation failed";
-        case ProgramCreationFailureStage::FragmentShaderCreation: return "fragment shader creation failed";
+        case ProgramCreationFailureStage::Success:                   return "success";
+        case ProgramCreationFailureStage::VertexShaderCreation:      return "vertex shader creation failed";
+        case ProgramCreationFailureStage::VertexShaderCompilation:   return "vertex shader compilation failed";
+        case ProgramCreationFailureStage::FragmentShaderCreation:    return "fragment shader creation failed";
         case ProgramCreationFailureStage::FragmentShaderCompilation: return "fragment shader compilation failed";
-        case ProgramCreationFailureStage::ProgramCreation: return "program creation failed";
-        case ProgramCreationFailureStage::ProgramLinking: return "program linking failed";
-        default: return "unknown program creation error";
+        case ProgramCreationFailureStage::ProgramCreation:           return "program creation failed";
+        case ProgramCreationFailureStage::ProgramLinking:            return "program linking failed";
+        default:                                                     return "unknown program creation error";
         }
     }
 };

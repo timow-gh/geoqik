@@ -131,32 +131,32 @@ bool payload_size_matches(proto::CommandId commandId, std::size_t payloadSize) {
     switch (commandId) {
     case proto::CommandId::Draw:
     case proto::CommandId::WaitForExit:
-    case proto::CommandId::Cleanup: return payloadSize == 0;
-    case proto::CommandId::AddPoint: return payloadSize == proto::pointPayloadByteCount;
-    case proto::CommandId::AddLine: return payloadSize == proto::linePayloadByteCount;
+    case proto::CommandId::Cleanup:              return payloadSize == 0;
+    case proto::CommandId::AddPoint:             return payloadSize == proto::pointPayloadByteCount;
+    case proto::CommandId::AddLine:              return payloadSize == proto::linePayloadByteCount;
     case proto::CommandId::IsApiInitialized:
     case proto::CommandId::StopDrawing:
-    case proto::CommandId::RemoveAllGeometry: return payloadSize == 0;
+    case proto::CommandId::RemoveAllGeometry:    return payloadSize == 0;
     case proto::CommandId::SetPointSize:
     case proto::CommandId::GetPointSize:
     case proto::CommandId::SetLineWidth:
-    case proto::CommandId::GetLineWidth: return payloadSize == proto::floatPayloadByteCount;
+    case proto::CommandId::GetLineWidth:         return payloadSize == proto::floatPayloadByteCount;
     case proto::CommandId::SetPointColor:
     case proto::CommandId::GetPointColor:
     case proto::CommandId::SetLineColor:
     case proto::CommandId::GetLineColor:
     case proto::CommandId::SetMeshColor:
-    case proto::CommandId::GetMeshColor: return payloadSize == proto::colorPayloadByteCount;
-    case proto::CommandId::TranslateGeometry: return payloadSize == proto::translatePayloadByteCount;
-    case proto::CommandId::RotateGeometry: return payloadSize == proto::rotatePayloadByteCount;
-    case proto::CommandId::AddPointWithColor: return payloadSize == proto::addPointWithColorPayloadByteCount;
-    case proto::CommandId::UpdatePoint: return payloadSize == proto::updatePointPayloadByteCount;
+    case proto::CommandId::GetMeshColor:         return payloadSize == proto::colorPayloadByteCount;
+    case proto::CommandId::TranslateGeometry:    return payloadSize == proto::translatePayloadByteCount;
+    case proto::CommandId::RotateGeometry:       return payloadSize == proto::rotatePayloadByteCount;
+    case proto::CommandId::AddPointWithColor:    return payloadSize == proto::addPointWithColorPayloadByteCount;
+    case proto::CommandId::UpdatePoint:          return payloadSize == proto::updatePointPayloadByteCount;
     case proto::CommandId::UpdatePointWithColor: return payloadSize == proto::updatePointWithColorPayloadByteCount;
     case proto::CommandId::RemovePoint:
-    case proto::CommandId::RemoveLine: return payloadSize == proto::removeGeometryPayloadByteCount;
-    case proto::CommandId::AddLineWithColor: return payloadSize == proto::addLineWithColorPayloadByteCount;
-    case proto::CommandId::UpdateLine: return payloadSize == proto::updateLinePayloadByteCount;
-    case proto::CommandId::UpdateLineWithColor: return payloadSize == proto::updateLineWithColorPayloadByteCount;
+    case proto::CommandId::RemoveLine:           return payloadSize == proto::removeGeometryPayloadByteCount;
+    case proto::CommandId::AddLineWithColor:     return payloadSize == proto::addLineWithColorPayloadByteCount;
+    case proto::CommandId::UpdateLine:           return payloadSize == proto::updateLinePayloadByteCount;
+    case proto::CommandId::UpdateLineWithColor:  return payloadSize == proto::updateLineWithColorPayloadByteCount;
     case proto::CommandId::AddPointOpts:
     case proto::CommandId::AddPointsOpts:
     case proto::CommandId::UpdatePointOpts:
@@ -164,12 +164,12 @@ bool payload_size_matches(proto::CommandId commandId, std::size_t payloadSize) {
     case proto::CommandId::AddLineOpts:
     case proto::CommandId::AddLinesOpts:
     case proto::CommandId::UpdateLineOpts:
-    case proto::CommandId::UpdateLinesOpts: return payloadSize >= proto::uuidByteCount + sizeof(std::uint64_t);
-    case proto::CommandId::RemoveMesh: return payloadSize == proto::uuidByteCount;
-    case proto::CommandId::SetMeshOverlayOpts: return payloadSize == proto::setMeshOverlayOptsPayloadByteCount;
+    case proto::CommandId::UpdateLinesOpts:      return payloadSize >= proto::uuidByteCount + sizeof(std::uint64_t);
+    case proto::CommandId::RemoveMesh:           return payloadSize == proto::uuidByteCount;
+    case proto::CommandId::SetMeshOverlayOpts:   return payloadSize == proto::setMeshOverlayOptsPayloadByteCount;
     case proto::CommandId::SetMeshRenderingOpts: return payloadSize == proto::setMeshRenderingOptsPayloadByteCount;
     case proto::CommandId::AddMeshOpts:
-    case proto::CommandId::UpdateMeshOpts: return payloadSize >= proto::uuidByteCount + sizeof(std::uint64_t);
+    case proto::CommandId::UpdateMeshOpts:       return payloadSize >= proto::uuidByteCount + sizeof(std::uint64_t);
 
     // Fixed-size log / replay commands
     case proto::CommandId::CancelReplay:
@@ -178,7 +178,7 @@ bool payload_size_matches(proto::CommandId commandId, std::size_t payloadSize) {
     case proto::CommandId::StepReplay:
     case proto::CommandId::StepReplayBackward:
     case proto::CommandId::GetReplayState:
-    case proto::CommandId::GetReplayProgress: return payloadSize == 0;
+    case proto::CommandId::GetReplayProgress:   return payloadSize == 0;
     case proto::CommandId::StepReplayN:
     case proto::CommandId::StepReplayBackwardN: return payloadSize == proto::stepReplayNPayloadByteCount;
 

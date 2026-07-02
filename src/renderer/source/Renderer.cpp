@@ -242,12 +242,12 @@ bool Renderer::remove_drawable(DrawableHandle handle) {
     }
 
     switch (handle.kind) {
-    case DrawableKind::point: return m_drawablesManager.remove_point_drawable(handle.id);
-    case DrawableKind::line: return m_drawablesManager.remove_line_drawable(handle.id);
-    case DrawableKind::mesh: return m_drawablesManager.remove_mesh_drawable(handle.id);
+    case DrawableKind::point:       return m_drawablesManager.remove_point_drawable(handle.id);
+    case DrawableKind::line:        return m_drawablesManager.remove_line_drawable(handle.id);
+    case DrawableKind::mesh:        return m_drawablesManager.remove_mesh_drawable(handle.id);
     case DrawableKind::meshSegment: return m_drawablesManager.remove_mesh_segment_drawable(handle.id);
-    case DrawableKind::meshVertex: return m_drawablesManager.remove_mesh_vertex_drawable(handle.id);
-    case DrawableKind::invalid: return false;
+    case DrawableKind::meshVertex:  return m_drawablesManager.remove_mesh_vertex_drawable(handle.id);
+    case DrawableKind::invalid:     return false;
     }
 
     return false;

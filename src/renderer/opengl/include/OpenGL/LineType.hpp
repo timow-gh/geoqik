@@ -50,13 +50,13 @@ class LineType {
     [[nodiscard]]
     static LineType from_gl_type(std::uint32_t gl_type) {
         switch (gl_type) {
-        case GL_LINES: return lines();
-        case GL_LINE_STRIP: return line_strip();
-        case GL_LINE_LOOP: return line_loop();
-        case GL_TRIANGLES: return triangles();
+        case GL_LINES:          return lines();
+        case GL_LINE_STRIP:     return line_strip();
+        case GL_LINE_LOOP:      return line_loop();
+        case GL_TRIANGLES:      return triangles();
         case GL_TRIANGLE_STRIP: return triangle_strip();
-        case GL_TRIANGLE_FAN: return triangle_fan();
-        default: throw std::invalid_argument("Unknown OpenGL line type");
+        case GL_TRIANGLE_FAN:   return triangle_fan();
+        default:                throw std::invalid_argument("Unknown OpenGL line type");
         }
     }
 

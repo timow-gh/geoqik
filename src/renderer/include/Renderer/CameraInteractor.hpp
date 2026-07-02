@@ -163,7 +163,7 @@ class CameraInteractor : private CameraSettings {
     void set_zoom_factor(double zoomFactor) {
 
         switch (m_projectionType) {
-        case CameraProjectionType::PERSPECTIVE: m_zoomPerspFactor = zoomFactor; break;
+        case CameraProjectionType::PERSPECTIVE:  m_zoomPerspFactor = zoomFactor; break;
         case CameraProjectionType::ORTHOGRAPHIC: m_zoomOrthoFactor = zoomFactor; break;
         }
         update_mvp();
@@ -380,9 +380,9 @@ class CameraInteractor : private CameraSettings {
     [[nodiscard]]
     PickRay get_pick_ray(double xpos, double ypos) const {
         switch (m_projectionType) {
-        case CameraProjectionType::PERSPECTIVE: return m_camera.create_perspective_ray(xpos, ypos);
+        case CameraProjectionType::PERSPECTIVE:  return m_camera.create_perspective_ray(xpos, ypos);
         case CameraProjectionType::ORTHOGRAPHIC: return m_camera.create_orthographic_ray(xpos, ypos);
-        default: {
+        default:                                 {
             RENDERER_ASSERT(false);
             return {};
         }
@@ -431,9 +431,9 @@ class CameraInteractor : private CameraSettings {
     [[nodiscard]]
     linal::hmatf get_projection_matrix_impl() const {
         switch (m_projectionType) {
-        case CameraProjectionType::PERSPECTIVE: return to_hmatf(m_camera.get_perspective_matrix());
+        case CameraProjectionType::PERSPECTIVE:  return to_hmatf(m_camera.get_perspective_matrix());
         case CameraProjectionType::ORTHOGRAPHIC: return to_hmatf(m_camera.get_ortho_projection_matrix());
-        default: {
+        default:                                 {
             RENDERER_ASSERT(false);
             return {};
         }
@@ -443,9 +443,9 @@ class CameraInteractor : private CameraSettings {
     void update_mvp() {
 
         switch (m_projectionType) {
-        case CameraProjectionType::PERSPECTIVE: m_currentMVP = m_camera.get_proj_mvp(); break;
+        case CameraProjectionType::PERSPECTIVE:  m_currentMVP = m_camera.get_proj_mvp(); break;
         case CameraProjectionType::ORTHOGRAPHIC: m_currentMVP = m_camera.get_ortho_mvp(); break;
-        default: {
+        default:                                 {
             RENDERER_ASSERT(false);
             return;
         }

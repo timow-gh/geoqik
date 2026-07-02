@@ -241,9 +241,9 @@ void GeoQikSceneRenderer::create_surface_bundle(const core::UUID& uuid, const Me
             opengl::MeshCullFaceMode cullFaceMode = opengl::MeshCullFaceMode::back;
             switch (renderOpts.cullMode) {
             case MeshCullMode::front: cullFaceMode = opengl::MeshCullFaceMode::front; break;
-            case MeshCullMode::none: cullFaceMode = opengl::MeshCullFaceMode::none; break;
+            case MeshCullMode::none:  cullFaceMode = opengl::MeshCullFaceMode::none; break;
             case MeshCullMode::back:
-            default: cullFaceMode = opengl::MeshCullFaceMode::back; break;
+            default:                  cullFaceMode = opengl::MeshCullFaceMode::back; break;
             }
             m_renderer.set_mesh_drawable_cull_mode(bundle.surface, cullFaceMode);
         }

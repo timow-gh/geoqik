@@ -88,16 +88,16 @@ std::string key_label(Key key) {
     }
 
     switch (key) {
-    case Key::KEY_SPACE: return "Space";
-    case Key::KEY_LEFT: return "Left";
-    case Key::KEY_RIGHT: return "Right";
-    case Key::KEY_UP: return "Up";
-    case Key::KEY_DOWN: return "Down";
-    case Key::KEY_PAGE_UP: return "Page Up";
+    case Key::KEY_SPACE:     return "Space";
+    case Key::KEY_LEFT:      return "Left";
+    case Key::KEY_RIGHT:     return "Right";
+    case Key::KEY_UP:        return "Up";
+    case Key::KEY_DOWN:      return "Down";
+    case Key::KEY_PAGE_UP:   return "Page Up";
     case Key::KEY_PAGE_DOWN: return "Page Down";
-    case Key::KEY_HOME: return "Home";
-    case Key::KEY_END: return "End";
-    default: return "Key " + std::to_string(value);
+    case Key::KEY_HOME:      return "Home";
+    case Key::KEY_END:       return "End";
+    default:                 return "Key " + std::to_string(value);
     }
 }
 
