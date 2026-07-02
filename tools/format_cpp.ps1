@@ -25,6 +25,18 @@ $extensions = [System.Collections.Generic.HashSet[string]]::new([System.StringCo
     [void]$extensions.Add($_)
 }
 
+function Test-IsCMakeFile {
+    param([string]$Path)
+
+    $fileName = [System.IO.Path]::GetFileName($Path)
+    $extension = [System.IO.Path]::GetExtension($Path)
+
+    return $fileName -ieq "CMakeLists.txt" -or
+        $extension -ieq ".cmake" -or
+        $extension -ieq ".in" -or
+        $fileName.EndsWith(".cmake.in", [System.StringComparison]::OrdinalIgnoreCase)
+}
+
 $candidateFiles = git ls-files -- "src/**/*" "test/**/*"
 if ($LASTEXITCODE -ne 0) {
     throw "Failed to enumerate tracked files under src and test."
@@ -32,7 +44,7 @@ if ($LASTEXITCODE -ne 0) {
 
 $files = @(
     $candidateFiles | Where-Object {
-        $extensions.Contains([System.IO.Path]::GetExtension($_))
+        -not (Test-IsCMakeFile $_) -and $extensions.Contains([System.IO.Path]::GetExtension($_))
     }
 )
 
