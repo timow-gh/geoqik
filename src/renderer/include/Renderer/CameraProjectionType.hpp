@@ -1,13 +1,11 @@
 #ifndef RENDERER_CAMERAPROJECTIONTYPE_HPP
 #define RENDERER_CAMERAPROJECTIONTYPE_HPP
 
-namespace renderer
-{
+namespace renderer {
 
-enum class CameraProjectionType
-{
-  PERSPECTIVE = 0,
-  ORTHOGRAPHIC
+enum class CameraProjectionType {
+    PERSPECTIVE = 0,
+    ORTHOGRAPHIC
 };
 
 } // namespace renderer

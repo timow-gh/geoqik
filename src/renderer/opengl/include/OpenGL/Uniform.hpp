@@ -8,21 +8,26 @@
 #include <Renderer/DLLWarnings.hpp>
 #include <string_view>
 
-namespace opengl
-{
+namespace opengl {
 
 RENDERER_SUPPRESS_STL_DLL_WARNINGS_BEGIN
 
 class OPENGL_EXPORT Uniform {
-  std::string_view m_name;
-  Location m_location{};
+    std::string_view m_name;
+    Location m_location{};
 
-public:
-  constexpr Uniform() noexcept = default;
-  explicit Uniform(std::string_view name, Location location) noexcept;
+  public:
+    constexpr Uniform() noexcept = default;
+    explicit Uniform(std::string_view name, Location location) noexcept;
 
-  [[nodiscard]] constexpr Location get_location() const noexcept { return m_location; }
-  [[nodiscard]] constexpr std::string_view get_name() const noexcept { return m_name; }
+    [[nodiscard]]
+    constexpr Location get_location() const noexcept {
+        return m_location;
+    }
+    [[nodiscard]]
+    constexpr std::string_view get_name() const noexcept {
+        return m_name;
+    }
 };
 
 RENDERER_SUPPRESS_STL_DLL_WARNINGS_END

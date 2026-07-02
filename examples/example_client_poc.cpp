@@ -15,9 +15,12 @@
 #include <iostream>
 #include <thread>
 
-namespace {
+namespace
+{
 
-void print_last_client_error(const char* operation, geoqik_error_code_t err) {
+void
+print_last_client_error(const char* operation, geoqik_error_code_t err)
+{
     std::cerr << operation << " failed with API code " << static_cast<int>(err) << '\n';
 
     geoqik_client_error_info_t info{};
@@ -46,7 +49,9 @@ void print_last_client_error(const char* operation, geoqik_error_code_t err) {
     }
 }
 
-bool check_success(geoqik_error_code_t err, const char* operation) {
+bool
+check_success(geoqik_error_code_t err, const char* operation)
+{
     if (err == GEOQIK_SUCCESS) {
         return true;
     }
@@ -57,7 +62,9 @@ bool check_success(geoqik_error_code_t err, const char* operation) {
 
 } // namespace
 
-int main() {
+int
+main()
+{
     auto err = geoqik_init();
     if (!check_success(err, "geoqik_init")) {
         return EXIT_FAILURE;
@@ -85,23 +92,25 @@ int main() {
                 const double y = std::sin(angle);
                 const double z = static_cast<double>(stepIndex) * 0.008;
 
-                [[maybe_unused]] const auto pointResult = geoqik_add_point(x, y, z);
+                [[maybe_unused]]
+                const auto pointResult = geoqik_add_point(x, y, z);
                 assert(pointResult.err == GEOQIK_SUCCESS);
 
-                [[maybe_unused]] const auto lineResult = geoqik_add_line(offset, 0.0, z * 0.35, x, y, z);
+                [[maybe_unused]]
+                const auto lineResult = geoqik_add_line(offset, 0.0, z * 0.35, x, y, z);
                 assert(lineResult == GEOQIK_SUCCESS);
             }
         });
     }
 
-    for (auto& thread : threads) {
+    for (auto& thread: threads) {
         if (thread.joinable()) {
             thread.join();
         }
     }
 
-    std::cout << "PoC complete: " << threadCount * stepsPerThread * 2
-              << " points and lines added from " << threadCount << " threads.\n";
+    std::cout << "PoC complete: " << threadCount * stepsPerThread * 2 << " points and lines added from " << threadCount
+              << " threads.\n";
 
     err = geoqik_wait_for_exit_and_cleanup();
     if (!check_success(err, "geoqik_wait_for_exit_and_cleanup")) {

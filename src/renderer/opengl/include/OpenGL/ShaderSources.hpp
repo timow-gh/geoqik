@@ -4,8 +4,7 @@
 #include <filesystem>
 #include <string>
 
-namespace opengl
-{
+namespace opengl {
 
 std::string line_vertex_shader_source();
 std::string line_fragment_shader_source();

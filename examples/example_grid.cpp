@@ -11,18 +11,19 @@ constexpr double gridSpacing = 10.0;
 
 } // namespace
 
-int main()
+int
+main()
 {
-  geoqik_init();
+    geoqik_init();
 
-  geoqik_set_point_size(pointSize);
-  geoqik_set_line_width(lineWidth);
+    geoqik_set_point_size(pointSize);
+    geoqik_set_line_width(lineWidth);
 
-  geoqik_draw();
+    geoqik_draw();
 
-  geoqik::examples::add_grid(gridSize, gridSpacing);
+    geoqik::examples::add_grid(gridSize, gridSpacing);
 
-  geoqik_wait_for_exit_and_cleanup();
+    geoqik_wait_for_exit_and_cleanup();
 
-  return 0;
+    return 0;
 }

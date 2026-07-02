@@ -1,16 +1,16 @@
 #include <GeoQikClient/GeoQikClient.hpp>
-#include <gtest/gtest.h>
 #include <chrono>
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
+#include <gtest/gtest.h>
 #include <string>
 #include <thread>
 
 // GEOQIK_SERVER_EXE_PATH is injected at compile time by CMakeLists.txt.
 // It is the absolute path to the geoqik_server executable in the build tree.
 #ifndef GEOQIK_SERVER_EXE_PATH
-#  error "GEOQIK_SERVER_EXE_PATH must be defined by the build system"
+#error "GEOQIK_SERVER_EXE_PATH must be defined by the build system"
 #endif
 
 namespace {
@@ -23,9 +23,8 @@ void set_server_path() {
 #endif
 }
 
-::testing::AssertionResult wait_for_replay_state(
-    const geoqik_replay_state_t expected,
-    const std::chrono::milliseconds timeout = std::chrono::seconds(1)) {
+::testing::AssertionResult wait_for_replay_state(const geoqik_replay_state_t expected,
+                                                 const std::chrono::milliseconds timeout = std::chrono::seconds(1)) {
     const auto deadline = std::chrono::steady_clock::now() + timeout;
     geoqik_replay_state_t state = GEOQIK_REPLAY_INACTIVE;
     geoqik_error_code_t err = GEOQIK_SUCCESS;
@@ -38,22 +37,20 @@ void set_server_path() {
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
     } while (std::chrono::steady_clock::now() < deadline);
 
-    return ::testing::AssertionFailure()
-        << "Expected replay state " << static_cast<int>(expected)
-        << ", last state was " << static_cast<int>(state)
-        << ", last error was " << static_cast<int>(err);
+    return ::testing::AssertionFailure() << "Expected replay state " << static_cast<int>(expected)
+                                         << ", last state was " << static_cast<int>(state) << ", last error was "
+                                         << static_cast<int>(err);
 }
 
 } // namespace
 
 class GeoQikClientTest : public ::testing::Test {
-protected:
-    void SetUp() override {
-        set_server_path();
-    }
+  protected:
+    void SetUp() override { set_server_path(); }
     void TearDown() override {
-        // Best-effort cleanup — the server may already have exited.
-        [[maybe_unused]] auto res = geoqik_cleanup();
+        // Best-effort cleanup ΓÇö the server may already have exited.
+        [[maybe_unused]]
+        auto res = geoqik_cleanup();
         geoqik_client_clear_last_error();
     }
 };
@@ -89,16 +86,18 @@ TEST_F(GeoQikClientTest, AddPointReturnsSuccessAndUuid) {
 
     // UUID must be non-zero.
     bool allZero = true;
-    for (const auto byte : result.geometryId.value) {
-        if (byte != 0) { allZero = false; break; }
+    for (const auto byte: result.geometryId.value) {
+        if (byte != 0) {
+            allZero = false;
+            break;
+        }
     }
     EXPECT_FALSE(allZero) << "Expected a non-zero UUID from geoqik_add_point";
 }
 
 TEST_F(GeoQikClientTest, AddLineReturnsSuccess) {
     ASSERT_EQ(GEOQIK_SUCCESS, geoqik_init());
-    EXPECT_EQ(GEOQIK_SUCCESS,
-        geoqik_add_line(0.0, 0.0, 0.0, 1.0, 1.0, 1.0));
+    EXPECT_EQ(GEOQIK_SUCCESS, geoqik_add_line(0.0, 0.0, 0.0, 1.0, 1.0, 1.0));
 }
 
 TEST_F(GeoQikClientTest, DrawReturnsSuccess) {
@@ -112,7 +111,7 @@ TEST_F(GeoQikClientTest, DrawReturnsSuccess) {
 TEST_F(GeoQikClientTest, DISABLED_WaitForExitAndCleanupExitsServer) {
     ASSERT_EQ(GEOQIK_SUCCESS, geoqik_init());
     EXPECT_EQ(GEOQIK_SUCCESS, geoqik_wait_for_exit_and_cleanup());
-    // TearDown calls geoqik_cleanup() — should not crash even though server has exited.
+    // TearDown calls geoqik_cleanup() ΓÇö should not crash even though server has exited.
 }
 
 TEST_F(GeoQikClientTest, DoubleInitIsIdempotent) {
@@ -124,8 +123,7 @@ TEST_F(GeoQikClientTest, DoubleInitIsIdempotent) {
 }
 
 TEST_F(GeoQikClientTest, SaveLogCreatesFile) {
-    const std::filesystem::path path =
-        std::filesystem::temp_directory_path() / "geoqik_client_test_save.gqklog";
+    const std::filesystem::path path = std::filesystem::temp_directory_path() / "geoqik_client_test_save.gqklog";
     std::filesystem::remove(path);
 
     ASSERT_EQ(GEOQIK_SUCCESS, geoqik_init());
@@ -139,8 +137,7 @@ TEST_F(GeoQikClientTest, SaveLogCreatesFile) {
 }
 
 TEST_F(GeoQikClientTest, LoadLogRoundTrip) {
-    const std::filesystem::path path =
-        std::filesystem::temp_directory_path() / "geoqik_client_test_load.gqklog";
+    const std::filesystem::path path = std::filesystem::temp_directory_path() / "geoqik_client_test_load.gqklog";
     std::filesystem::remove(path);
 
     ASSERT_EQ(GEOQIK_SUCCESS, geoqik_init());
@@ -185,8 +182,7 @@ TEST_F(GeoQikClientTest, ReplayCurrentLogAndCancelViaIpc) {
 }
 
 TEST_F(GeoQikClientTest, ReplayLogFromFileViaIpc) {
-    const std::filesystem::path path =
-        std::filesystem::temp_directory_path() / "geoqik_client_test_replay.gqklog";
+    const std::filesystem::path path = std::filesystem::temp_directory_path() / "geoqik_client_test_replay.gqklog";
     std::filesystem::remove(path);
 
     ASSERT_EQ(GEOQIK_SUCCESS, geoqik_init());
@@ -195,8 +191,7 @@ TEST_F(GeoQikClientTest, ReplayLogFromFileViaIpc) {
 
     geoqik_replay_options_t opts{};
     opts.startPaused = 1;
-    EXPECT_EQ(GEOQIK_SUCCESS,
-        geoqik_replay_log(path.string().c_str(), GEOQIK_LOG_FORMAT_BINARY, &opts));
+    EXPECT_EQ(GEOQIK_SUCCESS, geoqik_replay_log(path.string().c_str(), GEOQIK_LOG_FORMAT_BINARY, &opts));
     EXPECT_TRUE(wait_for_replay_state(GEOQIK_REPLAY_PAUSED));
 
     EXPECT_EQ(GEOQIK_SUCCESS, geoqik_cancel_replay());
@@ -266,8 +261,7 @@ TEST_F(GeoQikClientTest, ReplayOptionsWithCustomKeysViaIpc) {
 
 TEST_F(GeoQikClientTest, SaveLogNullPathSetsClientError) {
     ASSERT_EQ(GEOQIK_SUCCESS, geoqik_init());
-    EXPECT_EQ(GEOQIK_ERROR_INVALID_PARAMETER,
-        geoqik_save_log(nullptr, GEOQIK_LOG_FORMAT_BINARY));
+    EXPECT_EQ(GEOQIK_ERROR_INVALID_PARAMETER, geoqik_save_log(nullptr, GEOQIK_LOG_FORMAT_BINARY));
 }
 
 TEST_F(GeoQikClientTest, ServerNotFoundSetsClientError) {
@@ -316,14 +310,17 @@ TEST_F(GeoQikClientTest, DISABLED_CallAfterServerExitReturnsIpcError) {
 TEST_F(GeoQikClientTest, AddMeshOptsMinimalReturnsSuccessAndUuid) {
     ASSERT_EQ(GEOQIK_SUCCESS, geoqik_init());
 
-    const float vertices[] = { 0.f,0.f,0.f, 1.f,0.f,0.f, 0.f,1.f,0.f };
-    const std::uint32_t indices[] = { 0, 1, 2 };
+    const float vertices[] = {0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 1.f, 0.f};
+    const std::uint32_t indices[] = {0, 1, 2};
     const auto result = geoqik_add_mesh_opts(vertices, 3, indices, 1, nullptr);
 
     EXPECT_EQ(GEOQIK_SUCCESS, result.err);
     bool allZero = true;
-    for (const auto byte : result.geometryId.value) {
-        if (byte != 0) { allZero = false; break; }
+    for (const auto byte: result.geometryId.value) {
+        if (byte != 0) {
+            allZero = false;
+            break;
+        }
     }
     EXPECT_FALSE(allZero) << "Expected a non-zero UUID from geoqik_add_mesh_opts";
 }
@@ -331,12 +328,12 @@ TEST_F(GeoQikClientTest, AddMeshOptsMinimalReturnsSuccessAndUuid) {
 TEST_F(GeoQikClientTest, AddMeshOptsWithColorReturnsSuccess) {
     ASSERT_EQ(GEOQIK_SUCCESS, geoqik_init());
 
-    const float vertices[] = { 0.f,0.f,0.f, 1.f,0.f,0.f, 0.f,1.f,0.f };
-    const std::uint32_t indices[] = { 0, 1, 2 };
-    const float color[] = { 0.5f, 0.2f, 0.8f, 1.0f };
+    const float vertices[] = {0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 1.f, 0.f};
+    const std::uint32_t indices[] = {0, 1, 2};
+    const float color[] = {0.5f, 0.2f, 0.8f, 1.0f};
 
     geoqik_add_mesh_opts_t opts{};
-    opts.color      = color;
+    opts.color = color;
     opts.colorCount = 4;
 
     const auto result = geoqik_add_mesh_opts(vertices, 3, indices, 1, &opts);
@@ -346,17 +343,17 @@ TEST_F(GeoQikClientTest, AddMeshOptsWithColorReturnsSuccess) {
 TEST_F(GeoQikClientTest, AddMeshOptsWithSegmentOverlayReturnsSuccess) {
     ASSERT_EQ(GEOQIK_SUCCESS, geoqik_init());
 
-    const float vertices[] = { 0.f,0.f,0.f, 1.f,0.f,0.f, 0.f,1.f,0.f };
-    const std::uint32_t indices[] = { 0, 1, 2 };
-    const std::uint32_t segmentIndices[] = { 0, 1, 1, 2, 2, 0 };  // 3 edges
-    const float segColor[] = { 0.f, 1.f, 0.f, 1.f };
+    const float vertices[] = {0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 1.f, 0.f};
+    const std::uint32_t indices[] = {0, 1, 2};
+    const std::uint32_t segmentIndices[] = {0, 1, 1, 2, 2, 0}; // 3 edges
+    const float segColor[] = {0.f, 1.f, 0.f, 1.f};
 
     geoqik_add_mesh_opts_t opts{};
-    opts.segmentIndices    = segmentIndices;
+    opts.segmentIndices = segmentIndices;
     opts.segmentIndexCount = 6;
-    opts.segmentColor      = segColor;
-    opts.showSegments      = 1;
-    opts.segmentLineWidth  = 2.0f;
+    opts.segmentColor = segColor;
+    opts.showSegments = 1;
+    opts.segmentLineWidth = 2.0f;
 
     const auto result = geoqik_add_mesh_opts(vertices, 3, indices, 1, &opts);
     EXPECT_EQ(GEOQIK_SUCCESS, result.err);
@@ -365,8 +362,8 @@ TEST_F(GeoQikClientTest, AddMeshOptsWithSegmentOverlayReturnsSuccess) {
 TEST_F(GeoQikClientTest, RemoveMeshReturnsSuccess) {
     ASSERT_EQ(GEOQIK_SUCCESS, geoqik_init());
 
-    const float vertices[] = { 0.f,0.f,0.f, 1.f,0.f,0.f, 0.f,1.f,0.f };
-    const std::uint32_t indices[] = { 0, 1, 2 };
+    const float vertices[] = {0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 1.f, 0.f};
+    const std::uint32_t indices[] = {0, 1, 2};
     const auto addResult = geoqik_add_mesh_opts(vertices, 3, indices, 1, nullptr);
     ASSERT_EQ(GEOQIK_SUCCESS, addResult.err);
 
@@ -376,40 +373,37 @@ TEST_F(GeoQikClientTest, RemoveMeshReturnsSuccess) {
 TEST_F(GeoQikClientTest, UpdateMeshOptsReturnsSuccess) {
     ASSERT_EQ(GEOQIK_SUCCESS, geoqik_init());
 
-    const float vertices[] = { 0.f,0.f,0.f, 1.f,0.f,0.f, 0.f,1.f,0.f };
-    const std::uint32_t indices[] = { 0, 1, 2 };
+    const float vertices[] = {0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 1.f, 0.f};
+    const std::uint32_t indices[] = {0, 1, 2};
     const auto addResult = geoqik_add_mesh_opts(vertices, 3, indices, 1, nullptr);
     ASSERT_EQ(GEOQIK_SUCCESS, addResult.err);
 
-    const float updated[] = { 0.f,0.f,0.f, 2.f,0.f,0.f, 0.f,2.f,0.f };
-    EXPECT_EQ(GEOQIK_SUCCESS,
-        geoqik_update_mesh_opts(&addResult.geometryId, updated, 3, nullptr));
+    const float updated[] = {0.f, 0.f, 0.f, 2.f, 0.f, 0.f, 0.f, 2.f, 0.f};
+    EXPECT_EQ(GEOQIK_SUCCESS, geoqik_update_mesh_opts(&addResult.geometryId, updated, 3, nullptr));
 }
 
 TEST_F(GeoQikClientTest, SetMeshOverlayOptsReturnsSuccess) {
     ASSERT_EQ(GEOQIK_SUCCESS, geoqik_init());
 
-    const float vertices[] = { 0.f,0.f,0.f, 1.f,0.f,0.f, 0.f,1.f,0.f };
-    const std::uint32_t indices[] = { 0, 1, 2 };
+    const float vertices[] = {0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 1.f, 0.f};
+    const std::uint32_t indices[] = {0, 1, 2};
     const auto addResult = geoqik_add_mesh_opts(vertices, 3, indices, 1, nullptr);
     ASSERT_EQ(GEOQIK_SUCCESS, addResult.err);
 
-    geoqik_mesh_overlay_opts_t overlayOpts{ /*showSegments=*/1, /*showVertices=*/1 };
-    EXPECT_EQ(GEOQIK_SUCCESS,
-        geoqik_set_mesh_overlay_opts(&addResult.geometryId, &overlayOpts));
+    geoqik_mesh_overlay_opts_t overlayOpts{/*showSegments=*/1, /*showVertices=*/1};
+    EXPECT_EQ(GEOQIK_SUCCESS, geoqik_set_mesh_overlay_opts(&addResult.geometryId, &overlayOpts));
 }
 
 TEST_F(GeoQikClientTest, SetMeshRenderingOptsReturnsSuccess) {
     ASSERT_EQ(GEOQIK_SUCCESS, geoqik_init());
 
-    const float vertices[] = { 0.f,0.f,0.f, 1.f,0.f,0.f, 0.f,1.f,0.f };
-    const std::uint32_t indices[] = { 0, 1, 2 };
+    const float vertices[] = {0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 1.f, 0.f};
+    const std::uint32_t indices[] = {0, 1, 2};
     const auto addResult = geoqik_add_mesh_opts(vertices, 3, indices, 1, nullptr);
     ASSERT_EQ(GEOQIK_SUCCESS, addResult.err);
 
     geoqik_mesh_rendering_opts_t renderOpts{};
-    renderOpts.cullMode      = GEOQIK_MESH_CULL_NONE;
+    renderOpts.cullMode = GEOQIK_MESH_CULL_NONE;
     renderOpts.surfaceVisible = 1;
-    EXPECT_EQ(GEOQIK_SUCCESS,
-        geoqik_set_mesh_rendering_opts(&addResult.geometryId, &renderOpts));
+    EXPECT_EQ(GEOQIK_SUCCESS, geoqik_set_mesh_rendering_opts(&addResult.geometryId, &renderOpts));
 }

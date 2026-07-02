@@ -3,12 +3,11 @@
 
 #include <linal/linal.hpp>
 
-namespace renderer
-{
+namespace renderer {
 
 struct PickRay {
-  linal::double3 origin;
-  linal::double3 direction;
+    linal::double3 origin;
+    linal::double3 direction;
 };
 
 } // namespace renderer

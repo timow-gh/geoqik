@@ -3,7 +3,9 @@
 #include <cmath>
 #include <iostream>
 
-int main() {
+int
+main()
+{
     geoqik_settings_t settings{};
     geoqik_create_default_settings(&settings);
     assert(settings.defaultPointSize > 0.0f);
@@ -18,15 +20,17 @@ int main() {
     assert(geoqik_get_error_string(GEOQIK_ERROR_NOT_INITIALIZED) != nullptr);
 
     geoqik_uuid_t uuid{};
-    [[maybe_unused]] const auto uuidErr = geoqik_generate_uuid(&uuid);
+    [[maybe_unused]]
+    const auto uuidErr = geoqik_generate_uuid(&uuid);
     assert(uuidErr == GEOQIK_SUCCESS);
 
     settings.defaultPointSize = 8.0f;
-    windowSettings.width  = 800;
+    windowSettings.width = 800;
     windowSettings.height = 600;
-    windowSettings.title  = "GeoQik Settings Test";
+    windowSettings.title = "GeoQik Settings Test";
 
-    [[maybe_unused]] auto err = geoqik_init_with_settings(&settings, &windowSettings);
+    [[maybe_unused]]
+    auto err = geoqik_init_with_settings(&settings, &windowSettings);
     assert(err == GEOQIK_SUCCESS && "geoqik_init_with_settings failed; is GEOQIK_EXE_PATH set?");
 
     bool initialized = false;
@@ -68,23 +72,23 @@ int main() {
     err = geoqik_translate_geometry(&pr.geometryId, 0.5, 0.5, 0.0);
     assert(err == GEOQIK_SUCCESS);
 
-    err = geoqik_rotate_geometry(&pr.geometryId,
-        0.0, 0.0, 0.0,
-        0.0, 0.0, 1.0,
-        3.14159265358979323846 / 4.0);
+    err = geoqik_rotate_geometry(&pr.geometryId, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 3.14159265358979323846 / 4.0);
     assert(err == GEOQIK_SUCCESS);
 
     for (int i = 0; i < 20; ++i) {
-        [[maybe_unused]] const auto result = geoqik_add_point(static_cast<double>(i) * 0.1, 0.0, 0.0);
+        [[maybe_unused]]
+        const auto result = geoqik_add_point(static_cast<double>(i) * 0.1, 0.0, 0.0);
         assert(result.err == GEOQIK_SUCCESS);
     }
 
     err = geoqik_remove_all_geometry();
     assert(err == GEOQIK_SUCCESS);
 
-    [[maybe_unused]] const auto pointA = geoqik_add_point(0.0, 1.0, 0.0);
+    [[maybe_unused]]
+    const auto pointA = geoqik_add_point(0.0, 1.0, 0.0);
     assert(pointA.err == GEOQIK_SUCCESS);
-    [[maybe_unused]] const auto pointB = geoqik_add_point(1.0, 0.0, 0.0);
+    [[maybe_unused]]
+    const auto pointB = geoqik_add_point(1.0, 0.0, 0.0);
     assert(pointB.err == GEOQIK_SUCCESS);
 
     err = geoqik_wait_for_exit_and_cleanup();

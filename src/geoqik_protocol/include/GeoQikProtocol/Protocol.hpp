@@ -12,8 +12,7 @@
 #include <type_traits>
 #include <vector>
 
-namespace geoqik::protocol
-{
+namespace geoqik::protocol {
 
 inline constexpr std::size_t uuidByteCount = 16;
 inline constexpr std::size_t frameHeaderByteCount = 8;
@@ -27,8 +26,7 @@ inline constexpr std::size_t uuidPayloadByteCount = uuidByteCount;              
 inline constexpr std::size_t translatePayloadByteCount = uuidByteCount + 3 * sizeof(double); // 40
 inline constexpr std::size_t rotatePayloadByteCount = uuidByteCount + 7 * sizeof(double);    // 72
 
-enum class CommandId : std::uint32_t
-{ // NOLINT(performance-enum-size): wire protocol uses 32-bit command IDs.
+enum class CommandId : std::uint32_t { // NOLINT(performance-enum-size): wire protocol uses 32-bit command IDs.
     Draw = 1,
     AddPoint = 2,
     AddLine = 3,
@@ -90,23 +88,20 @@ enum class CommandId : std::uint32_t
     GetReplayProgress = 55,
 };
 
-struct FrameHeader
-{
+struct FrameHeader {
     std::uint32_t commandId{};
     std::uint32_t payloadBytes{};
 };
 static_assert(sizeof(FrameHeader) == frameHeaderByteCount);
 
-struct ResponseHeader
-{
+struct ResponseHeader {
     std::uint32_t errorCode{};
     std::uint32_t diagnosticBytes{};
     std::array<std::uint8_t, uuidByteCount> uuid{};
 };
 static_assert(sizeof(ResponseHeader) == responseHeaderByteCount);
 
-struct DiagnosticText
-{
+struct DiagnosticText {
     std::string operation;
     std::string what;
     std::string why;
@@ -114,8 +109,7 @@ struct DiagnosticText
     std::string details;
 };
 
-struct ResponseFrame
-{
+struct ResponseFrame {
     std::uint32_t errorCode{};
     std::array<std::uint8_t, uuidByteCount> uuid{};
     DiagnosticText diagnostic;
@@ -124,14 +118,12 @@ struct ResponseFrame
 // On Linux, a leading null byte places the socket in the kernel's abstract
 // namespace rather than the filesystem. This eliminates the TOCTOU race where a
 // local attacker could watch for the server's unlink(), then race to place a
-// symlink at /tmp/geoqik-<pid>.sock before bind() runs — potentially redirecting
+// symlink at /tmp/geoqik-<pid>.sock before bind() runs ΓÇö potentially redirecting
 // the bind to an arbitrary file or causing a denial-of-service. An abstract
 // socket has no filesystem entry to race against and vanishes when the server
 // exits.
 [[nodiscard]]
-inline std::string
-make_pipe_name(std::uint64_t pid)
-{
+inline std::string make_pipe_name(std::uint64_t pid) {
 #ifdef _WIN32
     return R"(\\.\pipe\geoqik-)" + std::to_string(pid);
 #else
@@ -140,9 +132,7 @@ make_pipe_name(std::uint64_t pid)
 }
 
 [[nodiscard]]
-inline std::string
-make_pipe_name_argument(std::uint64_t pid)
-{
+inline std::string make_pipe_name_argument(std::uint64_t pid) {
 #ifdef _WIN32
     return make_pipe_name(pid);
 #else
@@ -151,9 +141,7 @@ make_pipe_name_argument(std::uint64_t pid)
 }
 
 [[nodiscard]]
-inline std::string
-make_pipe_name_from_argument(const std::string& argument)
-{
+inline std::string make_pipe_name_from_argument(const std::string& argument) {
 #ifdef _WIN32
     return argument;
 #else
@@ -162,9 +150,7 @@ make_pipe_name_from_argument(const std::string& argument)
 }
 
 [[nodiscard]]
-inline std::uint32_t
-payload_byte_count(std::size_t payloadSize)
-{
+inline std::uint32_t payload_byte_count(std::size_t payloadSize) {
     constexpr auto maxPayloadSize = static_cast<std::size_t>(std::numeric_limits<std::uint32_t>::max());
     if (payloadSize > maxPayloadSize) {
         throw std::length_error("geoqik protocol payload is too large");
@@ -175,9 +161,7 @@ payload_byte_count(std::size_t payloadSize)
 
 // Append sizeof(T) bytes of val into buf.
 template <typename T>
-void
-write_pod(std::vector<std::uint8_t>& buf, const T& val)
-{
+void write_pod(std::vector<std::uint8_t>& buf, const T& val) {
     static_assert(std::is_trivially_copyable_v<T>);
     const auto bytes = std::bit_cast<std::array<std::uint8_t, sizeof(T)>>(val);
     buf.insert(buf.end(), bytes.begin(), bytes.end());
@@ -186,9 +170,7 @@ write_pod(std::vector<std::uint8_t>& buf, const T& val)
 // Read sizeof(T) bytes from data into a T value.
 template <typename T>
 [[nodiscard]]
-T
-read_pod(const std::vector<std::uint8_t>& data, std::size_t offset)
-{
+T read_pod(const std::vector<std::uint8_t>& data, std::size_t offset) {
     static_assert(std::is_trivially_copyable_v<T>);
     if ((offset > data.size()) || (data.size() - offset < sizeof(T))) {
         throw std::out_of_range("geoqik protocol payload is too small");
@@ -199,17 +181,13 @@ read_pod(const std::vector<std::uint8_t>& data, std::size_t offset)
     return val;
 }
 
-inline void
-write_string(std::vector<std::uint8_t>& buf, const std::string& value)
-{
+inline void write_string(std::vector<std::uint8_t>& buf, const std::string& value) {
     write_pod(buf, payload_byte_count(value.size()));
     buf.insert(buf.end(), value.begin(), value.end());
 }
 
 [[nodiscard]]
-inline std::string
-read_string(const std::vector<std::uint8_t>& data, std::size_t& offset)
-{
+inline std::string read_string(const std::vector<std::uint8_t>& data, std::size_t& offset) {
     const std::uint32_t size = read_pod<std::uint32_t>(data, offset);
     offset += sizeof(std::uint32_t);
     if ((offset > data.size()) || (data.size() - offset < size)) {
@@ -222,9 +200,7 @@ read_string(const std::vector<std::uint8_t>& data, std::size_t& offset)
 }
 
 [[nodiscard]]
-inline std::vector<std::uint8_t>
-encode_diagnostic(const DiagnosticText& diagnostic)
-{
+inline std::vector<std::uint8_t> encode_diagnostic(const DiagnosticText& diagnostic) {
     std::vector<std::uint8_t> payload;
     write_string(payload, diagnostic.operation);
     write_string(payload, diagnostic.what);
@@ -235,9 +211,7 @@ encode_diagnostic(const DiagnosticText& diagnostic)
 }
 
 [[nodiscard]]
-inline DiagnosticText
-decode_diagnostic(const std::vector<std::uint8_t>& payload)
-{
+inline DiagnosticText decode_diagnostic(const std::vector<std::uint8_t>& payload) {
     DiagnosticText diagnostic;
     if (payload.empty()) {
         return diagnostic;
@@ -257,9 +231,7 @@ decode_diagnostic(const std::vector<std::uint8_t>& payload)
 
 template <typename T>
 [[nodiscard]]
-std::array<std::uint8_t, uuidByteCount>
-pack_return_value(const T& val)
-{
+std::array<std::uint8_t, uuidByteCount> pack_return_value(const T& val) {
     static_assert(std::is_trivially_copyable_v<T>);
     static_assert(sizeof(T) <= uuidByteCount);
     std::array<std::uint8_t, uuidByteCount> out{};
@@ -268,9 +240,7 @@ pack_return_value(const T& val)
 }
 
 [[nodiscard]]
-inline std::array<std::uint8_t, uuidByteCount>
-pack_color_return(float r, float g, float b, float a)
-{
+inline std::array<std::uint8_t, uuidByteCount> pack_color_return(float r, float g, float b, float a) {
     std::array<float, 4> rgba{r, g, b, a};
     return pack_return_value(rgba);
 }
@@ -299,15 +269,11 @@ inline constexpr std::size_t replayOptionsMinByteCount = 2 * sizeof(double) + si
                                                          6 * sizeof(std::uint32_t);
 static_assert(replayOptionsMinByteCount == 60, "replayOptionsMinByteCount must match the wire-format byte count");
 
-inline void
-write_idempotency_key(std::vector<std::uint8_t>& buf, const std::array<std::uint8_t, uuidByteCount>& key)
-{
+inline void write_idempotency_key(std::vector<std::uint8_t>& buf, const std::array<std::uint8_t, uuidByteCount>& key) {
     buf.insert(buf.end(), key.begin(), key.end());
 }
 
-inline void
-write_optional_colors(std::vector<std::uint8_t>& buf, const float* colorData, std::uint32_t colorCount)
-{
+inline void write_optional_colors(std::vector<std::uint8_t>& buf, const float* colorData, std::uint32_t colorCount) {
     write_pod(buf, colorCount);
     if (colorData != nullptr && colorCount > 0) {
         const auto* bytes = reinterpret_cast<const std::uint8_t*>(colorData);
@@ -316,9 +282,7 @@ write_optional_colors(std::vector<std::uint8_t>& buf, const float* colorData, st
 }
 
 [[nodiscard]]
-inline std::vector<float>
-read_optional_colors(const std::vector<std::uint8_t>& payload, std::size_t& offset)
-{
+inline std::vector<float> read_optional_colors(const std::vector<std::uint8_t>& payload, std::size_t& offset) {
     const auto colorCount = read_pod<std::uint32_t>(payload, offset);
     offset += sizeof(std::uint32_t);
     if (colorCount == 0) {
@@ -334,9 +298,7 @@ read_optional_colors(const std::vector<std::uint8_t>& payload, std::size_t& offs
     return colors;
 }
 
-inline void
-write_optional_single_color(std::vector<std::uint8_t>& buf, const float* colorPtr, bool hasColor)
-{
+inline void write_optional_single_color(std::vector<std::uint8_t>& buf, const float* colorPtr, bool hasColor) {
     constexpr float kZero[4] = {0.0f, 0.0f, 0.0f, 0.0f};
     const float* src = (hasColor && colorPtr != nullptr) ? colorPtr : kZero;
     write_pod(buf, src[0]);
@@ -345,9 +307,7 @@ write_optional_single_color(std::vector<std::uint8_t>& buf, const float* colorPt
     write_pod(buf, src[3]);
 }
 
-inline void
-write_optional_float_array(std::vector<std::uint8_t>& buf, const float* data, std::uint32_t count)
-{
+inline void write_optional_float_array(std::vector<std::uint8_t>& buf, const float* data, std::uint32_t count) {
     write_pod(buf, count);
     if (data != nullptr && count > 0) {
         const auto* bytes = reinterpret_cast<const std::uint8_t*>(data);
@@ -356,8 +316,7 @@ write_optional_float_array(std::vector<std::uint8_t>& buf, const float* data, st
 }
 
 inline void
-write_optional_uint32_array(std::vector<std::uint8_t>& buf, const std::uint32_t* data, std::uint32_t count)
-{
+write_optional_uint32_array(std::vector<std::uint8_t>& buf, const std::uint32_t* data, std::uint32_t count) {
     write_pod(buf, count);
     if (data != nullptr && count > 0) {
         const auto* bytes = reinterpret_cast<const std::uint8_t*>(data);
@@ -367,9 +326,7 @@ write_optional_uint32_array(std::vector<std::uint8_t>& buf, const std::uint32_t*
 
 template <typename T>
 [[nodiscard]]
-T
-unpack_return_value(const std::array<std::uint8_t, uuidByteCount>& uuid)
-{
+T unpack_return_value(const std::array<std::uint8_t, uuidByteCount>& uuid) {
     static_assert(std::is_trivially_copyable_v<T>);
     static_assert(sizeof(T) <= uuidByteCount);
     T val{};

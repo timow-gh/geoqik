@@ -1,8 +1,8 @@
 #ifndef CORE_ASSERT_HPP
 #define CORE_ASSERT_HPP
 
-#include <Core/Compiler.hpp>
 #include "Core/core_export.h"
+#include <Core/Compiler.hpp>
 
 // Check if we're on windows and have access to __debugbreak().
 #if !defined(CORE_DEBUGBREAK)
@@ -39,8 +39,7 @@
 #define CORE_ASSERT_TRAP() ::std::abort()
 #endif
 
-namespace core
-{
+namespace core {
 
 CORE_EXPORT void assertion(const char* fileName, int line, const char* funcName, const char* message);
 
@@ -49,16 +48,13 @@ CORE_EXPORT void assertion(const char* fileName, int line, const char* funcName,
 #if defined(NDEBUG) && NDEBUG
 #define CORE_ASSERT(...)
 #else
-#define CORE_ASSERT(...)                                                                                                                   \
-  do                                                                                                                                       \
-  {                                                                                                                                        \
-    if (CORE_UNLIKELY(!(__VA_ARGS__)))                                                                                                     \
-    {                                                                                                                                      \
-      ::core::assertion(__FILE__, __LINE__, __func__, #__VA_ARGS__);                                                                       \
-      CORE_ASSERT_TRAP();                                                                                                                  \
-    }                                                                                                                                      \
-  }                                                                                                                                        \
-  while (false)
+#define CORE_ASSERT(...)                                                                                               \
+    do {                                                                                                               \
+        if (CORE_UNLIKELY(!(__VA_ARGS__))) {                                                                           \
+            ::core::assertion(__FILE__, __LINE__, __func__, #__VA_ARGS__);                                             \
+            CORE_ASSERT_TRAP();                                                                                        \
+        }                                                                                                              \
+    } while (false)
 #endif
 
 #endif // CORE_ASSERT_HPP
