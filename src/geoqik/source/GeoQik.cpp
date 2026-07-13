@@ -4,7 +4,6 @@
 #include "Core/UUID.hpp"
 #include "GeoQikMessages.hpp"
 #include "GeoQikSettings.hpp"
-#include <plinth/WindowSettings.hpp>
 #include <array>
 #include <atomic>
 #include <cmath>
@@ -12,6 +11,7 @@
 #include <initializer_list>
 #include <iostream>
 #include <memory>
+#include <plinth/WindowSettings.hpp>
 #include <string>
 #include <system_error>
 #include <thread>

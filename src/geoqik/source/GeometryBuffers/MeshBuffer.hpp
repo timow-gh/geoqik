@@ -7,10 +7,10 @@
 #include "GeoQikSettings.hpp"
 #include "GeometryBuffers/GeometryBufferConcept.hpp"
 #include "linal/linal.hpp"
-#include <plinth/Color.hpp>
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <plinth/Color.hpp>
 #include <span>
 #include <stdexcept>
 #include <unordered_map>

@@ -3,8 +3,8 @@
 
 #include "Core/UUID.hpp"
 #include "GeometryBuffers/MeshBuffer.hpp"
-#include <plinth/Color.hpp>
 #include <functional>
+#include <plinth/Color.hpp>
 #include <variant>
 #include <vector>
 

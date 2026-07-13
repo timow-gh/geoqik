@@ -3,14 +3,14 @@
 #include "GeoQikMessages.hpp"
 #include <Core/Assert.hpp>
 #include <OpenGL/FrameState.hpp>
-#include <plinth/CameraAutoFit.hpp>
-#include <plinth/Renderer.hpp>
-#include <plinth/Warnings.hpp>
 #include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstdint>
 #include <filesystem>
+#include <plinth/CameraAutoFit.hpp>
+#include <plinth/Renderer.hpp>
+#include <plinth/Warnings.hpp>
 #include <string>
 #include <system_error>
 #include <type_traits>
