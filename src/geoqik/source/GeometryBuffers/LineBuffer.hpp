@@ -57,9 +57,9 @@ class LineBuffer {
     static constexpr std::int32_t m_colorDimension = static_cast<std::int32_t>(ColorChannelCount); // r, g, b, a
 
     Color m_currentLineColor{1.0f, 1.0f, 1.0f, 1.0f};
-    Buffer<float> m_lines;
-    Buffer<float> m_lineColors;
-    Buffer<std::uint32_t> m_lineIndices;
+    opengl::Buffer<float> m_lines;
+    opengl::Buffer<float> m_lineColors;
+    opengl::Buffer<std::uint32_t> m_lineIndices;
 
     bool m_linesHaveChanged{false};
 
@@ -84,11 +84,11 @@ class LineBuffer {
         newBuffer->m_currentLineColor = other.m_currentLineColor;
 
         if (!other.m_lines.is_empty()) {
-            newBuffer->m_lines = Buffer<float>::create_from(other.m_lines, other.m_lines.capacity() * growthFactor);
+            newBuffer->m_lines = opengl::Buffer<float>::create_from(other.m_lines, other.m_lines.capacity() * growthFactor);
             newBuffer->m_lineColors =
-                Buffer<float>::create_from(other.m_lineColors, other.m_lineColors.capacity() * growthFactor);
+                opengl::Buffer<float>::create_from(other.m_lineColors, other.m_lineColors.capacity() * growthFactor);
             newBuffer->m_lineIndices =
-                Buffer<std::uint32_t>::create_from(other.m_lineIndices, other.m_lineIndices.capacity() * growthFactor);
+                opengl::Buffer<std::uint32_t>::create_from(other.m_lineIndices, other.m_lineIndices.capacity() * growthFactor);
             newBuffer->m_handleToLineIndexMapping = std::move(other.m_handleToLineIndexMapping);
             newBuffer->m_handleToLinesIndexMapping = std::move(other.m_handleToLinesIndexMapping);
             newBuffer->m_linesHaveChanged = true;
@@ -190,9 +190,9 @@ class LineBuffer {
 
     void restore_snapshot(const LineBufferSnapshot& snapshot) {
         m_currentLineColor = snapshot.currentLineColor;
-        m_lines = Buffer<float>(std::max(snapshot.lineCapacity, snapshot.lines.size()));
-        m_lineColors = Buffer<float>(std::max(snapshot.lineColorCapacity, snapshot.lineColors.size()));
-        m_lineIndices = Buffer<std::uint32_t>(std::max(snapshot.lineIndexCapacity, snapshot.lineIndices.size()));
+        m_lines = opengl::Buffer<float>(std::max(snapshot.lineCapacity, snapshot.lines.size()));
+        m_lineColors = opengl::Buffer<float>(std::max(snapshot.lineColorCapacity, snapshot.lineColors.size()));
+        m_lineIndices = opengl::Buffer<std::uint32_t>(std::max(snapshot.lineIndexCapacity, snapshot.lineIndices.size()));
 
         for (float line: snapshot.lines) {
             m_lines.push_back(line);

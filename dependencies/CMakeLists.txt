@@ -6,4 +6,5 @@ endif ()
 
 add_subdirectory(fmt)
 add_subdirectory(linal)
+add_subdirectory(plinth)
 add_subdirectory(nlohmann_json)

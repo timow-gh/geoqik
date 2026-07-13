@@ -3,9 +3,9 @@
 #include "GeoQikMessages.hpp"
 #include <Core/Assert.hpp>
 #include <OpenGL/FrameState.hpp>
-#include <Renderer/CameraAutoFit.hpp>
-#include <Renderer/Renderer.hpp>
-#include <Renderer/Warnings.hpp>
+#include <plinth/CameraAutoFit.hpp>
+#include <plinth/Renderer.hpp>
+#include <plinth/Warnings.hpp>
 #include <algorithm>
 #include <array>
 #include <cmath>

@@ -11,9 +11,9 @@
 #include "Rendering/GeoQikSceneRenderer.hpp"
 #include "Scene.hpp"
 #include <Core/UUID.hpp>
-#include <Renderer/Camera.hpp>
-#include <Renderer/CameraInteractor.hpp>
-#include <Renderer/WindowSettings.hpp>
+#include <plinth/Camera.hpp>
+#include <plinth/CameraInteractor.hpp>
+#include <plinth/WindowSettings.hpp>
 #include <atomic>
 #include <cassert>
 #include <chrono>

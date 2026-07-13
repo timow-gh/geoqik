@@ -7,7 +7,7 @@
 #include "GeoQikSettings.hpp"
 #include "GeometryBuffers/GeometryBufferConcept.hpp"
 #include "linal/linal.hpp"
-#include <Renderer/Color.hpp>
+#include <plinth/Color.hpp>
 #include <cstdint>
 #include <memory>
 #include <optional>

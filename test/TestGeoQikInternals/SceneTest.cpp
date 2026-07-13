@@ -1,5 +1,5 @@
 #include "Scene.hpp"
-#include <Renderer/MathConstants.hpp>
+#include <plinth/MathConstants.hpp>
 #include <gtest/gtest.h>
 #include <iterator>
 

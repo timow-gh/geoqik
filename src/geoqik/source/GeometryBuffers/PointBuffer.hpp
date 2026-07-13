@@ -56,9 +56,9 @@ class PointBuffer {
     static constexpr std::int32_t m_colorDimension = static_cast<std::int32_t>(ColorChannelCount); // r, g, b, a
 
     Color m_currentPointColor{1.0f, 1.0f, 1.0f, 1.0f};
-    Buffer<float> m_points;
-    Buffer<float> m_pointColors;
-    Buffer<std::uint32_t> m_pointIndices;
+    opengl::Buffer<float> m_points;
+    opengl::Buffer<float> m_pointColors;
+    opengl::Buffer<std::uint32_t> m_pointIndices;
 
     bool m_pointsHaveChanged{false};
 
@@ -82,11 +82,11 @@ class PointBuffer {
 
         newBuffer->m_currentPointColor = other.m_currentPointColor;
         if (!other.m_points.is_empty()) {
-            newBuffer->m_points = Buffer<float>::create_from(other.m_points, other.m_points.capacity() * growthFactor);
+            newBuffer->m_points = opengl::Buffer<float>::create_from(other.m_points, other.m_points.capacity() * growthFactor);
             newBuffer->m_pointColors =
-                Buffer<float>::create_from(other.m_pointColors, other.m_pointColors.capacity() * growthFactor);
+                opengl::Buffer<float>::create_from(other.m_pointColors, other.m_pointColors.capacity() * growthFactor);
             newBuffer->m_pointIndices =
-                Buffer<std::uint32_t>::create_from(other.m_pointIndices,
+                opengl::Buffer<std::uint32_t>::create_from(other.m_pointIndices,
                                                    other.m_pointIndices.capacity() * growthFactor);
             newBuffer->m_handleToPointIndexMapping = std::move(other.m_handleToPointIndexMapping);
             newBuffer->m_handleToPointsIndexMapping = std::move(other.m_handleToPointsIndexMapping);
@@ -173,9 +173,9 @@ class PointBuffer {
 
     void restore_snapshot(const PointBufferSnapshot& snapshot) {
         m_currentPointColor = snapshot.currentPointColor;
-        m_points = Buffer<float>(std::max(snapshot.pointCapacity, snapshot.points.size()));
-        m_pointColors = Buffer<float>(std::max(snapshot.pointColorCapacity, snapshot.pointColors.size()));
-        m_pointIndices = Buffer<std::uint32_t>(std::max(snapshot.pointIndexCapacity, snapshot.pointIndices.size()));
+        m_points = opengl::Buffer<float>(std::max(snapshot.pointCapacity, snapshot.points.size()));
+        m_pointColors = opengl::Buffer<float>(std::max(snapshot.pointColorCapacity, snapshot.pointColors.size()));
+        m_pointIndices = opengl::Buffer<std::uint32_t>(std::max(snapshot.pointIndexCapacity, snapshot.pointIndices.size()));
 
         for (float point: snapshot.points) {
             m_points.push_back(point);

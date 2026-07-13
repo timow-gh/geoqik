@@ -3,7 +3,7 @@
 
 #include "Core/UUID.hpp"
 #include "GeometryBuffers/MeshBuffer.hpp"
-#include <Renderer/Color.hpp>
+#include <plinth/Color.hpp>
 #include <functional>
 #include <variant>
 #include <vector>

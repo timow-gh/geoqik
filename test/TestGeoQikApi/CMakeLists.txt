@@ -1,6 +1,6 @@
 function(create_api_test testName)
     add_executable(${testName} ${testName}.cpp)
-    target_link_libraries(${testName} PRIVATE gtest_main geoqik::geoqik)
+    target_link_libraries(${testName} PRIVATE gtest_main geoqik::geoqik Threads::Threads)
     add_test(NAME geoqik.${testName} COMMAND ${testName})
     set_tests_properties(geoqik.${testName} PROPERTIES
         RESOURCE_LOCK geoqik_glfw

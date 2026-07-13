@@ -10,7 +10,7 @@ function(add_geoqik_example target)
         add_executable(${target} ${target}.cpp)
     endif()
 
-    target_link_libraries(${target} PRIVATE ${ARG_LIBRARIES})
+    target_link_libraries(${target} PRIVATE ${ARG_LIBRARIES} Threads::Threads)
     set_target_properties(${target}
         PROPERTIES
         LANGUAGE CXX
@@ -63,7 +63,6 @@ endforeach()
 
 add_geoqik_example(example_curve LIBRARIES geoqik::geoqik linal::linal)
 add_geoqik_example(example_mesh NO_TIDY LIBRARIES geoqik::geoqik linal::linal)
-add_geoqik_example(example_renderer_standalone NO_TIDY LIBRARIES renderer::renderer linal::linal)
 
 set(geoqik_run_examples
     example_spiral
@@ -71,8 +70,7 @@ set(geoqik_run_examples
     example_removing_geometry
     example_curve
     example_sphere
-    example_mesh
-    example_renderer_standalone)
+    example_mesh)
 
 foreach(example IN LISTS geoqik_run_examples)
     add_geoqik_example_run_target(${example})
