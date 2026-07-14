@@ -1,16 +1,16 @@
 #include <GeoQik/GeoQik.hpp>
-#include <Renderer/WindowSettings.hpp>
+#include <plinth/WindowSettings.hpp>
 #include <gtest/gtest.h>
 
 using namespace renderer;
 
-TEST(WindowSettingsTest, InternalDefaultsMatchExternalApiDefaults) {
+TEST(WindowSettingsTest, ExternalApiUsesGeoQikDefaultTitle) {
     geoqik_window_settings_t externalSettings;
     geoqik_init_default_window_settings(&externalSettings);
 
     const WindowSettings internalSettings;
 
-    EXPECT_STREQ(externalSettings.title, internalSettings.title);
+    EXPECT_STREQ(externalSettings.title, "GeoQik Viewer");
     EXPECT_EQ(externalSettings.width, internalSettings.width);
     EXPECT_EQ(externalSettings.height, internalSettings.height);
     EXPECT_EQ(externalSettings.red_bits, internalSettings.red_bits);

@@ -3,7 +3,7 @@
 
 #include "Scene.hpp"
 #include <OpenGL/LineType.hpp>
-#include <Renderer/Renderer.hpp>
+#include <plinth/Renderer.hpp>
 #include <unordered_map>
 
 namespace geoqik {

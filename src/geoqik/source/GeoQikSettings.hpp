@@ -2,12 +2,12 @@
 #define GEOQIKSETTINGS_HPP
 
 #include <GeoQik/geoqik_export.h>
-#include <Renderer/CameraProjectionType.hpp>
-#include <Renderer/Color.hpp>
-#include <Renderer/InputState.hpp>
-#include <Renderer/WindowSettings.hpp>
 #include <chrono>
 #include <cstdint>
+#include <plinth/CameraProjectionType.hpp>
+#include <plinth/Color.hpp>
+#include <plinth/InputState.hpp>
+#include <plinth/WindowSettings.hpp>
 
 namespace geoqik {
 

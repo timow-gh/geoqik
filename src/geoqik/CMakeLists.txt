@@ -39,7 +39,7 @@ target_include_directories(geoqik_internal_objects
 target_link_libraries(geoqik_internal_objects
         PRIVATE
         $<BUILD_LOCAL_INTERFACE:geoqik::core>
-        $<BUILD_LOCAL_INTERFACE:renderer::renderer>
+        $<BUILD_LOCAL_INTERFACE:plinth::plinth>
         $<BUILD_LOCAL_INTERFACE:fmt::fmt>
         $<BUILD_LOCAL_INTERFACE:linal::linal>
         $<BUILD_LOCAL_INTERFACE:nlohmann_json::nlohmann_json>)
@@ -94,10 +94,11 @@ target_link_libraries(${TARGET_NAME}
         PRIVATE
         geoqik_internal_objects
         $<BUILD_LOCAL_INTERFACE:geoqik::core>
-        $<BUILD_LOCAL_INTERFACE:renderer::renderer>
+        $<BUILD_LOCAL_INTERFACE:plinth::plinth>
         $<BUILD_LOCAL_INTERFACE:imgui::imgui>
         $<BUILD_LOCAL_INTERFACE:fmt::fmt>
         $<BUILD_LOCAL_INTERFACE:linal::linal>
+        Threads::Threads
 )
 
 if (${PROJECT_NAME}_INSTALL)
@@ -133,15 +134,14 @@ target_include_directories(geoqik_internals
         ${CMAKE_CURRENT_LIST_DIR}/source
         ${CMAKE_CURRENT_BINARY_DIR}/export_header_includes
         PRIVATE
-        $<TARGET_PROPERTY:geoqik_core,INTERFACE_INCLUDE_DIRECTORIES>
-        $<TARGET_PROPERTY:renderer_opengl,INTERFACE_INCLUDE_DIRECTORIES>)
+        $<TARGET_PROPERTY:geoqik_core,INTERFACE_INCLUDE_DIRECTORIES>)
 
 target_compile_definitions(geoqik_internals PUBLIC GEOQIK_STATIC_DEFINE)
 
 target_link_libraries(geoqik_internals
         PUBLIC
         geoqik::api_types geoqik_internal_objects
-        stduuid linal::linal geoqik::core renderer::renderer)
+        stduuid linal::linal geoqik::core plinth::plinth)
 
 target_compile_features(geoqik_internals PRIVATE cxx_std_23)
 

@@ -33,7 +33,8 @@ find_package(Boost REQUIRED)
 target_link_libraries(${TARGET_NAME} PRIVATE
     geoqik::geoqik
     geoqik::protocol
-    Boost::headers)
+    Boost::headers
+    Threads::Threads)
 
 # Boost.Asio on Windows needs these system libs
 if (WIN32)
