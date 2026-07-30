@@ -422,7 +422,7 @@ static geoqik_window_settings_t create_default_c_window_settings() {
     settings.samples = defaultSamples;
     settings.refresh_rate = -1;
     settings.stereo = 0;
-    settings.srgb_capable = 0;
+    settings.srgb_capable = 1;
     settings.double_buffer = 1;
     settings.resizable = 1;
     settings.visible = 1;

@@ -4,7 +4,7 @@
 #include "GeoQikMessages.hpp"
 
 #include <Core/Assert.hpp>
-#include <OpenGL/FrameState.hpp>
+#include <plinth/FrameState.hpp>
 
 #include <plinth/CameraAutoFit.hpp>
 #include <plinth/Renderer.hpp>
@@ -338,7 +338,7 @@ bool Context::init_window(const GeoQikSettings& geoqikSettings, const WindowSett
 }
 
 void Context::setup_window_callbacks() {
-    m_renderer->add_key_callback(
+    m_keyCallback = m_renderer->add_key_callback(
         [this](Key key, Scancode scancode, Action action, Mods mods) { on_key(key, scancode, action, mods); });
 }
 
@@ -598,7 +598,7 @@ void Context::run_event_loop() {
             break;
         }
 
-        const opengl::ClearColor clearColor{m_backgroundColor[0],
+        const renderer::ClearColor clearColor{m_backgroundColor[0],
                                             m_backgroundColor[1],
                                             m_backgroundColor[2],
                                             m_backgroundColor[3]};
@@ -606,7 +606,7 @@ void Context::run_event_loop() {
 
         sync_scene_and_auto_fit();
 
-        opengl::LightingConfig lighting;
+        renderer::LightingConfig lighting;
         lighting.lightColor = scale_rgb(m_geoqikSettings.meshHeadLightColor, m_geoqikSettings.meshHeadLightIntensity);
         lighting.fillLightDir = to_float3(m_geoqikSettings.meshFillLightDirection);
         lighting.fillLightColor =

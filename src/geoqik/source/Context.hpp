@@ -74,6 +74,7 @@ class Context {
 
     Scene m_scene;
     std::unique_ptr<renderer::Renderer> m_renderer;
+    renderer::CallbackSubscription m_keyCallback;
     std::unique_ptr<GeoQikSceneRenderer> m_sceneRenderer;
     bool m_isDrawing{false};
     bool m_homeRequested{false};
