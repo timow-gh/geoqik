@@ -31,7 +31,7 @@ class GeoQikSceneRenderer {
     GeoQikSceneRenderer(GeoQikSceneRenderer&&) = delete;
     GeoQikSceneRenderer& operator=(GeoQikSceneRenderer&&) = delete;
 
-    [[nodiscard]] bool sync_scene(Scene& scene);
+    bool sync_scene(Scene& scene);
 
     void recreate_point_drawables(const Scene& scene);
     void recreate_line_drawables(const Scene& scene);

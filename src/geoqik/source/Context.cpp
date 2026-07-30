@@ -26,10 +26,7 @@ RENDERER_ENABLE_ALL_WARNINGS
 
 namespace geoqik {
 
-using renderer::CameraAutoFitInput;
-using renderer::CameraAutoFitResult;
 using renderer::CameraAutoFitSettings;
-using renderer::CameraInteractor;
 using renderer::Viewport;
 
 struct ReplayGuiState {
@@ -271,26 +268,6 @@ static CameraAutoFitSettings make_camera_auto_fit_settings(const GeoQikSettings&
     return autoFitSettings;
 }
 
-static CameraAutoFitInput make_camera_auto_fit_input(const CameraInteractor& cameraInteractor,
-                                                     const GeoQikSettings& settings,
-                                                     bool suppressZoomIn) {
-    const auto orthographicParams = cameraInteractor.get_orthographic_params();
-    CameraAutoFitInput input;
-    input.position = cameraInteractor.get_position();
-    input.target = cameraInteractor.get_target();
-    input.vertical = cameraInteractor.get_vertical();
-    input.projectionType = cameraInteractor.get_projection_type();
-    input.verticalFovDegrees = cameraInteractor.get_fov();
-    input.orthographicWidth = orthographicParams.width;
-    input.orthographicHeight = orthographicParams.height;
-    input.aspectRatio = cameraInteractor.get_viewport().get_aspect_ratio();
-    input.nearPlane = cameraInteractor.get_near_plane();
-    input.farPlaneMultiplier = settings.cameraFarPlaneMultiplier;
-    input.suppressZoomIn = suppressZoomIn;
-    input.settings = make_camera_auto_fit_settings(settings);
-    return input;
-}
-
 static linal::float3 scale_rgb(const std::array<float, 3>& color, float intensity) {
     const float clampedIntensity = std::max(0.0F, intensity);
     return linal::float3{color[0] * clampedIntensity, color[1] * clampedIntensity, color[2] * clampedIntensity};
@@ -329,6 +306,8 @@ bool Context::init_window(const GeoQikSettings& geoqikSettings, const WindowSett
     if (!m_renderer) {
         return false;
     }
+    m_renderer->set_camera_auto_fit_settings(make_camera_auto_fit_settings(m_geoqikSettings));
+    m_renderer->set_camera_far_plane_multiplier(m_geoqikSettings.cameraFarPlaneMultiplier);
 
     m_sceneRenderer = std::make_unique<GeoQikSceneRenderer>(*m_renderer);
 
@@ -593,7 +572,6 @@ void Context::run_event_loop() {
         m_renderer->window().make_context_current();
 
         renderer::Renderer::poll_events();
-        update_camera_interaction_state();
         if (should_close_event_loop()) {
             break;
         }
@@ -604,7 +582,7 @@ void Context::run_event_loop() {
                                             m_backgroundColor[3]};
         m_renderer->begin_frame(clearColor);
 
-        sync_scene_and_auto_fit();
+        m_sceneRenderer->sync_scene(m_scene);
 
         renderer::LightingConfig lighting;
         lighting.lightColor = scale_rgb(m_geoqikSettings.meshHeadLightColor, m_geoqikSettings.meshHeadLightIntensity);
@@ -663,69 +641,6 @@ bool Context::should_close_event_loop() {
     }
 
     return false;
-}
-
-void Context::update_camera_interaction_state() {
-    const auto camera = m_renderer->get_camera().lock();
-    if (!camera || !camera->get_was_blocking()) {
-        return;
-    }
-
-    m_lastCameraInteractionTime = std::chrono::high_resolution_clock::now();
-    camera->reset_was_blocking();
-}
-
-void Context::sync_scene_and_auto_fit() {
-    const bool sceneChanged = m_sceneRenderer->sync_scene(m_scene);
-
-    const auto camera = m_renderer->get_camera().lock();
-    if (!camera) {
-        return;
-    }
-
-    if (m_homeRequested) {
-        m_homeRequested = false;
-        const std::array<std::span<const float>, 3> homeBuffers{m_scene.get_point_buffer().get_points(),
-                                                                m_scene.get_line_buffer().get_lines(),
-                                                                m_scene.get_mesh_buffer().get_vertices()};
-        CameraAutoFitInput homeInput = make_camera_auto_fit_input(*camera, m_geoqikSettings, false);
-        homeInput.position = camera->get_default_position();
-        homeInput.target = camera->get_default_target();
-        homeInput.vertical = camera->get_default_up();
-        homeInput.settings.enabled = true;
-        homeInput.suppressZoomIn = false;
-        const CameraAutoFitResult homeResult =
-            renderer::calculate_camera_auto_fit(std::span<const std::span<const float>>{homeBuffers}, homeInput);
-        if (homeResult.hasGeometry) {
-            camera->apply_auto_fit_result(homeResult);
-            m_lastCameraInteractionTime = {};
-        } else {
-            camera->look_at(camera->get_default_position(), camera->get_default_target(), camera->get_default_up());
-            m_lastCameraInteractionTime = {};
-        }
-        return;
-    }
-
-    if (!sceneChanged) {
-        return;
-    }
-
-    const auto now = std::chrono::high_resolution_clock::now();
-    const bool hasRecentCameraInteraction =
-        m_lastCameraInteractionTime.time_since_epoch().count() != 0 &&
-        now - m_lastCameraInteractionTime < m_geoqikSettings.autoFitSuppressAfterUserCameraInteraction;
-
-    const CameraAutoFitInput autoFitInput =
-        make_camera_auto_fit_input(*camera, m_geoqikSettings, hasRecentCameraInteraction);
-    const std::array<std::span<const float>, 3> vertexPositionBuffers{m_scene.get_point_buffer().get_points(),
-                                                                      m_scene.get_line_buffer().get_lines(),
-                                                                      m_scene.get_mesh_buffer().get_vertices()};
-    const CameraAutoFitResult autoFitResult =
-        renderer::calculate_camera_auto_fit(std::span<const std::span<const float>>{vertexPositionBuffers},
-                                            autoFitInput);
-    if (autoFitResult.hasGeometry) {
-        camera->apply_auto_fit_result(autoFitResult);
-    }
 }
 
 void Context::populate_replay_gui_state(ReplayGuiState& state) const {
