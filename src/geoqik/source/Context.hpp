@@ -10,16 +10,19 @@
 #include "IdempotencyData.hpp"
 #include "Rendering/GeoQikSceneRenderer.hpp"
 #include "Scene.hpp"
+
 #include <Core/UUID.hpp>
+
+#include <plinth/Camera.hpp>
+#include <plinth/CameraInteractor.hpp>
+#include <plinth/WindowSettings.hpp>
+
 #include <atomic>
 #include <cassert>
 #include <chrono>
 #include <cstddef>
 #include <deque>
 #include <memory>
-#include <plinth/Camera.hpp>
-#include <plinth/CameraInteractor.hpp>
-#include <plinth/WindowSettings.hpp>
 #include <span>
 #include <utility>
 #include <variant>
@@ -40,8 +43,7 @@ using renderer::Scancode;
 using renderer::Viewport;
 
 void init_message_queue(ConcurrentQueue<GeoQikMessage>&& messageQueue);
-[[nodiscard]]
-ConcurrentQueue<GeoQikMessage>& get_message_queue();
+[[nodiscard]] ConcurrentQueue<GeoQikMessage>& get_message_queue();
 void request_replay_cancel();
 
 struct ReplayOptions {
@@ -190,8 +192,7 @@ class Context {
                          float axisZ,
                          float angle);
 
-    [[nodiscard]]
-    const Viewport& get_viewport();
+    [[nodiscard]] const Viewport& get_viewport();
 
     void run_event_loop();
 
@@ -204,38 +205,30 @@ class Context {
     void resume_replay();
     void step_replay_entries(std::size_t count);
     void step_replay_entries_backward(std::size_t count);
-    [[nodiscard]]
-    geoqik_replay_state_t get_replay_state() const;
-    [[nodiscard]]
-    std::pair<std::size_t, std::size_t> get_replay_progress() const;
+    [[nodiscard]] geoqik_replay_state_t get_replay_state() const;
+    [[nodiscard]] std::pair<std::size_t, std::size_t> get_replay_progress() const;
 
     bool cleanup();
 
   private:
     void setup_window_callbacks();
-    [[nodiscard]]
-    bool is_replaying() const;
-    [[nodiscard]]
-    static bool is_control_message(const GeoQikMessage& message);
+    [[nodiscard]] bool is_replaying() const;
+    [[nodiscard]] static bool is_control_message(const GeoQikMessage& message);
     void on_key(Key key, Scancode scancode, Action action, Mods mods);
-    [[nodiscard]]
-    static bool has_replay_key(const std::vector<Key>& keys, Key key);
+    [[nodiscard]] static bool has_replay_key(const std::vector<Key>& keys, Key key);
     void start_replay(std::vector<GeoQikLogEntry> entries, const ReplayOptions& options);
     void process_replay_entries(const std::chrono::high_resolution_clock::time_point& now);
     void apply_replay_entries(std::size_t entriesToApply);
     void undo_replay_entries(std::size_t entriesToUndo);
-    [[nodiscard]]
-    ReplayUndoFrame create_replay_undo_frame(const GeoQikLogEntry& entry) const;
+    [[nodiscard]] ReplayUndoFrame create_replay_undo_frame(const GeoQikLogEntry& entry) const;
     void restore_replay_undo_frame(const ReplayUndoFrame& frame);
     void finish_replay();
-    [[nodiscard]]
-    bool should_close_event_loop();
+    [[nodiscard]] bool should_close_event_loop();
     void update_camera_interaction_state();
     void sync_scene_and_auto_fit();
     void populate_replay_gui_state(ReplayGuiState& state) const;
     void consume_replay_gui_commands(const ReplayGuiState& state);
-    [[nodiscard]]
-    bool should_stop_processing_messages(
+    [[nodiscard]] bool should_stop_processing_messages(
         const std::chrono::high_resolution_clock::time_point& frameStartTime,
         const std::chrono::high_resolution_clock::time_point& messageProcessingStartTime) const;
     void process_message_queue(ConcurrentQueue<GeoQikMessage>& messageQueue,
@@ -245,8 +238,7 @@ class Context {
     void process_one_deferred_message();
     void process_deferred_messages();
     void process_deferred_messages_before_cleanup();
-    [[nodiscard]]
-    bool is_known_idempotency_key(const core::UUID* key);
+    [[nodiscard]] bool is_known_idempotency_key(const core::UUID* key);
     void replay_log_entries(const std::vector<GeoQikLogEntry>& entries);
     void apply_log_entry(const GeoQikLogEntry& entry);
 

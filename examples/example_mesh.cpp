@@ -1,11 +1,10 @@
 #include "sleep_helper.hpp"
+
 #include <GeoQik/GeoQik.hpp>
 #include <cstdint>
 #include <vector>
 
-int
-main()
-{
+int main() {
     geoqik_init();
     geoqik_draw();
 

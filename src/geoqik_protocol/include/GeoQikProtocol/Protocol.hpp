@@ -122,8 +122,7 @@ struct ResponseFrame {
 // the bind to an arbitrary file or causing a denial-of-service. An abstract
 // socket has no filesystem entry to race against and vanishes when the server
 // exits.
-[[nodiscard]]
-inline std::string make_pipe_name(std::uint64_t pid) {
+[[nodiscard]] inline std::string make_pipe_name(std::uint64_t pid) {
 #ifdef _WIN32
     return R"(\\.\pipe\geoqik-)" + std::to_string(pid);
 #else
@@ -131,8 +130,7 @@ inline std::string make_pipe_name(std::uint64_t pid) {
 #endif
 }
 
-[[nodiscard]]
-inline std::string make_pipe_name_argument(std::uint64_t pid) {
+[[nodiscard]] inline std::string make_pipe_name_argument(std::uint64_t pid) {
 #ifdef _WIN32
     return make_pipe_name(pid);
 #else
@@ -140,8 +138,7 @@ inline std::string make_pipe_name_argument(std::uint64_t pid) {
 #endif
 }
 
-[[nodiscard]]
-inline std::string make_pipe_name_from_argument(const std::string& argument) {
+[[nodiscard]] inline std::string make_pipe_name_from_argument(const std::string& argument) {
 #ifdef _WIN32
     return argument;
 #else
@@ -149,8 +146,7 @@ inline std::string make_pipe_name_from_argument(const std::string& argument) {
 #endif
 }
 
-[[nodiscard]]
-inline std::uint32_t payload_byte_count(std::size_t payloadSize) {
+[[nodiscard]] inline std::uint32_t payload_byte_count(std::size_t payloadSize) {
     constexpr auto maxPayloadSize = static_cast<std::size_t>(std::numeric_limits<std::uint32_t>::max());
     if (payloadSize > maxPayloadSize) {
         throw std::length_error("geoqik protocol payload is too large");
@@ -169,8 +165,7 @@ void write_pod(std::vector<std::uint8_t>& buf, const T& val) {
 
 // Read sizeof(T) bytes from data into a T value.
 template <typename T>
-[[nodiscard]]
-T read_pod(const std::vector<std::uint8_t>& data, std::size_t offset) {
+[[nodiscard]] T read_pod(const std::vector<std::uint8_t>& data, std::size_t offset) {
     static_assert(std::is_trivially_copyable_v<T>);
     if ((offset > data.size()) || (data.size() - offset < sizeof(T))) {
         throw std::out_of_range("geoqik protocol payload is too small");
@@ -186,8 +181,7 @@ inline void write_string(std::vector<std::uint8_t>& buf, const std::string& valu
     buf.insert(buf.end(), value.begin(), value.end());
 }
 
-[[nodiscard]]
-inline std::string read_string(const std::vector<std::uint8_t>& data, std::size_t& offset) {
+[[nodiscard]] inline std::string read_string(const std::vector<std::uint8_t>& data, std::size_t& offset) {
     const std::uint32_t size = read_pod<std::uint32_t>(data, offset);
     offset += sizeof(std::uint32_t);
     if ((offset > data.size()) || (data.size() - offset < size)) {
@@ -199,8 +193,7 @@ inline std::string read_string(const std::vector<std::uint8_t>& data, std::size_
     return value;
 }
 
-[[nodiscard]]
-inline std::vector<std::uint8_t> encode_diagnostic(const DiagnosticText& diagnostic) {
+[[nodiscard]] inline std::vector<std::uint8_t> encode_diagnostic(const DiagnosticText& diagnostic) {
     std::vector<std::uint8_t> payload;
     write_string(payload, diagnostic.operation);
     write_string(payload, diagnostic.what);
@@ -210,8 +203,7 @@ inline std::vector<std::uint8_t> encode_diagnostic(const DiagnosticText& diagnos
     return payload;
 }
 
-[[nodiscard]]
-inline DiagnosticText decode_diagnostic(const std::vector<std::uint8_t>& payload) {
+[[nodiscard]] inline DiagnosticText decode_diagnostic(const std::vector<std::uint8_t>& payload) {
     DiagnosticText diagnostic;
     if (payload.empty()) {
         return diagnostic;
@@ -230,8 +222,7 @@ inline DiagnosticText decode_diagnostic(const std::vector<std::uint8_t>& payload
 }
 
 template <typename T>
-[[nodiscard]]
-std::array<std::uint8_t, uuidByteCount> pack_return_value(const T& val) {
+[[nodiscard]] std::array<std::uint8_t, uuidByteCount> pack_return_value(const T& val) {
     static_assert(std::is_trivially_copyable_v<T>);
     static_assert(sizeof(T) <= uuidByteCount);
     std::array<std::uint8_t, uuidByteCount> out{};
@@ -239,8 +230,7 @@ std::array<std::uint8_t, uuidByteCount> pack_return_value(const T& val) {
     return out;
 }
 
-[[nodiscard]]
-inline std::array<std::uint8_t, uuidByteCount> pack_color_return(float r, float g, float b, float a) {
+[[nodiscard]] inline std::array<std::uint8_t, uuidByteCount> pack_color_return(float r, float g, float b, float a) {
     std::array<float, 4> rgba{r, g, b, a};
     return pack_return_value(rgba);
 }
@@ -281,8 +271,8 @@ inline void write_optional_colors(std::vector<std::uint8_t>& buf, const float* c
     }
 }
 
-[[nodiscard]]
-inline std::vector<float> read_optional_colors(const std::vector<std::uint8_t>& payload, std::size_t& offset) {
+[[nodiscard]] inline std::vector<float> read_optional_colors(const std::vector<std::uint8_t>& payload,
+                                                             std::size_t& offset) {
     const auto colorCount = read_pod<std::uint32_t>(payload, offset);
     offset += sizeof(std::uint32_t);
     if (colorCount == 0) {
@@ -325,8 +315,7 @@ write_optional_uint32_array(std::vector<std::uint8_t>& buf, const std::uint32_t*
 }
 
 template <typename T>
-[[nodiscard]]
-T unpack_return_value(const std::array<std::uint8_t, uuidByteCount>& uuid) {
+[[nodiscard]] T unpack_return_value(const std::array<std::uint8_t, uuidByteCount>& uuid) {
     static_assert(std::is_trivially_copyable_v<T>);
     static_assert(sizeof(T) <= uuidByteCount);
     T val{};

@@ -3,8 +3,10 @@
 
 #include "Core/UUID.hpp"
 #include "GeometryBuffers/MeshBuffer.hpp"
-#include <functional>
+
 #include <plinth/Color.hpp>
+
+#include <functional>
 #include <variant>
 #include <vector>
 
@@ -19,24 +21,21 @@ struct GeoQikMessageCommonData {
     core::UUID idempotencyId;
     std::vector<float> rgba;
 
-    [[nodiscard]]
-    bool operator==(const GeoQikMessageCommonData&) const = default;
+    [[nodiscard]] bool operator==(const GeoQikMessageCommonData&) const = default;
 };
 
 struct AddPointWithOpts {
     float x, y, z;
     GeoQikMessageCommonData commonData;
 
-    [[nodiscard]]
-    bool operator==(const AddPointWithOpts&) const = default;
+    [[nodiscard]] bool operator==(const AddPointWithOpts&) const = default;
 };
 
 struct AddPointsWithOpts {
     std::vector<float> points;
     GeoQikMessageCommonData commonData;
 
-    [[nodiscard]]
-    bool operator==(const AddPointsWithOpts&) const = default;
+    [[nodiscard]] bool operator==(const AddPointsWithOpts&) const = default;
 };
 
 struct UpdatePointWithOpts {
@@ -44,8 +43,7 @@ struct UpdatePointWithOpts {
     float x, y, z;
     std::vector<float> rgba;
 
-    [[nodiscard]]
-    bool operator==(const UpdatePointWithOpts&) const = default;
+    [[nodiscard]] bool operator==(const UpdatePointWithOpts&) const = default;
 };
 
 struct UpdatePointsWithOpts {
@@ -53,29 +51,25 @@ struct UpdatePointsWithOpts {
     std::vector<float> points;
     std::vector<float> rgba;
 
-    [[nodiscard]]
-    bool operator==(const UpdatePointsWithOpts&) const = default;
+    [[nodiscard]] bool operator==(const UpdatePointsWithOpts&) const = default;
 };
 
 struct RemovePoint {
     core::UUID handle;
 
-    [[nodiscard]]
-    bool operator==(const RemovePoint&) const = default;
+    [[nodiscard]] bool operator==(const RemovePoint&) const = default;
 };
 
 struct SetPointSize {
     float size;
 
-    [[nodiscard]]
-    bool operator==(const SetPointSize&) const = default;
+    [[nodiscard]] bool operator==(const SetPointSize&) const = default;
 };
 
 struct SetPointColor {
     Color color;
 
-    [[nodiscard]]
-    bool operator==(const SetPointColor&) const = default;
+    [[nodiscard]] bool operator==(const SetPointColor&) const = default;
 };
 
 struct AddLineWithOpts {
@@ -83,16 +77,14 @@ struct AddLineWithOpts {
     float x2, y2, z2;
     GeoQikMessageCommonData commonData;
 
-    [[nodiscard]]
-    bool operator==(const AddLineWithOpts&) const = default;
+    [[nodiscard]] bool operator==(const AddLineWithOpts&) const = default;
 };
 
 struct AddLinesWithOpts {
     std::vector<float> lines;
     GeoQikMessageCommonData commonData;
 
-    [[nodiscard]]
-    bool operator==(const AddLinesWithOpts&) const = default;
+    [[nodiscard]] bool operator==(const AddLinesWithOpts&) const = default;
 };
 
 struct UpdateLineWithOpts {
@@ -101,8 +93,7 @@ struct UpdateLineWithOpts {
     float x2, y2, z2;
     std::vector<float> rgba;
 
-    [[nodiscard]]
-    bool operator==(const UpdateLineWithOpts&) const = default;
+    [[nodiscard]] bool operator==(const UpdateLineWithOpts&) const = default;
 };
 
 struct UpdateLinesWithOpts {
@@ -110,36 +101,31 @@ struct UpdateLinesWithOpts {
     std::vector<float> lines;
     std::vector<float> rgba;
 
-    [[nodiscard]]
-    bool operator==(const UpdateLinesWithOpts&) const = default;
+    [[nodiscard]] bool operator==(const UpdateLinesWithOpts&) const = default;
 };
 
 struct RemoveLine {
     core::UUID handle;
 
-    [[nodiscard]]
-    bool operator==(const RemoveLine&) const = default;
+    [[nodiscard]] bool operator==(const RemoveLine&) const = default;
 };
 
 struct SetLineWidth {
     float width;
 
-    [[nodiscard]]
-    bool operator==(const SetLineWidth&) const = default;
+    [[nodiscard]] bool operator==(const SetLineWidth&) const = default;
 };
 
 struct SetLineColor {
     Color color;
 
-    [[nodiscard]]
-    bool operator==(const SetLineColor&) const = default;
+    [[nodiscard]] bool operator==(const SetLineColor&) const = default;
 };
 
 struct SetMeshColor {
     Color color;
 
-    [[nodiscard]]
-    bool operator==(const SetMeshColor&) const = default;
+    [[nodiscard]] bool operator==(const SetMeshColor&) const = default;
 };
 
 struct GetMeshColor {
@@ -160,15 +146,13 @@ struct AddMeshWithOpts {
     float vertexPointSize{3.0f};
     bool showVertices{false};
 
-    [[nodiscard]]
-    bool operator==(const AddMeshWithOpts&) const = default;
+    [[nodiscard]] bool operator==(const AddMeshWithOpts&) const = default;
 };
 
 struct RemoveMesh {
     core::UUID handle;
 
-    [[nodiscard]]
-    bool operator==(const RemoveMesh&) const = default;
+    [[nodiscard]] bool operator==(const RemoveMesh&) const = default;
 };
 
 struct UpdateMeshWithOpts {
@@ -177,8 +161,7 @@ struct UpdateMeshWithOpts {
     std::vector<float> normals;
     std::vector<float> colors;
 
-    [[nodiscard]]
-    bool operator==(const UpdateMeshWithOpts&) const = default;
+    [[nodiscard]] bool operator==(const UpdateMeshWithOpts&) const = default;
 };
 
 struct SetMeshOverlayOpts {
@@ -186,8 +169,7 @@ struct SetMeshOverlayOpts {
     bool showSegments{false};
     bool showVertices{false};
 
-    [[nodiscard]]
-    bool operator==(const SetMeshOverlayOpts&) const = default;
+    [[nodiscard]] bool operator==(const SetMeshOverlayOpts&) const = default;
 };
 
 struct SetMeshRenderingOpts {
@@ -199,16 +181,14 @@ struct SetMeshRenderingOpts {
 };
 
 struct RemoveAllGeometry {
-    [[nodiscard]]
-    bool operator==(const RemoveAllGeometry&) const = default;
+    [[nodiscard]] bool operator==(const RemoveAllGeometry&) const = default;
 };
 
 struct TranslateGeometry {
     core::UUID handle;
     float dx, dy, dz;
 
-    [[nodiscard]]
-    bool operator==(const TranslateGeometry&) const = default;
+    [[nodiscard]] bool operator==(const TranslateGeometry&) const = default;
 };
 
 struct RotateGeometry {
@@ -217,8 +197,7 @@ struct RotateGeometry {
     float axisX, axisY, axisZ;
     float angle;
 
-    [[nodiscard]]
-    bool operator==(const RotateGeometry&) const = default;
+    [[nodiscard]] bool operator==(const RotateGeometry&) const = default;
 };
 
 struct Draw {};

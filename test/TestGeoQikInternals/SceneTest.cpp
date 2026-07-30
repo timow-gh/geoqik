@@ -1,7 +1,9 @@
 #include "Scene.hpp"
+
+#include <plinth/MathConstants.hpp>
+
 #include <gtest/gtest.h>
 #include <iterator>
-#include <plinth/MathConstants.hpp>
 
 namespace {
 

@@ -1,12 +1,11 @@
 #include "Origin.hpp"
 #include "sleep_helper.hpp"
+
 #include <GeoQik/GeoQik.hpp>
 
 using namespace geoqik::examples;
 
-int
-main()
-{
+int main() {
     geoqik_init();
 
     constexpr float pointSize = 5.0F;

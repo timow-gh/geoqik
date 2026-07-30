@@ -1,13 +1,14 @@
 #ifndef GEOQIKSETTINGS_HPP
 #define GEOQIKSETTINGS_HPP
 
-#include <GeoQik/geoqik_export.h>
-#include <chrono>
-#include <cstdint>
 #include <plinth/CameraProjectionType.hpp>
 #include <plinth/Color.hpp>
 #include <plinth/InputState.hpp>
 #include <plinth/WindowSettings.hpp>
+
+#include <GeoQik/geoqik_export.h>
+#include <chrono>
+#include <cstdint>
 
 namespace geoqik {
 

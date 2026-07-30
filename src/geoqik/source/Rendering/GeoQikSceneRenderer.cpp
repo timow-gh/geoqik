@@ -1,6 +1,9 @@
 #include "Rendering/GeoQikSceneRenderer.hpp"
+
 #include "GeometryBuffers/MeshBuffer.hpp"
+
 #include <OpenGL/BufferAccessPattern.hpp>
+
 #include <plinth/Renderer.hpp>
 
 namespace geoqik {

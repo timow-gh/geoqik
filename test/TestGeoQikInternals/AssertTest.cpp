@@ -1,4 +1,5 @@
 #include <Core/Assert.hpp>
+
 #include <gtest/gtest.h>
 
 TEST(AssertTest, AssertionWritesFormattedMessageToStderr) {

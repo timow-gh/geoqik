@@ -1,4 +1,5 @@
 #include "GeoQikApiTestBase.hpp"
+
 #include <chrono>
 #include <cmath>
 #include <cstdint>

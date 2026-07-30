@@ -1,5 +1,7 @@
 #include "Scene.hpp"
+
 #include "GeometryHelpers.hpp"
+
 #include <algorithm>
 #include <cmath>
 

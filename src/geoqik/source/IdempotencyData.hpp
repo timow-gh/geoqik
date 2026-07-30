@@ -2,6 +2,7 @@
 #define IDEMPOTENCYDATA_HPP
 
 #include <Core/UUID.hpp>
+
 #include <chrono>
 #include <unordered_set>
 
@@ -11,19 +12,10 @@ struct IdempotencyData {
     core::UUID key;
     std::chrono::high_resolution_clock::time_point timestamp;
 
-    [[nodiscard]]
-    bool operator==(const IdempotencyData& other) const noexcept {
-        return key == other.key;
-    }
-    [[nodiscard]]
-    bool operator!=(const IdempotencyData& other) const noexcept {
-        return key != other.key;
-    }
+    [[nodiscard]] bool operator==(const IdempotencyData& other) const noexcept { return key == other.key; }
+    [[nodiscard]] bool operator!=(const IdempotencyData& other) const noexcept { return key != other.key; }
 
-    [[nodiscard]]
-    auto operator<(const IdempotencyData& other) const noexcept {
-        return key < other.key;
-    }
+    [[nodiscard]] auto operator<(const IdempotencyData& other) const noexcept { return key < other.key; }
 
     // Add hash function as a member
     struct Hash {

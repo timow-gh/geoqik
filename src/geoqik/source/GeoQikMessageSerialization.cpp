@@ -1,4 +1,5 @@
 #include "GeoQikMessageSerialization.hpp"
+
 #include <array>
 #include <bit>
 #include <cstdint>

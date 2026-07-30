@@ -2,6 +2,7 @@
 #define CORE_ASSERT_HPP
 
 #include "Core/core_export.h"
+
 #include <Core/Compiler.hpp>
 
 // Check if we're on windows and have access to __debugbreak().

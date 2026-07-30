@@ -5,12 +5,9 @@
 #include <cassert>
 #include <linal/vec.hpp>
 
-namespace geoqik::examples
-{
+namespace geoqik::examples {
 
-inline void
-draw_origin(double axisLength)
-{
+inline void draw_origin(double axisLength) {
     bool initialized;
     geoqik_is_api_initialized(&initialized);
     assert(initialized);

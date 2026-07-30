@@ -1,6 +1,8 @@
 #include "GeometryBuffers/MeshBuffer.hpp"
+
 #include "Core/UUID.hpp"
 #include "GeoQikTestMatchers.hpp"
+
 #include <array>
 #include <gtest/gtest.h>
 #include <span>

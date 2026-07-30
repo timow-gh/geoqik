@@ -1,5 +1,7 @@
 #include "IpcServer.hpp"
+
 #include "CommandDispatch.hpp"
+
 #include <GeoQikProtocol/Protocol.hpp>
 
 #ifdef _WIN32

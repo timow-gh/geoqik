@@ -3,6 +3,7 @@
 
 #include "GeoQik/ApiTypes.h"
 #include "GeoQik/geoqik_export.h"
+
 #include <stddef.h>
 #include <stdint.h>
 #ifndef __cplusplus

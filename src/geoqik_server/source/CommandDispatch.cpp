@@ -1,4 +1,5 @@
 #include "CommandDispatch.hpp"
+
 #include <GeoQik/GeoQik.hpp>
 #include <GeoQikProtocol/Protocol.hpp>
 #include <algorithm>
@@ -45,8 +46,7 @@ constexpr ServerDiagnosticEntry serverDiagnosticCatalog[] = {
      "Use a matching GeoQik client and server build."},
 };
 
-[[nodiscard]]
-const ServerDiagnosticEntry& server_entry(ServerDiagnosticId id) {
+[[nodiscard]] const ServerDiagnosticEntry& server_entry(ServerDiagnosticId id) {
     for (const ServerDiagnosticEntry& entry: serverDiagnosticCatalog) {
         if (entry.id == id) {
             return entry;
@@ -55,14 +55,12 @@ const ServerDiagnosticEntry& server_entry(ServerDiagnosticId id) {
     return serverDiagnosticCatalog[0];
 }
 
-[[nodiscard]]
-proto::DiagnosticText server_diagnostic(ServerDiagnosticId id, const std::string& details = {}) {
+[[nodiscard]] proto::DiagnosticText server_diagnostic(ServerDiagnosticId id, const std::string& details = {}) {
     const ServerDiagnosticEntry& entry = server_entry(id);
     return proto::DiagnosticText{entry.operation, entry.what, entry.why, entry.action, details};
 }
 
-[[nodiscard]]
-proto::DiagnosticText last_api_diagnostic() {
+[[nodiscard]] proto::DiagnosticText last_api_diagnostic() {
     geoqik_error_info_t info{};
     info.struct_size = sizeof(info);
     if (geoqik_get_last_error_info(&info) != GEOQIK_SUCCESS || info.code == GEOQIK_SUCCESS) {
@@ -103,13 +101,11 @@ void send_api_response(PipeStream& stream, geoqik_error_code_t err, const geoqik
     send_response(stream, err, uuid, err == GEOQIK_SUCCESS ? proto::DiagnosticText{} : last_api_diagnostic());
 }
 
-[[nodiscard]]
-inline bool would_overflow_size_t(std::uint64_t a, std::uint64_t b) {
+[[nodiscard]] inline bool would_overflow_size_t(std::uint64_t a, std::uint64_t b) {
     return b != 0 && a > std::numeric_limits<std::size_t>::max() / b;
 }
 
-[[nodiscard]]
-inline std::size_t wire_count_to_size(std::uint64_t value) {
+[[nodiscard]] inline std::size_t wire_count_to_size(std::uint64_t value) {
     if constexpr (std::is_same_v<std::uint64_t, std::size_t>) {
         return value;
     } else {
@@ -117,8 +113,7 @@ inline std::size_t wire_count_to_size(std::uint64_t value) {
     }
 }
 
-[[nodiscard]]
-inline std::uint64_t size_to_wire_count(std::size_t value) {
+[[nodiscard]] inline std::uint64_t size_to_wire_count(std::size_t value) {
     if constexpr (std::is_same_v<std::size_t, std::uint64_t>) {
         return value;
     } else {
@@ -126,8 +121,7 @@ inline std::uint64_t size_to_wire_count(std::size_t value) {
     }
 }
 
-[[nodiscard]]
-bool payload_size_matches(proto::CommandId commandId, std::size_t payloadSize) {
+[[nodiscard]] bool payload_size_matches(proto::CommandId commandId, std::size_t payloadSize) {
     switch (commandId) {
     case proto::CommandId::Draw:
     case proto::CommandId::WaitForExit:
@@ -197,15 +191,13 @@ bool payload_size_matches(proto::CommandId commandId, std::size_t payloadSize) {
 }
 
 template <typename T>
-[[nodiscard]]
-T read_field(const std::vector<std::uint8_t>& payload, std::size_t& offset) {
+[[nodiscard]] T read_field(const std::vector<std::uint8_t>& payload, std::size_t& offset) {
     auto value = proto::read_pod<T>(payload, offset);
     offset += sizeof(T);
     return value;
 }
 
-[[nodiscard]]
-geoqik_uuid_t read_uuid(const std::vector<std::uint8_t>& payload, std::size_t& offset) {
+[[nodiscard]] geoqik_uuid_t read_uuid(const std::vector<std::uint8_t>& payload, std::size_t& offset) {
     geoqik_uuid_t uuid{};
     for (std::size_t i = 0; i < proto::uuidByteCount; ++i) {
         uuid.value[i] = read_field<std::uint8_t>(payload, offset);
@@ -213,8 +205,7 @@ geoqik_uuid_t read_uuid(const std::vector<std::uint8_t>& payload, std::size_t& o
     return uuid;
 }
 
-[[nodiscard]]
-bool uuid_is_zero(const geoqik_uuid_t& uuid) {
+[[nodiscard]] bool uuid_is_zero(const geoqik_uuid_t& uuid) {
     for (const auto byte: uuid.value) {
         if (byte != 0) {
             return false;
@@ -223,8 +214,7 @@ bool uuid_is_zero(const geoqik_uuid_t& uuid) {
     return true;
 }
 
-[[nodiscard]]
-std::vector<float> read_float_array(const std::vector<std::uint8_t>& payload, std::size_t& offset) {
+[[nodiscard]] std::vector<float> read_float_array(const std::vector<std::uint8_t>& payload, std::size_t& offset) {
     const auto count = proto::read_pod<std::uint32_t>(payload, offset);
     offset += sizeof(std::uint32_t);
     if (count == 0) {
@@ -240,8 +230,8 @@ std::vector<float> read_float_array(const std::vector<std::uint8_t>& payload, st
     return arr;
 }
 
-[[nodiscard]]
-std::vector<std::uint32_t> read_uint32_array(const std::vector<std::uint8_t>& payload, std::size_t& offset) {
+[[nodiscard]] std::vector<std::uint32_t> read_uint32_array(const std::vector<std::uint8_t>& payload,
+                                                           std::size_t& offset) {
     const auto count = proto::read_pod<std::uint32_t>(payload, offset);
     offset += sizeof(std::uint32_t);
     if (count == 0) {
@@ -262,8 +252,7 @@ struct ColorSlot {
     bool isZero() const { return rgba[0] == 0.0f && rgba[1] == 0.0f && rgba[2] == 0.0f && rgba[3] == 0.0f; }
 };
 
-[[nodiscard]]
-ColorSlot read_color_slot(const std::vector<std::uint8_t>& payload, std::size_t& offset) {
+[[nodiscard]] ColorSlot read_color_slot(const std::vector<std::uint8_t>& payload, std::size_t& offset) {
     ColorSlot s{};
     for (float& f: s.rgba) {
         f = read_field<float>(payload, offset);
@@ -285,8 +274,7 @@ struct ReplayOptionsData {
 // Deserialize a geoqik_replay_options_t from the wire payload.
 // The returned ReplayOptionsData owns all key vectors; opts.xxxKeys point into them.
 // Never move opts out of its ReplayOptionsData ΓÇö the pointers will dangle.
-[[nodiscard]]
-ReplayOptionsData read_replay_options(const std::vector<std::uint8_t>& payload, std::size_t& offset) {
+[[nodiscard]] ReplayOptionsData read_replay_options(const std::vector<std::uint8_t>& payload, std::size_t& offset) {
     ReplayOptionsData data{};
     auto& opts = data.opts;
 
@@ -321,8 +309,7 @@ ReplayOptionsData read_replay_options(const std::vector<std::uint8_t>& payload, 
     return data;
 }
 
-[[noreturn]]
-void exit_success() {
+[[noreturn]] void exit_success() {
     std::exit(EXIT_SUCCESS); // NOLINT(concurrency-mt-unsafe)
 }
 

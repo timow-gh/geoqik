@@ -1,9 +1,13 @@
 #include "GeoQik/GeoQik.hpp"
+
 #include "ConcurrentQueue/ConcurrentQueue.hpp"
 #include "Context.hpp"
 #include "Core/UUID.hpp"
 #include "GeoQikMessages.hpp"
 #include "GeoQikSettings.hpp"
+
+#include <plinth/WindowSettings.hpp>
+
 #include <array>
 #include <atomic>
 #include <cmath>
@@ -11,7 +15,6 @@
 #include <initializer_list>
 #include <iostream>
 #include <memory>
-#include <plinth/WindowSettings.hpp>
 #include <string>
 #include <system_error>
 #include <thread>
@@ -89,13 +92,9 @@ enum class ApiDiagnosticId : std::uint8_t {
 
 class GeoQikErrorCategory : public std::error_category {
   public:
-    [[nodiscard]]
-    const char* name() const noexcept override {
-        return "geoqik";
-    }
+    [[nodiscard]] const char* name() const noexcept override { return "geoqik"; }
 
-    [[nodiscard]]
-    std::string message(int ev) const override {
+    [[nodiscard]] std::string message(int ev) const override {
         switch (static_cast<ErrorDomain>(static_cast<std::uint8_t>(ev))) {
         case ErrorDomain::Api:      return "api error";
         case ErrorDomain::Renderer: return "renderer error";
@@ -125,8 +124,7 @@ Diagnostic& last_error_storage() {
     return diagnostic;
 }
 
-[[nodiscard]]
-std::error_code make_internal_error(ErrorDomain domain) {
+[[nodiscard]] std::error_code make_internal_error(ErrorDomain domain) {
     return {static_cast<int>(domain), geoqik_error_category()};
 }
 
@@ -1542,8 +1540,8 @@ namespace {
 constexpr float kDefaultSegmentLineWidth = 1.0F;
 constexpr float kDefaultVertexPointSize = 3.0F;
 
-[[nodiscard]]
-geoqik_error_code_t apply_mesh_overlay_opts(geoqik::AddMeshWithOpts& message, const geoqik_add_mesh_opts_t* options) {
+[[nodiscard]] geoqik_error_code_t apply_mesh_overlay_opts(geoqik::AddMeshWithOpts& message,
+                                                          const geoqik_add_mesh_opts_t* options) {
     if (options == nullptr) {
         return GEOQIK_SUCCESS;
     }

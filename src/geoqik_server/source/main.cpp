@@ -1,4 +1,5 @@
 #include "IpcServer.hpp"
+
 #include <GeoQik/GeoQik.hpp>
 #include <GeoQikProtocol/Protocol.hpp>
 #include <cstdio>

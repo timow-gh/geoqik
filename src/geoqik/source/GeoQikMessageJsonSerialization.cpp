@@ -1,4 +1,5 @@
 #include "GeoQikMessageJsonSerialization.hpp"
+
 #include <array>
 #include <cstdint>
 #include <nlohmann/json.hpp>

@@ -2,7 +2,9 @@
 #define GEOMETRYBUFFERCONCEPT_HPP
 
 #include "GeoQikSettings.hpp"
+
 #include <Core/UUID.hpp>
+
 #include <concepts>
 #include <memory>
 

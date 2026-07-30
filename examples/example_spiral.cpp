@@ -1,4 +1,5 @@
 #include "Grid.hpp"
+
 #include <GeoQik/GeoQik.hpp>
 #include <array>
 #include <barrier>
@@ -6,9 +7,7 @@
 #include <cmath>
 #include <thread>
 
-int
-main()
-{
+int main() {
     // Example to provoke contention in the GeoQik API.
     //
     // This example creates a spiral of lines and points, demonstrating the use of the GeoQik API

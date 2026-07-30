@@ -1,4 +1,5 @@
 #include "GeoQikReplayUndo.hpp"
+
 #include <array>
 #include <gtest/gtest.h>
 #include <variant>

@@ -1,5 +1,6 @@
-#include <GeoQik/GeoQik.hpp>
 #include <plinth/WindowSettings.hpp>
+
+#include <GeoQik/GeoQik.hpp>
 #include <gtest/gtest.h>
 
 using namespace renderer;

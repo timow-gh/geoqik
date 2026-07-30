@@ -49,8 +49,7 @@ class GeoQikClientTest : public ::testing::Test {
     void SetUp() override { set_server_path(); }
     void TearDown() override {
         // Best-effort cleanup ΓÇö the server may already have exited.
-        [[maybe_unused]]
-        auto res = geoqik_cleanup();
+        [[maybe_unused]] auto res = geoqik_cleanup();
         geoqik_client_clear_last_error();
     }
 };

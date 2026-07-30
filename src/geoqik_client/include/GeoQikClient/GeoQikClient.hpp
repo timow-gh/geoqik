@@ -330,8 +330,7 @@ struct ResponseFrame {
 // the bind to an arbitrary file or causing a denial-of-service. An abstract
 // socket has no filesystem entry to race against and vanishes when the server
 // exits.
-[[nodiscard]]
-inline std::string make_pipe_name(std::uint64_t pid) {
+[[nodiscard]] inline std::string make_pipe_name(std::uint64_t pid) {
 #ifdef _WIN32
     return R"(\\.\pipe\geoqik-)" + std::to_string(pid);
 #else
@@ -339,8 +338,7 @@ inline std::string make_pipe_name(std::uint64_t pid) {
 #endif
 }
 
-[[nodiscard]]
-inline std::string make_pipe_name_argument(std::uint64_t pid) {
+[[nodiscard]] inline std::string make_pipe_name_argument(std::uint64_t pid) {
 #ifdef _WIN32
     return make_pipe_name(pid);
 #else
@@ -348,8 +346,7 @@ inline std::string make_pipe_name_argument(std::uint64_t pid) {
 #endif
 }
 
-[[nodiscard]]
-inline std::string make_pipe_name_from_argument(const std::string& argument) {
+[[nodiscard]] inline std::string make_pipe_name_from_argument(const std::string& argument) {
 #ifdef _WIN32
     return argument;
 #else
@@ -357,8 +354,7 @@ inline std::string make_pipe_name_from_argument(const std::string& argument) {
 #endif
 }
 
-[[nodiscard]]
-inline std::uint32_t payload_byte_count(std::size_t payloadSize) {
+[[nodiscard]] inline std::uint32_t payload_byte_count(std::size_t payloadSize) {
     constexpr auto maxPayloadSize = static_cast<std::size_t>(std::numeric_limits<std::uint32_t>::max());
     if (payloadSize > maxPayloadSize) {
         throw std::length_error("geoqik protocol payload is too large");
@@ -377,8 +373,7 @@ void write_pod(std::vector<std::uint8_t>& buf, const T& val) {
 
 // Read sizeof(T) bytes from data into a T value.
 template <typename T>
-[[nodiscard]]
-T read_pod(const std::vector<std::uint8_t>& data, std::size_t offset) {
+[[nodiscard]] T read_pod(const std::vector<std::uint8_t>& data, std::size_t offset) {
     static_assert(std::is_trivially_copyable_v<T>);
     if ((offset > data.size()) || (data.size() - offset < sizeof(T))) {
         throw std::out_of_range("geoqik protocol payload is too small");
@@ -394,8 +389,7 @@ inline void write_string(std::vector<std::uint8_t>& buf, const std::string& valu
     buf.insert(buf.end(), value.begin(), value.end());
 }
 
-[[nodiscard]]
-inline std::string read_string(const std::vector<std::uint8_t>& data, std::size_t& offset) {
+[[nodiscard]] inline std::string read_string(const std::vector<std::uint8_t>& data, std::size_t& offset) {
     const std::uint32_t size = read_pod<std::uint32_t>(data, offset);
     offset += sizeof(std::uint32_t);
     if ((offset > data.size()) || (data.size() - offset < size)) {
@@ -407,8 +401,7 @@ inline std::string read_string(const std::vector<std::uint8_t>& data, std::size_
     return value;
 }
 
-[[nodiscard]]
-inline std::vector<std::uint8_t> encode_diagnostic(const DiagnosticText& diagnostic) {
+[[nodiscard]] inline std::vector<std::uint8_t> encode_diagnostic(const DiagnosticText& diagnostic) {
     std::vector<std::uint8_t> payload;
     write_string(payload, diagnostic.operation);
     write_string(payload, diagnostic.what);
@@ -418,8 +411,7 @@ inline std::vector<std::uint8_t> encode_diagnostic(const DiagnosticText& diagnos
     return payload;
 }
 
-[[nodiscard]]
-inline DiagnosticText decode_diagnostic(const std::vector<std::uint8_t>& payload) {
+[[nodiscard]] inline DiagnosticText decode_diagnostic(const std::vector<std::uint8_t>& payload) {
     DiagnosticText diagnostic;
     if (payload.empty()) {
         return diagnostic;
@@ -438,8 +430,7 @@ inline DiagnosticText decode_diagnostic(const std::vector<std::uint8_t>& payload
 }
 
 template <typename T>
-[[nodiscard]]
-std::array<std::uint8_t, uuidByteCount> pack_return_value(const T& val) {
+[[nodiscard]] std::array<std::uint8_t, uuidByteCount> pack_return_value(const T& val) {
     static_assert(std::is_trivially_copyable_v<T>);
     static_assert(sizeof(T) <= uuidByteCount);
     std::array<std::uint8_t, uuidByteCount> out{};
@@ -447,8 +438,7 @@ std::array<std::uint8_t, uuidByteCount> pack_return_value(const T& val) {
     return out;
 }
 
-[[nodiscard]]
-inline std::array<std::uint8_t, uuidByteCount> pack_color_return(float r, float g, float b, float a) {
+[[nodiscard]] inline std::array<std::uint8_t, uuidByteCount> pack_color_return(float r, float g, float b, float a) {
     std::array<float, 4> rgba{r, g, b, a};
     return pack_return_value(rgba);
 }
@@ -492,8 +482,8 @@ inline void write_optional_colors(std::vector<std::uint8_t>& buf, const float* c
     }
 }
 
-[[nodiscard]]
-inline std::vector<float> read_optional_colors(const std::vector<std::uint8_t>& payload, std::size_t& offset) {
+[[nodiscard]] inline std::vector<float> read_optional_colors(const std::vector<std::uint8_t>& payload,
+                                                             std::size_t& offset) {
     const auto colorCount = read_pod<std::uint32_t>(payload, offset);
     offset += sizeof(std::uint32_t);
     if (colorCount == 0) {
@@ -536,8 +526,7 @@ write_optional_uint32_array(std::vector<std::uint8_t>& buf, const std::uint32_t*
 }
 
 template <typename T>
-[[nodiscard]]
-T unpack_return_value(const std::array<std::uint8_t, uuidByteCount>& uuid) {
+[[nodiscard]] T unpack_return_value(const std::array<std::uint8_t, uuidByteCount>& uuid) {
     static_assert(std::is_trivially_copyable_v<T>);
     static_assert(sizeof(T) <= uuidByteCount);
     T val{};
@@ -627,9 +616,8 @@ class Connection {
         throw IpcConnectionError("geoqik: timed out connecting to server pipe: " + pipeName);
     }
 
-    [[nodiscard]]
-    geoqik::protocol::ResponseFrame send_recv(geoqik::protocol::CommandId cmd,
-                                              const std::vector<std::uint8_t>& payload) {
+    [[nodiscard]] geoqik::protocol::ResponseFrame send_recv(geoqik::protocol::CommandId cmd,
+                                                            const std::vector<std::uint8_t>& payload) {
         namespace proto = geoqik::protocol;
 
         try {
@@ -674,8 +662,7 @@ class Connection {
         }
     }
 
-    [[nodiscard]]
-    bool connected() const noexcept {
+    [[nodiscard]] bool connected() const noexcept {
 #ifdef _WIN32
         return pipeHandle_ != INVALID_HANDLE_VALUE;
 #else
@@ -698,8 +685,7 @@ class Connection {
     }
 
   private:
-    [[nodiscard]]
-    bool try_connect(const std::string& pipeName) {
+    [[nodiscard]] bool try_connect(const std::string& pipeName) {
 #ifdef _WIN32
         HANDLE handle = ::CreateFileA(pipeName.c_str(),
                                       GENERIC_READ | GENERIC_WRITE,
@@ -795,8 +781,7 @@ class Connection {
     }
 
 #ifdef _WIN32
-    [[nodiscard]]
-    DWORD write_overlapped(const std::uint8_t* data, std::size_t byteCount) {
+    [[nodiscard]] DWORD write_overlapped(const std::uint8_t* data, std::size_t byteCount) {
         return transfer_overlapped(
             [&](OVERLAPPED& overlapped, DWORD chunk) {
                 return ::WriteFile(pipeHandle_, data, chunk, nullptr, &overlapped);
@@ -805,8 +790,7 @@ class Connection {
             "geoqik: pipe write failed");
     }
 
-    [[nodiscard]]
-    DWORD read_overlapped(std::uint8_t* data, std::size_t byteCount) {
+    [[nodiscard]] DWORD read_overlapped(std::uint8_t* data, std::size_t byteCount) {
         return transfer_overlapped(
             [&](OVERLAPPED& overlapped, DWORD chunk) {
                 return ::ReadFile(pipeHandle_, data, chunk, nullptr, &overlapped);
@@ -816,8 +800,8 @@ class Connection {
     }
 
     template <typename TransferFunc>
-    [[nodiscard]]
-    DWORD transfer_overlapped(TransferFunc&& transfer, std::size_t byteCount, const char* failureMessage) {
+    [[nodiscard]] DWORD
+    transfer_overlapped(TransferFunc&& transfer, std::size_t byteCount, const char* failureMessage) {
         OVERLAPPED overlapped{};
         overlapped.hEvent = ::CreateEventA(nullptr, TRUE, FALSE, nullptr);
         if (overlapped.hEvent == nullptr) {
@@ -923,8 +907,7 @@ class ServerStartError : public std::runtime_error {
 
 class ProcessManager {
   public:
-    [[nodiscard]]
-    static ProcessManager& instance() {
+    [[nodiscard]] static ProcessManager& instance() {
         static ProcessManager pm;
         return pm;
     }
@@ -996,15 +979,9 @@ class ProcessManager {
         hasCustomSettings_ = false;
     }
 
-    [[nodiscard]]
-    const std::string& pipe_name() const noexcept {
-        return pipeName_;
-    }
+    [[nodiscard]] const std::string& pipe_name() const noexcept { return pipeName_; }
 
-    [[nodiscard]]
-    bool is_running() {
-        return started_ && is_child_running();
-    }
+    [[nodiscard]] bool is_running() { return started_ && is_child_running(); }
 
     // Blocks until the server process has fully exited, then resets state so the
     // next start() reliably spawns a fresh server after Cleanup / WaitForExit.
@@ -1028,8 +1005,8 @@ class ProcessManager {
   private:
     ProcessManager() = default;
 
-    [[nodiscard]]
-    static std::string write_settings_file(const geoqik_settings_t& settings, const geoqik_window_settings_t& ws) {
+    [[nodiscard]] static std::string write_settings_file(const geoqik_settings_t& settings,
+                                                         const geoqik_window_settings_t& ws) {
 #ifdef _WIN32
         char tmpPath[MAX_PATH];
         if (::GetTempPathA(MAX_PATH, tmpPath) == 0) {
@@ -1100,8 +1077,7 @@ class ProcessManager {
         return path;
     }
 
-    [[nodiscard]]
-    static std::string get_env(const char* name) {
+    [[nodiscard]] static std::string get_env(const char* name) {
 #ifdef _WIN32
         const DWORD requiredSize = ::GetEnvironmentVariableA(name, nullptr, 0);
         if (requiredSize == 0) {
@@ -1122,8 +1098,7 @@ class ProcessManager {
 #endif
     }
 
-    [[nodiscard]]
-    static bool is_executable_file(const std::string& path) {
+    [[nodiscard]] static bool is_executable_file(const std::string& path) {
         if (path.empty()) {
             return false;
         }
@@ -1135,13 +1110,11 @@ class ProcessManager {
 #endif
     }
 
-    [[nodiscard]]
-    static bool has_path_separator(std::string_view value) {
+    [[nodiscard]] static bool has_path_separator(std::string_view value) {
         return value.find('/') != std::string_view::npos || value.find('\\') != std::string_view::npos;
     }
 
-    [[nodiscard]]
-    static std::string join_path(std::string_view directory, std::string_view file) {
+    [[nodiscard]] static std::string join_path(std::string_view directory, std::string_view file) {
         if (directory.empty()) {
             return std::string(file);
         }
@@ -1158,8 +1131,7 @@ class ProcessManager {
         return result;
     }
 
-    [[nodiscard]]
-    static std::vector<std::string_view> split_path_list(const std::string& paths) {
+    [[nodiscard]] static std::vector<std::string_view> split_path_list(const std::string& paths) {
 #ifdef _WIN32
         constexpr char separator = ';';
 #else
@@ -1178,8 +1150,7 @@ class ProcessManager {
         return result;
     }
 
-    [[nodiscard]]
-    static std::vector<std::string> executable_names(std::string_view baseName) {
+    [[nodiscard]] static std::vector<std::string> executable_names(std::string_view baseName) {
 #ifdef _WIN32
         const std::string name(baseName);
         if (name.find('.') != std::string::npos) {
@@ -1191,8 +1162,7 @@ class ProcessManager {
 #endif
     }
 
-    [[nodiscard]]
-    static std::string search_path_for(std::string_view baseName) {
+    [[nodiscard]] static std::string search_path_for(std::string_view baseName) {
         if (has_path_separator(baseName)) {
             const std::string path(baseName);
             return is_executable_file(path) ? path : std::string{};
@@ -1210,8 +1180,7 @@ class ProcessManager {
         return {};
     }
 
-    [[nodiscard]]
-    static std::string resolve_server_executable() {
+    [[nodiscard]] static std::string resolve_server_executable() {
         if (const auto env = get_env("GEOQIK_EXE_PATH"); !env.empty()) {
             return is_executable_file(env) ? env : std::string{};
         }
@@ -1222,8 +1191,7 @@ class ProcessManager {
     }
 
 #ifdef _WIN32
-    [[nodiscard]]
-    static std::string quote_windows_arg(const std::string& arg) {
+    [[nodiscard]] static std::string quote_windows_arg(const std::string& arg) {
         if (arg.empty()) {
             return "\"\"";
         }
@@ -1260,8 +1228,7 @@ class ProcessManager {
         return quoted;
     }
 
-    [[nodiscard]]
-    static std::string build_command_line(const std::vector<std::string>& args) {
+    [[nodiscard]] static std::string build_command_line(const std::vector<std::string>& args) {
         std::string commandLine;
         for (const auto& arg: args) {
             if (!commandLine.empty()) {
@@ -1296,8 +1263,7 @@ class ProcessManager {
         processInfo_ = processInfo;
     }
 
-    [[nodiscard]]
-    bool is_child_running() {
+    [[nodiscard]] bool is_child_running() {
         if (processInfo_.hProcess == nullptr) {
             return false;
         }
@@ -1319,8 +1285,7 @@ class ProcessManager {
         processInfo_ = PROCESS_INFORMATION{};
     }
 #else
-    [[noreturn]]
-    static void exec_child(const std::string& exePath, const std::vector<std::string>& args) {
+    [[noreturn]] static void exec_child(const std::string& exePath, const std::vector<std::string>& args) {
         std::vector<char*> argv;
         argv.reserve(args.size() + 1);
         for (const auto& arg: args) {
@@ -1342,8 +1307,7 @@ class ProcessManager {
         childPid_ = pid;
     }
 
-    [[nodiscard]]
-    bool is_child_running() {
+    [[nodiscard]] bool is_child_running() {
         if (childPid_ <= 0) {
             return false;
         }
@@ -1644,8 +1608,7 @@ struct ClientDiagnosticState {
     std::string details;
 };
 
-[[nodiscard]]
-inline const ClientDiagnosticEntry& client_entry(ClientDiagnosticId id) {
+[[nodiscard]] inline const ClientDiagnosticEntry& client_entry(ClientDiagnosticId id) {
     for (const ClientDiagnosticEntry& entry: clientDiagnosticCatalog) {
         if (entry.id == id) {
             return entry;
@@ -1654,8 +1617,7 @@ inline const ClientDiagnosticEntry& client_entry(ClientDiagnosticId id) {
     return clientDiagnosticCatalog[0];
 }
 
-[[nodiscard]]
-inline ClientDiagnosticState& last_client_error_storage() {
+[[nodiscard]] inline ClientDiagnosticState& last_client_error_storage() {
     thread_local ClientDiagnosticState state; // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
     return state;
 }
@@ -1700,8 +1662,7 @@ inline void set_server_response_error(const geoqik::protocol::ResponseFrame& res
     last_client_error_storage() = std::move(state);
 }
 
-[[nodiscard]]
-inline geoqik_error_code_t fallback_api_code(ClientDiagnosticId id) {
+[[nodiscard]] inline geoqik_error_code_t fallback_api_code(ClientDiagnosticId id) {
     switch (id) {
     case ClientDiagnosticId::ServerExecutableNotFound:
     case ClientDiagnosticId::ServerStartFailed:
@@ -1727,8 +1688,7 @@ inline geoqik_result_t fail_client_result(ClientDiagnosticId id, const char* ope
 }
 
 template <typename Func>
-[[nodiscard]]
-inline auto execute_client_call(const char* operation, Func&& func) -> decltype(func()) {
+[[nodiscard]] inline auto execute_client_call(const char* operation, Func&& func) -> decltype(func()) {
     try {
         return func();
     } catch (const geoqik::client::detail::ServerExecutableNotFoundError& e) {
@@ -1782,20 +1742,17 @@ inline auto execute_client_call(const char* operation, Func&& func) -> decltype(
     }
 }
 
-[[nodiscard]]
-inline const std::string& pipe_name() {
+[[nodiscard]] inline const std::string& pipe_name() {
     return geoqik::client::detail::ProcessManager::instance().pipe_name();
 }
 
-[[nodiscard]]
-inline geoqik::protocol::ResponseFrame call(geoqik::protocol::CommandId cmd,
-                                            const std::vector<std::uint8_t>& payload = {}) {
+[[nodiscard]] inline geoqik::protocol::ResponseFrame call(geoqik::protocol::CommandId cmd,
+                                                          const std::vector<std::uint8_t>& payload = {}) {
     geoqik::client::detail::ensure_connected(pipe_name());
     return geoqik::client::detail::thread_connection().send_recv(cmd, payload);
 }
 
-[[nodiscard]]
-inline geoqik_error_code_t call_terminating(geoqik::protocol::CommandId cmd, const char* operation) {
+[[nodiscard]] inline geoqik_error_code_t call_terminating(geoqik::protocol::CommandId cmd, const char* operation) {
     auto& pm = geoqik::client::detail::ProcessManager::instance();
     if (!pm.is_running()) {
         geoqik::client::detail::disconnect_thread_connection();
@@ -1821,8 +1778,7 @@ inline void append_colors(std::vector<std::uint8_t>& buf, const float* color, st
     proto::write_optional_colors(buf, color, static_cast<std::uint32_t>(colorCount));
 }
 
-[[nodiscard]]
-inline std::uint64_t size_to_wire_count(std::size_t value) {
+[[nodiscard]] inline std::uint64_t size_to_wire_count(std::size_t value) {
     if constexpr (std::is_same_v<std::size_t, std::uint64_t>) {
         return value;
     } else {
@@ -1830,8 +1786,7 @@ inline std::uint64_t size_to_wire_count(std::size_t value) {
     }
 }
 
-[[nodiscard]]
-inline std::size_t wire_count_to_size(std::uint64_t value) {
+[[nodiscard]] inline std::size_t wire_count_to_size(std::uint64_t value) {
     if constexpr (std::is_same_v<std::uint64_t, std::size_t>) {
         return value;
     } else {
@@ -1940,8 +1895,7 @@ inline void geoqik_client_clear_last_error() {
     geoqik_client_impl::clear_last_client_error();
 }
 
-[[nodiscard]]
-inline geoqik_error_code_t geoqik_init() {
+[[nodiscard]] inline geoqik_error_code_t geoqik_init() {
     return geoqik_client_impl::execute_client_call("geoqik_init", []() -> geoqik_error_code_t {
         auto& pm = geoqik::client::detail::ProcessManager::instance();
         if (!pm.is_running()) {
@@ -1954,8 +1908,7 @@ inline geoqik_error_code_t geoqik_init() {
     });
 }
 
-[[nodiscard]]
-inline geoqik_error_code_t geoqik_draw() {
+[[nodiscard]] inline geoqik_error_code_t geoqik_draw() {
     return geoqik_client_impl::execute_client_call("geoqik_draw", []() -> geoqik_error_code_t {
         namespace proto = geoqik::protocol;
         const auto resp = geoqik_client_impl::call(proto::CommandId::Draw);
@@ -1964,8 +1917,7 @@ inline geoqik_error_code_t geoqik_draw() {
     });
 }
 
-[[nodiscard]]
-inline geoqik_result_t geoqik_add_point(double x, double y, double z) {
+[[nodiscard]] inline geoqik_result_t geoqik_add_point(double x, double y, double z) {
     return geoqik_client_impl::execute_client_call("geoqik_add_point", [&]() -> geoqik_result_t {
         namespace proto = geoqik::protocol;
         std::vector<std::uint8_t> payload;
@@ -1984,8 +1936,8 @@ inline geoqik_result_t geoqik_add_point(double x, double y, double z) {
     });
 }
 
-[[nodiscard]]
-inline geoqik_error_code_t geoqik_add_line(double x1, double y1, double z1, double x2, double y2, double z2) {
+[[nodiscard]] inline geoqik_error_code_t
+geoqik_add_line(double x1, double y1, double z1, double x2, double y2, double z2) {
     return geoqik_client_impl::execute_client_call("geoqik_add_line", [&]() -> geoqik_error_code_t {
         namespace proto = geoqik::protocol;
         std::vector<std::uint8_t> payload;
@@ -2003,16 +1955,14 @@ inline geoqik_error_code_t geoqik_add_line(double x1, double y1, double z1, doub
     });
 }
 
-[[nodiscard]]
-inline geoqik_error_code_t geoqik_wait_for_exit_and_cleanup() {
+[[nodiscard]] inline geoqik_error_code_t geoqik_wait_for_exit_and_cleanup() {
     return geoqik_client_impl::execute_client_call("geoqik_wait_for_exit_and_cleanup", []() -> geoqik_error_code_t {
         return geoqik_client_impl::call_terminating(geoqik::protocol::CommandId::WaitForExit,
                                                     "geoqik_wait_for_exit_and_cleanup");
     });
 }
 
-[[nodiscard]]
-inline geoqik_error_code_t geoqik_cleanup() {
+[[nodiscard]] inline geoqik_error_code_t geoqik_cleanup() {
     return geoqik_client_impl::execute_client_call("geoqik_cleanup", []() -> geoqik_error_code_t {
         return geoqik_client_impl::call_terminating(geoqik::protocol::CommandId::Cleanup, "geoqik_cleanup");
     });
@@ -2111,8 +2061,7 @@ inline void geoqik_init_default_window_settings(geoqik_window_settings_t* settin
     settings->scale_to_monitor = 0;
 }
 
-[[nodiscard]]
-inline const char* geoqik_get_error_string(geoqik_error_code_t result) {
+[[nodiscard]] inline const char* geoqik_get_error_string(geoqik_error_code_t result) {
     switch (result) {
     case GEOQIK_SUCCESS:                    return "Success";
     case GEOQIK_ERROR_NOT_INITIALIZED:      return "GeoQik not initialized";
@@ -2129,8 +2078,7 @@ inline const char* geoqik_get_error_string(geoqik_error_code_t result) {
     }
 }
 
-[[nodiscard]]
-inline geoqik_error_code_t geoqik_generate_uuid(geoqik_uuid_t* uuid) {
+[[nodiscard]] inline geoqik_error_code_t geoqik_generate_uuid(geoqik_uuid_t* uuid) {
     if (uuid == nullptr) {
         return GEOQIK_ERROR_INVALID_PARAMETER;
     }
@@ -2147,8 +2095,7 @@ inline geoqik_error_code_t geoqik_generate_uuid(geoqik_uuid_t* uuid) {
     return GEOQIK_SUCCESS;
 }
 
-[[nodiscard]]
-inline geoqik_error_code_t geoqik_get_last_error_info(geoqik_error_info_t* info) {
+[[nodiscard]] inline geoqik_error_code_t geoqik_get_last_error_info(geoqik_error_info_t* info) {
     if (info == nullptr || info->struct_size < sizeof(geoqik_error_info_t)) {
         return GEOQIK_ERROR_INVALID_PARAMETER;
     }
@@ -2166,9 +2113,8 @@ inline void geoqik_clear_last_error() {
     geoqik_client_impl::clear_last_client_error();
 }
 
-[[nodiscard]]
-inline geoqik_error_code_t geoqik_init_with_settings(const geoqik_settings_t* settings,
-                                                     const geoqik_window_settings_t* windowSettings) {
+[[nodiscard]] inline geoqik_error_code_t geoqik_init_with_settings(const geoqik_settings_t* settings,
+                                                                   const geoqik_window_settings_t* windowSettings) {
     return geoqik_client_impl::execute_client_call("geoqik_init_with_settings", [&]() -> geoqik_error_code_t {
         auto& pm = geoqik::client::detail::ProcessManager::instance();
         if (!pm.is_running()) {
@@ -2184,8 +2130,7 @@ inline geoqik_error_code_t geoqik_init_with_settings(const geoqik_settings_t* se
     });
 }
 
-[[nodiscard]]
-inline geoqik_error_code_t geoqik_is_api_initialized(bool* isInitialized) {
+[[nodiscard]] inline geoqik_error_code_t geoqik_is_api_initialized(bool* isInitialized) {
     return geoqik_client_impl::execute_client_call("geoqik_is_api_initialized", [&]() -> geoqik_error_code_t {
         namespace proto = geoqik::protocol;
         const auto resp = geoqik_client_impl::call(proto::CommandId::IsApiInitialized);
@@ -2197,8 +2142,7 @@ inline geoqik_error_code_t geoqik_is_api_initialized(bool* isInitialized) {
     });
 }
 
-[[nodiscard]]
-inline geoqik_error_code_t geoqik_stop_drawing() {
+[[nodiscard]] inline geoqik_error_code_t geoqik_stop_drawing() {
     return geoqik_client_impl::execute_client_call("geoqik_stop_drawing", []() -> geoqik_error_code_t {
         namespace proto = geoqik::protocol;
         const auto resp = geoqik_client_impl::call(proto::CommandId::StopDrawing);
@@ -2207,8 +2151,7 @@ inline geoqik_error_code_t geoqik_stop_drawing() {
     });
 }
 
-[[nodiscard]]
-inline geoqik_error_code_t geoqik_set_point_size(float pointSize) {
+[[nodiscard]] inline geoqik_error_code_t geoqik_set_point_size(float pointSize) {
     return geoqik_client_impl::execute_client_call("geoqik_set_point_size", [&]() -> geoqik_error_code_t {
         namespace proto = geoqik::protocol;
         std::vector<std::uint8_t> payload;
@@ -2220,8 +2163,7 @@ inline geoqik_error_code_t geoqik_set_point_size(float pointSize) {
     });
 }
 
-[[nodiscard]]
-inline geoqik_error_code_t geoqik_get_point_size(float* pointSize) {
+[[nodiscard]] inline geoqik_error_code_t geoqik_get_point_size(float* pointSize) {
     return geoqik_client_impl::execute_client_call("geoqik_get_point_size", [&]() -> geoqik_error_code_t {
         namespace proto = geoqik::protocol;
         std::vector<std::uint8_t> payload(proto::floatPayloadByteCount, 0);
@@ -2234,8 +2176,7 @@ inline geoqik_error_code_t geoqik_get_point_size(float* pointSize) {
     });
 }
 
-[[nodiscard]]
-inline geoqik_error_code_t geoqik_set_point_color(float r, float g, float b, float a) {
+[[nodiscard]] inline geoqik_error_code_t geoqik_set_point_color(float r, float g, float b, float a) {
     return geoqik_client_impl::execute_client_call("geoqik_set_point_color", [&]() -> geoqik_error_code_t {
         namespace proto = geoqik::protocol;
         std::vector<std::uint8_t> payload;
@@ -2250,8 +2191,7 @@ inline geoqik_error_code_t geoqik_set_point_color(float r, float g, float b, flo
     });
 }
 
-[[nodiscard]]
-inline geoqik_error_code_t geoqik_get_point_color(float* r, float* g, float* b, float* a) {
+[[nodiscard]] inline geoqik_error_code_t geoqik_get_point_color(float* r, float* g, float* b, float* a) {
     return geoqik_client_impl::execute_client_call("geoqik_get_point_color", [&]() -> geoqik_error_code_t {
         namespace proto = geoqik::protocol;
         std::vector<std::uint8_t> payload(proto::colorPayloadByteCount, 0);
@@ -2273,8 +2213,7 @@ inline geoqik_error_code_t geoqik_get_point_color(float* r, float* g, float* b, 
     });
 }
 
-[[nodiscard]]
-inline geoqik_error_code_t geoqik_set_line_width(float lineWidth) {
+[[nodiscard]] inline geoqik_error_code_t geoqik_set_line_width(float lineWidth) {
     return geoqik_client_impl::execute_client_call("geoqik_set_line_width", [&]() -> geoqik_error_code_t {
         namespace proto = geoqik::protocol;
         std::vector<std::uint8_t> payload;
@@ -2286,8 +2225,7 @@ inline geoqik_error_code_t geoqik_set_line_width(float lineWidth) {
     });
 }
 
-[[nodiscard]]
-inline geoqik_error_code_t geoqik_get_line_width(float* lineWidth) {
+[[nodiscard]] inline geoqik_error_code_t geoqik_get_line_width(float* lineWidth) {
     return geoqik_client_impl::execute_client_call("geoqik_get_line_width", [&]() -> geoqik_error_code_t {
         namespace proto = geoqik::protocol;
         std::vector<std::uint8_t> payload(proto::floatPayloadByteCount, 0);
@@ -2300,8 +2238,7 @@ inline geoqik_error_code_t geoqik_get_line_width(float* lineWidth) {
     });
 }
 
-[[nodiscard]]
-inline geoqik_error_code_t geoqik_set_line_color(float r, float g, float b, float a) {
+[[nodiscard]] inline geoqik_error_code_t geoqik_set_line_color(float r, float g, float b, float a) {
     return geoqik_client_impl::execute_client_call("geoqik_set_line_color", [&]() -> geoqik_error_code_t {
         namespace proto = geoqik::protocol;
         std::vector<std::uint8_t> payload;
@@ -2316,8 +2253,7 @@ inline geoqik_error_code_t geoqik_set_line_color(float r, float g, float b, floa
     });
 }
 
-[[nodiscard]]
-inline geoqik_error_code_t geoqik_get_line_color(float* r, float* g, float* b, float* a) {
+[[nodiscard]] inline geoqik_error_code_t geoqik_get_line_color(float* r, float* g, float* b, float* a) {
     return geoqik_client_impl::execute_client_call("geoqik_get_line_color", [&]() -> geoqik_error_code_t {
         namespace proto = geoqik::protocol;
         std::vector<std::uint8_t> payload(proto::colorPayloadByteCount, 0);
@@ -2339,8 +2275,7 @@ inline geoqik_error_code_t geoqik_get_line_color(float* r, float* g, float* b, f
     });
 }
 
-[[nodiscard]]
-inline geoqik_error_code_t geoqik_set_mesh_color(float r, float g, float b, float a) {
+[[nodiscard]] inline geoqik_error_code_t geoqik_set_mesh_color(float r, float g, float b, float a) {
     return geoqik_client_impl::execute_client_call("geoqik_set_mesh_color", [&]() -> geoqik_error_code_t {
         namespace proto = geoqik::protocol;
         std::vector<std::uint8_t> payload;
@@ -2355,8 +2290,7 @@ inline geoqik_error_code_t geoqik_set_mesh_color(float r, float g, float b, floa
     });
 }
 
-[[nodiscard]]
-inline geoqik_error_code_t geoqik_get_mesh_color(float* r, float* g, float* b, float* a) {
+[[nodiscard]] inline geoqik_error_code_t geoqik_get_mesh_color(float* r, float* g, float* b, float* a) {
     return geoqik_client_impl::execute_client_call("geoqik_get_mesh_color", [&]() -> geoqik_error_code_t {
         namespace proto = geoqik::protocol;
         std::vector<std::uint8_t> payload(proto::colorPayloadByteCount, 0);
@@ -2378,8 +2312,7 @@ inline geoqik_error_code_t geoqik_get_mesh_color(float* r, float* g, float* b, f
     });
 }
 
-[[nodiscard]]
-inline geoqik_error_code_t geoqik_remove_all_geometry() {
+[[nodiscard]] inline geoqik_error_code_t geoqik_remove_all_geometry() {
     return geoqik_client_impl::execute_client_call("geoqik_remove_all_geometry", []() -> geoqik_error_code_t {
         namespace proto = geoqik::protocol;
         const auto resp = geoqik_client_impl::call(proto::CommandId::RemoveAllGeometry);
@@ -2388,8 +2321,8 @@ inline geoqik_error_code_t geoqik_remove_all_geometry() {
     });
 }
 
-[[nodiscard]]
-inline geoqik_error_code_t geoqik_translate_geometry(const geoqik_uuid_t* geometryId, double dx, double dy, double dz) {
+[[nodiscard]] inline geoqik_error_code_t
+geoqik_translate_geometry(const geoqik_uuid_t* geometryId, double dx, double dy, double dz) {
     return geoqik_client_impl::execute_client_call("geoqik_translate_geometry", [&]() -> geoqik_error_code_t {
         namespace proto = geoqik::protocol;
         std::vector<std::uint8_t> payload;
@@ -2408,15 +2341,14 @@ inline geoqik_error_code_t geoqik_translate_geometry(const geoqik_uuid_t* geomet
     });
 }
 
-[[nodiscard]]
-inline geoqik_error_code_t geoqik_rotate_geometry(const geoqik_uuid_t* geometryId,
-                                                  double centerX,
-                                                  double centerY,
-                                                  double centerZ,
-                                                  double axisX,
-                                                  double axisY,
-                                                  double axisZ,
-                                                  double angle) {
+[[nodiscard]] inline geoqik_error_code_t geoqik_rotate_geometry(const geoqik_uuid_t* geometryId,
+                                                                double centerX,
+                                                                double centerY,
+                                                                double centerZ,
+                                                                double axisX,
+                                                                double axisY,
+                                                                double axisZ,
+                                                                double angle) {
     return geoqik_client_impl::execute_client_call("geoqik_rotate_geometry", [&]() -> geoqik_error_code_t {
         namespace proto = geoqik::protocol;
         std::vector<std::uint8_t> payload;
@@ -2442,8 +2374,8 @@ inline geoqik_error_code_t geoqik_rotate_geometry(const geoqik_uuid_t* geometryI
 // ΓöÇΓöÇ Extended point API
 // ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
-[[nodiscard]]
-inline geoqik_result_t geoqik_add_point_with_color(double x, double y, double z, float r, float g, float b, float a) {
+[[nodiscard]] inline geoqik_result_t
+geoqik_add_point_with_color(double x, double y, double z, float r, float g, float b, float a) {
     return geoqik_client_impl::execute_client_call("geoqik_add_point_with_color", [&]() -> geoqik_result_t {
         namespace proto = geoqik::protocol;
         std::vector<std::uint8_t> payload;
@@ -2464,8 +2396,8 @@ inline geoqik_result_t geoqik_add_point_with_color(double x, double y, double z,
     });
 }
 
-[[nodiscard]]
-inline geoqik_result_t geoqik_add_point_opts(double x, double y, double z, geoqik_add_points_options_t* options) {
+[[nodiscard]] inline geoqik_result_t
+geoqik_add_point_opts(double x, double y, double z, geoqik_add_points_options_t* options) {
     return geoqik_client_impl::execute_client_call("geoqik_add_point_opts", [&]() -> geoqik_result_t {
         namespace proto = geoqik::protocol;
         std::vector<std::uint8_t> payload;
@@ -2487,8 +2419,7 @@ inline geoqik_result_t geoqik_add_point_opts(double x, double y, double z, geoqi
     });
 }
 
-[[nodiscard]]
-inline geoqik_result_t
+[[nodiscard]] inline geoqik_result_t
 geoqik_add_points_opts(const double* points, std::size_t size, geoqik_add_points_options_t* options) {
     if (points == nullptr || size == 0 || size % 3 != 0) {
         return geoqik_result_t{GEOQIK_ERROR_INVALID_PARAMETER, {}};
@@ -2516,8 +2447,8 @@ geoqik_add_points_opts(const double* points, std::size_t size, geoqik_add_points
     });
 }
 
-[[nodiscard]]
-inline geoqik_error_code_t geoqik_update_point(const geoqik_uuid_t* geometryId, double x, double y, double z) {
+[[nodiscard]] inline geoqik_error_code_t
+geoqik_update_point(const geoqik_uuid_t* geometryId, double x, double y, double z) {
     if (geometryId == nullptr) {
         return GEOQIK_ERROR_INVALID_PARAMETER;
     }
@@ -2535,15 +2466,14 @@ inline geoqik_error_code_t geoqik_update_point(const geoqik_uuid_t* geometryId, 
     });
 }
 
-[[nodiscard]]
-inline geoqik_error_code_t geoqik_update_point_with_color(const geoqik_uuid_t* geometryId,
-                                                          double x,
-                                                          double y,
-                                                          double z,
-                                                          float r,
-                                                          float g,
-                                                          float b,
-                                                          float a) {
+[[nodiscard]] inline geoqik_error_code_t geoqik_update_point_with_color(const geoqik_uuid_t* geometryId,
+                                                                        double x,
+                                                                        double y,
+                                                                        double z,
+                                                                        float r,
+                                                                        float g,
+                                                                        float b,
+                                                                        float a) {
     if (geometryId == nullptr) {
         return GEOQIK_ERROR_INVALID_PARAMETER;
     }
@@ -2565,12 +2495,11 @@ inline geoqik_error_code_t geoqik_update_point_with_color(const geoqik_uuid_t* g
     });
 }
 
-[[nodiscard]]
-inline geoqik_error_code_t geoqik_update_point_opts(const geoqik_uuid_t* geometryId,
-                                                    double x,
-                                                    double y,
-                                                    double z,
-                                                    geoqik_update_points_options_t* options) {
+[[nodiscard]] inline geoqik_error_code_t geoqik_update_point_opts(const geoqik_uuid_t* geometryId,
+                                                                  double x,
+                                                                  double y,
+                                                                  double z,
+                                                                  geoqik_update_points_options_t* options) {
     if (geometryId == nullptr) {
         return GEOQIK_ERROR_INVALID_PARAMETER;
     }
@@ -2590,11 +2519,10 @@ inline geoqik_error_code_t geoqik_update_point_opts(const geoqik_uuid_t* geometr
     });
 }
 
-[[nodiscard]]
-inline geoqik_error_code_t geoqik_update_points_opts(const geoqik_uuid_t* geometryId,
-                                                     const double* points,
-                                                     std::size_t size,
-                                                     geoqik_update_points_options_t* options) {
+[[nodiscard]] inline geoqik_error_code_t geoqik_update_points_opts(const geoqik_uuid_t* geometryId,
+                                                                   const double* points,
+                                                                   std::size_t size,
+                                                                   geoqik_update_points_options_t* options) {
     if (geometryId == nullptr || points == nullptr || size == 0 || size % 3 != 0) {
         return GEOQIK_ERROR_INVALID_PARAMETER;
     }
@@ -2615,8 +2543,7 @@ inline geoqik_error_code_t geoqik_update_points_opts(const geoqik_uuid_t* geomet
     });
 }
 
-[[nodiscard]]
-inline geoqik_error_code_t geoqik_remove_point(const geoqik_uuid_t* geometryId) {
+[[nodiscard]] inline geoqik_error_code_t geoqik_remove_point(const geoqik_uuid_t* geometryId) {
     if (geometryId == nullptr) {
         return GEOQIK_ERROR_INVALID_PARAMETER;
     }
@@ -2634,17 +2561,16 @@ inline geoqik_error_code_t geoqik_remove_point(const geoqik_uuid_t* geometryId) 
 // ΓöÇΓöÇ Extended line API
 // ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
-[[nodiscard]]
-inline geoqik_error_code_t geoqik_add_line_with_color(double x1,
-                                                      double y1,
-                                                      double z1,
-                                                      double x2,
-                                                      double y2,
-                                                      double z2,
-                                                      float r,
-                                                      float g,
-                                                      float b,
-                                                      float a) {
+[[nodiscard]] inline geoqik_error_code_t geoqik_add_line_with_color(double x1,
+                                                                    double y1,
+                                                                    double z1,
+                                                                    double x2,
+                                                                    double y2,
+                                                                    double z2,
+                                                                    float r,
+                                                                    float g,
+                                                                    float b,
+                                                                    float a) {
     return geoqik_client_impl::execute_client_call("geoqik_add_line_with_color", [&]() -> geoqik_error_code_t {
         namespace proto = geoqik::protocol;
         std::vector<std::uint8_t> payload;
@@ -2665,14 +2591,13 @@ inline geoqik_error_code_t geoqik_add_line_with_color(double x1,
     });
 }
 
-[[nodiscard]]
-inline geoqik_result_t geoqik_add_line_opts(double x1,
-                                            double y1,
-                                            double z1,
-                                            double x2,
-                                            double y2,
-                                            double z2,
-                                            geoqik_add_line_opts_t* options) {
+[[nodiscard]] inline geoqik_result_t geoqik_add_line_opts(double x1,
+                                                          double y1,
+                                                          double z1,
+                                                          double x2,
+                                                          double y2,
+                                                          double z2,
+                                                          geoqik_add_line_opts_t* options) {
     return geoqik_client_impl::execute_client_call("geoqik_add_line_opts", [&]() -> geoqik_result_t {
         namespace proto = geoqik::protocol;
         std::vector<std::uint8_t> payload;
@@ -2697,8 +2622,8 @@ inline geoqik_result_t geoqik_add_line_opts(double x1,
     });
 }
 
-[[nodiscard]]
-inline geoqik_result_t geoqik_add_lines_opts(const double* lines, std::size_t size, geoqik_add_line_opts_t* options) {
+[[nodiscard]] inline geoqik_result_t
+geoqik_add_lines_opts(const double* lines, std::size_t size, geoqik_add_line_opts_t* options) {
     if (lines == nullptr || size == 0 || size % 6 != 0) {
         return geoqik_result_t{GEOQIK_ERROR_INVALID_PARAMETER, {}};
     }
@@ -2724,8 +2649,7 @@ inline geoqik_result_t geoqik_add_lines_opts(const double* lines, std::size_t si
     });
 }
 
-[[nodiscard]]
-inline geoqik_error_code_t
+[[nodiscard]] inline geoqik_error_code_t
 geoqik_update_line(const geoqik_uuid_t* geometryId, double x1, double y1, double z1, double x2, double y2, double z2) {
     if (geometryId == nullptr) {
         return GEOQIK_ERROR_INVALID_PARAMETER;
@@ -2747,18 +2671,17 @@ geoqik_update_line(const geoqik_uuid_t* geometryId, double x1, double y1, double
     });
 }
 
-[[nodiscard]]
-inline geoqik_error_code_t geoqik_update_line_with_color(const geoqik_uuid_t* geometryId,
-                                                         double x1,
-                                                         double y1,
-                                                         double z1,
-                                                         double x2,
-                                                         double y2,
-                                                         double z2,
-                                                         float r,
-                                                         float g,
-                                                         float b,
-                                                         float a) {
+[[nodiscard]] inline geoqik_error_code_t geoqik_update_line_with_color(const geoqik_uuid_t* geometryId,
+                                                                       double x1,
+                                                                       double y1,
+                                                                       double z1,
+                                                                       double x2,
+                                                                       double y2,
+                                                                       double z2,
+                                                                       float r,
+                                                                       float g,
+                                                                       float b,
+                                                                       float a) {
     if (geometryId == nullptr) {
         return GEOQIK_ERROR_INVALID_PARAMETER;
     }
@@ -2783,15 +2706,14 @@ inline geoqik_error_code_t geoqik_update_line_with_color(const geoqik_uuid_t* ge
     });
 }
 
-[[nodiscard]]
-inline geoqik_error_code_t geoqik_update_line_opts(const geoqik_uuid_t* geometryId,
-                                                   double x1,
-                                                   double y1,
-                                                   double z1,
-                                                   double x2,
-                                                   double y2,
-                                                   double z2,
-                                                   geoqik_update_line_opts_t* options) {
+[[nodiscard]] inline geoqik_error_code_t geoqik_update_line_opts(const geoqik_uuid_t* geometryId,
+                                                                 double x1,
+                                                                 double y1,
+                                                                 double z1,
+                                                                 double x2,
+                                                                 double y2,
+                                                                 double z2,
+                                                                 geoqik_update_line_opts_t* options) {
     if (geometryId == nullptr) {
         return GEOQIK_ERROR_INVALID_PARAMETER;
     }
@@ -2814,11 +2736,10 @@ inline geoqik_error_code_t geoqik_update_line_opts(const geoqik_uuid_t* geometry
     });
 }
 
-[[nodiscard]]
-inline geoqik_error_code_t geoqik_update_lines_opts(const geoqik_uuid_t* geometryId,
-                                                    const double* lines,
-                                                    std::size_t size,
-                                                    geoqik_update_line_opts_t* options) {
+[[nodiscard]] inline geoqik_error_code_t geoqik_update_lines_opts(const geoqik_uuid_t* geometryId,
+                                                                  const double* lines,
+                                                                  std::size_t size,
+                                                                  geoqik_update_line_opts_t* options) {
     if (geometryId == nullptr || lines == nullptr || size == 0 || size % 6 != 0) {
         return GEOQIK_ERROR_INVALID_PARAMETER;
     }
@@ -2839,8 +2760,7 @@ inline geoqik_error_code_t geoqik_update_lines_opts(const geoqik_uuid_t* geometr
     });
 }
 
-[[nodiscard]]
-inline geoqik_error_code_t geoqik_remove_line(const geoqik_uuid_t* geometryId) {
+[[nodiscard]] inline geoqik_error_code_t geoqik_remove_line(const geoqik_uuid_t* geometryId) {
     if (geometryId == nullptr) {
         return GEOQIK_ERROR_INVALID_PARAMETER;
     }
@@ -2858,12 +2778,11 @@ inline geoqik_error_code_t geoqik_remove_line(const geoqik_uuid_t* geometryId) {
 // ΓöÇΓöÇ Mesh API
 // ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
-[[nodiscard]]
-inline geoqik_result_t geoqik_add_mesh_opts(const float* vertices,
-                                            std::size_t vertexCount,
-                                            const std::uint32_t* triangleIndices,
-                                            std::size_t triangleCount,
-                                            geoqik_add_mesh_opts_t* options) {
+[[nodiscard]] inline geoqik_result_t geoqik_add_mesh_opts(const float* vertices,
+                                                          std::size_t vertexCount,
+                                                          const std::uint32_t* triangleIndices,
+                                                          std::size_t triangleCount,
+                                                          geoqik_add_mesh_opts_t* options) {
     if (vertices == nullptr && vertexCount > 0) {
         return geoqik_result_t{GEOQIK_ERROR_INVALID_PARAMETER, {}};
     }
@@ -2888,8 +2807,7 @@ inline geoqik_result_t geoqik_add_mesh_opts(const float* vertices,
     });
 }
 
-[[nodiscard]]
-inline geoqik_error_code_t geoqik_remove_mesh(const geoqik_uuid_t* geometryId) {
+[[nodiscard]] inline geoqik_error_code_t geoqik_remove_mesh(const geoqik_uuid_t* geometryId) {
     if (geometryId == nullptr) {
         return GEOQIK_ERROR_INVALID_PARAMETER;
     }
@@ -2904,11 +2822,10 @@ inline geoqik_error_code_t geoqik_remove_mesh(const geoqik_uuid_t* geometryId) {
     });
 }
 
-[[nodiscard]]
-inline geoqik_error_code_t geoqik_update_mesh_opts(const geoqik_uuid_t* geometryId,
-                                                   const float* vertices,
-                                                   std::size_t vertexCount,
-                                                   geoqik_update_mesh_opts_t* options) {
+[[nodiscard]] inline geoqik_error_code_t geoqik_update_mesh_opts(const geoqik_uuid_t* geometryId,
+                                                                 const float* vertices,
+                                                                 std::size_t vertexCount,
+                                                                 geoqik_update_mesh_opts_t* options) {
     if (geometryId == nullptr) {
         return GEOQIK_ERROR_INVALID_PARAMETER;
     }
@@ -2936,9 +2853,8 @@ inline geoqik_error_code_t geoqik_update_mesh_opts(const geoqik_uuid_t* geometry
     });
 }
 
-[[nodiscard]]
-inline geoqik_error_code_t geoqik_set_mesh_overlay_opts(const geoqik_uuid_t* geometryId,
-                                                        const geoqik_mesh_overlay_opts_t* opts) {
+[[nodiscard]] inline geoqik_error_code_t geoqik_set_mesh_overlay_opts(const geoqik_uuid_t* geometryId,
+                                                                      const geoqik_mesh_overlay_opts_t* opts) {
     if (geometryId == nullptr || opts == nullptr) {
         return GEOQIK_ERROR_INVALID_PARAMETER;
     }
@@ -2955,9 +2871,8 @@ inline geoqik_error_code_t geoqik_set_mesh_overlay_opts(const geoqik_uuid_t* geo
     });
 }
 
-[[nodiscard]]
-inline geoqik_error_code_t geoqik_set_mesh_rendering_opts(const geoqik_uuid_t* geometryId,
-                                                          const geoqik_mesh_rendering_opts_t* options) {
+[[nodiscard]] inline geoqik_error_code_t geoqik_set_mesh_rendering_opts(const geoqik_uuid_t* geometryId,
+                                                                        const geoqik_mesh_rendering_opts_t* options) {
     if (geometryId == nullptr || options == nullptr) {
         return GEOQIK_ERROR_INVALID_PARAMETER;
     }
@@ -2977,8 +2892,7 @@ inline geoqik_error_code_t geoqik_set_mesh_rendering_opts(const geoqik_uuid_t* g
 // ΓöÇΓöÇ Log & replay API
 // ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
-[[nodiscard]]
-inline geoqik_error_code_t geoqik_save_log(const char* path, geoqik_log_format_t format) {
+[[nodiscard]] inline geoqik_error_code_t geoqik_save_log(const char* path, geoqik_log_format_t format) {
     if (path == nullptr) {
         return GEOQIK_ERROR_INVALID_PARAMETER;
     }
@@ -2993,8 +2907,7 @@ inline geoqik_error_code_t geoqik_save_log(const char* path, geoqik_log_format_t
     });
 }
 
-[[nodiscard]]
-inline geoqik_error_code_t geoqik_load_log(const char* path, geoqik_log_format_t format) {
+[[nodiscard]] inline geoqik_error_code_t geoqik_load_log(const char* path, geoqik_log_format_t format) {
     if (path == nullptr) {
         return GEOQIK_ERROR_INVALID_PARAMETER;
     }
@@ -3009,8 +2922,7 @@ inline geoqik_error_code_t geoqik_load_log(const char* path, geoqik_log_format_t
     });
 }
 
-[[nodiscard]]
-inline geoqik_error_code_t
+[[nodiscard]] inline geoqik_error_code_t
 geoqik_replay_log(const char* path, geoqik_log_format_t format, const geoqik_replay_options_t* options) {
     if (path == nullptr) {
         return GEOQIK_ERROR_INVALID_PARAMETER;
@@ -3027,8 +2939,7 @@ geoqik_replay_log(const char* path, geoqik_log_format_t format, const geoqik_rep
     });
 }
 
-[[nodiscard]]
-inline geoqik_error_code_t geoqik_replay_current_log(const geoqik_replay_options_t* options) {
+[[nodiscard]] inline geoqik_error_code_t geoqik_replay_current_log(const geoqik_replay_options_t* options) {
     return geoqik_client_impl::execute_client_call("geoqik_replay_current_log", [&]() -> geoqik_error_code_t {
         namespace proto = geoqik::protocol;
         std::vector<std::uint8_t> payload;
@@ -3039,8 +2950,7 @@ inline geoqik_error_code_t geoqik_replay_current_log(const geoqik_replay_options
     });
 }
 
-[[nodiscard]]
-inline geoqik_error_code_t geoqik_cancel_replay() {
+[[nodiscard]] inline geoqik_error_code_t geoqik_cancel_replay() {
     return geoqik_client_impl::execute_client_call("geoqik_cancel_replay", []() -> geoqik_error_code_t {
         namespace proto = geoqik::protocol;
         const auto resp = geoqik_client_impl::call(proto::CommandId::CancelReplay);
@@ -3049,8 +2959,7 @@ inline geoqik_error_code_t geoqik_cancel_replay() {
     });
 }
 
-[[nodiscard]]
-inline geoqik_error_code_t geoqik_pause_replay() {
+[[nodiscard]] inline geoqik_error_code_t geoqik_pause_replay() {
     return geoqik_client_impl::execute_client_call("geoqik_pause_replay", []() -> geoqik_error_code_t {
         namespace proto = geoqik::protocol;
         const auto resp = geoqik_client_impl::call(proto::CommandId::PauseReplay);
@@ -3059,8 +2968,7 @@ inline geoqik_error_code_t geoqik_pause_replay() {
     });
 }
 
-[[nodiscard]]
-inline geoqik_error_code_t geoqik_resume_replay() {
+[[nodiscard]] inline geoqik_error_code_t geoqik_resume_replay() {
     return geoqik_client_impl::execute_client_call("geoqik_resume_replay", []() -> geoqik_error_code_t {
         namespace proto = geoqik::protocol;
         const auto resp = geoqik_client_impl::call(proto::CommandId::ResumeReplay);
@@ -3069,8 +2977,7 @@ inline geoqik_error_code_t geoqik_resume_replay() {
     });
 }
 
-[[nodiscard]]
-inline geoqik_error_code_t geoqik_step_replay() {
+[[nodiscard]] inline geoqik_error_code_t geoqik_step_replay() {
     return geoqik_client_impl::execute_client_call("geoqik_step_replay", []() -> geoqik_error_code_t {
         namespace proto = geoqik::protocol;
         const auto resp = geoqik_client_impl::call(proto::CommandId::StepReplay);
@@ -3079,8 +2986,7 @@ inline geoqik_error_code_t geoqik_step_replay() {
     });
 }
 
-[[nodiscard]]
-inline geoqik_error_code_t geoqik_step_replay_n(std::size_t count) {
+[[nodiscard]] inline geoqik_error_code_t geoqik_step_replay_n(std::size_t count) {
     return geoqik_client_impl::execute_client_call("geoqik_step_replay_n", [&]() -> geoqik_error_code_t {
         namespace proto = geoqik::protocol;
         std::vector<std::uint8_t> payload;
@@ -3092,8 +2998,7 @@ inline geoqik_error_code_t geoqik_step_replay_n(std::size_t count) {
     });
 }
 
-[[nodiscard]]
-inline geoqik_error_code_t geoqik_step_replay_backward() {
+[[nodiscard]] inline geoqik_error_code_t geoqik_step_replay_backward() {
     return geoqik_client_impl::execute_client_call("geoqik_step_replay_backward", []() -> geoqik_error_code_t {
         namespace proto = geoqik::protocol;
         const auto resp = geoqik_client_impl::call(proto::CommandId::StepReplayBackward);
@@ -3102,8 +3007,7 @@ inline geoqik_error_code_t geoqik_step_replay_backward() {
     });
 }
 
-[[nodiscard]]
-inline geoqik_error_code_t geoqik_step_replay_backward_n(std::size_t count) {
+[[nodiscard]] inline geoqik_error_code_t geoqik_step_replay_backward_n(std::size_t count) {
     return geoqik_client_impl::execute_client_call("geoqik_step_replay_backward_n", [&]() -> geoqik_error_code_t {
         namespace proto = geoqik::protocol;
         std::vector<std::uint8_t> payload;
@@ -3115,8 +3019,7 @@ inline geoqik_error_code_t geoqik_step_replay_backward_n(std::size_t count) {
     });
 }
 
-[[nodiscard]]
-inline geoqik_error_code_t geoqik_get_replay_state(geoqik_replay_state_t* state) {
+[[nodiscard]] inline geoqik_error_code_t geoqik_get_replay_state(geoqik_replay_state_t* state) {
     if (state == nullptr) {
         return GEOQIK_ERROR_INVALID_PARAMETER;
     }
@@ -3131,8 +3034,8 @@ inline geoqik_error_code_t geoqik_get_replay_state(geoqik_replay_state_t* state)
     });
 }
 
-[[nodiscard]]
-inline geoqik_error_code_t geoqik_get_replay_progress(std::size_t* currentEntry, std::size_t* totalEntries) {
+[[nodiscard]] inline geoqik_error_code_t geoqik_get_replay_progress(std::size_t* currentEntry,
+                                                                    std::size_t* totalEntries) {
     if (currentEntry == nullptr || totalEntries == nullptr) {
         return GEOQIK_ERROR_INVALID_PARAMETER;
     }
