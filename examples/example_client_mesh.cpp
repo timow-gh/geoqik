@@ -5,8 +5,7 @@
 #include <iostream>
 #include <numbers>
 
-namespace
-{
+namespace {
 
 constexpr float cubeVertices[] = {-0.5f, -0.5f, -0.5f, 0.5f, -0.5f, -0.5f, 0.5f, 0.5f, -0.5f, -0.5f, 0.5f, -0.5f,
                                   -0.5f, -0.5f, 0.5f,  0.5f, -0.5f, 0.5f,  0.5f, 0.5f, 0.5f,  -0.5f, 0.5f, 0.5f};
@@ -20,11 +19,8 @@ constexpr float blue[] = {0.0f, 0.0f, 1.0f, 1.0f};
 
 } // namespace
 
-int
-main()
-{
-    [[maybe_unused]]
-    auto err = geoqik_init();
+int main() {
+    [[maybe_unused]] auto err = geoqik_init();
     assert(err == GEOQIK_SUCCESS && "geoqik_init failed; is GEOQIK_EXE_PATH set?");
     err = geoqik_draw();
     assert(err == GEOQIK_SUCCESS);

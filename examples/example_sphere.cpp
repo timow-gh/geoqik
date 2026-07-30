@@ -1,4 +1,5 @@
 #include "Origin.hpp"
+
 #include <GeoQik/GeoQik.hpp>
 #include <chrono>
 #include <cmath>
@@ -8,13 +9,11 @@
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
 #endif
-struct Point
-{
+struct Point {
     double x, y, z;
 };
 
-namespace
-{
+namespace {
 
 constexpr float pointSize = 5.0F;
 constexpr float lineWidth = 2.0F;
@@ -25,9 +24,7 @@ constexpr float opaque = 1.0F;
 
 } // namespace
 
-int
-main()
-{
+int main() {
     geoqik_init();
 
     geoqik_set_point_size(pointSize);

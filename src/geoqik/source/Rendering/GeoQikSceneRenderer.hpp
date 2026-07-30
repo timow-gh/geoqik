@@ -2,8 +2,11 @@
 #define GEOQIK_SOURCE_RENDERING_GEOQIKSCENERENDERER_HPP
 
 #include "Scene.hpp"
+
 #include <OpenGL/LineType.hpp>
+
 #include <plinth/Renderer.hpp>
+
 #include <unordered_map>
 
 namespace geoqik {
@@ -29,8 +32,7 @@ class GeoQikSceneRenderer {
     GeoQikSceneRenderer(GeoQikSceneRenderer&&) = delete;
     GeoQikSceneRenderer& operator=(GeoQikSceneRenderer&&) = delete;
 
-    [[nodiscard]]
-    bool sync_scene(Scene& scene);
+    [[nodiscard]] bool sync_scene(Scene& scene);
 
     void recreate_point_drawables(const Scene& scene);
     void recreate_line_drawables(const Scene& scene);

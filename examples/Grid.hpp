@@ -2,31 +2,26 @@
 #define EXAMPLES_GRID_HPP
 
 #include "GeoQik/GeoQik.hpp"
+
 #include <cassert>
 #include <vector>
 
-namespace geoqik::examples
-{
+namespace geoqik::examples {
 
-struct Line
-{
+struct Line {
     double x1, y1, z1, x2, y2, z2;
 };
 
-struct GridPoint
-{
+struct GridPoint {
     double x, y, z;
 };
 
-struct Grid
-{
+struct Grid {
     std::vector<GridPoint> points;
     std::vector<Line> lines;
 };
 
-Grid
-create_grid(double size, double step)
-{
+Grid create_grid(double size, double step) {
     assert(size > 0.0 && step > 0.0);
 
     Grid grid;
@@ -44,15 +39,12 @@ create_grid(double size, double step)
     return grid;
 }
 
-struct GridGeometryIds
-{
+struct GridGeometryIds {
     geoqik_uuid_t pointsId;
     geoqik_uuid_t lineIds;
 };
 
-GridGeometryIds
-add_grid(const Grid& grid, float lineWidth = 1.0F, float pointSize = 5.0F)
-{
+GridGeometryIds add_grid(const Grid& grid, float lineWidth = 1.0F, float pointSize = 5.0F) {
     assert(lineWidth > 0.0F);
     assert(pointSize > 0.0F);
     assert(pointSize > lineWidth); // Ensure points are visible over lines
@@ -89,9 +81,7 @@ add_grid(const Grid& grid, float lineWidth = 1.0F, float pointSize = 5.0F)
     return GridGeometryIds{pointRes.geometryId, lineRes.geometryId};
 }
 
-GridGeometryIds
-add_grid(double size, double step)
-{
+GridGeometryIds add_grid(double size, double step) {
     auto grid = create_grid(size, step);
     return add_grid(grid);
 }

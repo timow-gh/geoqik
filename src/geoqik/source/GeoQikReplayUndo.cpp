@@ -1,4 +1,5 @@
 #include "GeoQikReplayUndo.hpp"
+
 #include <utility>
 
 namespace geoqik {

@@ -2,6 +2,7 @@
 #define SCOPED_ACTION_HPP
 
 #include "Core/Assert.hpp"
+
 #include <functional>
 
 namespace core {
@@ -30,10 +31,7 @@ class ScopedAction {
         }
     }
 
-    [[nodiscard]]
-    bool is_active() const noexcept {
-        return static_cast<bool>(m_action);
-    }
+    [[nodiscard]] bool is_active() const noexcept { return static_cast<bool>(m_action); }
 
     void deactivate() noexcept { m_action = nullptr; }
 

@@ -1,6 +1,8 @@
 #include "GeoQikLog.hpp"
+
 #include "GeoQikMessageJsonSerialization.hpp"
 #include "GeoQikMessageSerialization.hpp"
+
 #include <array>
 #include <bit>
 #include <cstdint>

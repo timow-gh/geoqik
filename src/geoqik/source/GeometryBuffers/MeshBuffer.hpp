@@ -7,10 +7,12 @@
 #include "GeoQikSettings.hpp"
 #include "GeometryBuffers/GeometryBufferConcept.hpp"
 #include "linal/linal.hpp"
+
+#include <plinth/Color.hpp>
+
 #include <cstdint>
 #include <memory>
 #include <optional>
-#include <plinth/Color.hpp>
 #include <span>
 #include <stdexcept>
 #include <unordered_map>
@@ -93,8 +95,7 @@ class MeshBuffer {
     }
 
   public:
-    [[nodiscard]]
-    static std::unique_ptr<MeshBuffer> create(const GeoQikSettings& settings) {
+    [[nodiscard]] static std::unique_ptr<MeshBuffer> create(const GeoQikSettings& settings) {
         return std::unique_ptr<MeshBuffer>(new MeshBuffer(settings));
     }
 
@@ -104,32 +105,14 @@ class MeshBuffer {
     MeshBuffer& operator=(MeshBuffer&&) = default;
     ~MeshBuffer() = default;
 
-    [[nodiscard]]
-    bool has_changed() const {
-        return m_hasChanged;
-    }
+    [[nodiscard]] bool has_changed() const { return m_hasChanged; }
     void reset_changed_flag() { m_hasChanged = false; }
-    [[nodiscard]]
-    bool empty() const {
-        return m_vertices.empty();
-    }
+    [[nodiscard]] bool empty() const { return m_vertices.empty(); }
 
-    [[nodiscard]]
-    const std::unordered_set<core::UUID>& get_added_meshes() const {
-        return m_addedMeshes;
-    }
-    [[nodiscard]]
-    const std::unordered_set<core::UUID>& get_updated_meshes() const {
-        return m_updatedMeshes;
-    }
-    [[nodiscard]]
-    const std::unordered_set<core::UUID>& get_removed_meshes() const {
-        return m_removedMeshes;
-    }
-    [[nodiscard]]
-    bool is_full_rebuild_needed() const {
-        return m_fullRebuildNeeded;
-    }
+    [[nodiscard]] const std::unordered_set<core::UUID>& get_added_meshes() const { return m_addedMeshes; }
+    [[nodiscard]] const std::unordered_set<core::UUID>& get_updated_meshes() const { return m_updatedMeshes; }
+    [[nodiscard]] const std::unordered_set<core::UUID>& get_removed_meshes() const { return m_removedMeshes; }
+    [[nodiscard]] bool is_full_rebuild_needed() const { return m_fullRebuildNeeded; }
 
     void clear_change_tracking() {
         m_addedMeshes.clear();
@@ -139,8 +122,7 @@ class MeshBuffer {
         m_hasChanged = false;
     }
 
-    [[nodiscard]]
-    std::vector<core::UUID> get_all_mesh_uuids() const {
+    [[nodiscard]] std::vector<core::UUID> get_all_mesh_uuids() const {
         std::vector<core::UUID> result;
         result.reserve(m_handleToMeshIndex.size());
         for (const auto& [uuid, _]: m_handleToMeshIndex)
@@ -148,13 +130,11 @@ class MeshBuffer {
         return result;
     }
 
-    [[nodiscard]]
-    bool has_mesh_overlay_data(const core::UUID& handle) const {
+    [[nodiscard]] bool has_mesh_overlay_data(const core::UUID& handle) const {
         return m_meshOverlayData.count(handle) > 0;
     }
 
-    [[nodiscard]]
-    const PerMeshOverlayData& get_mesh_overlay_data(const core::UUID& handle) const {
+    [[nodiscard]] const PerMeshOverlayData& get_mesh_overlay_data(const core::UUID& handle) const {
         return m_meshOverlayData.at(handle);
     }
 
@@ -179,29 +159,25 @@ class MeshBuffer {
         it->second.showVertices = visible;
     }
 
-    [[nodiscard]]
-    bool any_mesh_has_segment_overlay() const {
+    [[nodiscard]] bool any_mesh_has_segment_overlay() const {
         for (const auto& [uuid, data]: m_meshOverlayData)
             if (!data.segmentPositions.empty())
                 return true;
         return false;
     }
 
-    [[nodiscard]]
-    bool any_mesh_has_vertex_overlay() const {
+    [[nodiscard]] bool any_mesh_has_vertex_overlay() const {
         for (const auto& [uuid, data]: m_meshOverlayData)
             if (data.showVertices)
                 return true;
         return false;
     }
 
-    [[nodiscard]]
-    bool has_mesh_rendering_opts(const core::UUID& handle) const {
+    [[nodiscard]] bool has_mesh_rendering_opts(const core::UUID& handle) const {
         return m_meshRenderingOpts.count(handle) > 0;
     }
 
-    [[nodiscard]]
-    const PerMeshRenderingOpts& get_mesh_rendering_opts(const core::UUID& handle) const {
+    [[nodiscard]] const PerMeshRenderingOpts& get_mesh_rendering_opts(const core::UUID& handle) const {
         return m_meshRenderingOpts.at(handle);
     }
 
@@ -213,49 +189,30 @@ class MeshBuffer {
 
     void remove_mesh_rendering_opts(const core::UUID& handle) { m_meshRenderingOpts.erase(handle); }
 
-    [[nodiscard]]
-    Color get_default_color() const {
-        return m_defaultMeshColor;
-    }
+    [[nodiscard]] Color get_default_color() const { return m_defaultMeshColor; }
     void set_default_color(float r, float g, float b, float a) { m_defaultMeshColor = {r, g, b, a}; }
 
-    [[nodiscard]]
-    std::span<const float> get_vertices() const {
-        return m_vertices;
-    }
-    [[nodiscard]]
-    std::span<const float> get_normals() const {
-        return m_normals;
-    }
-    [[nodiscard]]
-    std::span<const float> get_colors() const {
-        return m_colors;
-    }
-    [[nodiscard]]
-    std::span<const std::uint32_t> get_triangle_indices() const {
-        return m_triangleIndices;
-    }
+    [[nodiscard]] std::span<const float> get_vertices() const { return m_vertices; }
+    [[nodiscard]] std::span<const float> get_normals() const { return m_normals; }
+    [[nodiscard]] std::span<const float> get_colors() const { return m_colors; }
+    [[nodiscard]] std::span<const std::uint32_t> get_triangle_indices() const { return m_triangleIndices; }
 
-    [[nodiscard]]
-    std::span<const float> get_mesh_vertices(const core::UUID& handle) const {
+    [[nodiscard]] std::span<const float> get_mesh_vertices(const core::UUID& handle) const {
         const auto& info = m_handleToMeshIndex.at(handle);
         return std::span<const float>{m_vertices}.subspan(info.vertexStartIndex * 3, info.vertexCount * 3);
     }
 
-    [[nodiscard]]
-    std::span<const float> get_mesh_normals(const core::UUID& handle) const {
+    [[nodiscard]] std::span<const float> get_mesh_normals(const core::UUID& handle) const {
         const auto& info = m_handleToMeshIndex.at(handle);
         return std::span<const float>{m_normals}.subspan(info.vertexStartIndex * 3, info.vertexCount * 3);
     }
 
-    [[nodiscard]]
-    std::span<const float> get_mesh_colors(const core::UUID& handle) const {
+    [[nodiscard]] std::span<const float> get_mesh_colors(const core::UUID& handle) const {
         const auto& info = m_handleToMeshIndex.at(handle);
         return std::span<const float>{m_colors}.subspan(info.vertexStartIndex * 4, info.vertexCount * 4);
     }
 
-    [[nodiscard]]
-    std::vector<std::uint32_t> get_local_triangle_indices(const core::UUID& handle) const {
+    [[nodiscard]] std::vector<std::uint32_t> get_local_triangle_indices(const core::UUID& handle) const {
         const auto& info = m_handleToMeshIndex.at(handle);
         const auto base = static_cast<std::uint32_t>(info.vertexStartIndex);
         std::vector<std::uint32_t> local;
@@ -267,14 +224,8 @@ class MeshBuffer {
         return local;
     }
 
-    [[nodiscard]]
-    static constexpr std::int32_t get_vertex_dimension() {
-        return m_vertexDimension;
-    }
-    [[nodiscard]]
-    static constexpr std::int32_t get_color_dimension() {
-        return m_colorDimension;
-    }
+    [[nodiscard]] static constexpr std::int32_t get_vertex_dimension() { return m_vertexDimension; }
+    [[nodiscard]] static constexpr std::int32_t get_color_dimension() { return m_colorDimension; }
 
     void clear() {
         m_vertices.clear();
@@ -291,8 +242,7 @@ class MeshBuffer {
         m_removedMeshes.clear();
     }
 
-    [[nodiscard]]
-    MeshBufferSnapshot create_snapshot() const {
+    [[nodiscard]] MeshBufferSnapshot create_snapshot() const {
         MeshBufferSnapshot snapshot;
         snapshot.defaultMeshColor = m_defaultMeshColor;
         snapshot.vertices = m_vertices;
@@ -425,11 +375,10 @@ class MeshBuffer {
         m_hasChanged = true;
     }
 
-    [[nodiscard]]
-    bool update_mesh(core::UUID handle,
-                     std::span<const float> vertices,
-                     std::span<const float> normals,
-                     std::span<const float> colors) {
+    [[nodiscard]] bool update_mesh(core::UUID handle,
+                                   std::span<const float> vertices,
+                                   std::span<const float> normals,
+                                   std::span<const float> colors) {
         if (handle.is_nil())
             return false;
 
@@ -604,8 +553,7 @@ class MeshBuffer {
 
 static_assert(GeometryBuffer<MeshBuffer>);
 
-[[nodiscard]]
-inline std::vector<std::uint32_t>
+[[nodiscard]] inline std::vector<std::uint32_t>
 derive_segment_indices_from_triangles(std::span<const std::uint32_t> localTriIndices) {
     // For each triangle [i0, i1, i2] emit three edges as pairs.
     std::vector<std::uint32_t> segs;

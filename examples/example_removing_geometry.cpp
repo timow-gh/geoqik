@@ -1,13 +1,13 @@
 #include "Origin.hpp"
 #include "sleep_helper.hpp"
+
 #include <GeoQik/GeoQik.hpp>
 #include <array>
 #include <iostream>
 
 using namespace geoqik::examples;
 
-namespace
-{
+namespace {
 
 constexpr std::size_t coordinateDimension = 3;
 constexpr std::size_t colorDimension = 4;
@@ -31,17 +31,14 @@ constexpr float transparentPointAlpha = 0.35F;
 
 } // namespace
 
-static geoqik_uuid_t
-add_point_with_delay(double x, double y, double z, double delaySeconds)
-{
+static geoqik_uuid_t add_point_with_delay(double x, double y, double z, double delaySeconds) {
     geoqik_uuid_t pointId = geoqik_add_point(x, y, z).geometryId;
     sleep_for_seconds(delaySeconds);
     return pointId;
 }
 
 static geoqik_uuid_t
-add_line_with_delay(double x1, double y1, double z1, double x2, double y2, double z2, double delaySeconds)
-{
+add_line_with_delay(double x1, double y1, double z1, double x2, double y2, double z2, double delaySeconds) {
     geoqik_add_line_opts_t lineOpts{};
     std::array<float, colorDimension> lineColor{opaque, opaque, opaque, transparentLineAlpha};
     lineOpts.color = lineColor.data();
@@ -51,16 +48,12 @@ add_line_with_delay(double x1, double y1, double z1, double x2, double y2, doubl
     return lineId;
 }
 
-static void
-remove_line_with_delay(const geoqik_uuid_t* lineId, double delaySeconds)
-{
+static void remove_line_with_delay(const geoqik_uuid_t* lineId, double delaySeconds) {
     geoqik_remove_line(lineId);
     sleep_for_seconds(delaySeconds);
 }
 
-int
-main()
-{
+int main() {
     geoqik_init();
 
     geoqik_set_point_size(pointSize);
@@ -69,16 +62,13 @@ main()
     geoqik_draw();
 
     geoqik_set_point_color(opaque, 0.0F, 0.0F, opaque); // Red
-    [[maybe_unused]]
-    geoqik_uuid_t pointIdA = add_point_with_delay(gridExtent, gridExtent, 0.0, geometryDelaySeconds);
+    [[maybe_unused]] geoqik_uuid_t pointIdA = add_point_with_delay(gridExtent, gridExtent, 0.0, geometryDelaySeconds);
 
     geoqik_set_point_color(0.0F, opaque, 0.0F, opaque); // Green
-    [[maybe_unused]]
-    geoqik_uuid_t pointIdB = add_point_with_delay(gridExtent, 0.0, 0.0, geometryDelaySeconds);
+    [[maybe_unused]] geoqik_uuid_t pointIdB = add_point_with_delay(gridExtent, 0.0, 0.0, geometryDelaySeconds);
 
     geoqik_set_point_color(0.0F, 0.0F, opaque, opaque); // Blue
-    [[maybe_unused]]
-    geoqik_uuid_t pointIdC = add_point_with_delay(0.0, gridExtent, 0.0, geometryDelaySeconds);
+    [[maybe_unused]] geoqik_uuid_t pointIdC = add_point_with_delay(0.0, gridExtent, 0.0, geometryDelaySeconds);
 
     geoqik_uuid_t lineIdA =
         add_line_with_delay(gridExtent, gridExtent, 0.0, gridExtent, 0.0, 0.0, geometryDelaySeconds);

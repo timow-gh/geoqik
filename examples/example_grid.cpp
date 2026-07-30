@@ -1,8 +1,8 @@
 #include "Grid.hpp"
+
 #include <GeoQik/GeoQik.hpp>
 
-namespace
-{
+namespace {
 
 constexpr float pointSize = 5.0F;
 constexpr float lineWidth = 2.0F;
@@ -11,9 +11,7 @@ constexpr double gridSpacing = 10.0;
 
 } // namespace
 
-int
-main()
-{
+int main() {
     geoqik_init();
 
     geoqik_set_point_size(pointSize);

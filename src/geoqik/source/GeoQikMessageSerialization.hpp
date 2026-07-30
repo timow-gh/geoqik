@@ -2,6 +2,7 @@
 #define GEOQIKMESSAGESERIALIZATION_HPP
 
 #include "GeoQikMessages.hpp"
+
 #include <iosfwd>
 
 namespace geoqik {
@@ -20,8 +21,7 @@ class MessageReader {
   public:
     explicit MessageReader(std::istream& stream);
 
-    [[nodiscard]]
-    GeoQikLogEntry read();
+    [[nodiscard]] GeoQikLogEntry read();
 
   private:
     std::istream& m_stream;

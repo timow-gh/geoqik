@@ -1,5 +1,6 @@
 #include "GeoQikLog.hpp"
 #include "GeoQikMessageSerialization.hpp"
+
 #include <array>
 #include <filesystem>
 #include <fstream>

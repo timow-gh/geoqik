@@ -7,6 +7,7 @@
 #include "Core/UUID.hpp"
 #include "GeometryBuffers/GeometryBufferConcept.hpp"
 #include "linal/linal.hpp"
+
 #include <algorithm>
 #include <cassert>
 #include <cstdint>
@@ -23,16 +24,14 @@ namespace geoqik {
 struct LineGeoBufferIndex {
     std::size_t lineIndex;
 
-    [[nodiscard]]
-    std::strong_ordering operator<=>(const LineGeoBufferIndex& other) const = default;
+    [[nodiscard]] std::strong_ordering operator<=>(const LineGeoBufferIndex& other) const = default;
 };
 
 struct LinesGeoBufferIndex {
     std::size_t lineStartIndex;
     std::size_t lineEndIndex; // inclusive, this index is part of the range.
 
-    [[nodiscard]]
-    std::strong_ordering operator<=>(const LinesGeoBufferIndex& other) const = default;
+    [[nodiscard]] std::strong_ordering operator<=>(const LinesGeoBufferIndex& other) const = default;
 };
 
 struct LineBufferSnapshot {
@@ -67,28 +66,25 @@ class LineBuffer {
     std::unordered_map<core::UUID, LinesGeoBufferIndex> m_handleToLinesIndexMapping;
 
   public:
-    [[nodiscard]]
-    static std::unique_ptr<LineBuffer> create() {
-        return std::unique_ptr<LineBuffer>(new LineBuffer());
-    }
+    [[nodiscard]] static std::unique_ptr<LineBuffer> create() { return std::unique_ptr<LineBuffer>(new LineBuffer()); }
 
-    [[nodiscard]]
-    static std::unique_ptr<LineBuffer> create(const GeoQikSettings& settings) {
+    [[nodiscard]] static std::unique_ptr<LineBuffer> create(const GeoQikSettings& settings) {
         return std::unique_ptr<LineBuffer>(new LineBuffer(settings));
     }
 
-    [[nodiscard]]
-    static std::unique_ptr<LineBuffer> create_from(const LineBuffer& other, std::size_t growthFactor) {
+    [[nodiscard]] static std::unique_ptr<LineBuffer> create_from(const LineBuffer& other, std::size_t growthFactor) {
         auto newBuffer = LineBuffer::create();
 
         newBuffer->m_currentLineColor = other.m_currentLineColor;
 
         if (!other.m_lines.is_empty()) {
-            newBuffer->m_lines = opengl::Buffer<float>::create_from(other.m_lines, other.m_lines.capacity() * growthFactor);
+            newBuffer->m_lines =
+                opengl::Buffer<float>::create_from(other.m_lines, other.m_lines.capacity() * growthFactor);
             newBuffer->m_lineColors =
                 opengl::Buffer<float>::create_from(other.m_lineColors, other.m_lineColors.capacity() * growthFactor);
             newBuffer->m_lineIndices =
-                opengl::Buffer<std::uint32_t>::create_from(other.m_lineIndices, other.m_lineIndices.capacity() * growthFactor);
+                opengl::Buffer<std::uint32_t>::create_from(other.m_lineIndices,
+                                                           other.m_lineIndices.capacity() * growthFactor);
             newBuffer->m_handleToLineIndexMapping = std::move(other.m_handleToLineIndexMapping);
             newBuffer->m_handleToLinesIndexMapping = std::move(other.m_handleToLinesIndexMapping);
             newBuffer->m_linesHaveChanged = true;
@@ -103,22 +99,13 @@ class LineBuffer {
     LineBuffer& operator=(LineBuffer&&) = default;
     ~LineBuffer() = default;
 
-    [[nodiscard]]
-    bool has_changed() const {
-        return m_linesHaveChanged;
-    }
+    [[nodiscard]] bool has_changed() const { return m_linesHaveChanged; }
     void reset_changed_flag() { m_linesHaveChanged = false; }
 
-    [[nodiscard]]
-    bool lines_have_changed() const {
-        return m_linesHaveChanged;
-    }
+    [[nodiscard]] bool lines_have_changed() const { return m_linesHaveChanged; }
     void reset_lines_have_changed() { m_linesHaveChanged = false; }
 
-    [[nodiscard]]
-    bool empty() const {
-        return m_lines.is_empty();
-    }
+    [[nodiscard]] bool empty() const { return m_lines.is_empty(); }
 
     void clear() {
         m_lines.reset();
@@ -129,14 +116,8 @@ class LineBuffer {
         m_linesHaveChanged = true;
     }
 
-    [[nodiscard]]
-    static constexpr std::int32_t get_point_dimension() {
-        return m_pointDimension;
-    }
-    [[nodiscard]]
-    static constexpr std::int32_t get_color_dimension() {
-        return m_colorDimension;
-    }
+    [[nodiscard]] static constexpr std::int32_t get_point_dimension() { return m_pointDimension; }
+    [[nodiscard]] static constexpr std::int32_t get_color_dimension() { return m_colorDimension; }
 
     // clang-format off
   [[nodiscard]] std::span<const float> get_lines() const { return m_lines.get_as_span(); }
@@ -144,23 +125,15 @@ class LineBuffer {
   [[nodiscard]] std::span<const std::uint32_t> get_line_indices() const { return m_lineIndices.get_as_span(); }
     // clang-format on
 
-    [[nodiscard]]
-    std::size_t get_line_capacity() const {
-        return m_lines.capacity() / (2 * m_pointDimension);
-    }
-    [[nodiscard]]
-    std::size_t get_free_line_capacity() const {
+    [[nodiscard]] std::size_t get_line_capacity() const { return m_lines.capacity() / (2 * m_pointDimension); }
+    [[nodiscard]] std::size_t get_free_line_capacity() const {
         return m_lines.free_capacity() / (2 * m_pointDimension);
     }
 
-    [[nodiscard]]
-    Color get_default_color() const {
-        return m_currentLineColor;
-    }
+    [[nodiscard]] Color get_default_color() const { return m_currentLineColor; }
     void set_default_color(float r, float g, float b, float a) { m_currentLineColor = {r, g, b, a}; }
 
-    [[nodiscard]]
-    std::optional<LineBufferGeometry> get_geometry(core::UUID handle) const {
+    [[nodiscard]] std::optional<LineBufferGeometry> get_geometry(core::UUID handle) const {
         if (auto it = m_handleToLineIndexMapping.find(handle); it != m_handleToLineIndexMapping.end()) {
             const std::size_t lineIndex = it->second.lineIndex;
             return create_geometry(lineIndex, lineIndex);
@@ -173,8 +146,7 @@ class LineBuffer {
         return std::nullopt;
     }
 
-    [[nodiscard]]
-    LineBufferSnapshot create_snapshot() const {
+    [[nodiscard]] LineBufferSnapshot create_snapshot() const {
         LineBufferSnapshot snapshot;
         snapshot.currentLineColor = m_currentLineColor;
         snapshot.lines.assign(m_lines.begin(), m_lines.end());
@@ -192,7 +164,8 @@ class LineBuffer {
         m_currentLineColor = snapshot.currentLineColor;
         m_lines = opengl::Buffer<float>(std::max(snapshot.lineCapacity, snapshot.lines.size()));
         m_lineColors = opengl::Buffer<float>(std::max(snapshot.lineColorCapacity, snapshot.lineColors.size()));
-        m_lineIndices = opengl::Buffer<std::uint32_t>(std::max(snapshot.lineIndexCapacity, snapshot.lineIndices.size()));
+        m_lineIndices =
+            opengl::Buffer<std::uint32_t>(std::max(snapshot.lineIndexCapacity, snapshot.lineIndices.size()));
 
         for (float line: snapshot.lines) {
             m_lines.push_back(line);
@@ -365,15 +338,14 @@ class LineBuffer {
         }
     }
 
-    [[nodiscard]]
-    bool update_line(core::UUID handle,
-                     float x1,
-                     float y1,
-                     float z1,
-                     float x2,
-                     float y2,
-                     float z2,
-                     std::span<const float> colors = {}) {
+    [[nodiscard]] bool update_line(core::UUID handle,
+                                   float x1,
+                                   float y1,
+                                   float z1,
+                                   float x2,
+                                   float y2,
+                                   float z2,
+                                   std::span<const float> colors = {}) {
         if (handle.is_nil()) {
             return false;
         }
@@ -408,8 +380,8 @@ class LineBuffer {
         return true;
     }
 
-    [[nodiscard]]
-    bool update_lines(core::UUID handle, std::span<const float> lines, std::span<const float> colors = {}) {
+    [[nodiscard]] bool
+    update_lines(core::UUID handle, std::span<const float> lines, std::span<const float> colors = {}) {
         if (handle.is_nil()) {
             return false;
         }
@@ -552,8 +524,7 @@ class LineBuffer {
         assert(m_lineIndices.capacity() == settings.initialLineCapacity * 2);
     }
 
-    [[nodiscard]]
-    LineBufferGeometry create_geometry(std::size_t lineStartIndex, std::size_t lineEndIndex) const {
+    [[nodiscard]] LineBufferGeometry create_geometry(std::size_t lineStartIndex, std::size_t lineEndIndex) const {
         LineBufferGeometry geometry;
         const std::size_t lineCount = lineEndIndex - lineStartIndex + 1;
         const std::size_t lineStart = lineStartIndex * 2 * m_pointDimension;

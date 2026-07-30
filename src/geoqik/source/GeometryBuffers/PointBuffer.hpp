@@ -6,6 +6,7 @@
 #include "Core/Assert.hpp"
 #include "Core/UUID.hpp"
 #include "linal/linal.hpp"
+
 #include <algorithm>
 #include <cassert>
 #include <cstdint>
@@ -22,16 +23,14 @@ namespace geoqik {
 struct PointGeoBufferIndex {
     std::size_t pointIndex;
 
-    [[nodiscard]]
-    std::strong_ordering operator<=>(const PointGeoBufferIndex& other) const = default;
+    [[nodiscard]] std::strong_ordering operator<=>(const PointGeoBufferIndex& other) const = default;
 };
 
 struct PointsGeoBufferIndex {
     std::size_t pointStartIndex;
     std::size_t pointEndIndex; // inclusive, this index is part of the range.
 
-    [[nodiscard]]
-    std::strong_ordering operator<=>(const PointsGeoBufferIndex& other) const = default;
+    [[nodiscard]] std::strong_ordering operator<=>(const PointsGeoBufferIndex& other) const = default;
 };
 
 struct PointBufferSnapshot {
@@ -66,28 +65,26 @@ class PointBuffer {
     std::unordered_map<core::UUID, PointsGeoBufferIndex> m_handleToPointsIndexMapping;
 
   public:
-    [[nodiscard]]
-    static std::unique_ptr<PointBuffer> create() {
+    [[nodiscard]] static std::unique_ptr<PointBuffer> create() {
         return std::unique_ptr<PointBuffer>(new PointBuffer());
     }
 
-    [[nodiscard]]
-    static std::unique_ptr<PointBuffer> create(const GeoQikSettings& settings) {
+    [[nodiscard]] static std::unique_ptr<PointBuffer> create(const GeoQikSettings& settings) {
         return std::unique_ptr<PointBuffer>(new PointBuffer(settings));
     }
 
-    [[nodiscard]]
-    static std::unique_ptr<PointBuffer> create_from(const PointBuffer& other, std::size_t growthFactor) {
+    [[nodiscard]] static std::unique_ptr<PointBuffer> create_from(const PointBuffer& other, std::size_t growthFactor) {
         auto newBuffer = PointBuffer::create();
 
         newBuffer->m_currentPointColor = other.m_currentPointColor;
         if (!other.m_points.is_empty()) {
-            newBuffer->m_points = opengl::Buffer<float>::create_from(other.m_points, other.m_points.capacity() * growthFactor);
+            newBuffer->m_points =
+                opengl::Buffer<float>::create_from(other.m_points, other.m_points.capacity() * growthFactor);
             newBuffer->m_pointColors =
                 opengl::Buffer<float>::create_from(other.m_pointColors, other.m_pointColors.capacity() * growthFactor);
             newBuffer->m_pointIndices =
                 opengl::Buffer<std::uint32_t>::create_from(other.m_pointIndices,
-                                                   other.m_pointIndices.capacity() * growthFactor);
+                                                           other.m_pointIndices.capacity() * growthFactor);
             newBuffer->m_handleToPointIndexMapping = std::move(other.m_handleToPointIndexMapping);
             newBuffer->m_handleToPointsIndexMapping = std::move(other.m_handleToPointsIndexMapping);
             newBuffer->m_pointsHaveChanged = true;
@@ -102,22 +99,13 @@ class PointBuffer {
     PointBuffer& operator=(PointBuffer&&) = default;
     ~PointBuffer() = default;
 
-    [[nodiscard]]
-    bool has_changed() const {
-        return m_pointsHaveChanged;
-    }
+    [[nodiscard]] bool has_changed() const { return m_pointsHaveChanged; }
     void reset_changed_flag() { m_pointsHaveChanged = false; }
 
-    [[nodiscard]]
-    bool points_have_changed() const {
-        return m_pointsHaveChanged;
-    }
+    [[nodiscard]] bool points_have_changed() const { return m_pointsHaveChanged; }
     void reset_points_have_changed() { m_pointsHaveChanged = false; }
 
-    [[nodiscard]]
-    bool empty() const {
-        return m_points.is_empty();
-    }
+    [[nodiscard]] bool empty() const { return m_points.is_empty(); }
 
     void clear() {
         m_points.reset();
@@ -128,22 +116,12 @@ class PointBuffer {
         m_pointsHaveChanged = true;
     }
 
-    [[nodiscard]]
-    static constexpr std::int32_t get_point_dimension() {
-        return m_pointDimension;
-    }
-    [[nodiscard]]
-    static constexpr std::int32_t get_color_dimension() {
-        return m_colorDimension;
-    }
+    [[nodiscard]] static constexpr std::int32_t get_point_dimension() { return m_pointDimension; }
+    [[nodiscard]] static constexpr std::int32_t get_color_dimension() { return m_colorDimension; }
 
-    [[nodiscard]]
-    Color get_default_point_color() const {
-        return m_currentPointColor;
-    }
+    [[nodiscard]] Color get_default_point_color() const { return m_currentPointColor; }
 
-    [[nodiscard]]
-    std::optional<PointBufferGeometry> get_geometry(core::UUID handle) const {
+    [[nodiscard]] std::optional<PointBufferGeometry> get_geometry(core::UUID handle) const {
         if (auto it = m_handleToPointIndexMapping.find(handle); it != m_handleToPointIndexMapping.end()) {
             const std::size_t pointIndex = it->second.pointIndex;
             return create_geometry(pointIndex, pointIndex);
@@ -156,8 +134,7 @@ class PointBuffer {
         return std::nullopt;
     }
 
-    [[nodiscard]]
-    PointBufferSnapshot create_snapshot() const {
+    [[nodiscard]] PointBufferSnapshot create_snapshot() const {
         PointBufferSnapshot snapshot;
         snapshot.currentPointColor = m_currentPointColor;
         snapshot.points.assign(m_points.begin(), m_points.end());
@@ -175,7 +152,8 @@ class PointBuffer {
         m_currentPointColor = snapshot.currentPointColor;
         m_points = opengl::Buffer<float>(std::max(snapshot.pointCapacity, snapshot.points.size()));
         m_pointColors = opengl::Buffer<float>(std::max(snapshot.pointColorCapacity, snapshot.pointColors.size()));
-        m_pointIndices = opengl::Buffer<std::uint32_t>(std::max(snapshot.pointIndexCapacity, snapshot.pointIndices.size()));
+        m_pointIndices =
+            opengl::Buffer<std::uint32_t>(std::max(snapshot.pointIndexCapacity, snapshot.pointIndices.size()));
 
         for (float point: snapshot.points) {
             m_points.push_back(point);
@@ -198,14 +176,8 @@ class PointBuffer {
   [[nodiscard]] std::span<const std::uint32_t> get_point_indices() const { return m_pointIndices.get_as_span(); }
     // clang-format on
 
-    [[nodiscard]]
-    std::size_t get_point_capacity() const {
-        return m_points.capacity() / m_pointDimension;
-    }
-    [[nodiscard]]
-    std::size_t get_free_point_capacity() const {
-        return m_points.free_capacity() / m_pointDimension;
-    }
+    [[nodiscard]] std::size_t get_point_capacity() const { return m_points.capacity() / m_pointDimension; }
+    [[nodiscard]] std::size_t get_free_point_capacity() const { return m_points.free_capacity() / m_pointDimension; }
 
     bool has_space_for_points(std::size_t count) const { return get_free_point_capacity() >= count; }
 
@@ -263,8 +235,7 @@ class PointBuffer {
         }
     }
 
-    [[nodiscard]]
-    bool update_point(core::UUID handle, float x, float y, float z, std::span<const float> colors = {}) {
+    [[nodiscard]] bool update_point(core::UUID handle, float x, float y, float z, std::span<const float> colors = {}) {
         if (handle.is_nil()) {
             return false;
         }
@@ -295,8 +266,8 @@ class PointBuffer {
         return true;
     }
 
-    [[nodiscard]]
-    bool update_points(core::UUID handle, std::span<const float> points, std::span<const float> colors = {}) {
+    [[nodiscard]] bool
+    update_points(core::UUID handle, std::span<const float> points, std::span<const float> colors = {}) {
         if (handle.is_nil()) {
             return false;
         }
@@ -499,8 +470,7 @@ class PointBuffer {
         assert(m_pointIndices.capacity() == settings.initialPointCapacity);
     }
 
-    [[nodiscard]]
-    PointBufferGeometry create_geometry(std::size_t pointStartIndex, std::size_t pointEndIndex) const {
+    [[nodiscard]] PointBufferGeometry create_geometry(std::size_t pointStartIndex, std::size_t pointEndIndex) const {
         PointBufferGeometry geometry;
         const std::size_t pointCount = pointEndIndex - pointStartIndex + 1;
         const std::size_t pointStart = pointStartIndex * m_pointDimension;

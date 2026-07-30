@@ -1,6 +1,7 @@
 #include "Grid.hpp"
 #include "Origin.hpp"
 #include "sleep_helper.hpp"
+
 #include <GeoQik/GeoQik.hpp>
 #include <algorithm>
 #include <array>
@@ -8,8 +9,7 @@
 #include <iostream>
 #include <linal/linal.hpp>
 
-namespace
-{
+namespace {
 
 constexpr std::size_t curveControlPointCount = 4;
 constexpr std::size_t curveStepCount = 600;
@@ -26,21 +26,16 @@ constexpr double opaque = 1.0;
 
 } // namespace
 
-static void
-add_float3_with_color(const linal::double3& point)
-{
+static void add_float3_with_color(const linal::double3& point) {
     geoqik_add_point_with_color(point[0], point[1], point[2], 0.0F, opaque, 0.0F, opaque);
 }
 
-static void
-add_line_with_color(const linal::double3& start, const linal::double3& end)
-{
+static void add_line_with_color(const linal::double3& start, const linal::double3& end) {
     geoqik_add_line_with_color(start[0], start[1], start[2], end[0], end[1], end[2], 0.0F, opaque, 0.0F, opaque);
 }
 
-static void
-draw_curve_points(const std::array<linal::double3, curveControlPointCount>& startPoints, std::size_t approxSteps)
-{
+static void draw_curve_points(const std::array<linal::double3, curveControlPointCount>& startPoints,
+                              std::size_t approxSteps) {
     bool initialized = false;
     geoqik_is_api_initialized(&initialized);
     assert(initialized);
@@ -80,9 +75,7 @@ draw_curve_points(const std::array<linal::double3, curveControlPointCount>& star
     }
 }
 
-static void
-replay_current_log()
-{
+static void replay_current_log() {
     geoqik_replay_options_t replayOptions{};
     replayOptions.entriesPerSecond = replayEntriesPerSecond;
     replayOptions.speedMultiplier = replaySpeedMultiplier;
@@ -95,9 +88,7 @@ replay_current_log()
     }
 }
 
-int
-main()
-{
+int main() {
     geoqik_init();
 
     geoqik::examples::draw_origin(1.0);

@@ -1,6 +1,7 @@
 #include "Core/UUID.hpp"
 #include "GeometryBuffers/LineBuffer.hpp"
 #include "GeometryBuffers/PointBuffer.hpp"
+
 #include <array>
 #include <cmath>
 #include <gtest/gtest.h>

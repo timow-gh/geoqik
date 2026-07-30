@@ -36,14 +36,8 @@ class Handle {
         return temp;
     }
 
-    [[nodiscard]]
-    constexpr value_type get_value() const noexcept {
-        return m_value;
-    }
-    [[nodiscard]]
-    constexpr bool is_valid() const noexcept {
-        return m_value != Handle::invalidHandle;
-    }
+    [[nodiscard]] constexpr value_type get_value() const noexcept { return m_value; }
+    [[nodiscard]] constexpr bool is_valid() const noexcept { return m_value != Handle::invalidHandle; }
 
   private:
     value_type m_value{invalidHandle};

@@ -1,4 +1,5 @@
 #include "GeoQikApiTestBase.hpp"
+
 #include <cmath>
 #include <tuple>
 

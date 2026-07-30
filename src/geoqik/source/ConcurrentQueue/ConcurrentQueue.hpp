@@ -2,6 +2,7 @@
 #define MPSCQUEUE_HPP
 
 #include "Core/Assert.hpp"
+
 #include <atomic>
 #include <cassert>
 #include <cstdint>
