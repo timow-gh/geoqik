@@ -475,10 +475,10 @@ class PointBuffer {
         const std::size_t pointCount = pointEndIndex - pointStartIndex + 1;
         const std::size_t pointStart = pointStartIndex * m_pointDimension;
         const std::size_t colorStart = pointStartIndex * m_colorDimension;
-        geometry.points.assign(m_points.begin() + pointStart,
-                               m_points.begin() + pointStart + pointCount * m_pointDimension);
-        geometry.colors.assign(m_pointColors.begin() + colorStart,
-                               m_pointColors.begin() + colorStart + pointCount * m_colorDimension);
+        geometry.points.assign(m_points.begin() + static_cast<std::ptrdiff_t>(pointStart),
+                                m_points.begin() + static_cast<std::ptrdiff_t>(pointStart + pointCount * m_pointDimension));
+        geometry.colors.assign(m_pointColors.begin() + static_cast<std::ptrdiff_t>(colorStart),
+                                m_pointColors.begin() + static_cast<std::ptrdiff_t>(colorStart + pointCount * m_colorDimension));
         return geometry;
     }
 

@@ -596,7 +596,7 @@ void Context::run_event_loop() {
         ReplayGuiState replayState;
         populate_replay_gui_state(replayState);
         if (replayState.isActive) {
-            if (const auto imgui = m_renderer->get_imgui().lock()) {
+            if (auto *const imgui = m_renderer->get_imgui().lock()) {
                 imgui->add_control([&replayState]() { render_replay_controls(replayState); });
             }
         }
@@ -633,8 +633,8 @@ bool Context::should_close_event_loop() {
         return true;
     }
 
-    const auto imgui = m_renderer->get_imgui().lock();
-    const bool keyboardCaptured = imgui && imgui->wants_keyboard();
+    auto *const imgui = m_renderer->get_imgui().lock();
+    const bool keyboardCaptured = imgui != nullptr && imgui->wants_keyboard();
     if (!keyboardCaptured && m_renderer->is_escape_pressed()) {
         m_windowShouldClose.store(true);
         return true;
