@@ -1,7 +1,7 @@
 CPMAddPackage(
         NAME plinth
         GITHUB_REPOSITORY "timow-gh/plinth"
-        GIT_TAG v1.0.0
+        GIT_TAG main
         GIT_SHALLOW TRUE
         EXCLUDE_FROM_ALL YES
         OPTIONS

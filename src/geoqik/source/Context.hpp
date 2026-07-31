@@ -74,6 +74,7 @@ class Context {
 
     Scene m_scene;
     std::unique_ptr<renderer::Renderer> m_renderer;
+    renderer::CallbackSubscription m_keyCallback;
     std::unique_ptr<GeoQikSceneRenderer> m_sceneRenderer;
     bool m_isDrawing{false};
     bool m_homeRequested{false};
@@ -91,7 +92,6 @@ class Context {
     bool m_isReplayActive{false};
     bool m_isReplayPaused{false};
     std::chrono::high_resolution_clock::time_point m_lastReplayTick;
-    std::chrono::high_resolution_clock::time_point m_lastCameraInteractionTime;
     std::deque<GeoQikMessage> m_deferredMessages;
 
   public:
@@ -224,8 +224,6 @@ class Context {
     void restore_replay_undo_frame(const ReplayUndoFrame& frame);
     void finish_replay();
     [[nodiscard]] bool should_close_event_loop();
-    void update_camera_interaction_state();
-    void sync_scene_and_auto_fit();
     void populate_replay_gui_state(ReplayGuiState& state) const;
     void consume_replay_gui_commands(const ReplayGuiState& state);
     [[nodiscard]] bool should_stop_processing_messages(

@@ -44,12 +44,12 @@ struct GEOQIK_EXPORT GeoQikSettings {
         1.0f}; // Default color for meshes. If no other color is set using the GeoQik API, this color will be used.
     std::array<float, 3> meshHeadLightColor{1.0f, 1.0f, 1.0f};
     float meshHeadLightIntensity{1.0f};
-    std::array<float, 3> meshFillLightDirection{-0.45f, 0.60f, 0.35f};
-    std::array<float, 3> meshFillLightColor{0.70f, 0.78f, 1.0f};
-    float meshFillLightIntensity{0.25f};
+    std::array<float, 3> meshFillLightDirection{-0.5f, -0.4f, 0.6f};
+    std::array<float, 3> meshFillLightColor{0.25f, 0.28f, 0.35f};
+    float meshFillLightIntensity{1.0f};
     std::array<float, 3> meshAmbientColor{1.0f, 1.0f, 1.0f};
-    float meshAmbientIntensity{0.20f};
-    float meshShininess{32.0f};
+    float meshAmbientIntensity{0.30f};
+    float meshShininess{1.0f};
     std::size_t capacityGrowthFactor{2}; // Growth factor for the geometry buffers. Then new buffer will have a capacity
                                          // of current_capacity * growth_factor.
 
@@ -67,7 +67,7 @@ struct GEOQIK_EXPORT GeoQikSettings {
         1.0f,
         1.0f,
         1.0f}; // Default color for lines. If no other color is set using the GeoQik API, this color will be used.
-    Color backgroundColor{0.1f, 0.1f, 0.1f, 1.0f}; // Default background color for the window.
+    Color backgroundColor{0.05f, 0.05f, 0.05f, 1.0f}; // Default background color for the window.
 
     double cameraFarPlaneMultiplier{
         3.0}; // The far plane of the camera is set to the radius of the bounding sphere multiplied by this factor.

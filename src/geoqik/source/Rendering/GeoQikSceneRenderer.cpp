@@ -2,8 +2,8 @@
 
 #include "GeometryBuffers/MeshBuffer.hpp"
 
-#include <OpenGL/BufferAccessPattern.hpp>
-
+#include <plinth/BufferAccessPattern.hpp>
+#include <plinth/MeshCullFaceMode.hpp>
 #include <plinth/Renderer.hpp>
 
 namespace geoqik {
@@ -12,17 +12,17 @@ bool GeoQikSceneRenderer::sync_points(Scene& scene) {
     auto& pointBuffer = scene.get_point_buffer();
     if (!m_renderer.has_point_drawables() && !pointBuffer.get_points().empty()) {
         m_renderer.add_point_drawable(pointBuffer.get_points(),
-                                      pointBuffer.get_point_colors(),
                                       pointBuffer.get_point_indices(),
+                                      pointBuffer.get_point_colors(),
                                       scene.get_point_size(),
-                                      opengl::BufferAccessPattern::STATIC_DRAW);
+                                      renderer::BufferAccessPattern::Static);
         return true;
     }
     if (pointBuffer.points_have_changed()) {
         m_renderer.update_last_point_drawable(pointBuffer.get_points(),
                                               pointBuffer.get_point_colors(),
                                               pointBuffer.get_point_indices(),
-                                              opengl::BufferAccessPattern::STATIC_DRAW);
+                                              renderer::BufferAccessPattern::Static);
         pointBuffer.reset_points_have_changed();
         return true;
     }
@@ -38,14 +38,14 @@ bool GeoQikSceneRenderer::sync_lines(Scene& scene) {
                                      m_lineType,
                                      scene.get_line_width(),
                                      scene.get_point_size(),
-                                     opengl::BufferAccessPattern::STATIC_DRAW);
+                                     renderer::BufferAccessPattern::Static);
         return true;
     }
     if (lineBuffer.lines_have_changed()) {
         m_renderer.update_last_line_drawable(lineBuffer.get_lines(),
                                              lineBuffer.get_line_colors(),
                                              lineBuffer.get_line_indices(),
-                                             opengl::BufferAccessPattern::STATIC_DRAW);
+                                             renderer::BufferAccessPattern::Static);
         lineBuffer.reset_lines_have_changed();
         return true;
     }
@@ -110,16 +110,16 @@ bool GeoQikSceneRenderer::sync_overlay_drawables(MeshBuffer& meshBuffer) {
 
         const bool wantSegments =
             overlay.showSegments && !overlay.segmentPositions.empty() && !overlay.segmentIndices.empty();
-        if (wantSegments && !bundle.segments.is_valid()) {
+    if (wantSegments && !bundle.segments.is_valid()) {
             const std::vector<float> colorVec{overlay.segmentColor[0],
                                               overlay.segmentColor[1],
                                               overlay.segmentColor[2],
                                               overlay.segmentColor[3]};
-            bundle.segments =
-                m_renderer.add_mesh_segment_drawable(std::span<const float>(overlay.segmentPositions),
-                                                     std::span<const std::uint32_t>(overlay.segmentIndices),
-                                                     std::span<const float>(colorVec),
-                                                     overlay.segmentLineWidth);
+            bundle.segments = m_renderer.add_line_drawable(std::span<const float>(overlay.segmentPositions),
+                                                           std::span<const std::uint32_t>(overlay.segmentIndices),
+                                                           std::span<const float>(colorVec),
+                                                           renderer::LineType::lines(),
+                                                           overlay.segmentLineWidth);
             updateOccurred = true;
         } else if (!wantSegments && bundle.segments.is_valid()) {
             m_renderer.remove_drawable(bundle.segments);
@@ -133,9 +133,9 @@ bool GeoQikSceneRenderer::sync_overlay_drawables(MeshBuffer& meshBuffer) {
                                               overlay.vertexColor[1],
                                               overlay.vertexColor[2],
                                               overlay.vertexColor[3]};
-            bundle.vertices = m_renderer.add_mesh_vertex_drawable(std::span<const float>(overlay.segmentPositions),
-                                                                  std::span<const float>(colorVec),
-                                                                  overlay.vertexPointSize);
+            bundle.vertices = m_renderer.add_point_drawable(std::span<const float>(overlay.segmentPositions),
+                                                            std::span<const float>(colorVec),
+                                                            overlay.vertexPointSize);
             updateOccurred = true;
         } else if (!wantVertices && bundle.vertices.is_valid()) {
             m_renderer.remove_drawable(bundle.vertices);
@@ -169,10 +169,10 @@ void GeoQikSceneRenderer::recreate_point_drawables(const Scene& scene) {
         return;
     }
     m_renderer.add_point_drawable(pointBuffer.get_points(),
-                                  pointBuffer.get_point_colors(),
                                   pointBuffer.get_point_indices(),
+                                  pointBuffer.get_point_colors(),
                                   scene.get_point_size(),
-                                  opengl::BufferAccessPattern::STATIC_DRAW);
+                                  renderer::BufferAccessPattern::Static);
 }
 
 void GeoQikSceneRenderer::recreate_line_drawables(const Scene& scene) {
@@ -180,10 +180,10 @@ void GeoQikSceneRenderer::recreate_line_drawables(const Scene& scene) {
     const auto& pointBuffer = scene.get_point_buffer();
     if (!pointBuffer.get_points().empty()) {
         m_renderer.add_point_drawable(pointBuffer.get_points(),
-                                      pointBuffer.get_point_colors(),
                                       pointBuffer.get_point_indices(),
+                                      pointBuffer.get_point_colors(),
                                       scene.get_point_size(),
-                                      opengl::BufferAccessPattern::STATIC_DRAW);
+                                      renderer::BufferAccessPattern::Static);
     }
     const auto& lineBuffer = scene.get_line_buffer();
     if (!lineBuffer.get_lines().empty()) {
@@ -193,7 +193,7 @@ void GeoQikSceneRenderer::recreate_line_drawables(const Scene& scene) {
                                      m_lineType,
                                      scene.get_line_width(),
                                      scene.get_point_size(),
-                                     opengl::BufferAccessPattern::STATIC_DRAW);
+                                     renderer::BufferAccessPattern::Static);
     }
 }
 
@@ -233,19 +233,20 @@ void GeoQikSceneRenderer::create_surface_bundle(const core::UUID& uuid, const Me
 
     if (surfaceVisible) {
         bundle.surface = m_renderer.add_mesh_drawable(meshBuffer.get_mesh_vertices(uuid),
+                                                      meshBuffer.get_local_triangle_indices(uuid),
                                                       meshBuffer.get_mesh_normals(uuid),
                                                       meshBuffer.get_mesh_colors(uuid),
-                                                      meshBuffer.get_local_triangle_indices(uuid),
-                                                      opengl::BufferAccessPattern::STATIC_DRAW);
+                                                      renderer::MeshCullFaceMode::BACK,
+                                                      renderer::BufferAccessPattern::Static);
 
         if (bundle.surface.is_valid() && meshBuffer.has_mesh_rendering_opts(uuid)) {
             const auto& renderOpts = meshBuffer.get_mesh_rendering_opts(uuid);
-            opengl::MeshCullFaceMode cullFaceMode = opengl::MeshCullFaceMode::back;
+            renderer::MeshCullFaceMode cullFaceMode = renderer::MeshCullFaceMode::BACK;
             switch (renderOpts.cullMode) {
-            case MeshCullMode::front: cullFaceMode = opengl::MeshCullFaceMode::front; break;
-            case MeshCullMode::none:  cullFaceMode = opengl::MeshCullFaceMode::none; break;
+            case MeshCullMode::front: cullFaceMode = renderer::MeshCullFaceMode::FRONT; break;
+            case MeshCullMode::none:  cullFaceMode = renderer::MeshCullFaceMode::NONE; break;
             case MeshCullMode::back:
-            default:                  cullFaceMode = opengl::MeshCullFaceMode::back; break;
+            default:                  cullFaceMode = renderer::MeshCullFaceMode::BACK; break;
             }
             m_renderer.set_mesh_drawable_cull_mode(bundle.surface, cullFaceMode);
         }
@@ -259,11 +260,11 @@ void GeoQikSceneRenderer::create_surface_bundle(const core::UUID& uuid, const Me
                                               overlay.segmentColor[1],
                                               overlay.segmentColor[2],
                                               overlay.segmentColor[3]};
-            bundle.segments =
-                m_renderer.add_mesh_segment_drawable(std::span<const float>(overlay.segmentPositions),
-                                                     std::span<const std::uint32_t>(overlay.segmentIndices),
-                                                     std::span<const float>(colorVec),
-                                                     overlay.segmentLineWidth);
+            bundle.segments = m_renderer.add_line_drawable(std::span<const float>(overlay.segmentPositions),
+                                                           std::span<const std::uint32_t>(overlay.segmentIndices),
+                                                           std::span<const float>(colorVec),
+                                                           renderer::LineType::lines(),
+                                                           overlay.segmentLineWidth);
         }
 
         // Vertex overlay
@@ -272,9 +273,9 @@ void GeoQikSceneRenderer::create_surface_bundle(const core::UUID& uuid, const Me
                                               overlay.vertexColor[1],
                                               overlay.vertexColor[2],
                                               overlay.vertexColor[3]};
-            bundle.vertices = m_renderer.add_mesh_vertex_drawable(std::span<const float>(overlay.segmentPositions),
-                                                                  std::span<const float>(colorVec),
-                                                                  overlay.vertexPointSize);
+            bundle.vertices = m_renderer.add_point_drawable(std::span<const float>(overlay.segmentPositions),
+                                                            std::span<const float>(colorVec),
+                                                            overlay.vertexPointSize);
         }
     }
 

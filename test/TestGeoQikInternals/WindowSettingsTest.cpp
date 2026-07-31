@@ -1,7 +1,10 @@
 #include <plinth/WindowSettings.hpp>
 
 #include <GeoQik/GeoQik.hpp>
+#include "GeoQikSettings.hpp"
 #include <gtest/gtest.h>
+
+#include <cstddef>
 
 using namespace renderer;
 
@@ -41,4 +44,36 @@ TEST(WindowSettingsTest, ExternalApiUsesGeoQikDefaultTitle) {
     EXPECT_EQ(externalSettings.transparent_framebuffer != 0, internalSettings.transparent_framebuffer);
     EXPECT_EQ(externalSettings.focus_on_show != 0, internalSettings.focus_on_show);
     EXPECT_EQ(externalSettings.scale_to_monitor != 0, internalSettings.scale_to_monitor);
+}
+
+TEST(GeoQikSettingsTest, CAndCppDefaultsMatchPlinthAppearance) {
+    geoqik_settings_t cSettings{};
+    geoqik_create_default_settings(&cSettings);
+    const geoqik::GeoQikSettings cppSettings;
+
+    EXPECT_EQ(cSettings.backgroundColor[0], 0.05F);
+    EXPECT_EQ(cSettings.backgroundColor[1], 0.05F);
+    EXPECT_EQ(cSettings.backgroundColor[2], 0.05F);
+    EXPECT_EQ(cSettings.backgroundColor[3], 1.0F);
+    EXPECT_EQ(cSettings.meshFillLightDirection[0], -0.5F);
+    EXPECT_EQ(cSettings.meshFillLightDirection[1], -0.4F);
+    EXPECT_EQ(cSettings.meshFillLightDirection[2], 0.6F);
+    EXPECT_EQ(cSettings.meshFillLightColor[0], 0.25F);
+    EXPECT_EQ(cSettings.meshFillLightColor[1], 0.28F);
+    EXPECT_EQ(cSettings.meshFillLightColor[2], 0.35F);
+    EXPECT_EQ(cSettings.meshFillLightIntensity, 1.0F);
+    EXPECT_EQ(cSettings.meshAmbientIntensity, 0.30F);
+    EXPECT_EQ(cSettings.meshShininess, 1.0F);
+
+    EXPECT_EQ(cSettings.backgroundColor[0], cppSettings.backgroundColor[0]);
+    EXPECT_EQ(cSettings.backgroundColor[1], cppSettings.backgroundColor[1]);
+    EXPECT_EQ(cSettings.backgroundColor[2], cppSettings.backgroundColor[2]);
+    EXPECT_EQ(cSettings.backgroundColor[3], cppSettings.backgroundColor[3]);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        EXPECT_EQ(cSettings.meshFillLightDirection[channel], cppSettings.meshFillLightDirection[channel]);
+        EXPECT_EQ(cSettings.meshFillLightColor[channel], cppSettings.meshFillLightColor[channel]);
+    }
+    EXPECT_EQ(cSettings.meshFillLightIntensity, cppSettings.meshFillLightIntensity);
+    EXPECT_EQ(cSettings.meshAmbientIntensity, cppSettings.meshAmbientIntensity);
+    EXPECT_EQ(cSettings.meshShininess, cppSettings.meshShininess);
 }

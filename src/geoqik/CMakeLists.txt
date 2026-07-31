@@ -7,6 +7,7 @@ set(geoqik_SOURCE_FILES
         source/Context.hpp
         source/Context.cpp
         source/GeometryHelpers.hpp
+        source/GeometryBuffers/Buffer.hpp
         source/GeometryBuffers/LineBuffer.hpp
         source/GeometryBuffers/PointBuffer.hpp
         source/GeoQik.cpp

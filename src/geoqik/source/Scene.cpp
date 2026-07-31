@@ -261,8 +261,7 @@ Scene::calc_growth_factor(std::size_t currentCapacity, std::size_t freeCapacity,
     const std::size_t usedCapacity = currentCapacity - freeCapacity;
     const std::size_t requiredCapacity = usedCapacity + requestedCount;
     const std::size_t targetCapacity = std::max(m_geomBufferGrowthFactor * currentCapacity, requiredCapacity);
-    const std::size_t additionalCapacity = targetCapacity - currentCapacity;
-    return (additionalCapacity + currentCapacity - 1) / currentCapacity;
+    return (targetCapacity + currentCapacity - 1) / currentCapacity;
 }
 
 } // namespace geoqik

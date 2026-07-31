@@ -3,8 +3,7 @@
 
 #include "Scene.hpp"
 
-#include <OpenGL/LineType.hpp>
-
+#include <plinth/LineType.hpp>
 #include <plinth/Renderer.hpp>
 
 #include <unordered_map>
@@ -13,7 +12,7 @@ namespace geoqik {
 
 class GeoQikSceneRenderer {
     renderer::Renderer& m_renderer;
-    opengl::LineType m_lineType{opengl::LineType::lines()};
+    renderer::LineType m_lineType{renderer::LineType::lines()};
 
     struct MeshDrawableBundle {
         renderer::DrawableHandle surface;
@@ -32,7 +31,7 @@ class GeoQikSceneRenderer {
     GeoQikSceneRenderer(GeoQikSceneRenderer&&) = delete;
     GeoQikSceneRenderer& operator=(GeoQikSceneRenderer&&) = delete;
 
-    [[nodiscard]] bool sync_scene(Scene& scene);
+    bool sync_scene(Scene& scene);
 
     void recreate_point_drawables(const Scene& scene);
     void recreate_line_drawables(const Scene& scene);

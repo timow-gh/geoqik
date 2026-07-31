@@ -528,14 +528,14 @@ class LineBuffer {
         LineBufferGeometry geometry;
         const std::size_t lineCount = lineEndIndex - lineStartIndex + 1;
         const std::size_t lineStart = lineStartIndex * 2 * m_pointDimension;
-        geometry.lines.assign(m_lines.begin() + lineStart,
-                              m_lines.begin() + lineStart + lineCount * 2 * m_pointDimension);
+        geometry.lines.assign(m_lines.begin() + static_cast<std::ptrdiff_t>(lineStart),
+                               m_lines.begin() + static_cast<std::ptrdiff_t>(lineStart + lineCount * 2 * m_pointDimension));
         geometry.colors.reserve(lineCount * m_colorDimension);
         for (std::size_t lineIndex = lineStartIndex; lineIndex <= lineEndIndex; ++lineIndex) {
             const std::size_t colorStart = lineIndex * 2 * m_colorDimension;
             geometry.colors.insert(geometry.colors.end(),
-                                   m_lineColors.begin() + colorStart,
-                                   m_lineColors.begin() + colorStart + m_colorDimension);
+                                    m_lineColors.begin() + static_cast<std::ptrdiff_t>(colorStart),
+                                    m_lineColors.begin() + static_cast<std::ptrdiff_t>(colorStart + m_colorDimension));
         }
         return geometry;
     }
