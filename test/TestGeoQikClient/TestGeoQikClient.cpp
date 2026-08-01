@@ -180,6 +180,24 @@ TEST_F(GeoQikClientTest, ReplayCurrentLogAndCancelViaIpc) {
     EXPECT_TRUE(wait_for_replay_state(GEOQIK_REPLAY_INACTIVE));
 }
 
+TEST_F(GeoQikClientTest, NullReplayKeyPointersWithNonzeroCountsUseDefaultsViaIpc) {
+    ASSERT_EQ(GEOQIK_SUCCESS, geoqik_init());
+    ASSERT_EQ(GEOQIK_SUCCESS, geoqik_add_point(0.0, 0.0, 0.0).err);
+
+    geoqik_replay_options_t opts{};
+    opts.startPaused = 1;
+    opts.stepKeyCount = 1;
+    opts.backwardStepKeyCount = 2;
+    opts.resumeKeyCount = 3;
+    opts.pauseKeyCount = 4;
+    opts.increaseEntriesPerStepKeyCount = 5;
+    opts.decreaseEntriesPerStepKeyCount = 6;
+
+    ASSERT_EQ(GEOQIK_SUCCESS, geoqik_replay_current_log(&opts));
+    EXPECT_TRUE(wait_for_replay_state(GEOQIK_REPLAY_PAUSED));
+    EXPECT_EQ(GEOQIK_SUCCESS, geoqik_cancel_replay());
+}
+
 TEST_F(GeoQikClientTest, ReplayLogFromFileViaIpc) {
     const std::filesystem::path path = std::filesystem::temp_directory_path() / "geoqik_client_test_replay.gqklog";
     std::filesystem::remove(path);
