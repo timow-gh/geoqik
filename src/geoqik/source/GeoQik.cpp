@@ -573,13 +573,9 @@ static bool convert_replay_keys(const geoqik_key_t* cKeys,
                                 std::initializer_list<geoqik::Key> defaultKeys,
                                 std::vector<geoqik::Key>& replayKeys) {
     replayKeys.clear();
-    if (cKeyCount == 0) {
+    if (cKeys == nullptr || cKeyCount == 0) {
         replayKeys.assign(defaultKeys.begin(), defaultKeys.end());
         return true;
-    }
-
-    if (cKeys == nullptr) {
-        return false;
     }
 
     replayKeys.reserve(cKeyCount);

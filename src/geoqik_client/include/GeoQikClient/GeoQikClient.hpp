@@ -1859,8 +1859,9 @@ inline void encode_replay_options(std::vector<std::uint8_t>& payload, const geoq
     proto::write_pod(payload, size_to_wire_count(o.entriesPerStep));
 
     auto write_key_array = [&](const geoqik_key_t* keys, std::size_t count) {
-        proto::write_pod(payload, static_cast<std::uint32_t>(count));
-        for (std::size_t i = 0; i < count; ++i) {
+        const std::size_t serializedCount = keys != nullptr ? count : 0;
+        proto::write_pod(payload, static_cast<std::uint32_t>(serializedCount));
+        for (std::size_t i = 0; i < serializedCount; ++i) {
             proto::write_pod(payload, static_cast<std::int32_t>(keys[i]));
         }
     };
