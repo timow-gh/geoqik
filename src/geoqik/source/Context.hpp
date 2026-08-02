@@ -239,7 +239,7 @@ class Context {
     void finish_replay();
     [[nodiscard]] bool should_close_event_loop();
     void populate_replay_gui_state(ReplayGuiState& state) const;
-    void consume_replay_gui_commands(const ReplayGuiState& state);
+    void consume_replay_gui_commands(ReplayGuiState& state);
     [[nodiscard]] bool should_stop_processing_messages(
         const std::chrono::high_resolution_clock::time_point& frameStartTime,
         const std::chrono::high_resolution_clock::time_point& messageProcessingStartTime) const;

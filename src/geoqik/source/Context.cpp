@@ -59,9 +59,11 @@ struct ReplayGuiState {
         StepForward,
         StepBackward,
     };
+    // One-shot requests filled in by the UI and drained (reset) after rendering, mirroring the
+    // std::optional requests in CameraGuiState. Command::None is the "no request" sentinel.
     Command command{Command::None};
-    double requestedSpeedMultiplier{0.0};
-    std::size_t requestedEntriesPerStep{0};
+    std::optional<double> requestedSpeedMultiplier;
+    std::optional<std::size_t> requestedEntriesPerStep;
 };
 
 struct CameraGuiState {
@@ -800,21 +802,30 @@ void Context::populate_replay_gui_state(ReplayGuiState& state) const {
     state.decreaseStepKeysLabel = key_labels(m_replayOptions.decreaseEntriesPerStepKeys);
 }
 
-void Context::consume_replay_gui_commands(const ReplayGuiState& state) {
+void Context::consume_replay_gui_commands(ReplayGuiState& state) {
+    // m_replayGuiState is a persistent member reused every frame, so drain these one-shot requests
+    // as they are consumed - otherwise a lingering command (e.g. Play) re-runs every frame,
+    // repeatedly zeroing m_replayEntryBudget / m_lastReplayTick so the budget never accumulates and
+    // playback never advances. Mirrors how consume_camera_gui_commands resets its optionals.
+    const ReplayGuiState::Command command = std::exchange(state.command, ReplayGuiState::Command::None);
+    const std::optional<double> requestedSpeedMultiplier = std::exchange(state.requestedSpeedMultiplier, std::nullopt);
+    const std::optional<std::size_t> requestedEntriesPerStep =
+        std::exchange(state.requestedEntriesPerStep, std::nullopt);
+
     if (!is_replaying()) {
         return;
     }
 
-    if (state.requestedSpeedMultiplier > 0.0) {
-        m_currentSpeedMultiplier = state.requestedSpeedMultiplier;
+    if (requestedSpeedMultiplier.has_value()) {
+        m_currentSpeedMultiplier = *requestedSpeedMultiplier;
         m_replayOptions.entriesPerSecond = m_baseEntriesPerSecond * m_currentSpeedMultiplier;
     }
 
-    if (state.requestedEntriesPerStep > 0) {
-        m_replayOptions.entriesPerStep = state.requestedEntriesPerStep;
+    if (requestedEntriesPerStep.has_value()) {
+        m_replayOptions.entriesPerStep = *requestedEntriesPerStep;
     }
 
-    switch (state.command) {
+    switch (command) {
     case ReplayGuiState::Command::Play:
         m_isReplayBackward = false;
         m_isReplayPaused = false;
