@@ -23,6 +23,7 @@
 #include <cstddef>
 #include <deque>
 #include <memory>
+#include <optional>
 #include <span>
 #include <utility>
 #include <variant>
@@ -30,11 +31,14 @@
 
 namespace renderer {
 class Renderer;
+struct OverlayFrameContext;
 }
 
 namespace geoqik {
 
 struct ReplayGuiState;
+struct CameraGuiState;
+class GeoQikOverlay;
 
 using renderer::Action;
 using renderer::Key;
@@ -74,10 +78,13 @@ class Context {
 
     Scene m_scene;
     std::unique_ptr<renderer::Renderer> m_renderer;
+    std::shared_ptr<GeoQikOverlay> m_overlay;
     renderer::CallbackSubscription m_keyCallback;
+    std::optional<renderer::PresetView> m_activePresetView; // nullopt == "Free" navigation
+    std::unique_ptr<CameraGuiState> m_cameraGuiState;
+    std::unique_ptr<ReplayGuiState> m_replayGuiState;
     std::unique_ptr<GeoQikSceneRenderer> m_sceneRenderer;
     bool m_isDrawing{false};
-    bool m_homeRequested{false};
     bool m_isReplayBackward{false};
     double m_baseEntriesPerSecond{60.0};
     double m_currentSpeedMultiplier{1.0};
@@ -216,6 +223,12 @@ class Context {
     [[nodiscard]] static bool is_control_message(const GeoQikMessage& message);
     void on_key(Key key, Scancode scancode, Action action, Mods mods);
     void handle_camera_key(Key key, Action action);
+    void apply_preset_view(renderer::PresetView view);
+    void apply_navigation_style(renderer::CameraInteractor::NavigationStyle style);
+    void request_fit_all_geometry();
+    void build_overlay(renderer::OverlayFrameContext& ctx);
+    void populate_camera_gui_state(CameraGuiState& state) const;
+    void consume_camera_gui_commands(CameraGuiState& state);
     [[nodiscard]] static bool has_replay_key(const std::vector<Key>& keys, Key key);
     void start_replay(std::vector<GeoQikLogEntry> entries, const ReplayOptions& options);
     void process_replay_entries(const std::chrono::high_resolution_clock::time_point& now);
