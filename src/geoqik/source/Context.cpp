@@ -308,6 +308,7 @@ bool Context::init_window(const GeoQikSettings& geoqikSettings, const WindowSett
     }
     m_renderer->set_camera_auto_fit_settings(make_camera_auto_fit_settings(m_geoqikSettings));
     m_renderer->set_camera_far_plane_multiplier(m_geoqikSettings.cameraFarPlaneMultiplier);
+    m_renderer->set_ui_mode(renderer::UiMode::Release);
 
     m_sceneRenderer = std::make_unique<GeoQikSceneRenderer>(*m_renderer);
 
@@ -1183,7 +1184,55 @@ bool Context::is_control_message(const GeoQikMessage& message) {
            std::holds_alternative<GetReplayProgress>(message);
 }
 
+void Context::handle_camera_key(Key key, Action action) {
+    if (action != Action::PRESS) {
+        return;
+    }
+
+    // F1 toggles between the game-like Release control panel (the default) and the full Debug
+    // panel exposing every post-processing and visualization control.
+    if (key == Key::KEY_F1) {
+        m_renderer->set_ui_mode(m_renderer->ui_mode() == renderer::UiMode::Release ? renderer::UiMode::Debug
+                                                                                   : renderer::UiMode::Release);
+        return;
+    }
+
+    // Tab toggles between orbit navigation and fly (WASD+QE) navigation.
+    if (key == Key::KEY_TAB) {
+        if (auto camera = m_renderer->get_camera().lock()) {
+            camera->set_navigation_style(camera->get_navigation_style() ==
+                                                 renderer::CameraInteractor::NavigationStyle::ORBIT
+                                             ? renderer::CameraInteractor::NavigationStyle::FLY
+                                             : renderer::CameraInteractor::NavigationStyle::ORBIT);
+        }
+        return;
+    }
+
+    // Number keys 1-7 jump to named preset views, fitted to whatever geometry currently exists.
+    renderer::PresetView presetView{};
+    auto viewMode = renderer::CameraInteractor::CameraViewMode::FIX_ROTATE;
+    switch (key) {
+    case Key::KEY_1: presetView = renderer::PresetView::FRONT; break;
+    case Key::KEY_2: presetView = renderer::PresetView::BACK; break;
+    case Key::KEY_3: presetView = renderer::PresetView::LEFT; break;
+    case Key::KEY_4: presetView = renderer::PresetView::RIGHT; break;
+    case Key::KEY_5: presetView = renderer::PresetView::TOP; break;
+    case Key::KEY_6: presetView = renderer::PresetView::BOTTOM; break;
+    case Key::KEY_7:
+        presetView = renderer::PresetView::ISO;
+        viewMode = renderer::CameraInteractor::CameraViewMode::NONE;
+        break;
+    default:         return;
+    }
+    m_renderer->go_to_preset_view(presetView);
+    if (auto camera = m_renderer->get_camera().lock()) {
+        camera->set_view_mode(viewMode);
+    }
+}
+
 void Context::on_key(Key key, [[maybe_unused]] Scancode scancode, Action action, [[maybe_unused]] Mods mods) {
+    handle_camera_key(key, action);
+
     if (!is_replaying()) {
         return;
     }

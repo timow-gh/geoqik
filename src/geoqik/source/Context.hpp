@@ -215,6 +215,7 @@ class Context {
     [[nodiscard]] bool is_replaying() const;
     [[nodiscard]] static bool is_control_message(const GeoQikMessage& message);
     void on_key(Key key, Scancode scancode, Action action, Mods mods);
+    void handle_camera_key(Key key, Action action);
     [[nodiscard]] static bool has_replay_key(const std::vector<Key>& keys, Key key);
     void start_replay(std::vector<GeoQikLogEntry> entries, const ReplayOptions& options);
     void process_replay_entries(const std::chrono::high_resolution_clock::time_point& now);
