@@ -24,6 +24,20 @@ GeoQik is distributed as a shared library (`geoqik.dll` / `libgeoqik.so`). Consu
 
 ### via installed package
 
+GitHub Releases provide these x64 packages:
+
+| Platform | Package | Contents |
+| --- | --- | --- |
+| Ubuntu 24.04 | `geoqik-<version>-ubuntu-24.04-x86_64.tar.gz` | Complete relocatable SDK |
+| Ubuntu 24.04 | `libgeoqik0_<version>_amd64.deb` | Runtime library and server |
+| Ubuntu 24.04 | `libgeoqik-dev_<version>_amd64.deb` | Headers and CMake package; depends on the runtime package |
+| Windows | `geoqik-<version>-windows-x64.zip` | Complete relocatable SDK |
+| Windows | `geoqik-<version>-windows-x64.exe` | NSIS runtime and development installer |
+
+Every artifact has a matching `.sha256` checksum. Linux binaries currently target Ubuntu 24.04; broader distribution compatibility is not guaranteed.
+
+For a portable archive, extract it and pass its root as the install prefix:
+
 ```cmake
 find_package(geoqik CONFIG REQUIRED)
 target_link_libraries(your_target PRIVATE geoqik::geoqik)
@@ -34,6 +48,8 @@ Pass the install prefix to CMake:
 ```
 cmake -DCMAKE_PREFIX_PATH=/path/to/geoqik/install ...
 ```
+
+The header-only client target is available as `geoqik::client`. It starts the packaged `geoqik_server` process and must be able to find that executable through `PATH` or `GEOQIK_EXE_PATH`. DEB packages use the standard executable location. The NSIS installer offers to add its `bin` directory to `PATH`; archive users should add `<archive>/bin` themselves.
 
 ### via FetchContent
 

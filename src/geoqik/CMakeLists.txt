@@ -71,17 +71,14 @@ target_include_directories(${TARGET_NAME}
 
 add_library(${TARGET_NAME}::${TARGET_NAME} ALIAS ${TARGET_NAME})
 
-set(${TARGET_NAME}_MAJOR 0)
-set(${TARGET_NAME}_MINOR 1)
-set(${TARGET_NAME}_PATCH 0)
-message(STATUS "Configuring ${TARGET_NAME} ${${TARGET_NAME}_MAJOR}.${${TARGET_NAME}_MINOR}.${${TARGET_NAME}_PATCH}")
+message(STATUS "Configuring ${TARGET_NAME} ${PROJECT_VERSION}")
 
 set_target_properties(${TARGET_NAME}
         PROPERTIES
         LANGUAGE CXX
         LINKER_LANGUAGE CXX
         DEBUG_POSTFIX d
-        VERSION ${${TARGET_NAME}_MAJOR}.${${TARGET_NAME}_MINOR}.${${TARGET_NAME}_PATCH}
+        VERSION ${PROJECT_VERSION}
         SOVERSION ${PROJECT_VERSION_MAJOR})
 
 add_warnings_and_compile_options(${TARGET_NAME} ON)
@@ -118,7 +115,7 @@ if (${PROJECT_NAME}_INSTALL)
             EXPORT ${project_export_set_name}
             RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
             COMPONENT runtime
-            LIBRARY DESTINATION ${CMAKE_INSTALL_BINDIR}
+            LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
             COMPONENT runtime
             ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
             COMPONENT dev

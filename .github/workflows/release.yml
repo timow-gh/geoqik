@@ -1,78 +1,30 @@
-name: Create Release
+name: Release Packages
 
-# Trigger the workflow only when a tag starting with 'v' is pushed
-# Example: v1.0.0, v2.3.1-beta, etc.
 on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
 
 jobs:
-  build-packages:
-    strategy:
-      matrix:
-        include:
-          - os: ubuntu-24.04
-            workflow-preset: workflow-package-gcc-shared
-            artifact-path: out/packages/package-gcc-release-shared
-          - os: windows-latest
-            workflow-preset: workflow-package-msvc-shared
-            artifact-path: out/packages/package-msvc-release-shared
-    
-    runs-on: ${{ matrix.os }}
-    
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Set VCPKG_ROOT (Ubuntu)
-        if: matrix.os == 'ubuntu-24.04'
-        run: echo "VCPKG_ROOT=$VCPKG_INSTALLATION_ROOT" >> $GITHUB_ENV
-        shell: bash
-      
-      - name: Set VCPKG_ROOT (Windows)
-        if: matrix.os == 'windows-latest'
-        run: echo "VCPKG_ROOT=$env:VCPKG_INSTALLATION_ROOT" >> $env:GITHUB_ENV
-        shell: pwsh
-      
-      - name: Install build tools (Ubuntu)
-        if: matrix.os == 'ubuntu-24.04'
-        run: sudo apt-get update && sudo apt-get install -y gcc-14 g++-14 ninja-build uuid-dev libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libgl-dev
-        shell: bash
-      
-      - name: Install NSIS (Windows only)
-        if: matrix.os == 'windows-latest'
-        run: choco install nsis -y
-      
-      - name: Create package
-        run: |
-          cmake --workflow --preset ${{ matrix.workflow-preset }}
-        shell: bash
-      
-      - name: Upload ${{ matrix.os }} artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.os }}-shared-build
-          path: ${{ github.workspace }}/${{ matrix.artifact-path }}/*.*
-          retention-days: 1
-
-  create-release:
-    needs: build-packages
+  validate_version:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      - name: Get version from tag
-        id: get_version
+      - name: Validate release version
+        id: version
+        shell: bash
         run: |
-          echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
-
-      - name: Verify CMake version matches tag
-        run: |
-          tag_version="${{ steps.get_version.outputs.version }}"
           cmake_version="$(
             awk '
               /^[[:space:]]*project[[:space:]]*\([[:space:]]*geoqik/ { in_project = 1 }
@@ -87,20 +39,146 @@ jobs:
               in_project && /\)/ { in_project = 0 }
             ' CMakeLists.txt
           )"
+          manifest_version="$(jq -r '.version' vcpkg.json)"
 
-          if [ -z "$cmake_version" ]; then
-            echo "Could not find project(geoqik VERSION ...) in CMakeLists.txt" >&2
+          if [[ -z "$cmake_version" ]]; then
+            echo "Could not read the CMake project version" >&2
+            exit 1
+          fi
+          if [[ "$manifest_version" != "$cmake_version" ]]; then
+            echo "vcpkg version $manifest_version does not match CMake version $cmake_version" >&2
             exit 1
           fi
 
-          if [ "$tag_version" != "$cmake_version" ]; then
-            echo "Tag version v${tag_version} does not match CMake project version ${cmake_version}" >&2
-            exit 1
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            if [[ ! "${GITHUB_REF_NAME}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "Release tags must use vMAJOR.MINOR.PATCH" >&2
+              exit 1
+            fi
+            tag_version="${GITHUB_REF_NAME#v}"
+            if [[ "$tag_version" != "$cmake_version" ]]; then
+              echo "Tag version $tag_version does not match CMake version $cmake_version" >&2
+              exit 1
+            fi
           fi
+
+          echo "version=$cmake_version" >> "$GITHUB_OUTPUT"
+
+  linux_packages:
+    needs: validate_version
+    runs-on: ubuntu-24.04
+    env:
+      LIBGL_ALWAYS_SOFTWARE: 1
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set VCPKG_ROOT
+        run: echo "VCPKG_ROOT=$VCPKG_INSTALLATION_ROOT" >> "$GITHUB_ENV"
+
+      - name: Install build and package tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-14 g++-14 ninja-build dpkg-dev uuid-dev \
+            libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev \
+            libgl-dev xvfb
+
+      - name: Configure
+        run: cmake --preset conf-gcc-release -DBUILD_SHARED_LIBS=OFF -Dgeoqik_EXAMPLES=OFF
+
+      - name: Build
+        run: cmake --build --preset build-gcc-release
+
+      - name: Test
+        run: xvfb-run --auto-servernum ctest --preset test-gcc-release
+
+      - name: Package
+        run: cpack --preset package-gcc-release
+
+      - name: Verify packages
+        run: xvfb-run --auto-servernum tools/verify-linux-packages.sh
+
+      - name: Upload Ubuntu packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: ubuntu-24.04-packages
+          path: |
+            out/packages/package-gcc-release/*.deb
+            out/packages/package-gcc-release/*.tar.gz
+            out/packages/package-gcc-release/*.sha256
+            out/packages/package-gcc-release/*.SHA256
+          if-no-files-found: error
+          retention-days: 7
+
+  windows_packages:
+    needs: validate_version
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set VCPKG_ROOT
+        run: echo "VCPKG_ROOT=$env:VCPKG_INSTALLATION_ROOT" >> $env:GITHUB_ENV
+
+      - name: Setup MSVC
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Install NSIS
+        run: choco install nsis -y
+
+      - name: Configure
+        run: cmake --preset conf-msvc-release -DBUILD_SHARED_LIBS=OFF -Dgeoqik_EXAMPLES=OFF
+
+      - name: Build
+        run: cmake --build --preset build-msvc-release
+
+      - name: Install Mesa3D
+        run: |
+          $MesaVersion = "24.3.4"
+          $MesaAsset = "mesa3d-${MesaVersion}-release-msvc.7z"
+          $MesaUrl = "https://github.com/pal1000/mesa-dist-win/releases/download/${MesaVersion}/${MesaAsset}"
+          Invoke-WebRequest -Uri $MesaUrl -OutFile $MesaAsset
+          7z x $MesaAsset -oMesa -y
+          Get-ChildItem -Path "out/build/conf-msvc-release" -Filter "*.exe" -Recurse |
+            Select-Object -ExpandProperty DirectoryName -Unique |
+            ForEach-Object { Copy-Item "Mesa\x64\*.dll" "$_\" -Force }
+
+      - name: Test
+        run: ctest --preset test-msvc-release
+
+      - name: Package
+        run: cpack --preset package-msvc-release
+
+      - name: Verify packages
+        run: ./tools/verify-windows-packages.ps1
+
+      - name: Upload Windows packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-x64-packages
+          path: |
+            out/packages/package-msvc-release/*.exe
+            out/packages/package-msvc-release/*.zip
+            out/packages/package-msvc-release/*.sha256
+            out/packages/package-msvc-release/*.SHA256
+          if-no-files-found: error
+          retention-days: 7
+
+  create_release:
+    if: github.event_name == 'push'
+    needs:
+      - validate_version
+      - linux_packages
+      - windows_packages
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Generate release notes
         uses: orhun/git-cliff-action@v4
-        id: git_cliff
+        id: git-cliff
         with:
           config: cliff.toml
           args: -vv --latest --strip header
@@ -109,18 +187,24 @@ jobs:
           GITHUB_REPO: ${{ github.repository }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Download all build artifacts
+      - name: Download Ubuntu packages
         uses: actions/download-artifact@v4
+        with:
+          name: ubuntu-24.04-packages
+          path: artifacts/ubuntu
 
-      - name: Create Release
+      - name: Download Windows packages
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-x64-packages
+          path: artifacts/windows
+
+      - name: Create GitHub release
         uses: softprops/action-gh-release@v2
         with:
-          name: Release ${{ steps.get_version.outputs.version }}
+          name: GeoQik ${{ needs.validate_version.outputs.version }}
+          body: ${{ steps.git-cliff.outputs.content }}
           draft: false
           prerelease: false
-          body: ${{ steps.git_cliff.outputs.content }}
-          files: |
-            ubuntu-24.04-shared-build/*
-            windows-latest-shared-build/*
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          fail_on_unmatched_files: true
+          files: artifacts/**/*

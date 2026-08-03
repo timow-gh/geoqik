@@ -20,5 +20,6 @@ if (${PROJECT_NAME}_INSTALL)
 
     install(TARGETS geoqik_client
             EXPORT ${project_export_set_name}
+            COMPONENT dev
             INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 endif()

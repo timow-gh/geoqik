@@ -1250,46 +1250,6 @@
         "package-release"
       ],
       "configurePreset": "conf-clang-release"
-    },
-    {
-      "name": "package-gcc-release-shared",
-      "displayName": "Unix GCC Release Package (Shared)",
-      "description": "Create TGZ and DEB packages for shared libraries with GCC",
-      "inherits": [
-        "package-unix-common",
-        "package-release"
-      ],
-      "configurePreset": "conf-gcc-release-shared"
-    },
-    {
-      "name": "package-gcc-release-static",
-      "displayName": "Unix GCC Release Package (Static)",
-      "description": "Create TGZ and DEB packages for static libraries with GCC",
-      "inherits": [
-        "package-unix-common",
-        "package-release"
-      ],
-      "configurePreset": "conf-gcc-release-static"
-    },
-    {
-      "name": "package-msvc-release-shared",
-      "displayName": "Windows Release Package (Shared)",
-      "description": "Create ZIP and NSIS packages for shared libraries on Windows",
-      "inherits": [
-        "package-msvc-common",
-        "package-release"
-      ],
-      "configurePreset": "conf-msvc-release-shared"
-    },
-    {
-      "name": "package-msvc-release-static",
-      "displayName": "Windows Release Package (Static)",
-      "description": "Create ZIP and NSIS packages for static libraries on Windows",
-      "inherits": [
-        "package-msvc-common",
-        "package-release"
-      ],
-      "configurePreset": "conf-msvc-release-static"
     }
   ],
   "workflowPresets": [
@@ -1568,52 +1528,6 @@
       ]
     },
     {
-      "name": "workflow-package-gcc-shared",
-      "displayName": "GCC Package Workflow (Shared)",
-      "description": "Configure, build, test, and package shared libraries with GCC",
-      "steps": [
-        {
-          "type": "configure",
-          "name": "conf-gcc-release-shared"
-        },
-        {
-          "type": "build",
-          "name": "build-gcc-release-shared"
-        },
-        {
-          "type": "test",
-          "name": "test-gcc-release-shared"
-        },
-        {
-          "type": "package",
-          "name": "package-gcc-release-shared"
-        }
-      ]
-    },
-    {
-      "name": "workflow-package-gcc-static",
-      "displayName": "GCC Package Workflow (Static)",
-      "description": "Configure, build, test, and package static libraries with GCC",
-      "steps": [
-        {
-          "type": "configure",
-          "name": "conf-gcc-release-static"
-        },
-        {
-          "type": "build",
-          "name": "build-gcc-release-static"
-        },
-        {
-          "type": "test",
-          "name": "test-gcc-release-static"
-        },
-        {
-          "type": "package",
-          "name": "package-gcc-release-static"
-        }
-      ]
-    },
-    {
       "name": "workflow-package-msvc",
       "displayName": "Windows Package Workflow",
       "description": "Configure, build, test, and package on Windows in release mode",
@@ -1633,52 +1547,6 @@
         {
           "type": "package",
           "name": "package-msvc-release"
-        }
-      ]
-    },
-    {
-      "name": "workflow-package-msvc-shared",
-      "displayName": "Windows Package Workflow (Shared)",
-      "description": "Configure, build, test, and package shared libraries on Windows",
-      "steps": [
-        {
-          "type": "configure",
-          "name": "conf-msvc-release-shared"
-        },
-        {
-          "type": "build",
-          "name": "build-msvc-release-shared"
-        },
-        {
-          "type": "test",
-          "name": "test-msvc-release-shared"
-        },
-        {
-          "type": "package",
-          "name": "package-msvc-release-shared"
-        }
-      ]
-    },
-    {
-      "name": "workflow-package-msvc-static",
-      "displayName": "Windows Package Workflow (Static)",
-      "description": "Configure, build, test, and package static libraries on Windows",
-      "steps": [
-        {
-          "type": "configure",
-          "name": "conf-msvc-release-static"
-        },
-        {
-          "type": "build",
-          "name": "build-msvc-release-static"
-        },
-        {
-          "type": "test",
-          "name": "test-msvc-release-static"
-        },
-        {
-          "type": "package",
-          "name": "package-msvc-release-static"
         }
       ]
     },

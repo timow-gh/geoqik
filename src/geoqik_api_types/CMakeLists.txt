@@ -1,5 +1,6 @@
 add_library(geoqik_api_types INTERFACE)
 add_library(geoqik::api_types ALIAS geoqik_api_types)
+set_target_properties(geoqik_api_types PROPERTIES EXPORT_NAME api_types)
 
 target_include_directories(geoqik_api_types INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -12,5 +13,6 @@ if (${PROJECT_NAME}_INSTALL)
 
     install(TARGETS geoqik_api_types
             EXPORT ${project_export_set_name}
+            COMPONENT dev
             INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 endif()

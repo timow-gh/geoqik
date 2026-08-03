@@ -13,6 +13,7 @@ else()
 endif()
 
 add_executable(geoqik::server ALIAS ${TARGET_NAME})
+set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME server)
 
 target_include_directories(${TARGET_NAME} PRIVATE source)
 

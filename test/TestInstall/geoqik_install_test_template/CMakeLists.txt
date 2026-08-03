@@ -4,10 +4,6 @@ project(use_installdir_proj
         VERSION 0.1.0
         LANGUAGES CXX)
 
-set(${TARGET_NAME}_MAJOR 0)
-set(${TARGET_NAME}_MINOR 1)
-set(${TARGET_NAME}_PATCH 0)
-
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/cmake)
 message(STATUS "PROJECT_SOURCE_DIR: ${PROJECT_SOURCE_DIR}")
 include(${PROJECT_SOURCE_DIR}/cmake/project_preamble.cmake)
@@ -30,9 +26,7 @@ set_target_properties(${TARGET_NAME}
         PROPERTIES
         LANGUAGE CXX
         LINKER_LANGUAGE CXX
-        DEBUG_POSTFIX d
-        VERSION ${${TARGET_NAME}_MAJOR}.${${TARGET_NAME}_MINOR}.${${TARGET_NAME}_PATCH}
-        SOVERSION ${PROJECT_VERSION_MAJOR})
+        DEBUG_POSTFIX d)
 
 if (BUILD_SHARED_LIBS)
     if (MSVC)
