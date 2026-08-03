@@ -1,8 +1,8 @@
 #include "Context.hpp"
 
 #include "Core/FmtIncludeHelper.hpp"
-#include "GeoQikOverlay.hpp"
 #include "GeoQikMessages.hpp"
+#include "GeoQikOverlay.hpp"
 
 #include <Core/Assert.hpp>
 #include <plinth/FrameState.hpp>
