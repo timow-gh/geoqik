@@ -60,19 +60,35 @@ function Test-PackagePrefix {
     }
 
     $BuildDirectory = Join-Path $WorkDirectory "consumer-$Name"
-    cmake -S $ConsumerSource -B $BuildDirectory -G 'Visual Studio 17 2022' -A x64 `
+    cmake -S $ConsumerSource -B $BuildDirectory `
+        '-DCMAKE_BUILD_TYPE=Release' `
         "-DCMAKE_PREFIX_PATH=$Prefix"
     if ($LASTEXITCODE -ne 0) { throw "Could not configure the $Name package consumer" }
 
     cmake --build $BuildDirectory --config Release --parallel
     if ($LASTEXITCODE -ne 0) { throw "Could not build the $Name package consumer" }
 
+    $DirectExecutable = Get-ChildItem $BuildDirectory -Filter 'use_installdir.exe' -Recurse | Select-Object -First 1
+    $ClientExecutable = Get-ChildItem $BuildDirectory -Filter 'use_installdir_client.exe' -Recurse | Select-Object -First 1
+    if (-not $DirectExecutable -or -not $ClientExecutable) {
+        throw "Could not find the $Name package consumer executables"
+    }
+
+    $RuntimeDirectories = @(
+        $DirectExecutable.DirectoryName,
+        $ClientExecutable.DirectoryName,
+        (Join-Path $Prefix 'bin')
+    ) | Select-Object -Unique
+    foreach ($RuntimeDirectory in $RuntimeDirectories) {
+        Copy-Item (Join-Path $MesaDirectory '*.dll') $RuntimeDirectory -Force
+    }
+
     $OriginalPath = $env:PATH
     try {
         $env:PATH = "$(Join-Path $Prefix 'bin');$MesaDirectory;$OriginalPath"
-        & (Join-Path $BuildDirectory 'Release/use_installdir.exe')
+        & $DirectExecutable.FullName
         if ($LASTEXITCODE -ne 0) { throw "$Name direct-library smoke test failed" }
-        & (Join-Path $BuildDirectory 'Release/use_installdir_client.exe')
+        & $ClientExecutable.FullName
         if ($LASTEXITCODE -ne 0) { throw "$Name client/server smoke test failed" }
     }
     finally {
