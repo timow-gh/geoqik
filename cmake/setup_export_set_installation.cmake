@@ -40,7 +40,8 @@ function(setup_export_set_installation project_name export_set_name config_cmake
     install(EXPORT ${export_set_name}
             NAMESPACE ${project_name}::
             FILE ${projTargetsFileName}.cmake
-            DESTINATION "${cmakeProjDir}/")
+            DESTINATION "${cmakeProjDir}/"
+            COMPONENT dev)
 
     export(EXPORT ${export_set_name}
             FILE "${CMAKE_BINARY_DIR}/${project_name}Targets.cmake"
@@ -50,5 +51,6 @@ function(setup_export_set_installation project_name export_set_name config_cmake
     install(FILES
             "${CMAKE_BINARY_DIR}/${project_name}Config.cmake"
             "${CMAKE_BINARY_DIR}/${project_name}ConfigVersion.cmake"
-            DESTINATION "${cmakeProjDir}/")
+            DESTINATION "${cmakeProjDir}/"
+            COMPONENT dev)
 endfunction()

@@ -74,16 +74,17 @@ Then adjust the allowed scopes and release workflow names for that repository.
 
 ## Releases
 
-Releases are created by pushing tags that start with `v`, for example:
+Before tagging, run the `Release Packages` workflow manually from GitHub Actions. A manual run builds and verifies the Ubuntu 24.04 TGZ/DEB packages and Windows ZIP/NSIS packages without publishing a release.
+
+`CMakeLists.txt` is the authoritative project version. Update the `version` field in `vcpkg.json` to match; CI rejects version drift. Release tags must use the exact stable semantic-version format `vMAJOR.MINOR.PATCH`.
+
+After the manual package run succeeds, create the release tag, for example:
 
 ```sh
 git tag v0.1.0
 git push origin v0.1.0
 ```
 
-The release workflow builds packages, verifies that the tag version matches
-`project(geoqik VERSION ...)` in `CMakeLists.txt`, generates the GitHub Release
-body with `git-cliff`, and uploads the package artifacts.
+The tag workflow validates versions before starting platform builds, repeats all package tests, generates release notes with `git-cliff`, and publishes the verified artifacts and SHA-256 checksum files.
 
-Release notes are generated from Conventional Commits since the previous `v*`
-tag. Push a `v0.1.0` tag first to establish the baseline.
+Release notes are generated from Conventional Commits since the previous release tag. Do not move or reuse a published release tag.
