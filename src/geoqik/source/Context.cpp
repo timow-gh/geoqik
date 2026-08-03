@@ -2,19 +2,25 @@
 
 #include "Core/FmtIncludeHelper.hpp"
 #include "GeoQikMessages.hpp"
+#include "GeoQikOverlay.hpp"
 
 #include <Core/Assert.hpp>
 #include <plinth/FrameState.hpp>
 
 #include <plinth/CameraAutoFit.hpp>
+#include <plinth/CameraProjectionType.hpp>
+#include <plinth/IOverlay.hpp>
+#include <plinth/LogicalViewportRect.hpp>
 #include <plinth/Renderer.hpp>
 #include <plinth/Warnings.hpp>
+#include <plinth/WindowSettings.hpp>
 
 #include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstdint>
 #include <filesystem>
+#include <optional>
 #include <string>
 #include <system_error>
 #include <type_traits>
@@ -53,9 +59,31 @@ struct ReplayGuiState {
         StepForward,
         StepBackward,
     };
+    // One-shot requests filled in by the UI and drained (reset) after rendering, mirroring the
+    // std::optional requests in CameraGuiState. Command::None is the "no request" sentinel.
     Command command{Command::None};
-    double requestedSpeedMultiplier{0.0};
-    std::size_t requestedEntriesPerStep{0};
+    std::optional<double> requestedSpeedMultiplier;
+    std::optional<std::size_t> requestedEntriesPerStep;
+};
+
+struct CameraGuiState {
+    renderer::CameraInteractor::NavigationStyle navigationStyle{renderer::CameraInteractor::NavigationStyle::ORBIT};
+    std::optional<renderer::PresetView> activePreset; // nullopt == free navigation
+
+    // Built-in camera controls (driven straight through the OverlayFrameContext each frame).
+    bool autoZoom{false};
+    renderer::CameraProjectionType projectionType{renderer::CameraProjectionType::PERSPECTIVE};
+
+    // Read-only interaction-lock display (decoded from CameraViewMode bit flags).
+    bool fixRotate{false};
+    bool fixPan{false};
+    bool fixZoom{false};
+
+    // Requests filled in by the UI and applied after rendering.
+    std::optional<renderer::CameraInteractor::NavigationStyle> requestedNavigationStyle;
+    std::optional<renderer::PresetView> requestedPreset;
+    std::optional<renderer::CameraProjectionType> requestedProjection;
+    bool requestHome{false};
 };
 
 namespace {
@@ -125,6 +153,101 @@ bool full_width_button(const char* label) {
 
 bool equal_width_button(const char* label, float width) {
     return ImGui::Button(label, ImVec2{width, 0.0F});
+}
+
+// Draws a button that appears "active" (highlighted) when isActive is true, matching the
+// highlight idiom used by the replay speed controls. Returns true when clicked.
+bool highlighted_button(const char* label, float width, bool isActive) {
+    if (isActive) {
+        ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive));
+    }
+    const bool clicked = equal_width_button(label, width);
+    if (isActive) {
+        ImGui::PopStyleColor();
+    }
+    return clicked;
+}
+
+void render_camera_controls(CameraGuiState& cameraState) {
+    if (!ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen)) {
+        return;
+    }
+
+    // Auto Zoom and Projection mirror plinth's built-in camera controls, so everything camera
+    // related lives under this single header.
+    ImGui::Checkbox("Auto Zoom", &cameraState.autoZoom);
+
+    constexpr std::array<const char*, 2> projectionItems{"Perspective", "Orthographic"};
+    int projectionItem = static_cast<int>(cameraState.projectionType);
+    ImGui::TextUnformatted("Projection");
+    ImGui::SetNextItemWidth(-1.0F);
+    if (ImGui::Combo("##Projection",
+                     &projectionItem,
+                     projectionItems.data(),
+                     static_cast<int>(projectionItems.size()))) {
+        cameraState.requestedProjection = static_cast<renderer::CameraProjectionType>(projectionItem);
+    }
+
+    ImGui::Separator();
+
+    // Navigation style. The current style is highlighted only when no preset view is active, so
+    // the navigation and preset selections read as mutually exclusive.
+    ImGui::TextUnformatted("Navigation");
+    const bool isFree = !cameraState.activePreset.has_value();
+    const float navButtonWidth = equal_button_width(2);
+    const bool orbitActive = isFree && cameraState.navigationStyle == renderer::CameraInteractor::NavigationStyle::ORBIT;
+    if (highlighted_button("Orbit", navButtonWidth, orbitActive)) {
+        cameraState.requestedNavigationStyle = renderer::CameraInteractor::NavigationStyle::ORBIT;
+    }
+    ImGui::SameLine();
+    const bool flyActive = isFree && cameraState.navigationStyle == renderer::CameraInteractor::NavigationStyle::FLY;
+    if (highlighted_button("Fly", navButtonWidth, flyActive)) {
+        cameraState.requestedNavigationStyle = renderer::CameraInteractor::NavigationStyle::FLY;
+    }
+
+    ImGui::Separator();
+
+    // Preset views. Two rows of buttons; the active preset (if any) is highlighted.
+    ImGui::TextUnformatted("Preset view");
+    struct PresetButton {
+        const char* label;
+        renderer::PresetView view;
+    };
+    constexpr std::array<PresetButton, 7> presets{{
+        {"Front", renderer::PresetView::FRONT},
+        {"Back", renderer::PresetView::BACK},
+        {"Left", renderer::PresetView::LEFT},
+        {"Right", renderer::PresetView::RIGHT},
+        {"Top", renderer::PresetView::TOP},
+        {"Bottom", renderer::PresetView::BOTTOM},
+        {"Iso", renderer::PresetView::ISO},
+    }};
+    constexpr int presetsPerRow = 4;
+    const float presetButtonWidth = equal_button_width(presetsPerRow);
+    for (std::size_t i = 0; i < presets.size(); ++i) {
+        if (i % presetsPerRow != 0) {
+            ImGui::SameLine();
+        }
+        const bool active = cameraState.activePreset.has_value() && *cameraState.activePreset == presets[i].view;
+        if (highlighted_button(presets[i].label, presetButtonWidth, active)) {
+            cameraState.requestedPreset = presets[i].view;
+        }
+    }
+
+    // Home refits all geometry into view along the current viewing direction, so the active
+    // preset (and its interaction locks) are preserved.
+    if (full_width_button("Home")) {
+        cameraState.requestHome = true;
+    }
+
+    ImGui::Separator();
+
+    // Interaction locks (read-only): shows which movements are currently fixed for mouse/keyboard.
+    ImGui::TextUnformatted("Interaction locks");
+    const auto lockLabel = [](bool locked) { return locked ? "Locked" : "Unlocked"; };
+    ImGui::TextUnformatted(fmt::format("Rotate: {}", lockLabel(cameraState.fixRotate)).c_str());
+    ImGui::TextUnformatted(fmt::format("Pan:    {}", lockLabel(cameraState.fixPan)).c_str());
+    ImGui::TextUnformatted(fmt::format("Zoom:   {}", lockLabel(cameraState.fixZoom)).c_str());
 }
 
 void render_replay_speed_controls(ReplayGuiState& replayState) {
@@ -257,6 +380,10 @@ void request_replay_cancel() {
     replay_cancel_requested_storage().store(true, std::memory_order_release);
 }
 
+// Default tone-mapping exposure applied at startup, in stops. A slight negative bias avoids
+// over-bright highlights with the default lighting.
+static constexpr float defaultExposureStops = -1.5F;
+
 static CameraAutoFitSettings make_camera_auto_fit_settings(const GeoQikSettings& settings) {
     CameraAutoFitSettings autoFitSettings;
     autoFitSettings.enabled = settings.autoFitCameraEnabled;
@@ -302,12 +429,25 @@ bool Context::init_window(const GeoQikSettings& geoqikSettings, const WindowSett
     m_backgroundColor[2] = m_geoqikSettings.backgroundColor[2];
     m_backgroundColor[3] = m_geoqikSettings.backgroundColor[3];
 
-    m_renderer = renderer::Renderer::create(settings);
+    // geoqik owns the overlay so it can render a single unified control panel, so the renderer is
+    // created without the built-in ImGui overlay.
+    m_windowSettings->overlay = renderer::OverlayKind::None;
+
+    m_renderer = renderer::Renderer::create(*m_windowSettings);
     if (!m_renderer) {
         return false;
     }
     m_renderer->set_camera_auto_fit_settings(make_camera_auto_fit_settings(m_geoqikSettings));
     m_renderer->set_camera_far_plane_multiplier(m_geoqikSettings.cameraFarPlaneMultiplier);
+    m_renderer->set_exposure_stops(defaultExposureStops);
+
+    m_overlay = std::make_shared<GeoQikOverlay>(m_renderer->window().get_native_handle());
+    m_overlay->inner().set_ui_mode(renderer::UiMode::Release);
+    m_overlay->set_build_controls([this](renderer::OverlayFrameContext& ctx) { build_overlay(ctx); });
+    m_renderer->set_overlay(m_overlay);
+
+    m_cameraGuiState = std::make_unique<CameraGuiState>();
+    m_replayGuiState = std::make_unique<ReplayGuiState>();
 
     m_sceneRenderer = std::make_unique<GeoQikSceneRenderer>(*m_renderer);
 
@@ -319,6 +459,11 @@ bool Context::init_window(const GeoQikSettings& geoqikSettings, const WindowSett
 void Context::setup_window_callbacks() {
     m_keyCallback = m_renderer->add_key_callback(
         [this](Key key, Scancode scancode, Action action, Mods mods) { on_key(key, scancode, action, mods); });
+
+    // A preset view stays active (and its interaction locks stay in effect) through pan/zoom, so
+    // it is only left by explicitly choosing a navigation style or another preset in the UI. Scene
+    // drags/scrolls therefore do not clear the active preset, and no scroll/mouse-button callbacks
+    // are registered here for that purpose.
 }
 
 float Context::get_point_size() {
@@ -593,15 +738,13 @@ void Context::run_event_loop() {
         lighting.shininess = std::max(0.0F, m_geoqikSettings.meshShininess);
 
         m_renderer->draw(lighting);
-        ReplayGuiState replayState;
-        populate_replay_gui_state(replayState);
-        if (replayState.isActive) {
-            if (auto *const imgui = m_renderer->get_imgui().lock()) {
-                imgui->add_control([&replayState]() { render_replay_controls(replayState); });
-            }
-        }
-        m_renderer->end_frame(m_geoqikSettings.autoFitCameraEnabled, m_homeRequested);
-        consume_replay_gui_commands(replayState);
+        // The overlay's build_controls (invoked inside end_frame) populates m_cameraGuiState /
+        // m_replayGuiState and renders the unified panel. Widget edits are applied afterwards in
+        // consume_camera_gui_commands (a Home click there re-enables auto-fit for its fit).
+        bool autoFitEnabled = m_geoqikSettings.autoFitCameraEnabled;
+        m_renderer->end_frame(autoFitEnabled);
+        consume_camera_gui_commands(*m_cameraGuiState);
+        consume_replay_gui_commands(*m_replayGuiState);
 
         process_replay_entries(std::chrono::high_resolution_clock::now());
         if (!is_replaying()) {
@@ -633,8 +776,7 @@ bool Context::should_close_event_loop() {
         return true;
     }
 
-    auto *const imgui = m_renderer->get_imgui().lock();
-    const bool keyboardCaptured = imgui != nullptr && imgui->wants_keyboard();
+    const bool keyboardCaptured = m_overlay->wants_keyboard();
     if (!keyboardCaptured && m_renderer->is_escape_pressed()) {
         m_windowShouldClose.store(true);
         return true;
@@ -660,21 +802,30 @@ void Context::populate_replay_gui_state(ReplayGuiState& state) const {
     state.decreaseStepKeysLabel = key_labels(m_replayOptions.decreaseEntriesPerStepKeys);
 }
 
-void Context::consume_replay_gui_commands(const ReplayGuiState& state) {
+void Context::consume_replay_gui_commands(ReplayGuiState& state) {
+    // m_replayGuiState is a persistent member reused every frame, so drain these one-shot requests
+    // as they are consumed - otherwise a lingering command (e.g. Play) re-runs every frame,
+    // repeatedly zeroing m_replayEntryBudget / m_lastReplayTick so the budget never accumulates and
+    // playback never advances. Mirrors how consume_camera_gui_commands resets its optionals.
+    const ReplayGuiState::Command command = std::exchange(state.command, ReplayGuiState::Command::None);
+    const std::optional<double> requestedSpeedMultiplier = std::exchange(state.requestedSpeedMultiplier, std::nullopt);
+    const std::optional<std::size_t> requestedEntriesPerStep =
+        std::exchange(state.requestedEntriesPerStep, std::nullopt);
+
     if (!is_replaying()) {
         return;
     }
 
-    if (state.requestedSpeedMultiplier > 0.0) {
-        m_currentSpeedMultiplier = state.requestedSpeedMultiplier;
+    if (requestedSpeedMultiplier.has_value()) {
+        m_currentSpeedMultiplier = *requestedSpeedMultiplier;
         m_replayOptions.entriesPerSecond = m_baseEntriesPerSecond * m_currentSpeedMultiplier;
     }
 
-    if (state.requestedEntriesPerStep > 0) {
-        m_replayOptions.entriesPerStep = state.requestedEntriesPerStep;
+    if (requestedEntriesPerStep.has_value()) {
+        m_replayOptions.entriesPerStep = *requestedEntriesPerStep;
     }
 
-    switch (state.command) {
+    switch (command) {
     case ReplayGuiState::Command::Play:
         m_isReplayBackward = false;
         m_isReplayPaused = false;
@@ -713,6 +864,95 @@ void Context::consume_replay_gui_commands(const ReplayGuiState& state) {
         break;
 
     case ReplayGuiState::Command::None: break;
+    }
+}
+
+void Context::populate_camera_gui_state(CameraGuiState& state) const {
+    state.activePreset = m_activePresetView;
+    if (auto camera = m_renderer->get_camera().lock()) {
+        state.navigationStyle = camera->get_navigation_style();
+        const auto viewMode = camera->get_view_mode();
+        using ViewMode = renderer::CameraInteractor::CameraViewMode;
+        const auto isFixed = [viewMode](ViewMode flag) {
+            return (static_cast<std::uint8_t>(viewMode) & static_cast<std::uint8_t>(flag)) != 0U;
+        };
+        state.fixRotate = isFixed(ViewMode::FIX_ROTATE);
+        state.fixPan = isFixed(ViewMode::FIX_PAN);
+        state.fixZoom = isFixed(ViewMode::FIX_ZOOM);
+    }
+}
+
+void Context::consume_camera_gui_commands(CameraGuiState& state) {
+    // The widget callbacks ran during the overlay's render() (inside end_frame), so their edits are
+    // now visible. Apply them here and clear the one-shot requests so they are not re-applied every
+    // frame (m_cameraGuiState is a persistent member, not a per-frame local).
+
+    // Auto Zoom: persist the checkbox into the settings; it takes effect from the next frame.
+    m_geoqikSettings.autoFitCameraEnabled = state.autoZoom;
+
+    if (state.requestedProjection.has_value()) {
+        if (auto camera = m_renderer->get_camera().lock()) {
+            camera->set_projection_type(*state.requestedProjection);
+        }
+        state.requestedProjection.reset();
+    }
+    if (state.requestedNavigationStyle.has_value()) {
+        apply_navigation_style(*state.requestedNavigationStyle);
+        state.requestedNavigationStyle.reset();
+    }
+    if (state.requestedPreset.has_value()) {
+        apply_preset_view(*state.requestedPreset);
+        state.requestedPreset.reset();
+    }
+    if (state.requestHome) {
+        request_fit_all_geometry();
+        state.requestHome = false;
+    }
+}
+
+void Context::request_fit_all_geometry() {
+    // Re-frame the geometry along the current viewing direction, so it stays within the restrictions
+    // of the active preset view and does not change the navigation style or view mode. This moves the
+    // camera immediately and unconditionally - it does not depend on the persistent Auto Zoom setting
+    // and is not suppressed right after a user camera interaction, so the Home button always acts.
+    m_renderer->refit_current_view();
+}
+
+void Context::build_overlay(renderer::OverlayFrameContext& ctx) {
+    auto& ui = m_overlay->inner();
+
+    // Reserve the left control-panel strip for the UI and hand the remaining window region to the
+    // 3D scene, so the ImGui overlay no longer draws on top of the scene. The panel geometry mirrors
+    // plinth's ImGuiOverlay layout (an 8px margin on each side of a fixed-width panel).
+    if (const ImGuiViewport* viewport = ImGui::GetMainViewport(); viewport != nullptr) {
+        constexpr float controlPanelMargin = 8.0F;
+        constexpr float controlPanelWidth = 320.0F;
+        const float reservedLeft = (2.0F * controlPanelMargin) + controlPanelWidth;
+        const float sceneWidth = std::max(1.0F, viewport->WorkSize.x - reservedLeft);
+        ctx.sceneViewportHint = renderer::LogicalViewportRect{static_cast<double>(viewport->WorkPos.x + reservedLeft),
+                                                              static_cast<double>(viewport->WorkPos.y),
+                                                              static_cast<double>(sceneWidth),
+                                                              static_cast<double>(viewport->WorkSize.y)};
+    }
+
+    // Snapshot the current camera state into the GUI struct so the widgets display it. The widget
+    // callbacks (which record the user's edits) run later, inside ui.render(); those edits are
+    // applied afterwards in consume_camera_gui_commands, once end_frame has returned.
+    populate_camera_gui_state(*m_cameraGuiState);
+    m_cameraGuiState->autoZoom = m_geoqikSettings.autoFitCameraEnabled;
+    m_cameraGuiState->projectionType = ctx.projectionType;
+    ui.add_control([this]() { render_camera_controls(*m_cameraGuiState); });
+
+    populate_replay_gui_state(*m_replayGuiState);
+    if (m_replayGuiState->isActive) {
+        ui.add_control([this]() { render_replay_controls(*m_replayGuiState); });
+    }
+
+    // Retain plinth's post-processing panel, choosing Debug vs Release like plinth's own overlay.
+    if (ui.ui_mode() == renderer::UiMode::Debug) {
+        ui.add_post_processing_controls(ctx.renderer);
+    } else {
+        ui.add_release_post_processing_controls(ctx.renderer);
     }
 }
 
@@ -1183,7 +1423,72 @@ bool Context::is_control_message(const GeoQikMessage& message) {
            std::holds_alternative<GetReplayProgress>(message);
 }
 
+void Context::apply_preset_view(renderer::PresetView view) {
+    // ISO is a free 3D vantage point, so it leaves all interactive movement unlocked. The
+    // orthographic presets lock rotation so the fixed view is not accidentally orbited away.
+    const auto viewMode = view == renderer::PresetView::ISO
+                              ? renderer::CameraInteractor::CameraViewMode::NONE
+                              : renderer::CameraInteractor::CameraViewMode::FIX_ROTATE;
+    m_renderer->go_to_preset_view(view);
+    if (auto camera = m_renderer->get_camera().lock()) {
+        camera->set_view_mode(viewMode);
+    }
+    m_activePresetView = view;
+}
+
+void Context::apply_navigation_style(renderer::CameraInteractor::NavigationStyle style) {
+    if (auto camera = m_renderer->get_camera().lock()) {
+        camera->set_navigation_style(style);
+        // Choosing a navigation style means free navigation, so release any interaction locks a
+        // preset view had applied (e.g. the FIX_ROTATE that the orthographic presets set). Without
+        // this, switching to Orbit/Fly would leave rotation dead until the lock was cleared some
+        // other way.
+        camera->set_view_mode(renderer::CameraInteractor::CameraViewMode::NONE);
+    }
+    m_activePresetView.reset();
+}
+
+void Context::handle_camera_key(Key key, Action action) {
+    if (action != Action::PRESS) {
+        return;
+    }
+
+    // F1 toggles between the game-like Release control panel (the default) and the full Debug
+    // panel exposing every post-processing and visualization control.
+    if (key == Key::KEY_F1) {
+        auto& ui = m_overlay->inner();
+        ui.set_ui_mode(ui.ui_mode() == renderer::UiMode::Release ? renderer::UiMode::Debug
+                                                                 : renderer::UiMode::Release);
+        return;
+    }
+
+    // Tab toggles between orbit navigation and fly (WASD+QE) navigation.
+    if (key == Key::KEY_TAB) {
+        if (auto camera = m_renderer->get_camera().lock()) {
+            apply_navigation_style(camera->get_navigation_style() ==
+                                           renderer::CameraInteractor::NavigationStyle::ORBIT
+                                       ? renderer::CameraInteractor::NavigationStyle::FLY
+                                       : renderer::CameraInteractor::NavigationStyle::ORBIT);
+        }
+        return;
+    }
+
+    // Number keys 1-7 jump to named preset views, fitted to whatever geometry currently exists.
+    switch (key) {
+    case Key::KEY_1: apply_preset_view(renderer::PresetView::FRONT); break;
+    case Key::KEY_2: apply_preset_view(renderer::PresetView::BACK); break;
+    case Key::KEY_3: apply_preset_view(renderer::PresetView::LEFT); break;
+    case Key::KEY_4: apply_preset_view(renderer::PresetView::RIGHT); break;
+    case Key::KEY_5: apply_preset_view(renderer::PresetView::TOP); break;
+    case Key::KEY_6: apply_preset_view(renderer::PresetView::BOTTOM); break;
+    case Key::KEY_7: apply_preset_view(renderer::PresetView::ISO); break;
+    default:         break;
+    }
+}
+
 void Context::on_key(Key key, [[maybe_unused]] Scancode scancode, Action action, [[maybe_unused]] Mods mods) {
+    handle_camera_key(key, action);
+
     if (!is_replaying()) {
         return;
     }
