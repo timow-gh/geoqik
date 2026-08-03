@@ -74,6 +74,15 @@ function Test-PackagePrefix {
         throw "Could not find the $Name package consumer executables"
     }
 
+    $RuntimeDirectories = @(
+        $DirectExecutable.DirectoryName,
+        $ClientExecutable.DirectoryName,
+        (Join-Path $Prefix 'bin')
+    ) | Select-Object -Unique
+    foreach ($RuntimeDirectory in $RuntimeDirectories) {
+        Copy-Item (Join-Path $MesaDirectory '*.dll') $RuntimeDirectory -Force
+    }
+
     $OriginalPath = $env:PATH
     try {
         $env:PATH = "$(Join-Path $Prefix 'bin');$MesaDirectory;$OriginalPath"
