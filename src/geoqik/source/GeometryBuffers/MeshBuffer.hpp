@@ -488,6 +488,49 @@ class MeshBuffer {
         mark_mesh_updated(handle);
     }
 
+    void scale_geometry(core::UUID handle, float cx, float cy, float cz, float sx, float sy, float sz) {
+        auto it = m_handleToMeshIndex.find(handle);
+        if (it == m_handleToMeshIndex.end())
+            return;
+
+        const std::size_t vStart = it->second.vertexStartIndex * 3;
+        const std::size_t vEnd = vStart + it->second.vertexCount * 3;
+        for (std::size_t i = vStart; i < vEnd; i += 3) {
+            m_vertices[i] = cx + (m_vertices[i] - cx) * sx;
+            m_vertices[i + 1] = cy + (m_vertices[i + 1] - cy) * sy;
+            m_vertices[i + 2] = cz + (m_vertices[i + 2] - cz) * sz;
+        }
+
+        update_mesh_overlay_positions(handle, it->second);
+        recompute_flat_normals_for_range(it->second.vertexStartIndex,
+                                         it->second.vertexCount,
+                                         it->second.triangleStartIndex,
+                                         it->second.triangleCount);
+        m_hasChanged = true;
+        mark_mesh_updated(handle);
+    }
+
+    bool set_geometry_color(core::UUID handle, std::span<const float> rgba) {
+        if (rgba.size() != ColorChannelCount)
+            return false;
+
+        auto it = m_handleToMeshIndex.find(handle);
+        if (it == m_handleToMeshIndex.end())
+            return false;
+
+        const std::size_t cStart = it->second.vertexStartIndex * 4;
+        const std::size_t cEnd = cStart + it->second.vertexCount * 4;
+        for (std::size_t i = cStart; i < cEnd; i += 4) {
+            m_colors[i] = rgba[0];
+            m_colors[i + 1] = rgba[1];
+            m_colors[i + 2] = rgba[2];
+            m_colors[i + 3] = rgba[3];
+        }
+        m_hasChanged = true;
+        mark_mesh_updated(handle);
+        return true;
+    }
+
   private:
     void mark_mesh_updated(const core::UUID& handle) {
         if (m_addedMeshes.count(handle) == 0) {

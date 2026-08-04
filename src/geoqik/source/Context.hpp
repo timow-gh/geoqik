@@ -198,6 +198,8 @@ class Context {
                          float axisY,
                          float axisZ,
                          float angle);
+    void scale_geometry(const core::UUID& handle, float cx, float cy, float cz, float sx, float sy, float sz);
+    void set_geometry_color(const core::UUID& handle, float r, float g, float b, float a);
 
     [[nodiscard]] const Viewport& get_viewport();
 
@@ -271,6 +273,8 @@ class Context {
     void handle_message(const RemoveAllGeometry& message);
     void handle_message(const TranslateGeometry& message);
     void handle_message(const RotateGeometry& message);
+    void handle_message(const ScaleGeometry& message);
+    void handle_message(const SetGeometryColor& message);
     void handle_message(const AddMeshWithOpts& message);
     void handle_message(const RemoveMesh& message);
     void handle_message(const UpdateMeshWithOpts& message);

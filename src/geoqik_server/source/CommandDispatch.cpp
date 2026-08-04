@@ -143,6 +143,8 @@ void send_api_response(PipeStream& stream, geoqik_error_code_t err, const geoqik
     case proto::CommandId::GetMeshColor:         return payloadSize == proto::colorPayloadByteCount;
     case proto::CommandId::TranslateGeometry:    return payloadSize == proto::translatePayloadByteCount;
     case proto::CommandId::RotateGeometry:       return payloadSize == proto::rotatePayloadByteCount;
+    case proto::CommandId::ScaleGeometry:        return payloadSize == proto::scaleGeometryPayloadByteCount;
+    case proto::CommandId::SetGeometryColor:     return payloadSize == proto::setGeometryColorPayloadByteCount;
     case proto::CommandId::AddPointWithColor:    return payloadSize == proto::addPointWithColorPayloadByteCount;
     case proto::CommandId::UpdatePoint:          return payloadSize == proto::updatePointPayloadByteCount;
     case proto::CommandId::UpdatePointWithColor: return payloadSize == proto::updatePointWithColorPayloadByteCount;
@@ -551,6 +553,38 @@ void handle_connection(PipeStream& stream) {
             const auto az = read_field<double>(payload, offset);
             const auto angle = read_field<double>(payload, offset);
             const auto err = geoqik_rotate_geometry(&geometryId, cx, cy, cz, ax, ay, az, angle);
+            send_api_response(stream, err);
+            break;
+        }
+
+        case proto::CommandId::ScaleGeometry: {
+            std::size_t offset = 0;
+            geoqik_uuid_t geometryId{};
+            for (auto& byte: geometryId.value) {
+                byte = read_field<std::uint8_t>(payload, offset);
+            }
+            const auto cx = read_field<double>(payload, offset);
+            const auto cy = read_field<double>(payload, offset);
+            const auto cz = read_field<double>(payload, offset);
+            const auto sx = read_field<double>(payload, offset);
+            const auto sy = read_field<double>(payload, offset);
+            const auto sz = read_field<double>(payload, offset);
+            const auto err = geoqik_scale_geometry(&geometryId, cx, cy, cz, sx, sy, sz);
+            send_api_response(stream, err);
+            break;
+        }
+
+        case proto::CommandId::SetGeometryColor: {
+            std::size_t offset = 0;
+            geoqik_uuid_t geometryId{};
+            for (auto& byte: geometryId.value) {
+                byte = read_field<std::uint8_t>(payload, offset);
+            }
+            const auto r = read_field<float>(payload, offset);
+            const auto g = read_field<float>(payload, offset);
+            const auto b = read_field<float>(payload, offset);
+            const auto a = read_field<float>(payload, offset);
+            const auto err = geoqik_set_geometry_color(&geometryId, r, g, b, a);
             send_api_response(stream, err);
             break;
         }

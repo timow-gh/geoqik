@@ -25,6 +25,8 @@ inline constexpr std::size_t colorPayloadByteCount = 4 * sizeof(float);         
 inline constexpr std::size_t uuidPayloadByteCount = uuidByteCount;                           // 16
 inline constexpr std::size_t translatePayloadByteCount = uuidByteCount + 3 * sizeof(double); // 40
 inline constexpr std::size_t rotatePayloadByteCount = uuidByteCount + 7 * sizeof(double);    // 72
+inline constexpr std::size_t scaleGeometryPayloadByteCount = uuidByteCount + 6 * sizeof(double);   // 64
+inline constexpr std::size_t setGeometryColorPayloadByteCount = uuidByteCount + 4 * sizeof(float); // 32
 
 enum class CommandId : std::uint32_t { // NOLINT(performance-enum-size): wire protocol uses 32-bit command IDs.
     Draw = 1,
@@ -86,6 +88,9 @@ enum class CommandId : std::uint32_t { // NOLINT(performance-enum-size): wire pr
     StepReplayBackwardN = 53,
     GetReplayState = 54,
     GetReplayProgress = 55,
+
+    ScaleGeometry = 56,
+    SetGeometryColor = 57,
 };
 
 struct FrameHeader {

@@ -1782,6 +1782,54 @@ GEOQIK_EXPORT geoqik_error_code_t geoqik_rotate_geometry(const geoqik_uuid_t* ge
         "geoqik_rotate_geometry");
 }
 
+GEOQIK_EXPORT geoqik_error_code_t geoqik_scale_geometry(const geoqik_uuid_t* geometryId,
+                                                        double centerX,
+                                                        double centerY,
+                                                        double centerZ,
+                                                        double scaleX,
+                                                        double scaleY,
+                                                        double scaleZ) {
+    if (geometryId == nullptr || !geoqik_internal::validate_finite_coords(centerX, centerY, centerZ) ||
+        !geoqik_internal::validate_finite_coords(scaleX, scaleY, scaleZ)) {
+        return geoqik_internal::invalid_parameter(
+            "geoqik_scale_geometry",
+            "parameters: geometryId, center, scale; expected non-null geometryId and finite scale values");
+    }
+
+    return geoqik_internal::execute_if_initialized(
+        [&]() -> geoqik_error_code_t {
+            core::UUID handle = convert_to_core_uuid(*geometryId);
+            return enqueue(GeoQikMessage{ScaleGeometry{handle,
+                                                       static_cast<float>(centerX),
+                                                       static_cast<float>(centerY),
+                                                       static_cast<float>(centerZ),
+                                                       static_cast<float>(scaleX),
+                                                       static_cast<float>(scaleY),
+                                                       static_cast<float>(scaleZ)}});
+        },
+        "geoqik_scale_geometry");
+}
+
+GEOQIK_EXPORT geoqik_error_code_t
+geoqik_set_geometry_color(const geoqik_uuid_t* geometryId, float r, float g, float b, float a) {
+    if (geometryId == nullptr) {
+        return geoqik_internal::invalid_parameter("geoqik_set_geometry_color",
+                                                  "parameter: geometryId; expected non-null geometryId");
+    }
+    if (!geoqik_internal::validate_color(r, g, b, a)) {
+        return geoqik_internal::fail(ApiDiagnosticId::InvalidColorRange,
+                                     "geoqik_set_geometry_color",
+                                     "parameters: r, g, b, a");
+    }
+
+    return geoqik_internal::execute_if_initialized(
+        [&]() -> geoqik_error_code_t {
+            core::UUID handle = convert_to_core_uuid(*geometryId);
+            return enqueue(GeoQikMessage{SetGeometryColor{handle, Color{r, g, b, a}}});
+        },
+        "geoqik_set_geometry_color");
+}
+
 geoqik_error_code_t geoqik_draw() {
     return geoqik_internal::execute_if_initialized(
         [&]() -> geoqik_error_code_t { return enqueue(GeoQikMessage{Draw{}}); },

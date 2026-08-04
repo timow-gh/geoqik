@@ -3,6 +3,7 @@
 #include "GeometryHelpers.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 
 namespace geoqik {
@@ -136,6 +137,7 @@ void Scene::set_mesh_rendering_opts(core::UUID handle, PerMeshRenderingOpts opts
 void Scene::translate_geometry(core::UUID handle, float dx, float dy, float dz) {
     m_pointBuffer->translate_geometry(handle, dx, dy, dz);
     m_lineBuffer->translate_geometry(handle, dx, dy, dz);
+    m_meshBuffer->translate_geometry(handle, dx, dy, dz);
 }
 
 void Scene::rotate_geometry(core::UUID handle,
@@ -148,6 +150,20 @@ void Scene::rotate_geometry(core::UUID handle,
                             float angle) {
     m_pointBuffer->rotate_geometry(handle, centerX, centerY, centerZ, axisX, axisY, axisZ, angle);
     m_lineBuffer->rotate_geometry(handle, centerX, centerY, centerZ, axisX, axisY, axisZ, angle);
+    m_meshBuffer->rotate_geometry(handle, centerX, centerY, centerZ, axisX, axisY, axisZ, angle);
+}
+
+void Scene::scale_geometry(core::UUID handle, float cx, float cy, float cz, float sx, float sy, float sz) {
+    m_pointBuffer->scale_geometry(handle, cx, cy, cz, sx, sy, sz);
+    m_lineBuffer->scale_geometry(handle, cx, cy, cz, sx, sy, sz);
+    m_meshBuffer->scale_geometry(handle, cx, cy, cz, sx, sy, sz);
+}
+
+void Scene::set_geometry_color(core::UUID handle, float r, float g, float b, float a) {
+    const std::array<float, 4> rgba{r, g, b, a};
+    m_pointBuffer->set_geometry_color(handle, rgba);
+    m_lineBuffer->set_geometry_color(handle, rgba);
+    m_meshBuffer->set_geometry_color(handle, rgba);
 }
 
 void Scene::clear() {

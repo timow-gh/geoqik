@@ -455,6 +455,19 @@ GEOQIK_EXPORT geoqik_error_code_t geoqik_rotate_geometry(const geoqik_uuid_t* ge
                                                          double axisZ,
                                                          double angle);
 
+/** \brief Scales the specified geometry about the given center with per-axis factors */
+GEOQIK_EXPORT geoqik_error_code_t geoqik_scale_geometry(const geoqik_uuid_t* geometryId,
+                                                        double centerX,
+                                                        double centerY,
+                                                        double centerZ,
+                                                        double scaleX,
+                                                        double scaleY,
+                                                        double scaleZ);
+
+/** \brief Sets the color of an existing geometry (point, line or mesh) in place */
+GEOQIK_EXPORT geoqik_error_code_t
+geoqik_set_geometry_color(const geoqik_uuid_t* geometryId, float r, float g, float b, float a);
+
 /** \brief Starts drawing geometry.
  *
  * Starts the drawing process for all geometry added so far. Geometry added after this call will be drawn as soon as

@@ -239,6 +239,39 @@ TEST_F(GeoQikTestApi, CombinedOperations) {
     geoqik_cleanup();
 }
 
+TEST_F(GeoQikTestApi, ScaleAndSetGeometryColor) {
+    ASSERT_EQ(GEOQIK_SUCCESS, init_hidden_geoqik());
+
+    geoqik_result_t point = geoqik_add_point(1.0, 2.0, 3.0);
+    ASSERT_EQ(GEOQIK_SUCCESS, point.err);
+
+    geoqik_result_t line = geoqik_add_line_opts(0.0, 0.0, 0.0, 1.0, 0.0, 0.0, nullptr);
+    ASSERT_EQ(GEOQIK_SUCCESS, line.err);
+
+    const float meshVertices[] = {0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f};
+    const std::uint32_t meshTriangles[] = {0, 1, 2};
+    geoqik_result_t mesh = geoqik_add_mesh_opts(meshVertices, 3, meshTriangles, 1, nullptr);
+    ASSERT_EQ(GEOQIK_SUCCESS, mesh.err);
+
+    // Scale each geometry type about a pivot with per-axis factors.
+    EXPECT_EQ(GEOQIK_SUCCESS, geoqik_scale_geometry(&point.geometryId, 0.0, 0.0, 0.0, 2.0, 2.0, 2.0));
+    EXPECT_EQ(GEOQIK_SUCCESS, geoqik_scale_geometry(&line.geometryId, 0.0, 0.0, 0.0, 1.0, 2.0, 3.0));
+    EXPECT_EQ(GEOQIK_SUCCESS, geoqik_scale_geometry(&mesh.geometryId, 0.0, 0.0, 0.0, 0.5, 0.5, 0.5));
+
+    // Recolor each geometry type in place.
+    EXPECT_EQ(GEOQIK_SUCCESS, geoqik_set_geometry_color(&point.geometryId, 1.0f, 0.0f, 0.0f, 1.0f));
+    EXPECT_EQ(GEOQIK_SUCCESS, geoqik_set_geometry_color(&line.geometryId, 0.0f, 1.0f, 0.0f, 1.0f));
+    EXPECT_EQ(GEOQIK_SUCCESS, geoqik_set_geometry_color(&mesh.geometryId, 0.0f, 0.0f, 1.0f, 1.0f));
+
+    // Error paths: null geometry id and out-of-range color.
+    EXPECT_EQ(GEOQIK_ERROR_INVALID_PARAMETER, geoqik_scale_geometry(nullptr, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0));
+    EXPECT_EQ(GEOQIK_ERROR_INVALID_PARAMETER, geoqik_set_geometry_color(nullptr, 1.0f, 1.0f, 1.0f, 1.0f));
+    EXPECT_NE(GEOQIK_SUCCESS, geoqik_set_geometry_color(&point.geometryId, 2.0f, 0.0f, 0.0f, 1.0f));
+
+    geoqik_draw();
+    geoqik_cleanup();
+}
+
 TEST_F(GeoQikTestApi, InitDestroySequence) {
     for (int i = 0; i < 3; i++) {
         ASSERT_EQ(GEOQIK_SUCCESS, init_hidden_geoqik());
@@ -294,6 +327,8 @@ TEST_F(GeoQikTestApi, SaveLoadLogRoundTrip) {
 
     ASSERT_EQ(GEOQIK_SUCCESS, geoqik_translate_geometry(&point.geometryId, 1.0, 2.0, 3.0));
     ASSERT_EQ(GEOQIK_SUCCESS, geoqik_rotate_geometry(&line.geometryId, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 45.0));
+    ASSERT_EQ(GEOQIK_SUCCESS, geoqik_scale_geometry(&point.geometryId, 0.0, 0.0, 0.0, 2.0, 2.0, 2.0));
+    ASSERT_EQ(GEOQIK_SUCCESS, geoqik_set_geometry_color(&line.geometryId, 1.0f, 1.0f, 0.0f, 1.0f));
 
     ASSERT_EQ(GEOQIK_SUCCESS, geoqik_save_log(firstPath.string().c_str(), GEOQIK_LOG_FORMAT_BINARY));
     ASSERT_EQ(GEOQIK_SUCCESS, geoqik_remove_all_geometry());
@@ -339,6 +374,8 @@ TEST_F(GeoQikTestApi, SaveLoadLogRoundTripJson) {
 
     ASSERT_EQ(GEOQIK_SUCCESS, geoqik_translate_geometry(&point.geometryId, 1.0, 2.0, 3.0));
     ASSERT_EQ(GEOQIK_SUCCESS, geoqik_rotate_geometry(&line.geometryId, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 45.0));
+    ASSERT_EQ(GEOQIK_SUCCESS, geoqik_scale_geometry(&point.geometryId, 0.0, 0.0, 0.0, 2.0, 2.0, 2.0));
+    ASSERT_EQ(GEOQIK_SUCCESS, geoqik_set_geometry_color(&line.geometryId, 1.0f, 1.0f, 0.0f, 1.0f));
 
     ASSERT_EQ(GEOQIK_SUCCESS, geoqik_save_log(firstPath.string().c_str(), GEOQIK_LOG_FORMAT_JSON));
     ASSERT_EQ(GEOQIK_SUCCESS, geoqik_remove_all_geometry());

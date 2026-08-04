@@ -200,6 +200,21 @@ struct RotateGeometry {
     [[nodiscard]] bool operator==(const RotateGeometry&) const = default;
 };
 
+struct ScaleGeometry {
+    core::UUID handle;
+    float centerX, centerY, centerZ;
+    float scaleX, scaleY, scaleZ;
+
+    [[nodiscard]] bool operator==(const ScaleGeometry&) const = default;
+};
+
+struct SetGeometryColor {
+    core::UUID handle;
+    Color color;
+
+    [[nodiscard]] bool operator==(const SetGeometryColor&) const = default;
+};
+
 struct Draw {};
 
 struct StopDraw {};
@@ -275,6 +290,8 @@ using GeoQikLogEntry = std::variant<AddPointWithOpts,
                                     RemoveAllGeometry,
                                     TranslateGeometry,
                                     RotateGeometry,
+                                    ScaleGeometry,
+                                    SetGeometryColor,
                                     SetMeshColor,
                                     AddMeshWithOpts,
                                     RemoveMesh,
@@ -300,6 +317,8 @@ using GeoQikMessage = std::variant<AddPointWithOpts,
                                    RemoveAllGeometry,
                                    TranslateGeometry,
                                    RotateGeometry,
+                                   ScaleGeometry,
+                                   SetGeometryColor,
                                    AddMeshWithOpts,
                                    RemoveMesh,
                                    UpdateMeshWithOpts,

@@ -700,6 +700,16 @@ void Context::rotate_geometry(const core::UUID& handle,
     ++m_geometryMessagesProcessedThisFrame;
 }
 
+void Context::scale_geometry(const core::UUID& handle, float cx, float cy, float cz, float sx, float sy, float sz) {
+    m_scene.scale_geometry(handle, cx, cy, cz, sx, sy, sz);
+    ++m_geometryMessagesProcessedThisFrame;
+}
+
+void Context::set_geometry_color(const core::UUID& handle, float r, float g, float b, float a) {
+    m_scene.set_geometry_color(handle, r, g, b, a);
+    ++m_geometryMessagesProcessedThisFrame;
+}
+
 const Viewport& Context::get_viewport() {
     return m_renderer->get_camera().lock()->get_viewport();
 }
@@ -1233,6 +1243,20 @@ void Context::handle_message(const RotateGeometry& message) {
                     message.axisY,
                     message.axisZ,
                     message.angle);
+}
+
+void Context::handle_message(const ScaleGeometry& message) {
+    scale_geometry(message.handle,
+                   message.centerX,
+                   message.centerY,
+                   message.centerZ,
+                   message.scaleX,
+                   message.scaleY,
+                   message.scaleZ);
+}
+
+void Context::handle_message(const SetGeometryColor& message) {
+    set_geometry_color(message.handle, message.color[0], message.color[1], message.color[2], message.color[3]);
 }
 
 void Context::handle_message(const AddMeshWithOpts& message) {

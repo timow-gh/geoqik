@@ -52,6 +52,9 @@ struct ReplayUndoContext {
 [[nodiscard]] ReplayUndoFrame make_replay_undo_frame(const TranslateGeometry& message,
                                                      const ReplayUndoContext& context);
 [[nodiscard]] ReplayUndoFrame make_replay_undo_frame(const RotateGeometry& message, const ReplayUndoContext& context);
+[[nodiscard]] ReplayUndoFrame make_replay_undo_frame(const ScaleGeometry& message, const ReplayUndoContext& context);
+[[nodiscard]] ReplayUndoFrame make_replay_undo_frame(const SetGeometryColor& message,
+                                                     const ReplayUndoContext& context);
 [[nodiscard]] ReplayUndoFrame make_replay_undo_frame(const AddMeshWithOpts& message, const ReplayUndoContext& context);
 [[nodiscard]] ReplayUndoFrame make_replay_undo_frame(const RemoveMesh& message, const ReplayUndoContext& context);
 [[nodiscard]] ReplayUndoFrame make_replay_undo_frame(const UpdateMeshWithOpts& message,
