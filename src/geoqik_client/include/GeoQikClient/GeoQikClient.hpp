@@ -233,6 +233,8 @@ inline constexpr std::size_t colorPayloadByteCount = 4 * sizeof(float);         
 inline constexpr std::size_t uuidPayloadByteCount = uuidByteCount;                           // 16
 inline constexpr std::size_t translatePayloadByteCount = uuidByteCount + 3 * sizeof(double); // 40
 inline constexpr std::size_t rotatePayloadByteCount = uuidByteCount + 7 * sizeof(double);    // 72
+inline constexpr std::size_t scaleGeometryPayloadByteCount = uuidByteCount + 6 * sizeof(double);   // 64
+inline constexpr std::size_t setGeometryColorPayloadByteCount = uuidByteCount + 4 * sizeof(float); // 32
 
 enum class CommandId : std::uint32_t { // NOLINT(performance-enum-size): wire protocol uses 32-bit command IDs.
     Draw = 1,
@@ -294,6 +296,9 @@ enum class CommandId : std::uint32_t { // NOLINT(performance-enum-size): wire pr
     StepReplayBackwardN = 53,
     GetReplayState = 54,
     GetReplayProgress = 55,
+
+    ScaleGeometry = 56,
+    SetGeometryColor = 57,
 };
 
 struct FrameHeader {
@@ -2368,6 +2373,55 @@ geoqik_translate_geometry(const geoqik_uuid_t* geometryId, double dx, double dy,
         proto::write_pod(payload, angle);
         const auto resp = geoqik_client_impl::call(proto::CommandId::RotateGeometry, payload);
         geoqik_client_impl::set_server_response_error(resp, "geoqik_rotate_geometry");
+        return static_cast<geoqik_error_code_t>(resp.errorCode);
+    });
+}
+
+[[nodiscard]] inline geoqik_error_code_t geoqik_scale_geometry(const geoqik_uuid_t* geometryId,
+                                                               double centerX,
+                                                               double centerY,
+                                                               double centerZ,
+                                                               double scaleX,
+                                                               double scaleY,
+                                                               double scaleZ) {
+    return geoqik_client_impl::execute_client_call("geoqik_scale_geometry", [&]() -> geoqik_error_code_t {
+        namespace proto = geoqik::protocol;
+        std::vector<std::uint8_t> payload;
+        payload.reserve(proto::scaleGeometryPayloadByteCount);
+        if (geometryId != nullptr) {
+            geoqik_client_impl::write_uuid(payload, *geometryId);
+        } else {
+            payload.insert(payload.end(), proto::uuidByteCount, 0);
+        }
+        proto::write_pod(payload, centerX);
+        proto::write_pod(payload, centerY);
+        proto::write_pod(payload, centerZ);
+        proto::write_pod(payload, scaleX);
+        proto::write_pod(payload, scaleY);
+        proto::write_pod(payload, scaleZ);
+        const auto resp = geoqik_client_impl::call(proto::CommandId::ScaleGeometry, payload);
+        geoqik_client_impl::set_server_response_error(resp, "geoqik_scale_geometry");
+        return static_cast<geoqik_error_code_t>(resp.errorCode);
+    });
+}
+
+[[nodiscard]] inline geoqik_error_code_t
+geoqik_set_geometry_color(const geoqik_uuid_t* geometryId, float r, float g, float b, float a) {
+    return geoqik_client_impl::execute_client_call("geoqik_set_geometry_color", [&]() -> geoqik_error_code_t {
+        namespace proto = geoqik::protocol;
+        std::vector<std::uint8_t> payload;
+        payload.reserve(proto::setGeometryColorPayloadByteCount);
+        if (geometryId != nullptr) {
+            geoqik_client_impl::write_uuid(payload, *geometryId);
+        } else {
+            payload.insert(payload.end(), proto::uuidByteCount, 0);
+        }
+        proto::write_pod(payload, r);
+        proto::write_pod(payload, g);
+        proto::write_pod(payload, b);
+        proto::write_pod(payload, a);
+        const auto resp = geoqik_client_impl::call(proto::CommandId::SetGeometryColor, payload);
+        geoqik_client_impl::set_server_response_error(resp, "geoqik_set_geometry_color");
         return static_cast<geoqik_error_code_t>(resp.errorCode);
     });
 }

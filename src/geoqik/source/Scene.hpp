@@ -112,6 +112,8 @@ class Scene {
                          float axisY,
                          float axisZ,
                          float angle);
+    void scale_geometry(core::UUID handle, float cx, float cy, float cz, float sx, float sy, float sz);
+    void set_geometry_color(core::UUID handle, float r, float g, float b, float a);
 
     void clear();
 

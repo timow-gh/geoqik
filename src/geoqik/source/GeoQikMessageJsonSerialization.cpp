@@ -177,6 +177,19 @@ nlohmann::json to_json(const GeoQikLogEntry& message) {
                 json["axisY"] = value.axisY;
                 json["axisZ"] = value.axisZ;
                 json["angle"] = value.angle;
+            } else if constexpr (std::is_same_v<T, ScaleGeometry>) {
+                json["type"] = "ScaleGeometry";
+                write_uuid(json, "handle", value.handle);
+                json["centerX"] = value.centerX;
+                json["centerY"] = value.centerY;
+                json["centerZ"] = value.centerZ;
+                json["scaleX"] = value.scaleX;
+                json["scaleY"] = value.scaleY;
+                json["scaleZ"] = value.scaleZ;
+            } else if constexpr (std::is_same_v<T, SetGeometryColor>) {
+                json["type"] = "SetGeometryColor";
+                write_uuid(json, "handle", value.handle);
+                json["color"] = color_to_json(value.color);
             } else if constexpr (std::is_same_v<T, SetMeshColor>) {
                 json["type"] = "SetMeshColor";
                 json["color"] = color_to_json(value.color);
@@ -339,6 +352,23 @@ GeoQikLogEntry from_json(const nlohmann::json& value) {
         msg.axisY = value.at("axisY").get<float>();
         msg.axisZ = value.at("axisZ").get<float>();
         msg.angle = value.at("angle").get<float>();
+        return msg;
+    }
+    if (typeStr == "ScaleGeometry") {
+        ScaleGeometry msg;
+        msg.handle = read_uuid(value, "handle");
+        msg.centerX = value.at("centerX").get<float>();
+        msg.centerY = value.at("centerY").get<float>();
+        msg.centerZ = value.at("centerZ").get<float>();
+        msg.scaleX = value.at("scaleX").get<float>();
+        msg.scaleY = value.at("scaleY").get<float>();
+        msg.scaleZ = value.at("scaleZ").get<float>();
+        return msg;
+    }
+    if (typeStr == "SetGeometryColor") {
+        SetGeometryColor msg;
+        msg.handle = read_uuid(value, "handle");
+        msg.color = color_from_json(value.at("color"));
         return msg;
     }
     if (typeStr == "SetMeshColor") {

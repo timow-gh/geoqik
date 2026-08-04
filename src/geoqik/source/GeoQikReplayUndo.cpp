@@ -172,6 +172,24 @@ ReplayUndoFrame make_replay_undo_frame(const RotateGeometry& message,
     return frame;
 }
 
+ReplayUndoFrame make_replay_undo_frame([[maybe_unused]] const ScaleGeometry& message,
+                                       const ReplayUndoContext& context) {
+    // Scaling by a zero factor is not invertible, so restore from a snapshot rather
+    // than applying an inverse scale.
+    ReplayUndoFrame frame;
+    frame.action = ReplayUndoFrame::RestoreScene{context.scene.create_snapshot()};
+    return frame;
+}
+
+ReplayUndoFrame make_replay_undo_frame([[maybe_unused]] const SetGeometryColor& message,
+                                       const ReplayUndoContext& context) {
+    // The previous per-geometry color is not carried in the message, so restore from
+    // a snapshot to undo the recolor.
+    ReplayUndoFrame frame;
+    frame.action = ReplayUndoFrame::RestoreScene{context.scene.create_snapshot()};
+    return frame;
+}
+
 ReplayUndoFrame make_replay_undo_frame(const AddMeshWithOpts& message, const ReplayUndoContext& context) {
     ReplayUndoFrame frame;
     if (context.has_known_idempotency_key(message.commonData.idempotencyId)) {

@@ -63,6 +63,13 @@ int main() {
         sleep_for_seconds(shortPauseSeconds);
     }
 
+    // Scale a line about the origin with per-axis factors, then recolor it in place.
+    constexpr double scaleFactor = 2.0;
+    geoqik_scale_geometry(&lineIdB, 0.0, 0.0, 0.0, scaleFactor, scaleFactor, scaleFactor);
+    geoqik_set_geometry_color(&lineIdB, colorMax, colorMax, colorMin, colorMax); // Yellow
+
+    sleep_for_seconds(longPauseSeconds);
+
     geoqik_wait_for_exit_and_cleanup();
 
     return 0;

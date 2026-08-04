@@ -40,8 +40,10 @@ enum class SerializedMessageType : std::uint32_t // NOLINT(performance-enum-size
     RemoveMesh = 20,
     UpdateMeshWithOpts = 21,
     SetMeshOverlayOpts = 22,
-    SetMeshRenderingOpts = 23
-    // Next free ID: 24
+    SetMeshRenderingOpts = 23,
+    ScaleGeometry = 24,
+    SetGeometryColor = 25
+    // Next free ID: 26
 };
 
 constexpr auto serialized_message_type_value(SerializedMessageType type) {
@@ -239,6 +241,19 @@ void MessageWriter::write(const GeoQikLogEntry& message) {
                 write_pod(m_stream, value.axisY);
                 write_pod(m_stream, value.axisZ);
                 write_pod(m_stream, value.angle);
+            } else if constexpr (std::is_same_v<T, ScaleGeometry>) {
+                write_pod(m_stream, SerializedMessageType::ScaleGeometry);
+                write_uuid(m_stream, value.handle);
+                write_pod(m_stream, value.centerX);
+                write_pod(m_stream, value.centerY);
+                write_pod(m_stream, value.centerZ);
+                write_pod(m_stream, value.scaleX);
+                write_pod(m_stream, value.scaleY);
+                write_pod(m_stream, value.scaleZ);
+            } else if constexpr (std::is_same_v<T, SetGeometryColor>) {
+                write_pod(m_stream, SerializedMessageType::SetGeometryColor);
+                write_uuid(m_stream, value.handle);
+                write_color(m_stream, value.color);
             } else if constexpr (std::is_same_v<T, SetMeshColor>) {
                 write_pod(m_stream, SerializedMessageType::SetMeshColor);
                 write_color(m_stream, value.color);
@@ -354,6 +369,19 @@ GeoQikLogEntry MessageReader::read() {
                               read_pod<float>(m_stream),
                               read_pod<float>(m_stream),
                               read_pod<float>(m_stream)};
+    case serialized_message_type_value(SerializedMessageType::ScaleGeometry):
+        return ScaleGeometry{read_uuid(m_stream),
+                             read_pod<float>(m_stream),
+                             read_pod<float>(m_stream),
+                             read_pod<float>(m_stream),
+                             read_pod<float>(m_stream),
+                             read_pod<float>(m_stream),
+                             read_pod<float>(m_stream)};
+    case serialized_message_type_value(SerializedMessageType::SetGeometryColor): {
+        core::UUID handle = read_uuid(m_stream);
+        Color color = read_color(m_stream);
+        return SetGeometryColor{handle, color};
+    }
     case serialized_message_type_value(SerializedMessageType::SetMeshColor): {
         Color color;
         color[0] = read_pod<float>(m_stream);

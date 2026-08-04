@@ -456,6 +456,46 @@ class PointBuffer {
         }
     }
 
+    void scale_geometry(core::UUID handle, float cx, float cy, float cz, float sx, float sy, float sz) {
+        auto pointIt = m_handleToPointIndexMapping.find(handle);
+        if (pointIt != m_handleToPointIndexMapping.end()) {
+            scale_point_range(pointIt->second.pointIndex, pointIt->second.pointIndex, cx, cy, cz, sx, sy, sz);
+            return;
+        }
+
+        auto pointsIt = m_handleToPointsIndexMapping.find(handle);
+        if (pointsIt != m_handleToPointsIndexMapping.end()) {
+            scale_point_range(pointsIt->second.pointStartIndex,
+                              pointsIt->second.pointEndIndex,
+                              cx,
+                              cy,
+                              cz,
+                              sx,
+                              sy,
+                              sz);
+        }
+    }
+
+    bool set_geometry_color(core::UUID handle, std::span<const float> rgba) {
+        if (rgba.size() != ColorChannelCount) {
+            return false;
+        }
+
+        auto pointIt = m_handleToPointIndexMapping.find(handle);
+        if (pointIt != m_handleToPointIndexMapping.end()) {
+            set_point_range_color(pointIt->second.pointIndex, pointIt->second.pointIndex, rgba);
+            return true;
+        }
+
+        auto pointsIt = m_handleToPointsIndexMapping.find(handle);
+        if (pointsIt != m_handleToPointsIndexMapping.end()) {
+            set_point_range_color(pointsIt->second.pointStartIndex, pointsIt->second.pointEndIndex, rgba);
+            return true;
+        }
+
+        return false;
+    }
+
   private:
     PointBuffer()
         : PointBuffer(GeoQikSettings{}) {}
@@ -515,6 +555,33 @@ class PointBuffer {
             m_points[pointStart] = rotatedPoint[0];
             m_points[pointStart + 1] = rotatedPoint[1];
             m_points[pointStart + 2] = rotatedPoint[2];
+        }
+        m_pointsHaveChanged = true;
+    }
+
+    void scale_point_range(std::size_t pointStartIndex,
+                           std::size_t pointEndIndex,
+                           float cx,
+                           float cy,
+                           float cz,
+                           float sx,
+                           float sy,
+                           float sz) {
+        for (std::size_t pointIndex = pointStartIndex; pointIndex <= pointEndIndex; ++pointIndex) {
+            const std::size_t pointStart = pointIndex * m_pointDimension;
+            m_points[pointStart] = cx + (m_points[pointStart] - cx) * sx;
+            m_points[pointStart + 1] = cy + (m_points[pointStart + 1] - cy) * sy;
+            m_points[pointStart + 2] = cz + (m_points[pointStart + 2] - cz) * sz;
+        }
+        m_pointsHaveChanged = true;
+    }
+
+    void set_point_range_color(std::size_t pointStartIndex, std::size_t pointEndIndex, std::span<const float> rgba) {
+        for (std::size_t pointIndex = pointStartIndex; pointIndex <= pointEndIndex; ++pointIndex) {
+            const std::size_t colorStart = pointIndex * m_colorDimension;
+            for (std::size_t colorIndex = 0; colorIndex < ColorChannelCount; ++colorIndex) {
+                m_pointColors[colorStart + colorIndex] = rgba[colorIndex];
+            }
         }
         m_pointsHaveChanged = true;
     }

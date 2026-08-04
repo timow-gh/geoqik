@@ -510,6 +510,46 @@ class LineBuffer {
         }
     }
 
+    void scale_geometry(core::UUID handle, float cx, float cy, float cz, float sx, float sy, float sz) {
+        auto lineIt = m_handleToLineIndexMapping.find(handle);
+        if (lineIt != m_handleToLineIndexMapping.end()) {
+            scale_line_range(lineIt->second.lineIndex, lineIt->second.lineIndex, cx, cy, cz, sx, sy, sz);
+            return;
+        }
+
+        auto linesIt = m_handleToLinesIndexMapping.find(handle);
+        if (linesIt != m_handleToLinesIndexMapping.end()) {
+            scale_line_range(linesIt->second.lineStartIndex,
+                             linesIt->second.lineEndIndex,
+                             cx,
+                             cy,
+                             cz,
+                             sx,
+                             sy,
+                             sz);
+        }
+    }
+
+    bool set_geometry_color(core::UUID handle, std::span<const float> rgba) {
+        if (rgba.size() != ColorChannelCount) {
+            return false;
+        }
+
+        auto lineIt = m_handleToLineIndexMapping.find(handle);
+        if (lineIt != m_handleToLineIndexMapping.end()) {
+            set_line_range_color(lineIt->second.lineIndex, lineIt->second.lineIndex, rgba);
+            return true;
+        }
+
+        auto linesIt = m_handleToLinesIndexMapping.find(handle);
+        if (linesIt != m_handleToLinesIndexMapping.end()) {
+            set_line_range_color(linesIt->second.lineStartIndex, linesIt->second.lineEndIndex, rgba);
+            return true;
+        }
+
+        return false;
+    }
+
   private:
     LineBuffer()
         : LineBuffer(GeoQikSettings{}) {}
@@ -634,6 +674,38 @@ class LineBuffer {
                 m_lines[lineStart + i * m_pointDimension] = rotatedPoint[0];
                 m_lines[lineStart + i * m_pointDimension + 1] = rotatedPoint[1];
                 m_lines[lineStart + i * m_pointDimension + 2] = rotatedPoint[2];
+            }
+        }
+        m_linesHaveChanged = true;
+    }
+
+    void scale_line_range(std::size_t lineStartIndex,
+                          std::size_t lineEndIndex,
+                          float cx,
+                          float cy,
+                          float cz,
+                          float sx,
+                          float sy,
+                          float sz) {
+        for (std::size_t lineIndex = lineStartIndex; lineIndex <= lineEndIndex; ++lineIndex) {
+            const std::size_t lineStart = lineIndex * 2 * m_pointDimension;
+            for (std::size_t i = 0; i < 2; ++i) {
+                const std::size_t base = lineStart + i * m_pointDimension;
+                m_lines[base] = cx + (m_lines[base] - cx) * sx;
+                m_lines[base + 1] = cy + (m_lines[base + 1] - cy) * sy;
+                m_lines[base + 2] = cz + (m_lines[base + 2] - cz) * sz;
+            }
+        }
+        m_linesHaveChanged = true;
+    }
+
+    void set_line_range_color(std::size_t lineStartIndex, std::size_t lineEndIndex, std::span<const float> rgba) {
+        for (std::size_t lineIndex = lineStartIndex; lineIndex <= lineEndIndex; ++lineIndex) {
+            const std::size_t colorStart = lineIndex * 2 * m_colorDimension;
+            for (std::size_t vertex = 0; vertex < 2; ++vertex) {
+                for (std::size_t colorIndex = 0; colorIndex < ColorChannelCount; ++colorIndex) {
+                    m_lineColors[colorStart + vertex * m_colorDimension + colorIndex] = rgba[colorIndex];
+                }
             }
         }
         m_linesHaveChanged = true;
