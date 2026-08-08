@@ -54,7 +54,8 @@ struct GEOQIK_EXPORT GeoQikSettings {
                                          // of current_capacity * growth_factor.
 
     float defaultPointSize{
-        4.0f}; // Default size for points. If not other size is set using the GeoQik API, this size will be used.
+        4.0f}; // Default world-space sphere radius for points. If no other size is set using the GeoQik API, this
+               // radius will be used.
     float defaultLineWidth{
         2.0f}; // Default width for lines. If not other width is set using the GeoQik API, this width will be used.
     Color defaultPointColor{

@@ -5,24 +5,40 @@
 #include <plinth/BufferAccessPattern.hpp>
 #include <plinth/MeshCullFaceMode.hpp>
 #include <plinth/Renderer.hpp>
+#include <plinth/StrokeStyle.hpp>
+
+#include <array>
+#include <vector>
 
 namespace geoqik {
 
+namespace {
+
+[[nodiscard]] std::vector<float> radii_for(std::span<const float> centers, float radius) {
+    return std::vector<float>(centers.size() / 3, radius);
+}
+
+} // namespace
+
 bool GeoQikSceneRenderer::sync_points(Scene& scene) {
     auto& pointBuffer = scene.get_point_buffer();
-    if (!m_renderer.has_point_drawables() && !pointBuffer.get_points().empty()) {
-        m_renderer.add_point_drawable(pointBuffer.get_points(),
-                                      pointBuffer.get_point_indices(),
-                                      pointBuffer.get_point_colors(),
-                                      scene.get_point_size(),
-                                      renderer::BufferAccessPattern::Static);
+    if (!m_renderer.has_sphere_point_drawables() && !pointBuffer.get_points().empty()) {
+        auto radii = radii_for(pointBuffer.get_points(), scene.get_point_size());
+        m_renderer.add_sphere_point_drawable(pointBuffer.get_points(),
+                                             radii,
+                                             pointBuffer.get_point_colors(),
+                                             renderer::BufferAccessPattern::Static);
         return true;
     }
     if (pointBuffer.points_have_changed()) {
-        m_renderer.update_last_point_drawable(pointBuffer.get_points(),
-                                              pointBuffer.get_point_colors(),
-                                              pointBuffer.get_point_indices(),
-                                              renderer::BufferAccessPattern::Static);
+        m_renderer.clear_sphere_point_drawables();
+        if (!pointBuffer.get_points().empty()) {
+            auto radii = radii_for(pointBuffer.get_points(), scene.get_point_size());
+            m_renderer.add_sphere_point_drawable(pointBuffer.get_points(),
+                                                 radii,
+                                                 pointBuffer.get_point_colors(),
+                                                 renderer::BufferAccessPattern::Static);
+        }
         pointBuffer.reset_points_have_changed();
         return true;
     }
@@ -36,7 +52,7 @@ bool GeoQikSceneRenderer::sync_lines(Scene& scene) {
                                      lineBuffer.get_line_indices(),
                                      lineBuffer.get_line_colors(),
                                      m_lineType,
-                                     scene.get_line_width(),
+                                     renderer::StrokeStyle{scene.get_line_width()},
                                      scene.get_point_size(),
                                      renderer::BufferAccessPattern::Static);
         return true;
@@ -110,7 +126,7 @@ bool GeoQikSceneRenderer::sync_overlay_drawables(MeshBuffer& meshBuffer) {
 
         const bool wantSegments =
             overlay.showSegments && !overlay.segmentPositions.empty() && !overlay.segmentIndices.empty();
-    if (wantSegments && !bundle.segments.is_valid()) {
+        if (wantSegments && !bundle.segments.is_valid()) {
             const std::vector<float> colorVec{overlay.segmentColor[0],
                                               overlay.segmentColor[1],
                                               overlay.segmentColor[2],
@@ -119,7 +135,7 @@ bool GeoQikSceneRenderer::sync_overlay_drawables(MeshBuffer& meshBuffer) {
                                                            std::span<const std::uint32_t>(overlay.segmentIndices),
                                                            std::span<const float>(colorVec),
                                                            renderer::LineType::lines(),
-                                                           overlay.segmentLineWidth);
+                                                           renderer::StrokeStyle{overlay.segmentLineWidth});
             updateOccurred = true;
         } else if (!wantSegments && bundle.segments.is_valid()) {
             m_renderer.remove_drawable(bundle.segments);
@@ -129,13 +145,14 @@ bool GeoQikSceneRenderer::sync_overlay_drawables(MeshBuffer& meshBuffer) {
 
         const bool wantVertices = overlay.showVertices && !overlay.segmentPositions.empty();
         if (wantVertices && !bundle.vertices.is_valid()) {
-            const std::vector<float> colorVec{overlay.vertexColor[0],
-                                              overlay.vertexColor[1],
-                                              overlay.vertexColor[2],
-                                              overlay.vertexColor[3]};
-            bundle.vertices = m_renderer.add_point_drawable(std::span<const float>(overlay.segmentPositions),
-                                                            std::span<const float>(colorVec),
-                                                            overlay.vertexPointSize);
+            const std::array<float, 4> colorArr{overlay.vertexColor[0],
+                                                overlay.vertexColor[1],
+                                                overlay.vertexColor[2],
+                                                overlay.vertexColor[3]};
+            auto radii = radii_for(overlay.segmentPositions, overlay.vertexPointSize);
+            bundle.vertices = m_renderer.add_sphere_point_drawable(std::span<const float>(overlay.segmentPositions),
+                                                                   radii,
+                                                                   colorArr);
             updateOccurred = true;
         } else if (!wantVertices && bundle.vertices.is_valid()) {
             m_renderer.remove_drawable(bundle.vertices);
@@ -168,22 +185,22 @@ void GeoQikSceneRenderer::recreate_point_drawables(const Scene& scene) {
     if (pointBuffer.get_points().empty()) {
         return;
     }
-    m_renderer.add_point_drawable(pointBuffer.get_points(),
-                                  pointBuffer.get_point_indices(),
-                                  pointBuffer.get_point_colors(),
-                                  scene.get_point_size(),
-                                  renderer::BufferAccessPattern::Static);
+    auto radii = radii_for(pointBuffer.get_points(), scene.get_point_size());
+    m_renderer.add_sphere_point_drawable(pointBuffer.get_points(),
+                                         radii,
+                                         pointBuffer.get_point_colors(),
+                                         renderer::BufferAccessPattern::Static);
 }
 
 void GeoQikSceneRenderer::recreate_line_drawables(const Scene& scene) {
     m_renderer.clear_drawables();
     const auto& pointBuffer = scene.get_point_buffer();
     if (!pointBuffer.get_points().empty()) {
-        m_renderer.add_point_drawable(pointBuffer.get_points(),
-                                      pointBuffer.get_point_indices(),
-                                      pointBuffer.get_point_colors(),
-                                      scene.get_point_size(),
-                                      renderer::BufferAccessPattern::Static);
+        auto radii = radii_for(pointBuffer.get_points(), scene.get_point_size());
+        m_renderer.add_sphere_point_drawable(pointBuffer.get_points(),
+                                             radii,
+                                             pointBuffer.get_point_colors(),
+                                             renderer::BufferAccessPattern::Static);
     }
     const auto& lineBuffer = scene.get_line_buffer();
     if (!lineBuffer.get_lines().empty()) {
@@ -191,7 +208,7 @@ void GeoQikSceneRenderer::recreate_line_drawables(const Scene& scene) {
                                      lineBuffer.get_line_indices(),
                                      lineBuffer.get_line_colors(),
                                      m_lineType,
-                                     scene.get_line_width(),
+                                     renderer::StrokeStyle{scene.get_line_width()},
                                      scene.get_point_size(),
                                      renderer::BufferAccessPattern::Static);
     }
@@ -264,18 +281,19 @@ void GeoQikSceneRenderer::create_surface_bundle(const core::UUID& uuid, const Me
                                                            std::span<const std::uint32_t>(overlay.segmentIndices),
                                                            std::span<const float>(colorVec),
                                                            renderer::LineType::lines(),
-                                                           overlay.segmentLineWidth);
+                                                           renderer::StrokeStyle{overlay.segmentLineWidth});
         }
 
         // Vertex overlay
         if (overlay.showVertices && !overlay.segmentPositions.empty()) {
-            const std::vector<float> colorVec{overlay.vertexColor[0],
-                                              overlay.vertexColor[1],
-                                              overlay.vertexColor[2],
-                                              overlay.vertexColor[3]};
-            bundle.vertices = m_renderer.add_point_drawable(std::span<const float>(overlay.segmentPositions),
-                                                            std::span<const float>(colorVec),
-                                                            overlay.vertexPointSize);
+            const std::array<float, 4> colorArr{overlay.vertexColor[0],
+                                                overlay.vertexColor[1],
+                                                overlay.vertexColor[2],
+                                                overlay.vertexColor[3]};
+            auto radii = radii_for(overlay.segmentPositions, overlay.vertexPointSize);
+            bundle.vertices = m_renderer.add_sphere_point_drawable(std::span<const float>(overlay.segmentPositions),
+                                                                   radii,
+                                                                   colorArr);
         }
     }
 
