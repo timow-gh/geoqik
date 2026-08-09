@@ -229,10 +229,12 @@ TEST_F(GeometryBufferTest, RemovePoints_Multiple) {
     }
 
     EXPECT_EQ(buffer->get_points().size(), 18);
+    EXPECT_EQ(to_vector(buffer->get_point_radii()), (std::vector<float>(6, 0.0f)));
     buffer->remove_point(handles[1]);
     EXPECT_TRUE(buffer->has_changed());
     buffer->reset_changed_flag();
     EXPECT_EQ(buffer->get_points().size(), 12);
+    EXPECT_EQ(to_vector(buffer->get_point_radii()), (std::vector<float>(4, 0.0f)));
     auto newPoints = buffer->get_points();
     EXPECT_EQ(newPoints[0], 1.0f);
     EXPECT_EQ(newPoints[1], 2.0f);
@@ -879,6 +881,7 @@ TEST_F(GeometryBufferTest, PointBufferSnapshotRestoreRoundTripsDataAndHandles) {
 
     EXPECT_EQ(to_vector(buffer->get_points()), snapshot.points);
     EXPECT_EQ(to_vector(buffer->get_point_colors()), snapshot.pointColors);
+    EXPECT_EQ(to_vector(buffer->get_point_radii()), snapshot.pointRadii);
     EXPECT_EQ(to_vector(buffer->get_point_indices()), snapshot.pointIndices);
     EXPECT_TRUE(buffer->has_changed());
 

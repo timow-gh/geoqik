@@ -37,9 +37,11 @@ struct PointBufferSnapshot {
     Color currentPointColor;
     std::vector<float> points;
     std::vector<float> pointColors;
+    std::vector<float> pointRadii;
     std::vector<std::uint32_t> pointIndices;
     std::size_t pointCapacity{0};
     std::size_t pointColorCapacity{0};
+    std::size_t pointRadiusCapacity{0};
     std::size_t pointIndexCapacity{0};
     std::unordered_map<core::UUID, PointGeoBufferIndex> handleToPointIndexMapping;
     std::unordered_map<core::UUID, PointsGeoBufferIndex> handleToPointsIndexMapping;
@@ -57,6 +59,7 @@ class PointBuffer {
     Color m_currentPointColor{1.0f, 1.0f, 1.0f, 1.0f};
     opengl::Buffer<float> m_points;
     opengl::Buffer<float> m_pointColors;
+    opengl::Buffer<float> m_pointRadii;
     opengl::Buffer<std::uint32_t> m_pointIndices;
 
     bool m_pointsHaveChanged{false};
@@ -82,6 +85,8 @@ class PointBuffer {
                 opengl::Buffer<float>::create_from(other.m_points, other.m_points.capacity() * growthFactor);
             newBuffer->m_pointColors =
                 opengl::Buffer<float>::create_from(other.m_pointColors, other.m_pointColors.capacity() * growthFactor);
+            newBuffer->m_pointRadii =
+                opengl::Buffer<float>::create_from(other.m_pointRadii, other.m_pointRadii.capacity() * growthFactor);
             newBuffer->m_pointIndices =
                 opengl::Buffer<std::uint32_t>::create_from(other.m_pointIndices,
                                                            other.m_pointIndices.capacity() * growthFactor);
@@ -110,6 +115,7 @@ class PointBuffer {
     void clear() {
         m_points.reset();
         m_pointColors.reset();
+        m_pointRadii.reset();
         m_pointIndices.reset();
         m_handleToPointIndexMapping.clear();
         m_handleToPointsIndexMapping.clear();
@@ -139,9 +145,11 @@ class PointBuffer {
         snapshot.currentPointColor = m_currentPointColor;
         snapshot.points.assign(m_points.begin(), m_points.end());
         snapshot.pointColors.assign(m_pointColors.begin(), m_pointColors.end());
+        snapshot.pointRadii.assign(m_pointRadii.begin(), m_pointRadii.end());
         snapshot.pointIndices.assign(m_pointIndices.begin(), m_pointIndices.end());
         snapshot.pointCapacity = m_points.capacity();
         snapshot.pointColorCapacity = m_pointColors.capacity();
+        snapshot.pointRadiusCapacity = m_pointRadii.capacity();
         snapshot.pointIndexCapacity = m_pointIndices.capacity();
         snapshot.handleToPointIndexMapping = m_handleToPointIndexMapping;
         snapshot.handleToPointsIndexMapping = m_handleToPointsIndexMapping;
@@ -152,6 +160,7 @@ class PointBuffer {
         m_currentPointColor = snapshot.currentPointColor;
         m_points = opengl::Buffer<float>(std::max(snapshot.pointCapacity, snapshot.points.size()));
         m_pointColors = opengl::Buffer<float>(std::max(snapshot.pointColorCapacity, snapshot.pointColors.size()));
+        m_pointRadii = opengl::Buffer<float>(std::max(snapshot.pointRadiusCapacity, snapshot.pointRadii.size()));
         m_pointIndices =
             opengl::Buffer<std::uint32_t>(std::max(snapshot.pointIndexCapacity, snapshot.pointIndices.size()));
 
@@ -160,6 +169,9 @@ class PointBuffer {
         }
         for (float color: snapshot.pointColors) {
             m_pointColors.push_back(color);
+        }
+        for (float radius: snapshot.pointRadii) {
+            m_pointRadii.push_back(radius);
         }
         for (std::uint32_t index: snapshot.pointIndices) {
             m_pointIndices.push_back(index);
@@ -173,6 +185,7 @@ class PointBuffer {
     // clang-format off
   [[nodiscard]] std::span<const float> get_points() const { return m_points.get_as_span(); }
   [[nodiscard]] std::span<const float> get_point_colors() const { return m_pointColors.get_as_span(); }
+  [[nodiscard]] std::span<const float> get_point_radii() const { return m_pointRadii.get_as_span(); }
   [[nodiscard]] std::span<const std::uint32_t> get_point_indices() const { return m_pointIndices.get_as_span(); }
     // clang-format on
 
@@ -210,6 +223,7 @@ class PointBuffer {
         m_pointColors.push_back(g);
         m_pointColors.push_back(b);
         m_pointColors.push_back(a);
+        m_pointRadii.push_back(0.0F);
 
         CORE_ASSERT(currentPointIndex <= static_cast<std::size_t>(std::numeric_limits<std::uint32_t>::max()));
         m_pointIndices.push_back(static_cast<std::uint32_t>(currentPointIndex));
@@ -377,6 +391,10 @@ class PointBuffer {
                 "values, or match pointCount * 4.");
         }
 
+        for (std::size_t i = 0; i < pointCount; ++i) {
+            m_pointRadii.push_back(0.0F);
+        }
+
         for (std::uint32_t i = static_cast<std::uint32_t>(currentPointIndex);
              i < static_cast<std::uint32_t>(currentPointIndex + pointCount);
              ++i) {
@@ -465,14 +483,7 @@ class PointBuffer {
 
         auto pointsIt = m_handleToPointsIndexMapping.find(handle);
         if (pointsIt != m_handleToPointsIndexMapping.end()) {
-            scale_point_range(pointsIt->second.pointStartIndex,
-                              pointsIt->second.pointEndIndex,
-                              cx,
-                              cy,
-                              cz,
-                              sx,
-                              sy,
-                              sz);
+            scale_point_range(pointsIt->second.pointStartIndex, pointsIt->second.pointEndIndex, cx, cy, cz, sx, sy, sz);
         }
     }
 
@@ -504,9 +515,11 @@ class PointBuffer {
         : m_currentPointColor(settings.defaultPointColor)
         , m_points(settings.initialPointCapacity * m_pointDimension)
         , m_pointColors(settings.initialPointCapacity * m_colorDimension)
+        , m_pointRadii(settings.initialPointCapacity)
         , m_pointIndices(settings.initialPointCapacity) {
         assert(m_points.capacity() % m_pointDimension == 0);
         assert(m_pointColors.capacity() % m_colorDimension == 0);
+        assert(m_pointRadii.capacity() == settings.initialPointCapacity);
         assert(m_pointIndices.capacity() == settings.initialPointCapacity);
     }
 
@@ -515,10 +528,12 @@ class PointBuffer {
         const std::size_t pointCount = pointEndIndex - pointStartIndex + 1;
         const std::size_t pointStart = pointStartIndex * m_pointDimension;
         const std::size_t colorStart = pointStartIndex * m_colorDimension;
-        geometry.points.assign(m_points.begin() + static_cast<std::ptrdiff_t>(pointStart),
-                                m_points.begin() + static_cast<std::ptrdiff_t>(pointStart + pointCount * m_pointDimension));
-        geometry.colors.assign(m_pointColors.begin() + static_cast<std::ptrdiff_t>(colorStart),
-                                m_pointColors.begin() + static_cast<std::ptrdiff_t>(colorStart + pointCount * m_colorDimension));
+        geometry.points.assign(
+            m_points.begin() + static_cast<std::ptrdiff_t>(pointStart),
+            m_points.begin() + static_cast<std::ptrdiff_t>(pointStart + pointCount * m_pointDimension));
+        geometry.colors.assign(
+            m_pointColors.begin() + static_cast<std::ptrdiff_t>(colorStart),
+            m_pointColors.begin() + static_cast<std::ptrdiff_t>(colorStart + pointCount * m_colorDimension));
         return geometry;
     }
 
@@ -611,6 +626,7 @@ class PointBuffer {
         std::size_t colorStart = pointIndex * m_colorDimension;
         m_points.remove(pointStart, m_pointDimension);
         m_pointColors.remove(colorStart, m_colorDimension);
+        m_pointRadii.remove(pointIndex, 1);
 
         // Fix the indices in the index buffer and remove the index of the removed point.
         // The indices after the removed point need to be decremented by one.
@@ -645,6 +661,7 @@ class PointBuffer {
         std::size_t colorStart = pointStartIndex * m_colorDimension;
         m_points.remove(pointStart, numberOfPointsToRemove * m_pointDimension);
         m_pointColors.remove(colorStart, numberOfPointsToRemove * m_colorDimension);
+        m_pointRadii.remove(pointStartIndex, numberOfPointsToRemove);
 
         // Fix the indices in the index buffer and remove the indices of the removed points.
         // The indices after the removed points need to be decremented by the number of removed points.

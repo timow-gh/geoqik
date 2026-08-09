@@ -8,6 +8,7 @@ set(geoqik_SOURCE_FILES
         source/Context.cpp
         source/GeometryHelpers.hpp
         source/GeometryBuffers/Buffer.hpp
+        source/GeometryBuffers/GeometryStyle.hpp
         source/GeometryBuffers/LineBuffer.hpp
         source/GeometryBuffers/PointBuffer.hpp
         source/GeoQik.cpp
@@ -20,6 +21,7 @@ set(geoqik_SOURCE_FILES
         source/IdempotencyData.hpp
         source/Rendering/GeoQikSceneRenderer.cpp
         source/Rendering/GeoQikSceneRenderer.hpp
+        source/Rendering/StyleTranslation.hpp
         source/Scene.hpp
 )
 

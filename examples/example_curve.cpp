@@ -35,7 +35,8 @@ static void add_line_with_color(const linal::double3& start, const linal::double
 }
 
 static void draw_curve_points(const std::array<linal::double3, curveControlPointCount>& startPoints,
-                              std::size_t approxSteps) {
+                              std::size_t approxSteps,
+                              float pointSize) {
     bool initialized = false;
     geoqik_is_api_initialized(&initialized);
     assert(initialized);
@@ -70,6 +71,10 @@ static void draw_curve_points(const std::array<linal::double3, curveControlPoint
 
         for (std::size_t j = 0; j < prevPoints.size(); ++j) {
             add_line_with_color(prevPoints[j], transformedPoint[j]);
+            geoqik_set_point_size(pointSize);
+            for (const auto& point: transformedPoint) {
+                geoqik_add_point_with_color(point[0], point[1], point[2], 0.0F, opaque, 0.0F, opaque);
+            }
         }
         prevPoints = transformedPoint;
     }
@@ -92,7 +97,7 @@ int main() {
     geoqik_init();
 
     geoqik::examples::draw_origin(1.0);
-    geoqik::examples::add_grid(gridExtent, 1.0);
+    geoqik::examples::add_grid(gridExtent, 1.0, 2.0F, 0.1F);
 
     geoqik_draw();
 
@@ -100,12 +105,12 @@ int main() {
                                                                    linal::double3{opaque, 0.0, 0.0},
                                                                    linal::double3{opaque, 0.0, opaque},
                                                                    linal::double3{0.0, 0.0, opaque}};
-    draw_curve_points(startPoints, curveStepCount);
+    draw_curve_points(startPoints, curveStepCount, 0.01F);
 
     for (auto& point: startPoints) {
         point += linal::double3{translationX, 0.0, 0.0};
     }
-    draw_curve_points(startPoints, translatedCurveStepCount);
+    draw_curve_points(startPoints, translatedCurveStepCount, 0.01F);
 
     geoqik::examples::sleep_for_seconds(replayDelaySeconds);
 

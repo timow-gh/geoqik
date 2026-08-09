@@ -5,10 +5,10 @@
 #include "GeoQikOverlay.hpp"
 
 #include <Core/Assert.hpp>
-#include <plinth/FrameState.hpp>
 
 #include <plinth/CameraAutoFit.hpp>
 #include <plinth/CameraProjectionType.hpp>
+#include <plinth/FrameState.hpp>
 #include <plinth/IOverlay.hpp>
 #include <plinth/LogicalViewportRect.hpp>
 #include <plinth/Renderer.hpp>
@@ -90,6 +90,33 @@ namespace {
 
 constexpr std::size_t lineCoordinateCount = 6;
 constexpr std::size_t frameInfoPrintInterval = 10;
+
+[[nodiscard]] std::vector<float> expand_vertex_colors(std::span<const float> colors,
+                                                      std::size_t vertexCount,
+                                                      const Color& fallback,
+                                                      bool duplicateLineColors = false) {
+    std::vector<float> expanded;
+    expanded.reserve(vertexCount * ColorChannelCount);
+    if (colors.empty() || colors.size() == ColorChannelCount) {
+        const auto source = colors.empty() ? std::span<const float>(fallback) : colors;
+        for (std::size_t i = 0; i < vertexCount; ++i) {
+            expanded.insert(expanded.end(), source.begin(), source.end());
+        }
+        return expanded;
+    }
+    if (colors.size() == vertexCount * ColorChannelCount) {
+        expanded.assign(colors.begin(), colors.end());
+        return expanded;
+    }
+    if (duplicateLineColors && vertexCount % 2 == 0 && colors.size() == vertexCount / 2 * ColorChannelCount) {
+        for (std::size_t i = 0; i < vertexCount / 2; ++i) {
+            const auto begin = colors.begin() + static_cast<std::ptrdiff_t>(i * ColorChannelCount);
+            expanded.insert(expanded.end(), begin, begin + static_cast<std::ptrdiff_t>(ColorChannelCount));
+            expanded.insert(expanded.end(), begin, begin + static_cast<std::ptrdiff_t>(ColorChannelCount));
+        }
+    }
+    return expanded;
+}
 
 ConcurrentQueue<GeoQikMessage>& message_queue_storage() {
     static ConcurrentQueue<GeoQikMessage> messageQueue; // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
@@ -195,7 +222,8 @@ void render_camera_controls(CameraGuiState& cameraState) {
     ImGui::TextUnformatted("Navigation");
     const bool isFree = !cameraState.activePreset.has_value();
     const float navButtonWidth = equal_button_width(2);
-    const bool orbitActive = isFree && cameraState.navigationStyle == renderer::CameraInteractor::NavigationStyle::ORBIT;
+    const bool orbitActive =
+        isFree && cameraState.navigationStyle == renderer::CameraInteractor::NavigationStyle::ORBIT;
     if (highlighted_button("Orbit", navButtonWidth, orbitActive)) {
         cameraState.requestedNavigationStyle = renderer::CameraInteractor::NavigationStyle::ORBIT;
     }
@@ -732,9 +760,9 @@ void Context::run_event_loop() {
         }
 
         const renderer::ClearColor clearColor{m_backgroundColor[0],
-                                            m_backgroundColor[1],
-                                            m_backgroundColor[2],
-                                            m_backgroundColor[3]};
+                                              m_backgroundColor[1],
+                                              m_backgroundColor[2],
+                                              m_backgroundColor[3]};
         m_renderer->begin_frame(clearColor);
 
         m_sceneRenderer->sync_scene(m_scene);
@@ -1164,18 +1192,75 @@ std::pair<std::size_t, std::size_t> Context::get_replay_progress() const {
 }
 
 void Context::handle_message(const AddPointWithOpts& message) {
+    if (message.styled) {
+        if (is_known_idempotency_key(&message.commonData.idempotencyId)) {
+            return;
+        }
+        StyledPointData data;
+        data.points = {message.x, message.y, message.z};
+        data.colors = expand_vertex_colors(message.commonData.rgba, 1, m_scene.get_default_point_color());
+        data.radii = message.radii;
+        data.sizeSpace = message.sizeSpace;
+        m_scene.add_styled_points(message.commonData.geometryId, std::move(data));
+        ++m_geometryMessagesProcessedThisFrame;
+        return;
+    }
     add_point_with_opts(message.x, message.y, message.z, message.commonData);
 }
 
 void Context::handle_message(const AddPointsWithOpts& message) {
+    if (message.styled) {
+        if (is_known_idempotency_key(&message.commonData.idempotencyId)) {
+            return;
+        }
+        StyledPointData data;
+        data.points = message.points;
+        data.colors =
+            expand_vertex_colors(message.commonData.rgba, message.points.size() / 3, m_scene.get_default_point_color());
+        data.radii = message.radii;
+        data.sizeSpace = message.sizeSpace;
+        m_scene.add_styled_points(message.commonData.geometryId, std::move(data));
+        ++m_geometryMessagesProcessedThisFrame;
+        return;
+    }
     add_points_with_opts(message.points, message.commonData);
 }
 
 void Context::handle_message(const UpdatePointWithOpts& message) {
+    if (m_scene.is_styled_point(message.handle)) {
+        const std::array<float, 3> points{message.x, message.y, message.z};
+        const auto colors = message.rgba.empty()
+                                ? std::vector<float>{}
+                                : expand_vertex_colors(message.rgba, 1, m_scene.get_default_point_color());
+        if (m_scene.update_styled_points(message.handle,
+                                         points,
+                                         colors,
+                                         message.radii,
+                                         message.sizeSpace,
+                                         message.styled)) {
+            ++m_geometryMessagesProcessedThisFrame;
+        }
+        return;
+    }
     update_point_with_opts(message.handle, message.x, message.y, message.z, message.rgba);
 }
 
 void Context::handle_message(const UpdatePointsWithOpts& message) {
+    if (m_scene.is_styled_point(message.handle)) {
+        const auto colors =
+            message.rgba.empty()
+                ? std::vector<float>{}
+                : expand_vertex_colors(message.rgba, message.points.size() / 3, m_scene.get_default_point_color());
+        if (m_scene.update_styled_points(message.handle,
+                                         message.points,
+                                         colors,
+                                         message.radii,
+                                         message.sizeSpace,
+                                         message.styled)) {
+            ++m_geometryMessagesProcessedThisFrame;
+        }
+        return;
+    }
     update_points_with_opts(message.handle, message.points, message.rgba);
 }
 
@@ -1192,14 +1277,61 @@ void Context::handle_message(const SetPointColor& message) {
 }
 
 void Context::handle_message(const AddLineWithOpts& message) {
+    if (message.styleSet) {
+        if (is_known_idempotency_key(&message.commonData.idempotencyId)) {
+            return;
+        }
+        StyledLineData data;
+        data.vertices = {message.x1, message.y1, message.z1, message.x2, message.y2, message.z2};
+        data.colors = expand_vertex_colors(message.commonData.rgba, 2, m_scene.get_default_line_color(), true);
+        data.style = message.style;
+        data.lineType = message.lineType;
+        data.perVertexDashFlags = message.perVertexDashFlags;
+        m_scene.add_styled_line(message.commonData.geometryId, std::move(data));
+        ++m_geometryMessagesProcessedThisFrame;
+        return;
+    }
     add_line_with_opts(message.x1, message.y1, message.z1, message.x2, message.y2, message.z2, message.commonData);
 }
 
 void Context::handle_message(const AddLinesWithOpts& message) {
+    if (message.styleSet) {
+        if (is_known_idempotency_key(&message.commonData.idempotencyId)) {
+            return;
+        }
+        StyledLineData data;
+        data.vertices = message.lines;
+        data.colors = expand_vertex_colors(message.commonData.rgba,
+                                           message.lines.size() / 3,
+                                           m_scene.get_default_line_color(),
+                                           true);
+        data.style = message.style;
+        data.lineType = message.lineType;
+        data.perVertexDashFlags = message.perVertexDashFlags;
+        m_scene.add_styled_line(message.commonData.geometryId, std::move(data));
+        ++m_geometryMessagesProcessedThisFrame;
+        return;
+    }
     add_lines_with_opts(message.lines, message.commonData);
 }
 
 void Context::handle_message(const UpdateLineWithOpts& message) {
+    if (m_scene.is_styled_line(message.handle)) {
+        const std::array<float, 6> vertices{message.x1, message.y1, message.z1, message.x2, message.y2, message.z2};
+        const auto colors = message.rgba.empty()
+                                ? std::vector<float>{}
+                                : expand_vertex_colors(message.rgba, 2, m_scene.get_default_line_color(), true);
+        if (m_scene.update_styled_line(message.handle,
+                                       vertices,
+                                       colors,
+                                       message.style,
+                                       message.lineType,
+                                       message.perVertexDashFlags,
+                                       message.styleSet)) {
+            ++m_geometryMessagesProcessedThisFrame;
+        }
+        return;
+    }
     update_line_with_opts(message.handle,
                           message.x1,
                           message.y1,
@@ -1211,6 +1343,22 @@ void Context::handle_message(const UpdateLineWithOpts& message) {
 }
 
 void Context::handle_message(const UpdateLinesWithOpts& message) {
+    if (m_scene.is_styled_line(message.handle)) {
+        const auto colors =
+            message.rgba.empty()
+                ? std::vector<float>{}
+                : expand_vertex_colors(message.rgba, message.lines.size() / 3, m_scene.get_default_line_color(), true);
+        if (m_scene.update_styled_line(message.handle,
+                                       message.lines,
+                                       colors,
+                                       message.style,
+                                       message.lineType,
+                                       message.perVertexDashFlags,
+                                       message.styleSet)) {
+            ++m_geometryMessagesProcessedThisFrame;
+        }
+        return;
+    }
     update_lines_with_opts(message.handle, message.lines, message.rgba);
 }
 
@@ -1450,9 +1598,8 @@ bool Context::is_control_message(const GeoQikMessage& message) {
 void Context::apply_preset_view(renderer::PresetView view) {
     // ISO is a free 3D vantage point, so it leaves all interactive movement unlocked. The
     // orthographic presets lock rotation so the fixed view is not accidentally orbited away.
-    const auto viewMode = view == renderer::PresetView::ISO
-                              ? renderer::CameraInteractor::CameraViewMode::NONE
-                              : renderer::CameraInteractor::CameraViewMode::FIX_ROTATE;
+    const auto viewMode = view == renderer::PresetView::ISO ? renderer::CameraInteractor::CameraViewMode::NONE
+                                                            : renderer::CameraInteractor::CameraViewMode::FIX_ROTATE;
     m_renderer->go_to_preset_view(view);
     if (auto camera = m_renderer->get_camera().lock()) {
         camera->set_view_mode(viewMode);
@@ -1481,16 +1628,14 @@ void Context::handle_camera_key(Key key, Action action) {
     // panel exposing every post-processing and visualization control.
     if (key == Key::KEY_F1) {
         auto& ui = m_overlay->inner();
-        ui.set_ui_mode(ui.ui_mode() == renderer::UiMode::Release ? renderer::UiMode::Debug
-                                                                 : renderer::UiMode::Release);
+        ui.set_ui_mode(ui.ui_mode() == renderer::UiMode::Release ? renderer::UiMode::Debug : renderer::UiMode::Release);
         return;
     }
 
     // Tab toggles between orbit navigation and fly (WASD+QE) navigation.
     if (key == Key::KEY_TAB) {
         if (auto camera = m_renderer->get_camera().lock()) {
-            apply_navigation_style(camera->get_navigation_style() ==
-                                           renderer::CameraInteractor::NavigationStyle::ORBIT
+            apply_navigation_style(camera->get_navigation_style() == renderer::CameraInteractor::NavigationStyle::ORBIT
                                        ? renderer::CameraInteractor::NavigationStyle::FLY
                                        : renderer::CameraInteractor::NavigationStyle::ORBIT);
         }

@@ -279,3 +279,57 @@ TEST_F(GeoQikTest_Lines, UpdateLinesAndRemoveLineEnqueue) {
 
     geoqik_cleanup();
 }
+
+TEST_F(GeoQikTest_Lines, StyledStrokeEnqueuesUpdateAndRemove) {
+    ASSERT_EQ(GEOQIK_SUCCESS, init_hidden_geoqik());
+    const double lines[] = {0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 2.0, 1.0, 0.0};
+    const float dash[] = {4.0f, 2.0f};
+    const std::uint8_t flags[] = {1, 1, 0, 1};
+    geoqik_add_line_opts_t opts{};
+    opts.styleSet = 1;
+    opts.style.lineWidth = 5.0f;
+    opts.style.cap = GEOQIK_LINE_CAP_ROUND;
+    opts.style.join = GEOQIK_LINE_JOIN_BEVEL;
+    opts.style.miterLimit = 6.0f;
+    opts.style.dashPattern = dash;
+    opts.style.dashPatternCount = std::size(dash);
+    opts.style.dashPhase = 0.25f;
+    opts.style.dashSpace = GEOQIK_DASH_SPACE_SCREEN;
+    opts.lineType = GEOQIK_LINE_TYPE_LINE_STRIP;
+    opts.perVertexDashFlags = flags;
+    opts.perVertexDashFlagCount = std::size(flags);
+
+    const auto result = geoqik_add_lines_opts(lines, std::size(lines), &opts);
+    ASSERT_EQ(GEOQIK_SUCCESS, result.err);
+    geoqik_update_line_opts_t updateOpts{};
+    updateOpts.styleSet = 1;
+    updateOpts.style = opts.style;
+    updateOpts.style.dashSpace = GEOQIK_DASH_SPACE_WORLD;
+    updateOpts.lineType = GEOQIK_LINE_TYPE_LINE_LOOP;
+    updateOpts.perVertexDashFlags = flags;
+    updateOpts.perVertexDashFlagCount = std::size(flags);
+    EXPECT_EQ(GEOQIK_SUCCESS, geoqik_update_lines_opts(&result.geometryId, lines, std::size(lines), &updateOpts));
+    EXPECT_EQ(GEOQIK_SUCCESS, geoqik_remove_line(&result.geometryId));
+    geoqik_cleanup();
+}
+
+TEST_F(GeoQikTest_Lines, StyledStrokeRejectsInvalidFlagsAndEnums) {
+    const double line[] = {0.0, 0.0, 0.0, 1.0, 0.0, 0.0};
+    const std::uint8_t flag = 1;
+    geoqik_add_line_opts_t opts{};
+    opts.styleSet = 1;
+    opts.perVertexDashFlags = &flag;
+    opts.perVertexDashFlagCount = 1;
+    EXPECT_EQ(GEOQIK_ERROR_INVALID_PARAMETER, geoqik_add_lines_opts(line, std::size(line), &opts).err);
+
+    opts.perVertexDashFlagCount = 0;
+    opts.perVertexDashFlags = nullptr;
+    opts.style.cap = static_cast<geoqik_line_cap_t>(99);
+    EXPECT_EQ(GEOQIK_ERROR_INVALID_PARAMETER, geoqik_add_lines_opts(line, std::size(line), &opts).err);
+
+    const std::uint8_t invalidFlags[] = {1, 2};
+    opts.style.cap = GEOQIK_LINE_CAP_BUTT;
+    opts.perVertexDashFlags = invalidFlags;
+    opts.perVertexDashFlagCount = std::size(invalidFlags);
+    EXPECT_EQ(GEOQIK_ERROR_INVALID_PARAMETER, geoqik_add_lines_opts(line, std::size(line), &opts).err);
+}

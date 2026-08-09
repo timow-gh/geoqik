@@ -42,8 +42,16 @@ enum class SerializedMessageType : std::uint32_t // NOLINT(performance-enum-size
     SetMeshOverlayOpts = 22,
     SetMeshRenderingOpts = 23,
     ScaleGeometry = 24,
-    SetGeometryColor = 25
-    // Next free ID: 26
+    SetGeometryColor = 25,
+    AddPointWithStyle = 26,
+    AddPointsWithStyle = 27,
+    UpdatePointWithStyle = 28,
+    UpdatePointsWithStyle = 29,
+    AddLineWithStyle = 30,
+    AddLinesWithStyle = 31,
+    UpdateLineWithStyle = 32,
+    UpdateLinesWithStyle = 33
+    // Next free ID: 34
 };
 
 constexpr auto serialized_message_type_value(SerializedMessageType type) {
@@ -117,6 +125,47 @@ std::vector<float> read_float_vector(std::istream& stream) {
     return values;
 }
 
+void write_u8_vector(std::ostream& stream, const std::vector<std::uint8_t>& values) {
+    write_pod(stream, static_cast<std::uint64_t>(values.size()));
+    for (const auto value: values) {
+        write_pod(stream, value);
+    }
+}
+
+std::vector<std::uint8_t> read_u8_vector(std::istream& stream) {
+    const auto count = read_pod<std::uint64_t>(stream);
+    if (count > std::numeric_limits<std::size_t>::max()) {
+        throw std::runtime_error("GeoQik message vector is too large");
+    }
+    std::vector<std::uint8_t> values(static_cast<std::size_t>(count));
+    for (auto& value: values) {
+        value = read_pod<std::uint8_t>(stream);
+    }
+    return values;
+}
+
+void write_stroke_style(std::ostream& stream, const StrokeStyleData& style) {
+    write_pod(stream, style.lineWidth);
+    write_pod(stream, style.cap);
+    write_pod(stream, style.join);
+    write_pod(stream, style.miterLimit);
+    write_float_vector(stream, style.dashPattern);
+    write_pod(stream, style.dashPhase);
+    write_pod(stream, style.dashSpace);
+}
+
+StrokeStyleData read_stroke_style(std::istream& stream) {
+    StrokeStyleData style;
+    style.lineWidth = read_pod<float>(stream);
+    style.cap = read_pod<std::uint8_t>(stream);
+    style.join = read_pod<std::uint8_t>(stream);
+    style.miterLimit = read_pod<float>(stream);
+    style.dashPattern = read_float_vector(stream);
+    style.dashPhase = read_pod<float>(stream);
+    style.dashSpace = read_pod<std::uint8_t>(stream);
+    return style;
+}
+
 void write_color(std::ostream& stream, const Color& color) {
     for (const float channel: color) {
         write_pod(stream, channel);
@@ -156,27 +205,51 @@ void MessageWriter::write(const GeoQikLogEntry& message) {
         [this](const auto& value) {
             using T = std::decay_t<decltype(value)>;
             if constexpr (std::is_same_v<T, AddPointWithOpts>) {
-                write_pod(m_stream, SerializedMessageType::AddPointWithOpts);
+                write_pod(
+                    m_stream,
+                    value.styled ? SerializedMessageType::AddPointWithStyle : SerializedMessageType::AddPointWithOpts);
                 write_pod(m_stream, value.x);
                 write_pod(m_stream, value.y);
                 write_pod(m_stream, value.z);
                 write_common_data(m_stream, value.commonData);
+                if (value.styled) {
+                    write_float_vector(m_stream, value.radii);
+                    write_pod(m_stream, value.sizeSpace);
+                }
             } else if constexpr (std::is_same_v<T, AddPointsWithOpts>) {
-                write_pod(m_stream, SerializedMessageType::AddPointsWithOpts);
+                write_pod(m_stream,
+                          value.styled ? SerializedMessageType::AddPointsWithStyle
+                                       : SerializedMessageType::AddPointsWithOpts);
                 write_float_vector(m_stream, value.points);
                 write_common_data(m_stream, value.commonData);
+                if (value.styled) {
+                    write_float_vector(m_stream, value.radii);
+                    write_pod(m_stream, value.sizeSpace);
+                }
             } else if constexpr (std::is_same_v<T, UpdatePointWithOpts>) {
-                write_pod(m_stream, SerializedMessageType::UpdatePointWithOpts);
+                write_pod(m_stream,
+                          value.styled ? SerializedMessageType::UpdatePointWithStyle
+                                       : SerializedMessageType::UpdatePointWithOpts);
                 write_uuid(m_stream, value.handle);
                 write_pod(m_stream, value.x);
                 write_pod(m_stream, value.y);
                 write_pod(m_stream, value.z);
                 write_float_vector(m_stream, value.rgba);
+                if (value.styled) {
+                    write_float_vector(m_stream, value.radii);
+                    write_pod(m_stream, value.sizeSpace);
+                }
             } else if constexpr (std::is_same_v<T, UpdatePointsWithOpts>) {
-                write_pod(m_stream, SerializedMessageType::UpdatePointsWithOpts);
+                write_pod(m_stream,
+                          value.styled ? SerializedMessageType::UpdatePointsWithStyle
+                                       : SerializedMessageType::UpdatePointsWithOpts);
                 write_uuid(m_stream, value.handle);
                 write_float_vector(m_stream, value.points);
                 write_float_vector(m_stream, value.rgba);
+                if (value.styled) {
+                    write_float_vector(m_stream, value.radii);
+                    write_pod(m_stream, value.sizeSpace);
+                }
             } else if constexpr (std::is_same_v<T, RemovePoint>) {
                 write_pod(m_stream, SerializedMessageType::RemovePoint);
                 write_uuid(m_stream, value.handle);
@@ -187,7 +260,9 @@ void MessageWriter::write(const GeoQikLogEntry& message) {
                 write_pod(m_stream, SerializedMessageType::SetPointColor);
                 write_color(m_stream, value.color);
             } else if constexpr (std::is_same_v<T, AddLineWithOpts>) {
-                write_pod(m_stream, SerializedMessageType::AddLineWithOpts);
+                write_pod(
+                    m_stream,
+                    value.styleSet ? SerializedMessageType::AddLineWithStyle : SerializedMessageType::AddLineWithOpts);
                 write_pod(m_stream, value.x1);
                 write_pod(m_stream, value.y1);
                 write_pod(m_stream, value.z1);
@@ -195,12 +270,26 @@ void MessageWriter::write(const GeoQikLogEntry& message) {
                 write_pod(m_stream, value.y2);
                 write_pod(m_stream, value.z2);
                 write_common_data(m_stream, value.commonData);
+                if (value.styleSet) {
+                    write_stroke_style(m_stream, value.style);
+                    write_pod(m_stream, value.lineType);
+                    write_u8_vector(m_stream, value.perVertexDashFlags);
+                }
             } else if constexpr (std::is_same_v<T, AddLinesWithOpts>) {
-                write_pod(m_stream, SerializedMessageType::AddLinesWithOpts);
+                write_pod(m_stream,
+                          value.styleSet ? SerializedMessageType::AddLinesWithStyle
+                                         : SerializedMessageType::AddLinesWithOpts);
                 write_float_vector(m_stream, value.lines);
                 write_common_data(m_stream, value.commonData);
+                if (value.styleSet) {
+                    write_stroke_style(m_stream, value.style);
+                    write_pod(m_stream, value.lineType);
+                    write_u8_vector(m_stream, value.perVertexDashFlags);
+                }
             } else if constexpr (std::is_same_v<T, UpdateLineWithOpts>) {
-                write_pod(m_stream, SerializedMessageType::UpdateLineWithOpts);
+                write_pod(m_stream,
+                          value.styleSet ? SerializedMessageType::UpdateLineWithStyle
+                                         : SerializedMessageType::UpdateLineWithOpts);
                 write_uuid(m_stream, value.handle);
                 write_pod(m_stream, value.x1);
                 write_pod(m_stream, value.y1);
@@ -209,11 +298,23 @@ void MessageWriter::write(const GeoQikLogEntry& message) {
                 write_pod(m_stream, value.y2);
                 write_pod(m_stream, value.z2);
                 write_float_vector(m_stream, value.rgba);
+                if (value.styleSet) {
+                    write_stroke_style(m_stream, value.style);
+                    write_pod(m_stream, value.lineType);
+                    write_u8_vector(m_stream, value.perVertexDashFlags);
+                }
             } else if constexpr (std::is_same_v<T, UpdateLinesWithOpts>) {
-                write_pod(m_stream, SerializedMessageType::UpdateLinesWithOpts);
+                write_pod(m_stream,
+                          value.styleSet ? SerializedMessageType::UpdateLinesWithStyle
+                                         : SerializedMessageType::UpdateLinesWithOpts);
                 write_uuid(m_stream, value.handle);
                 write_float_vector(m_stream, value.lines);
                 write_float_vector(m_stream, value.rgba);
+                if (value.styleSet) {
+                    write_stroke_style(m_stream, value.style);
+                    write_pod(m_stream, value.lineType);
+                    write_u8_vector(m_stream, value.perVertexDashFlags);
+                }
             } else if constexpr (std::is_same_v<T, RemoveLine>) {
                 write_pod(m_stream, SerializedMessageType::RemoveLine);
                 write_uuid(m_stream, value.handle);
@@ -314,16 +415,51 @@ GeoQikLogEntry MessageReader::read() {
                                 read_pod<float>(m_stream),
                                 read_pod<float>(m_stream),
                                 read_common_data(m_stream)};
+    case serialized_message_type_value(SerializedMessageType::AddPointWithStyle): {
+        AddPointWithOpts message{read_pod<float>(m_stream),
+                                 read_pod<float>(m_stream),
+                                 read_pod<float>(m_stream),
+                                 read_common_data(m_stream)};
+        message.radii = read_float_vector(m_stream);
+        message.sizeSpace = read_pod<std::uint8_t>(m_stream);
+        message.styled = true;
+        return message;
+    }
     case serialized_message_type_value(SerializedMessageType::AddPointsWithOpts):
         return AddPointsWithOpts{read_float_vector(m_stream), read_common_data(m_stream)};
+    case serialized_message_type_value(SerializedMessageType::AddPointsWithStyle): {
+        AddPointsWithOpts message{read_float_vector(m_stream), read_common_data(m_stream)};
+        message.radii = read_float_vector(m_stream);
+        message.sizeSpace = read_pod<std::uint8_t>(m_stream);
+        message.styled = true;
+        return message;
+    }
     case serialized_message_type_value(SerializedMessageType::UpdatePointWithOpts):
         return UpdatePointWithOpts{read_uuid(m_stream),
                                    read_pod<float>(m_stream),
                                    read_pod<float>(m_stream),
                                    read_pod<float>(m_stream),
                                    read_float_vector(m_stream)};
+    case serialized_message_type_value(SerializedMessageType::UpdatePointWithStyle): {
+        UpdatePointWithOpts message{read_uuid(m_stream),
+                                    read_pod<float>(m_stream),
+                                    read_pod<float>(m_stream),
+                                    read_pod<float>(m_stream),
+                                    read_float_vector(m_stream)};
+        message.radii = read_float_vector(m_stream);
+        message.sizeSpace = read_pod<std::uint8_t>(m_stream);
+        message.styled = true;
+        return message;
+    }
     case serialized_message_type_value(SerializedMessageType::UpdatePointsWithOpts):
         return UpdatePointsWithOpts{read_uuid(m_stream), read_float_vector(m_stream), read_float_vector(m_stream)};
+    case serialized_message_type_value(SerializedMessageType::UpdatePointsWithStyle): {
+        UpdatePointsWithOpts message{read_uuid(m_stream), read_float_vector(m_stream), read_float_vector(m_stream)};
+        message.radii = read_float_vector(m_stream);
+        message.sizeSpace = read_pod<std::uint8_t>(m_stream);
+        message.styled = true;
+        return message;
+    }
     case serialized_message_type_value(SerializedMessageType::RemovePoint): return RemovePoint{read_uuid(m_stream)};
     case serialized_message_type_value(SerializedMessageType::SetPointSize):
         return SetPointSize{read_pod<float>(m_stream)};
@@ -337,8 +473,30 @@ GeoQikLogEntry MessageReader::read() {
                                read_pod<float>(m_stream),
                                read_pod<float>(m_stream),
                                read_common_data(m_stream)};
+    case serialized_message_type_value(SerializedMessageType::AddLineWithStyle): {
+        AddLineWithOpts message{read_pod<float>(m_stream),
+                                read_pod<float>(m_stream),
+                                read_pod<float>(m_stream),
+                                read_pod<float>(m_stream),
+                                read_pod<float>(m_stream),
+                                read_pod<float>(m_stream),
+                                read_common_data(m_stream)};
+        message.style = read_stroke_style(m_stream);
+        message.lineType = read_pod<std::uint8_t>(m_stream);
+        message.perVertexDashFlags = read_u8_vector(m_stream);
+        message.styleSet = true;
+        return message;
+    }
     case serialized_message_type_value(SerializedMessageType::AddLinesWithOpts):
         return AddLinesWithOpts{read_float_vector(m_stream), read_common_data(m_stream)};
+    case serialized_message_type_value(SerializedMessageType::AddLinesWithStyle): {
+        AddLinesWithOpts message{read_float_vector(m_stream), read_common_data(m_stream)};
+        message.style = read_stroke_style(m_stream);
+        message.lineType = read_pod<std::uint8_t>(m_stream);
+        message.perVertexDashFlags = read_u8_vector(m_stream);
+        message.styleSet = true;
+        return message;
+    }
     case serialized_message_type_value(SerializedMessageType::UpdateLineWithOpts):
         return UpdateLineWithOpts{read_uuid(m_stream),
                                   read_pod<float>(m_stream),
@@ -348,8 +506,31 @@ GeoQikLogEntry MessageReader::read() {
                                   read_pod<float>(m_stream),
                                   read_pod<float>(m_stream),
                                   read_float_vector(m_stream)};
+    case serialized_message_type_value(SerializedMessageType::UpdateLineWithStyle): {
+        UpdateLineWithOpts message{read_uuid(m_stream),
+                                   read_pod<float>(m_stream),
+                                   read_pod<float>(m_stream),
+                                   read_pod<float>(m_stream),
+                                   read_pod<float>(m_stream),
+                                   read_pod<float>(m_stream),
+                                   read_pod<float>(m_stream),
+                                   read_float_vector(m_stream)};
+        message.style = read_stroke_style(m_stream);
+        message.lineType = read_pod<std::uint8_t>(m_stream);
+        message.perVertexDashFlags = read_u8_vector(m_stream);
+        message.styleSet = true;
+        return message;
+    }
     case serialized_message_type_value(SerializedMessageType::UpdateLinesWithOpts):
         return UpdateLinesWithOpts{read_uuid(m_stream), read_float_vector(m_stream), read_float_vector(m_stream)};
+    case serialized_message_type_value(SerializedMessageType::UpdateLinesWithStyle): {
+        UpdateLinesWithOpts message{read_uuid(m_stream), read_float_vector(m_stream), read_float_vector(m_stream)};
+        message.style = read_stroke_style(m_stream);
+        message.lineType = read_pod<std::uint8_t>(m_stream);
+        message.perVertexDashFlags = read_u8_vector(m_stream);
+        message.styleSet = true;
+        return message;
+    }
     case serialized_message_type_value(SerializedMessageType::RemoveLine): return RemoveLine{read_uuid(m_stream)};
     case serialized_message_type_value(SerializedMessageType::SetLineWidth):
         return SetLineWidth{read_pod<float>(m_stream)};

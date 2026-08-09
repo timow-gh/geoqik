@@ -19,7 +19,7 @@ int main() {
 
     geoqik_draw();
 
-    geoqik::examples::add_grid(gridSize, gridSpacing);
+    geoqik::examples::add_grid(gridSize, gridSpacing, lineWidth, pointSize);
 
     geoqik_wait_for_exit_and_cleanup();
 

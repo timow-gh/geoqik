@@ -1,10 +1,12 @@
 #include "Rendering/GeoQikSceneRenderer.hpp"
 
 #include "GeometryBuffers/MeshBuffer.hpp"
+#include "Rendering/StyleTranslation.hpp"
 
 #include <plinth/BufferAccessPattern.hpp>
 #include <plinth/MeshCullFaceMode.hpp>
 #include <plinth/Renderer.hpp>
+#include <plinth/SphereStyle.hpp>
 #include <plinth/StrokeStyle.hpp>
 
 #include <array>
@@ -18,26 +20,78 @@ namespace {
     return std::vector<float>(centers.size() / 3, radius);
 }
 
+[[nodiscard]] std::vector<std::uint32_t> sequential_indices(std::size_t vertexCount) {
+    std::vector<std::uint32_t> indices(vertexCount);
+    for (std::size_t i = 0; i < vertexCount; ++i) {
+        indices[i] = static_cast<std::uint32_t>(i);
+    }
+    return indices;
+}
+
+struct LineDrawableInputs {
+    std::vector<float> vertices;
+    std::vector<float> colors;
+    std::vector<std::uint8_t> dashFlags;
+    std::vector<std::uint32_t> indices;
+};
+
+[[nodiscard]] LineDrawableInputs build_line_drawable_inputs(const StyledLineData& data) {
+    LineDrawableInputs result;
+    if (data.lineType == GEOQIK_LINE_TYPE_LINES || data.vertices.size() < 6) {
+        result.vertices = data.vertices;
+        result.colors = data.colors;
+        result.dashFlags = data.perVertexDashFlags;
+    } else {
+        const std::size_t rawVertexCount = data.vertices.size() / 3;
+        const auto append_vertex = [&](std::size_t vertexIndex) {
+            const auto vertexBegin = data.vertices.begin() + static_cast<std::ptrdiff_t>(vertexIndex * 3);
+            result.vertices.insert(result.vertices.end(), vertexBegin, vertexBegin + 3);
+            if (data.colors.size() >= (vertexIndex + 1) * ColorChannelCount) {
+                const auto colorBegin =
+                    data.colors.begin() + static_cast<std::ptrdiff_t>(vertexIndex * ColorChannelCount);
+                result.colors.insert(result.colors.end(), colorBegin, colorBegin + ColorChannelCount);
+            }
+            if (!data.perVertexDashFlags.empty()) {
+                result.dashFlags.push_back(data.perVertexDashFlags[vertexIndex]);
+            }
+        };
+        append_vertex(0);
+        for (std::size_t vertexIndex = 1; vertexIndex < rawVertexCount; vertexIndex += 2) {
+            append_vertex(vertexIndex);
+        }
+        if (data.lineType == GEOQIK_LINE_TYPE_LINE_LOOP && result.vertices.size() >= 6) {
+            const auto last = result.vertices.size() - 3;
+            if (result.vertices[0] == result.vertices[last] && result.vertices[1] == result.vertices[last + 1] &&
+                result.vertices[2] == result.vertices[last + 2]) {
+                result.vertices.resize(last);
+                result.colors.resize(result.colors.size() - ColorChannelCount);
+                if (!result.dashFlags.empty()) {
+                    result.dashFlags.pop_back();
+                }
+            }
+        }
+    }
+    result.indices = sequential_indices(result.vertices.size() / 3);
+    return result;
+}
+
 } // namespace
 
 bool GeoQikSceneRenderer::sync_points(Scene& scene) {
     auto& pointBuffer = scene.get_point_buffer();
-    if (!m_renderer.has_sphere_point_drawables() && !pointBuffer.get_points().empty()) {
-        auto radii = radii_for(pointBuffer.get_points(), scene.get_point_size());
-        m_renderer.add_sphere_point_drawable(pointBuffer.get_points(),
-                                             radii,
-                                             pointBuffer.get_point_colors(),
-                                             renderer::BufferAccessPattern::Static);
-        return true;
-    }
-    if (pointBuffer.points_have_changed()) {
-        m_renderer.clear_sphere_point_drawables();
+    if (pointBuffer.points_have_changed() || (!m_mergedPointDrawable.is_valid() && !pointBuffer.get_points().empty())) {
+        if (m_mergedPointDrawable.is_valid()) {
+            m_renderer.remove_drawable(m_mergedPointDrawable);
+            m_mergedPointDrawable = {};
+        }
         if (!pointBuffer.get_points().empty()) {
             auto radii = radii_for(pointBuffer.get_points(), scene.get_point_size());
-            m_renderer.add_sphere_point_drawable(pointBuffer.get_points(),
-                                                 radii,
-                                                 pointBuffer.get_point_colors(),
-                                                 renderer::BufferAccessPattern::Static);
+            m_mergedPointDrawable =
+                m_renderer.add_sphere_point_drawable(pointBuffer.get_points(),
+                                                     radii,
+                                                     pointBuffer.get_point_colors(),
+                                                     renderer::SphereStyle{renderer::SphereSizeSpace::Screen},
+                                                     renderer::BufferAccessPattern::Static);
         }
         pointBuffer.reset_points_have_changed();
         return true;
@@ -47,25 +101,50 @@ bool GeoQikSceneRenderer::sync_points(Scene& scene) {
 
 bool GeoQikSceneRenderer::sync_lines(Scene& scene) {
     auto& lineBuffer = scene.get_line_buffer();
-    if (!m_renderer.has_line_drawables() && !lineBuffer.get_lines().empty()) {
-        m_renderer.add_line_drawable(lineBuffer.get_lines(),
-                                     lineBuffer.get_line_indices(),
-                                     lineBuffer.get_line_colors(),
-                                     m_lineType,
-                                     renderer::StrokeStyle{scene.get_line_width()},
-                                     scene.get_point_size(),
-                                     renderer::BufferAccessPattern::Static);
-        return true;
-    }
-    if (lineBuffer.lines_have_changed()) {
-        m_renderer.update_last_line_drawable(lineBuffer.get_lines(),
-                                             lineBuffer.get_line_colors(),
-                                             lineBuffer.get_line_indices(),
-                                             renderer::BufferAccessPattern::Static);
+    if (lineBuffer.lines_have_changed() || (!m_mergedLineDrawable.is_valid() && !lineBuffer.get_lines().empty())) {
+        if (m_mergedLineDrawable.is_valid()) {
+            m_renderer.remove_drawable(m_mergedLineDrawable);
+            m_mergedLineDrawable = {};
+        }
+        if (!lineBuffer.get_lines().empty()) {
+            renderer::StrokeStyle style;
+            style.lineWidth = scene.get_line_width();
+            style.dashSpace = renderer::DashSpace::World;
+            m_mergedLineDrawable = m_renderer.add_line_drawable(lineBuffer.get_lines(),
+                                                                lineBuffer.get_line_indices(),
+                                                                lineBuffer.get_line_colors(),
+                                                                m_lineType,
+                                                                style,
+                                                                renderer::BufferAccessPattern::Static);
+        }
         lineBuffer.reset_lines_have_changed();
         return true;
     }
     return false;
+}
+
+bool GeoQikSceneRenderer::sync_styled(Scene& scene) {
+    if (!scene.styled_dirty()) {
+        return false;
+    }
+    for (const auto& [uuid, handle]: m_styledPointBundles) {
+        (void)uuid;
+        m_renderer.remove_drawable(handle);
+    }
+    for (const auto& [uuid, handle]: m_styledLineBundles) {
+        (void)uuid;
+        m_renderer.remove_drawable(handle);
+    }
+    m_styledPointBundles.clear();
+    m_styledLineBundles.clear();
+    for (const auto& [uuid, data]: scene.get_styled_points()) {
+        create_styled_point_drawable(uuid, data, scene.get_point_size());
+    }
+    for (const auto& [uuid, data]: scene.get_styled_lines()) {
+        create_styled_line_drawable(uuid, data, scene.get_line_width());
+    }
+    scene.reset_styled_dirty();
+    return true;
 }
 
 bool GeoQikSceneRenderer::sync_mesh_changes(MeshBuffer& meshBuffer) {
@@ -150,9 +229,8 @@ bool GeoQikSceneRenderer::sync_overlay_drawables(MeshBuffer& meshBuffer) {
                                                 overlay.vertexColor[2],
                                                 overlay.vertexColor[3]};
             auto radii = radii_for(overlay.segmentPositions, overlay.vertexPointSize);
-            bundle.vertices = m_renderer.add_sphere_point_drawable(std::span<const float>(overlay.segmentPositions),
-                                                                   radii,
-                                                                   colorArr);
+            bundle.vertices =
+                m_renderer.add_sphere_point_drawable(std::span<const float>(overlay.segmentPositions), radii, colorArr);
             updateOccurred = true;
         } else if (!wantVertices && bundle.vertices.is_valid()) {
             m_renderer.remove_drawable(bundle.vertices);
@@ -167,6 +245,7 @@ bool GeoQikSceneRenderer::sync_scene(Scene& scene) {
     bool updateOccurred = false;
     updateOccurred |= sync_points(scene);
     updateOccurred |= sync_lines(scene);
+    updateOccurred |= sync_styled(scene);
 
     auto& meshBuffer = scene.get_mesh_buffer();
     updateOccurred |= sync_meshes(meshBuffer);
@@ -180,38 +259,11 @@ bool GeoQikSceneRenderer::sync_scene(Scene& scene) {
 }
 
 void GeoQikSceneRenderer::recreate_point_drawables(const Scene& scene) {
-    m_renderer.clear_drawables();
-    const auto& pointBuffer = scene.get_point_buffer();
-    if (pointBuffer.get_points().empty()) {
-        return;
-    }
-    auto radii = radii_for(pointBuffer.get_points(), scene.get_point_size());
-    m_renderer.add_sphere_point_drawable(pointBuffer.get_points(),
-                                         radii,
-                                         pointBuffer.get_point_colors(),
-                                         renderer::BufferAccessPattern::Static);
+    rebuild_all_drawables(scene);
 }
 
 void GeoQikSceneRenderer::recreate_line_drawables(const Scene& scene) {
-    m_renderer.clear_drawables();
-    const auto& pointBuffer = scene.get_point_buffer();
-    if (!pointBuffer.get_points().empty()) {
-        auto radii = radii_for(pointBuffer.get_points(), scene.get_point_size());
-        m_renderer.add_sphere_point_drawable(pointBuffer.get_points(),
-                                             radii,
-                                             pointBuffer.get_point_colors(),
-                                             renderer::BufferAccessPattern::Static);
-    }
-    const auto& lineBuffer = scene.get_line_buffer();
-    if (!lineBuffer.get_lines().empty()) {
-        m_renderer.add_line_drawable(lineBuffer.get_lines(),
-                                     lineBuffer.get_line_indices(),
-                                     lineBuffer.get_line_colors(),
-                                     m_lineType,
-                                     renderer::StrokeStyle{scene.get_line_width()},
-                                     scene.get_point_size(),
-                                     renderer::BufferAccessPattern::Static);
-    }
+    rebuild_all_drawables(scene);
 }
 
 void GeoQikSceneRenderer::recreate_mesh_drawables(const Scene& scene) {
@@ -235,6 +287,89 @@ void GeoQikSceneRenderer::recreate_mesh_drawables(const Scene& scene) {
 
 void GeoQikSceneRenderer::clear_drawables() {
     m_renderer.clear_drawables();
+    m_mergedPointDrawable = {};
+    m_mergedLineDrawable = {};
+    m_meshBundles.clear();
+    m_styledPointBundles.clear();
+    m_styledLineBundles.clear();
+}
+
+void GeoQikSceneRenderer::rebuild_all_drawables(const Scene& scene) {
+    clear_drawables();
+    const auto& pointBuffer = scene.get_point_buffer();
+    if (!pointBuffer.get_points().empty()) {
+        auto radii = radii_for(pointBuffer.get_points(), scene.get_point_size());
+        m_mergedPointDrawable =
+            m_renderer.add_sphere_point_drawable(pointBuffer.get_points(),
+                                                 radii,
+                                                 pointBuffer.get_point_colors(),
+                                                 renderer::SphereStyle{renderer::SphereSizeSpace::Screen},
+                                                 renderer::BufferAccessPattern::Static);
+    }
+    const auto& lineBuffer = scene.get_line_buffer();
+    if (!lineBuffer.get_lines().empty()) {
+        renderer::StrokeStyle style;
+        style.lineWidth = scene.get_line_width();
+        style.dashSpace = renderer::DashSpace::World;
+        m_mergedLineDrawable = m_renderer.add_line_drawable(lineBuffer.get_lines(),
+                                                            lineBuffer.get_line_indices(),
+                                                            lineBuffer.get_line_colors(),
+                                                            m_lineType,
+                                                            style,
+                                                            renderer::BufferAccessPattern::Static);
+    }
+    for (const auto& [uuid, data]: scene.get_styled_points()) {
+        create_styled_point_drawable(uuid, data, scene.get_point_size());
+    }
+    for (const auto& [uuid, data]: scene.get_styled_lines()) {
+        create_styled_line_drawable(uuid, data, scene.get_line_width());
+    }
+    for (const core::UUID& uuid: scene.get_mesh_buffer().get_all_mesh_uuids()) {
+        create_surface_bundle(uuid, scene.get_mesh_buffer());
+    }
+}
+
+void GeoQikSceneRenderer::create_styled_point_drawable(const core::UUID& uuid,
+                                                       const StyledPointData& data,
+                                                       float fallbackRadius) {
+    std::vector<float> expandedRadii;
+    std::span<const float> radii = data.radii;
+    if (radii.empty()) {
+        expandedRadii = radii_for(data.points, fallbackRadius);
+        radii = expandedRadii;
+    } else if (radii.size() == 1 && data.points.size() / 3 > 1) {
+        expandedRadii.assign(data.points.size() / 3, radii.front());
+        radii = expandedRadii;
+    }
+    const auto handle =
+        m_renderer.add_sphere_point_drawable(data.points,
+                                             radii,
+                                             data.colors,
+                                             renderer::SphereStyle{to_plinth_size_space(data.sizeSpace)},
+                                             renderer::BufferAccessPattern::Static);
+    m_styledPointBundles.emplace(uuid, handle);
+}
+
+void GeoQikSceneRenderer::create_styled_line_drawable(const core::UUID& uuid,
+                                                      const StyledLineData& data,
+                                                      float fallbackWidth) {
+    renderer::StrokeStyle style;
+    style.lineWidth = data.style.lineWidth > 0.0F ? data.style.lineWidth : fallbackWidth;
+    style.cap = to_plinth_cap(data.style.cap);
+    style.join = to_plinth_join(data.style.join);
+    style.miterLimit = data.style.miterLimit > 0.0F ? data.style.miterLimit : 4.0F;
+    style.dashPattern = data.style.dashPattern;
+    style.dashPhase = data.style.dashPhase;
+    style.dashSpace = to_plinth_dash_space(data.style.dashSpace);
+    const auto inputs = build_line_drawable_inputs(data);
+    const auto handle = m_renderer.add_line_drawable(inputs.vertices,
+                                                     inputs.indices,
+                                                     inputs.colors,
+                                                     to_plinth_line_type(data.lineType),
+                                                     style,
+                                                     renderer::BufferAccessPattern::Static,
+                                                     inputs.dashFlags);
+    m_styledLineBundles.emplace(uuid, handle);
 }
 
 void GeoQikSceneRenderer::create_surface_bundle(const core::UUID& uuid, const MeshBuffer& meshBuffer) {
@@ -291,9 +426,8 @@ void GeoQikSceneRenderer::create_surface_bundle(const core::UUID& uuid, const Me
                                                 overlay.vertexColor[2],
                                                 overlay.vertexColor[3]};
             auto radii = radii_for(overlay.segmentPositions, overlay.vertexPointSize);
-            bundle.vertices = m_renderer.add_sphere_point_drawable(std::span<const float>(overlay.segmentPositions),
-                                                                   radii,
-                                                                   colorArr);
+            bundle.vertices =
+                m_renderer.add_sphere_point_drawable(std::span<const float>(overlay.segmentPositions), radii, colorArr);
         }
     }
 

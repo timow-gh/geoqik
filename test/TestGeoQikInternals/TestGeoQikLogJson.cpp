@@ -85,6 +85,27 @@ TEST(GeoQikLogTest, JsonToFromJsonRoundTrip) {
     }
 }
 
+TEST(GeoQikLogTest, JsonStyledMessagesRoundTripAndOldMessagesDefault) {
+    using namespace geoqik;
+    const GeoQikMessageCommonData commonData{make_uuid(90), make_uuid(100), {0.2f, 0.3f, 0.4f, 1.0f}};
+    const StrokeStyleData style{5.0f, 2, 1, 6.0f, {4.0f, 2.0f}, 0.25f, 1};
+    const std::vector<GeoQikLogEntry> entries{
+        AddPointsWithOpts{{1.0f, 2.0f, 3.0f}, commonData, {2.0f}, 1, true},
+        AddLinesWithOpts{{0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f}, commonData, true, style, 1, {1, 1}}};
+    for (const auto& entry: entries) {
+        EXPECT_EQ(entry, from_json(to_json(entry)));
+    }
+
+    auto oldPoint = to_json(GeoQikLogEntry{AddPointsWithOpts{{1.0f, 2.0f, 3.0f}, commonData}});
+    oldPoint.erase("radii");
+    oldPoint.erase("sizeSpace");
+    oldPoint.erase("styled");
+    const auto parsed = std::get<AddPointsWithOpts>(from_json(oldPoint));
+    EXPECT_FALSE(parsed.styled);
+    EXPECT_TRUE(parsed.radii.empty());
+    EXPECT_EQ(parsed.sizeSpace, 0);
+}
+
 TEST(GeoQikLogTest, JsonMeshMessagesRoundTrip) {
     using namespace geoqik;
 
