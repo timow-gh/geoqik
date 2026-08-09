@@ -3,6 +3,7 @@
 #include "Core/FmtIncludeHelper.hpp"
 #include "GeoQikMessages.hpp"
 #include "GeoQikOverlay.hpp"
+#include "GeoQikUserSettings.hpp"
 
 #include <Core/Assert.hpp>
 
@@ -10,15 +11,14 @@
 #include <plinth/CameraProjectionType.hpp>
 #include <plinth/FrameState.hpp>
 #include <plinth/IOverlay.hpp>
-#include <plinth/LogicalViewportRect.hpp>
 #include <plinth/Renderer.hpp>
-#include <plinth/Warnings.hpp>
 #include <plinth/WindowSettings.hpp>
 
 #include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstdint>
+#include <exception>
 #include <filesystem>
 #include <optional>
 #include <string>
@@ -26,71 +26,15 @@
 #include <type_traits>
 #include <utility>
 
-RENDERER_DISABLE_ALL_WARNINGS
-#include <imgui.h>
-RENDERER_ENABLE_ALL_WARNINGS
-
 namespace geoqik {
 
 using renderer::CameraAutoFitSettings;
 using renderer::Viewport;
 
-struct ReplayGuiState {
-    bool isActive{false};
-    bool isPaused{false};
-    bool isBackward{false};
-    std::size_t currentEntry{0};
-    std::size_t totalEntries{0};
-    double speedMultiplier{1.0};
-    std::size_t entriesPerStep{1};
-    std::string pauseKeysLabel;
-    std::string resumeKeysLabel;
-    std::string stepForwardKeysLabel;
-    std::string stepBackwardKeysLabel;
-    std::string increaseStepKeysLabel;
-    std::string decreaseStepKeysLabel;
-
-    enum class Command : std::uint8_t {
-        None,
-        Play,
-        PlayReverse,
-        Pause,
-        SkipToEnd,
-        EndReplay,
-        StepForward,
-        StepBackward,
-    };
-    // One-shot requests filled in by the UI and drained (reset) after rendering, mirroring the
-    // std::optional requests in CameraGuiState. Command::None is the "no request" sentinel.
-    Command command{Command::None};
-    std::optional<double> requestedSpeedMultiplier;
-    std::optional<std::size_t> requestedEntriesPerStep;
-    std::optional<std::size_t> requestedEntry;
-};
-
-struct CameraGuiState {
-    renderer::CameraInteractor::NavigationStyle navigationStyle{renderer::CameraInteractor::NavigationStyle::ORBIT};
-    std::optional<renderer::PresetView> activePreset; // nullopt == free navigation
-
-    // Built-in camera controls (driven straight through the OverlayFrameContext each frame).
-    bool autoZoom{false};
-    renderer::CameraProjectionType projectionType{renderer::CameraProjectionType::PERSPECTIVE};
-    float controlPanelWidth{320.0F};
-    bool replayWasActive{false};
-
-    // Requests filled in by the UI and applied after rendering.
-    std::optional<renderer::CameraInteractor::NavigationStyle> requestedNavigationStyle;
-    std::optional<renderer::PresetView> requestedPreset;
-    std::optional<renderer::CameraProjectionType> requestedProjection;
-    bool requestHome{false};
-};
-
 namespace {
 
 constexpr std::size_t lineCoordinateCount = 6;
 constexpr std::size_t frameInfoPrintInterval = 10;
-constexpr float controlPanelMargin = 8.0F;
-constexpr float controlPanelResizeGripWidth = 8.0F;
 
 [[nodiscard]] std::vector<float> expand_vertex_colors(std::span<const float> colors,
                                                       std::size_t vertexCount,
@@ -129,9 +73,14 @@ std::atomic<bool>& replay_cancel_requested_storage() {
     return replayCancelRequested;
 }
 
-bool is_existing_regular_file(const char* path) {
+bool is_existing_regular_file(const std::filesystem::path& path) {
     std::error_code ec;
     return std::filesystem::is_regular_file(path, ec);
+}
+
+std::string path_to_utf8(const std::filesystem::path& path) {
+    const std::u8string value = path.u8string();
+    return {reinterpret_cast<const char*>(value.data()), value.size()};
 }
 
 std::string key_label(Key key) {
@@ -167,345 +116,6 @@ std::string key_labels(const std::vector<Key>& keys) {
         result += key_label(key);
     }
     return result;
-}
-
-float equal_button_width(int buttonCount) {
-    const float availableWidth = ImGui::GetContentRegionAvail().x;
-    const float spacing = ImGui::GetStyle().ItemSpacing.x * static_cast<float>(buttonCount - 1);
-    return std::max(1.0F, (availableWidth - spacing) / static_cast<float>(buttonCount));
-}
-
-bool full_width_button(const char* label) {
-    return ImGui::Button(label, ImVec2{-1.0F, 0.0F});
-}
-
-bool equal_width_button(const char* label, float width) {
-    return ImGui::Button(label, ImVec2{width, 0.0F});
-}
-
-// Draws a button that appears "active" (highlighted) when isActive is true, matching the
-// highlight idiom used by the replay speed controls. Returns true when clicked.
-bool highlighted_button(const char* label, float width, bool isActive) {
-    if (isActive) {
-        ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive));
-    }
-    const bool clicked = equal_width_button(label, width);
-    if (isActive) {
-        ImGui::PopStyleColor();
-    }
-    return clicked;
-}
-
-void item_tooltip(const std::string& text) {
-    if (!text.empty() && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
-        ImGui::BeginTooltip();
-        ImGui::PushTextWrapPos(360.0F);
-        ImGui::TextUnformatted(text.c_str());
-        ImGui::PopTextWrapPos();
-        ImGui::EndTooltip();
-    }
-}
-
-void render_camera_controls(CameraGuiState& cameraState, bool replayActive) {
-    // Controls are rendered inside plinth's content child. Recover the containing panel width
-    // from that child so the scene viewport follows the draggable resize grip on the next frame.
-    cameraState.controlPanelWidth =
-        ImGui::GetWindowWidth() + controlPanelResizeGripWidth + (2.0F * ImGui::GetStyle().WindowPadding.x);
-
-    if (replayActive != cameraState.replayWasActive) {
-        ImGui::SetNextItemOpen(!replayActive, ImGuiCond_Always);
-        cameraState.replayWasActive = replayActive;
-    }
-    if (!ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen)) {
-        return;
-    }
-
-    // Home is the primary camera recovery action and stays above configuration choices.
-    if (full_width_button("Fit scene")) {
-        cameraState.requestHome = true;
-    }
-    item_tooltip("Fit all geometry while preserving the current viewing direction.");
-
-    ImGui::Spacing();
-
-    constexpr std::array<const char*, 2> projectionItems{"Perspective", "Orthographic"};
-    int projectionItem = static_cast<int>(cameraState.projectionType);
-    if (ImGui::BeginTable("##CameraOptions", 2, ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoSavedSettings)) {
-        ImGui::TableSetupColumn("##AutoFitColumn", ImGuiTableColumnFlags_WidthStretch, 0.8F);
-        ImGui::TableSetupColumn("##ProjectionColumn", ImGuiTableColumnFlags_WidthStretch, 1.2F);
-        ImGui::TableNextColumn();
-        ImGui::Checkbox("Auto Fit", &cameraState.autoZoom);
-        item_tooltip("Keep the scene fitted as geometry changes.");
-        ImGui::TableNextColumn();
-        ImGui::SetNextItemWidth(-1.0F);
-        if (ImGui::Combo("##Projection",
-                         &projectionItem,
-                         projectionItems.data(),
-                         static_cast<int>(projectionItems.size()))) {
-            cameraState.requestedProjection = static_cast<renderer::CameraProjectionType>(projectionItem);
-        }
-        item_tooltip("Camera projection.");
-        ImGui::EndTable();
-    }
-
-    // Navigation style. The current style is highlighted only when no preset view is active, so
-    // the navigation and preset selections read as mutually exclusive.
-    ImGui::Spacing();
-    ImGui::TextUnformatted("Navigation");
-    const bool isFree = !cameraState.activePreset.has_value();
-    const float navButtonWidth = equal_button_width(2);
-    const bool orbitActive =
-        isFree && cameraState.navigationStyle == renderer::CameraInteractor::NavigationStyle::ORBIT;
-    if (highlighted_button("Orbit", navButtonWidth, orbitActive)) {
-        cameraState.requestedNavigationStyle = renderer::CameraInteractor::NavigationStyle::ORBIT;
-    }
-    ImGui::SameLine();
-    const bool flyActive = isFree && cameraState.navigationStyle == renderer::CameraInteractor::NavigationStyle::FLY;
-    if (highlighted_button("Fly", navButtonWidth, flyActive)) {
-        cameraState.requestedNavigationStyle = renderer::CameraInteractor::NavigationStyle::FLY;
-    }
-
-    ImGui::Spacing();
-    ImGui::TextUnformatted("Preset view");
-    struct PresetButton {
-        const char* label;
-        renderer::PresetView view;
-    };
-    constexpr std::array<PresetButton, 7> presets{{
-        {"Front", renderer::PresetView::FRONT},
-        {"Back", renderer::PresetView::BACK},
-        {"Left", renderer::PresetView::LEFT},
-        {"Right", renderer::PresetView::RIGHT},
-        {"Top", renderer::PresetView::TOP},
-        {"Bottom", renderer::PresetView::BOTTOM},
-        {"Iso", renderer::PresetView::ISO},
-    }};
-    const int presetsPerRow = ImGui::GetContentRegionAvail().x >= 360.0F ? 4 : 3;
-    for (std::size_t rowStart = 0; rowStart < presets.size();) {
-        const int rowButtonCount = std::min(presetsPerRow, static_cast<int>(presets.size() - rowStart));
-        const float presetButtonWidth = equal_button_width(rowButtonCount);
-        for (int column = 0; column < rowButtonCount; ++column) {
-            if (column != 0) {
-                ImGui::SameLine();
-            }
-            const std::size_t index = rowStart + static_cast<std::size_t>(column);
-            const bool active =
-                cameraState.activePreset.has_value() && *cameraState.activePreset == presets[index].view;
-            if (highlighted_button(presets[index].label, presetButtonWidth, active)) {
-                cameraState.requestedPreset = presets[index].view;
-            }
-            item_tooltip(fmt::format("Preset shortcut: {}", index + 1));
-        }
-        rowStart += static_cast<std::size_t>(rowButtonCount);
-    }
-}
-
-void render_replay_speed_controls(ReplayGuiState& replayState) {
-    constexpr std::array<double, 4> speedOptions{1.0, 2.0, 4.0, 8.0};
-    constexpr std::array<const char*, 4> speedLabels{"1x", "2x", "4x", "8x"};
-
-    ImGui::AlignTextToFramePadding();
-    ImGui::TextUnformatted("Speed");
-    ImGui::SameLine();
-    const float buttonWidth = equal_button_width(static_cast<int>(speedOptions.size()));
-    for (std::size_t i = 0; i < speedOptions.size(); ++i) {
-        if (i != 0) {
-            ImGui::SameLine();
-        }
-
-        const bool isCurrent = std::abs(replayState.speedMultiplier - speedOptions[i]) < 0.01;
-        if (isCurrent) {
-            ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive));
-        }
-        if (equal_width_button(speedLabels[i], buttonWidth)) {
-            replayState.requestedSpeedMultiplier = speedOptions[i];
-        }
-        if (isCurrent) {
-            ImGui::PopStyleColor();
-        }
-    }
-}
-
-void render_replay_transport_controls(ReplayGuiState& replayState) {
-    const bool canStepBack = replayState.currentEntry > 0;
-    const bool canStepForward = replayState.currentEntry < replayState.totalEntries;
-    const bool isPlaying = !replayState.isPaused;
-
-    ImGui::TextUnformatted("Playback");
-    const float transportButtonWidth = equal_button_width(3);
-
-    if (!canStepBack) {
-        ImGui::BeginDisabled();
-    }
-    if (highlighted_button("Reverse", transportButtonWidth, isPlaying && replayState.isBackward)) {
-        replayState.command = ReplayGuiState::Command::PlayReverse;
-    }
-    item_tooltip("Play backward.");
-    if (!canStepBack) {
-        ImGui::EndDisabled();
-    }
-
-    ImGui::SameLine();
-    if (!isPlaying) {
-        ImGui::BeginDisabled();
-    }
-    if (equal_width_button("Pause", transportButtonWidth)) {
-        replayState.command = ReplayGuiState::Command::Pause;
-    }
-    item_tooltip(fmt::format("Pause replay ({})", replayState.pauseKeysLabel));
-    if (!isPlaying) {
-        ImGui::EndDisabled();
-    }
-
-    ImGui::SameLine();
-    if (!canStepForward) {
-        ImGui::BeginDisabled();
-    }
-    if (highlighted_button("Play##Playback", transportButtonWidth, isPlaying && !replayState.isBackward)) {
-        replayState.command = ReplayGuiState::Command::Play;
-    }
-    item_tooltip(fmt::format("Play forward ({})", replayState.resumeKeysLabel));
-    if (!canStepForward) {
-        ImGui::EndDisabled();
-    }
-
-    render_replay_speed_controls(replayState);
-
-    ImGui::Spacing();
-    ImGui::TextUnformatted("Step");
-    const float stepButtonWidth = equal_button_width(2);
-
-    if (!canStepBack) {
-        ImGui::BeginDisabled();
-    }
-    if (equal_width_button("Backward", stepButtonWidth)) {
-        replayState.command = ReplayGuiState::Command::StepBackward;
-    }
-    item_tooltip(fmt::format("Step backward ({})", replayState.stepBackwardKeysLabel));
-    if (!canStepBack) {
-        ImGui::EndDisabled();
-    }
-
-    ImGui::SameLine();
-    if (!canStepForward) {
-        ImGui::BeginDisabled();
-    }
-    if (equal_width_button("Forward##Step", stepButtonWidth)) {
-        replayState.command = ReplayGuiState::Command::StepForward;
-    }
-    item_tooltip(fmt::format("Step forward ({})", replayState.stepForwardKeysLabel));
-    if (!canStepForward) {
-        ImGui::EndDisabled();
-    }
-}
-
-void render_replay_controls(ReplayGuiState& replayState) {
-    if (!replayState.isActive) {
-        return;
-    }
-
-    if (ImGui::CollapsingHeader("Replay", ImGuiTreeNodeFlags_DefaultOpen)) {
-        const char* status = replayState.isPaused ? "Paused" : (replayState.isBackward ? "Reversing" : "Playing");
-        ImGui::TextUnformatted(
-            fmt::format("{}  -  {} / {}", status, replayState.currentEntry, replayState.totalEntries).c_str());
-
-        std::uint64_t replayPosition = static_cast<std::uint64_t>(replayState.currentEntry);
-        constexpr std::uint64_t firstEntry = 0;
-        const std::uint64_t lastEntry = static_cast<std::uint64_t>(replayState.totalEntries);
-        ImGui::SetNextItemWidth(-1.0F);
-        if (ImGui::SliderScalar("##ReplayPosition",
-                                ImGuiDataType_U64,
-                                &replayPosition,
-                                &firstEntry,
-                                &lastEntry,
-                                "%llu",
-                                ImGuiSliderFlags_AlwaysClamp)) {
-            replayState.requestedEntry = static_cast<std::size_t>(replayPosition);
-        }
-        item_tooltip("Drag to seek. Seeking pauses replay.");
-
-        render_replay_transport_controls(replayState);
-
-        const std::uint64_t maxStepSize = std::max<std::uint64_t>(1, replayState.totalEntries);
-        std::uint64_t stepSize = std::clamp<std::uint64_t>(replayState.entriesPerStep, 1, maxStepSize);
-        constexpr std::uint64_t stepIncrement = 1;
-        constexpr std::uint64_t fastStepIncrement = 10;
-        ImGui::AlignTextToFramePadding();
-        ImGui::TextUnformatted("Step size");
-        ImGui::SameLine();
-        ImGui::SetNextItemWidth(-1.0F);
-        if (ImGui::InputScalar("##EntriesPerStep",
-                               ImGuiDataType_U64,
-                               &stepSize,
-                               &stepIncrement,
-                               &fastStepIncrement,
-                               "%llu")) {
-            stepSize = std::clamp(stepSize, std::uint64_t{1}, maxStepSize);
-            replayState.requestedEntriesPerStep = static_cast<std::size_t>(stepSize);
-        }
-        item_tooltip(fmt::format("Entries per step. Increase: {}; decrease: {}.",
-                                 replayState.increaseStepKeysLabel,
-                                 replayState.decreaseStepKeysLabel));
-
-        ImGui::Spacing();
-        const bool canSkipToEnd = replayState.currentEntry < replayState.totalEntries;
-        if (!canSkipToEnd) {
-            ImGui::BeginDisabled();
-        }
-        if (full_width_button("Skip to end")) {
-            replayState.command = ReplayGuiState::Command::SkipToEnd;
-        }
-        item_tooltip("Apply all remaining entries and stay in paused replay mode.");
-        if (!canSkipToEnd) {
-            ImGui::EndDisabled();
-        }
-        if (full_width_button("End replay")) {
-            replayState.command = ReplayGuiState::Command::EndReplay;
-        }
-        item_tooltip("Apply all remaining entries, leave replay mode, then process queued live messages.");
-    }
-}
-
-void render_release_display_controls(renderer::Renderer& renderer) {
-    if (!ImGui::CollapsingHeader("Display")) {
-        return;
-    }
-
-    const int currentSamples = renderer.get_msaa_samples();
-    const int maxSamples = renderer.get_max_msaa_samples();
-    const std::string preview = currentSamples == 1 ? "Off (1x)" : fmt::format("{}x", currentSamples);
-    ImGui::AlignTextToFramePadding();
-    ImGui::TextUnformatted("MSAA");
-    ImGui::SameLine();
-    ImGui::SetNextItemWidth(-1.0F);
-    if (ImGui::BeginCombo("##MSAA", preview.c_str())) {
-        for (int samples = 1; samples <= maxSamples;) {
-            const bool selected = samples == currentSamples;
-            const std::string label = samples == 1 ? "MSAA: Off (1x)" : fmt::format("MSAA: {}x", samples);
-            if (ImGui::Selectable(label.c_str(), selected)) {
-                renderer.set_msaa_samples(samples);
-            }
-            if (selected) {
-                ImGui::SetItemDefaultFocus();
-            }
-            if (samples > maxSamples / 2) {
-                break;
-            }
-            samples *= 2;
-        }
-        ImGui::EndCombo();
-    }
-    item_tooltip("Multisample anti-aliasing.");
-
-    bool fxaaEnabled = renderer.get_fxaa_enabled();
-    if (ImGui::Checkbox("FXAA", &fxaaEnabled)) {
-        renderer.set_fxaa_enabled(fxaaEnabled);
-    }
-
-    float exposureStops = renderer.get_exposure_stops();
-    if (ImGui::SliderFloat("Exposure", &exposureStops, -10.0F, 10.0F, "%.1f stops")) {
-        renderer.set_exposure_stops(exposureStops);
-    }
 }
 
 } // namespace
@@ -584,12 +194,8 @@ bool Context::init_window(const GeoQikSettings& geoqikSettings, const WindowSett
     m_renderer->set_exposure_stops(defaultExposureStops);
 
     m_overlay = std::make_shared<GeoQikOverlay>(m_renderer->window().get_native_handle());
-    m_overlay->inner().set_ui_mode(renderer::UiMode::Release);
-    m_overlay->set_build_controls([this](renderer::OverlayFrameContext& ctx) { build_overlay(ctx); });
+    m_overlay->set_ui_mode(renderer::UiMode::Release);
     m_renderer->set_overlay(m_overlay);
-
-    m_cameraGuiState = std::make_unique<CameraGuiState>();
-    m_replayGuiState = std::make_unique<ReplayGuiState>();
 
     m_sceneRenderer = std::make_unique<GeoQikSceneRenderer>(*m_renderer);
 
@@ -890,13 +496,18 @@ void Context::run_event_loop() {
         lighting.shininess = std::max(0.0F, m_geoqikSettings.meshShininess);
 
         m_renderer->draw(lighting);
-        // The overlay's build_controls (invoked inside end_frame) populates m_cameraGuiState /
-        // m_replayGuiState and renders the unified panel. Widget edits are applied afterwards in
-        // consume_camera_gui_commands (a Home click there re-enables auto-fit for its fit).
+        populate_replay_gui_state(m_overlay->replay_state());
+        auto& cameraState = m_overlay->camera_state();
+        populate_camera_gui_state(cameraState);
+        cameraState.autoZoom = m_geoqikSettings.autoFitCameraEnabled;
+
+        // The overlay builds and renders the complete UI inside end_frame. Apply widget commands
+        // after rendering has completed.
         bool autoFitEnabled = m_geoqikSettings.autoFitCameraEnabled;
         m_renderer->end_frame(autoFitEnabled);
-        consume_camera_gui_commands(*m_cameraGuiState);
-        consume_replay_gui_commands(*m_replayGuiState);
+        consume_camera_gui_commands(m_overlay->camera_state());
+        consume_replay_gui_commands(m_overlay->replay_state());
+        consume_file_gui_commands(m_overlay->file_state());
 
         process_replay_entries(std::chrono::high_resolution_clock::now());
         if (!is_replaying()) {
@@ -955,7 +566,7 @@ void Context::populate_replay_gui_state(ReplayGuiState& state) const {
 }
 
 void Context::consume_replay_gui_commands(ReplayGuiState& state) {
-    // m_replayGuiState is a persistent member reused every frame, so drain these one-shot requests
+    // The overlay state persists across frames, so drain these one-shot requests
     // as they are consumed - otherwise a lingering command (e.g. Play) re-runs every frame,
     // repeatedly zeroing m_replayEntryBudget / m_lastReplayTick so the budget never accumulates and
     // playback never advances. Mirrors how consume_camera_gui_commands resets its optionals.
@@ -1046,7 +657,7 @@ void Context::populate_camera_gui_state(CameraGuiState& state) const {
 void Context::consume_camera_gui_commands(CameraGuiState& state) {
     // The widget callbacks ran during the overlay's render() (inside end_frame), so their edits are
     // now visible. Apply them here and clear the one-shot requests so they are not re-applied every
-    // frame (m_cameraGuiState is a persistent member, not a per-frame local).
+    // frame (the overlay state is persistent, not a per-frame local).
 
     // Auto Fit: persist the checkbox into the settings; it takes effect from the next frame.
     m_geoqikSettings.autoFitCameraEnabled = state.autoZoom;
@@ -1079,41 +690,33 @@ void Context::request_fit_all_geometry() {
     m_renderer->refit_current_view();
 }
 
-void Context::build_overlay(renderer::OverlayFrameContext& ctx) {
-    auto& ui = m_overlay->inner();
-
-    // Reserve the left control-panel strip for the UI and hand the remaining window region to the
-    // 3D scene, so the ImGui overlay no longer draws on top of the scene. The panel width is measured
-    // during the previous UI layout, matching plinth's one-frame-delayed resize behavior.
-    if (const ImGuiViewport* viewport = ImGui::GetMainViewport(); viewport != nullptr) {
-        const float reservedLeft = (2.0F * controlPanelMargin) + m_cameraGuiState->controlPanelWidth;
-        const float sceneWidth = std::max(1.0F, viewport->WorkSize.x - reservedLeft);
-        ctx.sceneViewportHint = renderer::LogicalViewportRect{static_cast<double>(viewport->WorkPos.x + reservedLeft),
-                                                              static_cast<double>(viewport->WorkPos.y),
-                                                              static_cast<double>(sceneWidth),
-                                                              static_cast<double>(viewport->WorkSize.y)};
+void Context::consume_file_gui_commands(FileGuiState& state) {
+    const FileGuiState::Command command = std::exchange(state.command, FileGuiState::Command::None);
+    if (command == FileGuiState::Command::None) {
+        return;
     }
 
-    // Replay is contextual and therefore comes first while active, keeping its transport controls
-    // visible even in a short window.
-    populate_replay_gui_state(*m_replayGuiState);
-    if (m_replayGuiState->isActive) {
-        ui.add_control([this]() { render_replay_controls(*m_replayGuiState); });
+    if (command == FileGuiState::Command::SetDefaultDirectory) {
+        try {
+            save_user_settings(state.settingsFilePath, UserSettings{state.requestedPath});
+            state.defaultLogDirectory = state.requestedPath;
+        } catch (const std::exception& exception) {
+            state.errorMessage = fmt::format("Could not save the default log directory: {}", exception.what());
+            state.openErrorPopup = true;
+        }
+        return;
     }
 
-    // Snapshot the current camera state into the GUI struct so the widgets display it. The widget
-    // callbacks (which record the user's edits) run later, inside ui.render(); those edits are
-    // applied afterwards in consume_camera_gui_commands, once end_frame has returned.
-    populate_camera_gui_state(*m_cameraGuiState);
-    m_cameraGuiState->autoZoom = m_geoqikSettings.autoFitCameraEnabled;
-    m_cameraGuiState->projectionType = ctx.projectionType;
-    ui.add_control([this]() { render_camera_controls(*m_cameraGuiState, m_replayGuiState->isActive); });
-
-    // Retain plinth's post-processing panel, choosing Debug vs Release like plinth's own overlay.
-    if (ui.ui_mode() == renderer::UiMode::Debug) {
-        ui.add_post_processing_controls(ctx.renderer);
-    } else {
-        ui.add_control([renderer = &ctx.renderer]() { render_release_display_controls(*renderer); });
+    const geoqik_error_code_t result = command == FileGuiState::Command::Save
+                                           ? save_log_path(state.requestedPath, state.requestedFormat)
+                                           : load_log_path(state.requestedPath, state.requestedFormat);
+    if (result != GEOQIK_SUCCESS) {
+        const char* operation = command == FileGuiState::Command::Save ? "save" : "load";
+        state.errorMessage = fmt::format("Could not {} log '{}'. Error code: {}",
+                                         operation,
+                                         path_to_utf8(state.requestedPath),
+                                         static_cast<int>(result));
+        state.openErrorPopup = true;
     }
 }
 
@@ -1165,6 +768,11 @@ bool Context::cleanup() {
     }
 
     m_renderer->window().make_context_current();
+    if (m_overlay) {
+        m_overlay->shutdown_native_dialogs();
+        m_renderer->set_overlay(nullptr);
+        m_overlay.reset();
+    }
     m_sceneRenderer.reset();
     m_renderer.reset();
 
@@ -1174,6 +782,14 @@ bool Context::cleanup() {
 geoqik_error_code_t Context::save_log(const char* path, geoqik_log_format_t format) const {
     if (path == nullptr || path[0] == '\0' ||
         (format != GEOQIK_LOG_FORMAT_BINARY && format != GEOQIK_LOG_FORMAT_JSON)) {
+        return GEOQIK_ERROR_INVALID_PARAMETER;
+    }
+
+    return save_log_path(std::filesystem::path{path}, format);
+}
+
+geoqik_error_code_t Context::save_log_path(const std::filesystem::path& path, geoqik_log_format_t format) const {
+    if (path.empty() || (format != GEOQIK_LOG_FORMAT_BINARY && format != GEOQIK_LOG_FORMAT_JSON)) {
         return GEOQIK_ERROR_INVALID_PARAMETER;
     }
 
@@ -1197,6 +813,14 @@ geoqik_error_code_t Context::load_log(const char* path, geoqik_log_format_t form
         return GEOQIK_ERROR_INVALID_PARAMETER;
     }
 
+    return load_log_path(std::filesystem::path{path}, format);
+}
+
+geoqik_error_code_t Context::load_log_path(const std::filesystem::path& path, geoqik_log_format_t format) {
+    if (path.empty() || (format != GEOQIK_LOG_FORMAT_BINARY && format != GEOQIK_LOG_FORMAT_JSON)) {
+        return GEOQIK_ERROR_INVALID_PARAMETER;
+    }
+
     try {
         if (!is_existing_regular_file(path)) {
             return GEOQIK_ERROR_UNKNOWN;
@@ -1204,10 +828,14 @@ geoqik_error_code_t Context::load_log(const char* path, geoqik_log_format_t form
 
         std::vector<GeoQikLogEntry> loadedEntries =
             format == GEOQIK_LOG_FORMAT_JSON ? load_log_json(path) : load_log_binary(path);
+        // A successful load replaces the replayed session. Apply any live messages that arrived
+        // during replay afterwards so switching logs cannot discard them.
+        cancel_replay();
         remove_all_geometry();
         m_idempotencySet.clear();
         replay_log_entries(loadedEntries);
         m_messageLog = std::move(loadedEntries);
+        process_deferred_messages();
         return GEOQIK_SUCCESS;
     } catch (const std::bad_alloc&) {
         return GEOQIK_ERROR_MEMORY_ALLOCATION;
@@ -1750,7 +1378,7 @@ void Context::handle_camera_key(Key key, Action action) {
     // F1 toggles between the game-like Release control panel (the default) and the full Debug
     // panel exposing every post-processing and visualization control.
     if (key == Key::KEY_F1) {
-        auto& ui = m_overlay->inner();
+        auto& ui = *m_overlay;
         ui.set_ui_mode(ui.ui_mode() == renderer::UiMode::Release ? renderer::UiMode::Debug : renderer::UiMode::Release);
         return;
     }
