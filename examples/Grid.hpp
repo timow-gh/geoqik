@@ -47,9 +47,9 @@ struct GridGeometryIds {
     geoqik_uuid_t stripId;
 };
 
-GridGeometryIds add_grid(const Grid& grid, float lineWidth = 2.0F, float pointSize = 1.0F) {
-    assert(lineWidth > 0.0F);
-    assert(pointSize > 0.0F);
+GridGeometryIds add_grid(const Grid& grid, float lineWidthPixels = 2.0F, float pointRadiusWorld = 1.0F) {
+    assert(lineWidthPixels > 0.0F);
+    assert(pointRadiusWorld > 0.0F);
     bool initialized;
     geoqik_is_api_initialized(&initialized);
     assert(initialized);
@@ -68,7 +68,7 @@ GridGeometryIds add_grid(const Grid& grid, float lineWidth = 2.0F, float pointSi
     lineOptions.color = gridColor;
     lineOptions.colorCount = 4;
     lineOptions.styleSet = 1;
-    lineOptions.style.lineWidth = lineWidth;
+    lineOptions.style.lineWidth = lineWidthPixels;
     lineOptions.style.cap = GEOQIK_LINE_CAP_ROUND;
     lineOptions.style.join = GEOQIK_LINE_JOIN_ROUND;
     lineOptions.style.dashPattern = dashPattern;
@@ -89,7 +89,7 @@ GridGeometryIds add_grid(const Grid& grid, float lineWidth = 2.0F, float pointSi
     geoqik_add_points_options_t pointOptions{};
     pointOptions.color = gridColor;
     pointOptions.colorCount = 4;
-    pointOptions.radii = &pointSize;
+    pointOptions.radii = &pointRadiusWorld;
     pointOptions.radiusCount = 1;
     pointOptions.sizeSpace = GEOQIK_SPHERE_SIZE_SPACE_WORLD;
     geoqik_result_t pointRes = geoqik_add_points_opts(pointCoords.data(), pointCoords.size(), &pointOptions);
@@ -119,7 +119,7 @@ GridGeometryIds add_grid(const Grid& grid, float lineWidth = 2.0F, float pointSi
     stripOptions.color = markerColor;
     stripOptions.colorCount = 4;
     stripOptions.styleSet = 1;
-    stripOptions.style.lineWidth = lineWidth * 1.5F;
+    stripOptions.style.lineWidth = lineWidthPixels * 1.5F;
     stripOptions.style.cap = GEOQIK_LINE_CAP_ROUND;
     stripOptions.style.join = GEOQIK_LINE_JOIN_ROUND;
     stripOptions.style.dashPattern = stripDash;
@@ -132,9 +132,9 @@ GridGeometryIds add_grid(const Grid& grid, float lineWidth = 2.0F, float pointSi
     return GridGeometryIds{pointRes.geometryId, lineRes.geometryId, markerRes.geometryId, stripRes.geometryId};
 }
 
-GridGeometryIds add_grid(double size, double step, float lineWidth = 2.0F, float pointSize = 1.0F) {
+GridGeometryIds add_grid(double size, double step, float lineWidthPixels = 2.0F, float pointRadiusWorld = 1.0F) {
     auto grid = create_grid(size, step);
-    return add_grid(grid, lineWidth, pointSize);
+    return add_grid(grid, lineWidthPixels, pointRadiusWorld);
 }
 
 } // namespace geoqik::examples

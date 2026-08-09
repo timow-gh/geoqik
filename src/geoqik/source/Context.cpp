@@ -500,7 +500,7 @@ float Context::get_point_size() {
 
 void Context::set_point_size(float pointSize) {
     m_scene.set_point_size(pointSize);
-    m_sceneRenderer->clear_drawables();
+    m_sceneRenderer->recreate_point_drawables(m_scene);
     ++m_geometryMessagesProcessedThisFrame;
 }
 
@@ -519,7 +519,7 @@ float Context::get_line_width() {
 
 void Context::set_line_width(float lineWidth) {
     m_scene.set_line_width(lineWidth);
-    m_sceneRenderer->clear_drawables();
+    m_sceneRenderer->recreate_line_drawables(m_scene);
     ++m_geometryMessagesProcessedThisFrame;
 }
 

@@ -259,11 +259,57 @@ bool GeoQikSceneRenderer::sync_scene(Scene& scene) {
 }
 
 void GeoQikSceneRenderer::recreate_point_drawables(const Scene& scene) {
-    rebuild_all_drawables(scene);
+    if (m_mergedPointDrawable.is_valid()) {
+        m_renderer.remove_drawable(m_mergedPointDrawable);
+        m_mergedPointDrawable = {};
+    }
+    for (const auto& [uuid, handle]: m_styledPointBundles) {
+        (void)uuid;
+        m_renderer.remove_drawable(handle);
+    }
+    m_styledPointBundles.clear();
+
+    const auto& pointBuffer = scene.get_point_buffer();
+    if (!pointBuffer.get_points().empty()) {
+        auto radii = radii_for(pointBuffer.get_points(), scene.get_point_size());
+        m_mergedPointDrawable =
+            m_renderer.add_sphere_point_drawable(pointBuffer.get_points(),
+                                                 radii,
+                                                 pointBuffer.get_point_colors(),
+                                                 renderer::SphereStyle{renderer::SphereSizeSpace::Screen},
+                                                 renderer::BufferAccessPattern::Static);
+    }
+    for (const auto& [uuid, data]: scene.get_styled_points()) {
+        create_styled_point_drawable(uuid, data, scene.get_point_size());
+    }
 }
 
 void GeoQikSceneRenderer::recreate_line_drawables(const Scene& scene) {
-    rebuild_all_drawables(scene);
+    if (m_mergedLineDrawable.is_valid()) {
+        m_renderer.remove_drawable(m_mergedLineDrawable);
+        m_mergedLineDrawable = {};
+    }
+    for (const auto& [uuid, handle]: m_styledLineBundles) {
+        (void)uuid;
+        m_renderer.remove_drawable(handle);
+    }
+    m_styledLineBundles.clear();
+
+    const auto& lineBuffer = scene.get_line_buffer();
+    if (!lineBuffer.get_lines().empty()) {
+        renderer::StrokeStyle style;
+        style.lineWidth = scene.get_line_width();
+        style.dashSpace = renderer::DashSpace::World;
+        m_mergedLineDrawable = m_renderer.add_line_drawable(lineBuffer.get_lines(),
+                                                            lineBuffer.get_line_indices(),
+                                                            lineBuffer.get_line_colors(),
+                                                            m_lineType,
+                                                            style,
+                                                            renderer::BufferAccessPattern::Static);
+    }
+    for (const auto& [uuid, data]: scene.get_styled_lines()) {
+        create_styled_line_drawable(uuid, data, scene.get_line_width());
+    }
 }
 
 void GeoQikSceneRenderer::recreate_mesh_drawables(const Scene& scene) {
