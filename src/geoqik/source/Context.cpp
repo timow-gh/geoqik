@@ -55,7 +55,8 @@ struct ReplayGuiState {
         Play,
         PlayReverse,
         Pause,
-        Finish,
+        SkipToEnd,
+        EndReplay,
         StepForward,
         StepBackward,
     };
@@ -73,11 +74,7 @@ struct CameraGuiState {
     // Built-in camera controls (driven straight through the OverlayFrameContext each frame).
     bool autoZoom{false};
     renderer::CameraProjectionType projectionType{renderer::CameraProjectionType::PERSPECTIVE};
-
-    // Read-only interaction-lock display (decoded from CameraViewMode bit flags).
-    bool fixRotate{false};
-    bool fixPan{false};
-    bool fixZoom{false};
+    float controlPanelWidth{320.0F};
 
     // Requests filled in by the UI and applied after rendering.
     std::optional<renderer::CameraInteractor::NavigationStyle> requestedNavigationStyle;
@@ -90,6 +87,8 @@ namespace {
 
 constexpr std::size_t lineCoordinateCount = 6;
 constexpr std::size_t frameInfoPrintInterval = 10;
+constexpr float controlPanelMargin = 8.0F;
+constexpr float controlPanelResizeGripWidth = 8.0F;
 
 [[nodiscard]] std::vector<float> expand_vertex_colors(std::span<const float> colors,
                                                       std::size_t vertexCount,
@@ -196,6 +195,11 @@ bool highlighted_button(const char* label, float width, bool isActive) {
 }
 
 void render_camera_controls(CameraGuiState& cameraState) {
+    // Controls are rendered inside plinth's content child. Recover the containing panel width
+    // from that child so the scene viewport follows the draggable resize grip on the next frame.
+    cameraState.controlPanelWidth =
+        ImGui::GetWindowWidth() + controlPanelResizeGripWidth + (2.0F * ImGui::GetStyle().WindowPadding.x);
+
     if (!ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen)) {
         return;
     }
@@ -263,19 +267,10 @@ void render_camera_controls(CameraGuiState& cameraState) {
     }
 
     // Home refits all geometry into view along the current viewing direction, so the active
-    // preset (and its interaction locks) are preserved.
+    // preset is preserved.
     if (full_width_button("Home")) {
         cameraState.requestHome = true;
     }
-
-    ImGui::Separator();
-
-    // Interaction locks (read-only): shows which movements are currently fixed for mouse/keyboard.
-    ImGui::TextUnformatted("Interaction locks");
-    const auto lockLabel = [](bool locked) { return locked ? "Locked" : "Unlocked"; };
-    ImGui::TextUnformatted(fmt::format("Rotate: {}", lockLabel(cameraState.fixRotate)).c_str());
-    ImGui::TextUnformatted(fmt::format("Pan:    {}", lockLabel(cameraState.fixPan)).c_str());
-    ImGui::TextUnformatted(fmt::format("Zoom:   {}", lockLabel(cameraState.fixZoom)).c_str());
 }
 
 void render_replay_speed_controls(ReplayGuiState& replayState) {
@@ -303,44 +298,66 @@ void render_replay_speed_controls(ReplayGuiState& replayState) {
 }
 
 void render_replay_transport_controls(ReplayGuiState& replayState) {
-    if (full_width_button("End replay")) {
-        replayState.command = ReplayGuiState::Command::Finish;
-    }
-
-    ImGui::Separator();
-
     const bool canStepBack = replayState.currentEntry > 0;
     const bool canStepForward = replayState.currentEntry < replayState.totalEntries;
-    const float twoButtonWidth = equal_button_width(2);
+    const bool isPlaying = !replayState.isPaused;
+
+    ImGui::TextUnformatted("Playback");
+    const float transportButtonWidth = equal_button_width(3);
 
     if (!canStepBack) {
         ImGui::BeginDisabled();
     }
-    if (equal_width_button("Step Back", twoButtonWidth)) {
-        replayState.command = ReplayGuiState::Command::StepBackward;
-    }
-    ImGui::SameLine();
-    if (equal_width_button(replayState.isBackward && !replayState.isPaused ? "Reverse *" : "Reverse", twoButtonWidth)) {
+    if (highlighted_button("Reverse", transportButtonWidth, isPlaying && replayState.isBackward)) {
         replayState.command = ReplayGuiState::Command::PlayReverse;
     }
     if (!canStepBack) {
         ImGui::EndDisabled();
     }
 
-    const char* playPauseLabel = replayState.isPaused ? "Play" : "Pause";
-    if (full_width_button(playPauseLabel)) {
-        replayState.command = replayState.isPaused ? ReplayGuiState::Command::Play : ReplayGuiState::Command::Pause;
+    ImGui::SameLine();
+    if (!isPlaying) {
+        ImGui::BeginDisabled();
+    }
+    if (equal_width_button("Pause", transportButtonWidth)) {
+        replayState.command = ReplayGuiState::Command::Pause;
+    }
+    if (!isPlaying) {
+        ImGui::EndDisabled();
     }
 
+    ImGui::SameLine();
     if (!canStepForward) {
         ImGui::BeginDisabled();
     }
-    if (equal_width_button(!replayState.isBackward && !replayState.isPaused ? "Forward *" : "Forward",
-                           twoButtonWidth)) {
+    if (highlighted_button("Play##Playback", transportButtonWidth, isPlaying && !replayState.isBackward)) {
         replayState.command = ReplayGuiState::Command::Play;
     }
+    if (!canStepForward) {
+        ImGui::EndDisabled();
+    }
+
+    render_replay_speed_controls(replayState);
+
+    ImGui::Separator();
+    ImGui::TextUnformatted("Step");
+    const float stepButtonWidth = equal_button_width(2);
+
+    if (!canStepBack) {
+        ImGui::BeginDisabled();
+    }
+    if (equal_width_button("Backward", stepButtonWidth)) {
+        replayState.command = ReplayGuiState::Command::StepBackward;
+    }
+    if (!canStepBack) {
+        ImGui::EndDisabled();
+    }
+
     ImGui::SameLine();
-    if (equal_width_button("Step Forward", twoButtonWidth)) {
+    if (!canStepForward) {
+        ImGui::BeginDisabled();
+    }
+    if (equal_width_button("Forward##Step", stepButtonWidth)) {
         replayState.command = ReplayGuiState::Command::StepForward;
     }
     if (!canStepForward) {
@@ -362,20 +379,30 @@ void render_replay_controls(ReplayGuiState& replayState) {
             fmt::format("Entry {} / {}", replayState.currentEntry, replayState.totalEntries).c_str());
         ImGui::ProgressBar(progress, ImVec2{-1.0F, 0.0F});
 
-        render_replay_speed_controls(replayState);
         render_replay_transport_controls(replayState);
 
-        const std::size_t remainingEntryCount = replayState.totalEntries > replayState.currentEntry
-                                                    ? replayState.totalEntries - replayState.currentEntry
-                                                    : 0U;
-        const int remainingEntries = static_cast<int>(remainingEntryCount);
-        const int sliderMax = std::max(1, remainingEntries);
+        const int sliderMax = std::max(1, static_cast<int>(replayState.totalEntries));
         int stepSize = static_cast<int>(replayState.entriesPerStep);
         stepSize = std::max(1, std::min(stepSize, sliderMax));
-        ImGui::TextUnformatted("Step size");
+        ImGui::TextUnformatted("Entries per step");
         ImGui::SetNextItemWidth(-1.0F);
-        if (ImGui::SliderInt("##StepSize", &stepSize, 1, sliderMax)) {
+        if (ImGui::SliderInt("##EntriesPerStep", &stepSize, 1, sliderMax)) {
             replayState.requestedEntriesPerStep = static_cast<std::size_t>(stepSize);
+        }
+
+        ImGui::Separator();
+        const bool canSkipToEnd = replayState.currentEntry < replayState.totalEntries;
+        if (!canSkipToEnd) {
+            ImGui::BeginDisabled();
+        }
+        if (full_width_button("Skip to end")) {
+            replayState.command = ReplayGuiState::Command::SkipToEnd;
+        }
+        if (!canSkipToEnd) {
+            ImGui::EndDisabled();
+        }
+        if (full_width_button("End replay")) {
+            replayState.command = ReplayGuiState::Command::EndReplay;
         }
     }
 
@@ -863,6 +890,15 @@ void Context::consume_replay_gui_commands(ReplayGuiState& state) {
         m_replayOptions.entriesPerStep = *requestedEntriesPerStep;
     }
 
+    const auto skipToEnd = [this]() {
+        m_isReplayBackward = false;
+        m_isReplayPaused = true;
+        const std::size_t remaining = m_replayEntries.size() - m_replayEntryIndex;
+        if (remaining > 0) {
+            apply_replay_entries(remaining);
+        }
+    };
+
     switch (command) {
     case ReplayGuiState::Command::Play:
         m_isReplayBackward = false;
@@ -880,16 +916,12 @@ void Context::consume_replay_gui_commands(ReplayGuiState& state) {
 
     case ReplayGuiState::Command::Pause: m_isReplayPaused = true; break;
 
-    case ReplayGuiState::Command::Finish: {
-        m_isReplayBackward = false;
-        m_isReplayPaused = false;
-        const std::size_t remaining = m_replayEntries.size() - m_replayEntryIndex;
-        if (remaining > 0) {
-            apply_replay_entries(remaining);
-        }
+    case ReplayGuiState::Command::SkipToEnd: skipToEnd(); break;
+
+    case ReplayGuiState::Command::EndReplay:
+        skipToEnd();
         finish_replay();
         break;
-    }
 
     case ReplayGuiState::Command::StepForward:
         m_isReplayPaused = true;
@@ -909,14 +941,6 @@ void Context::populate_camera_gui_state(CameraGuiState& state) const {
     state.activePreset = m_activePresetView;
     if (auto camera = m_renderer->get_camera().lock()) {
         state.navigationStyle = camera->get_navigation_style();
-        const auto viewMode = camera->get_view_mode();
-        using ViewMode = renderer::CameraInteractor::CameraViewMode;
-        const auto isFixed = [viewMode](ViewMode flag) {
-            return (static_cast<std::uint8_t>(viewMode) & static_cast<std::uint8_t>(flag)) != 0U;
-        };
-        state.fixRotate = isFixed(ViewMode::FIX_ROTATE);
-        state.fixPan = isFixed(ViewMode::FIX_PAN);
-        state.fixZoom = isFixed(ViewMode::FIX_ZOOM);
     }
 }
 
@@ -960,12 +984,10 @@ void Context::build_overlay(renderer::OverlayFrameContext& ctx) {
     auto& ui = m_overlay->inner();
 
     // Reserve the left control-panel strip for the UI and hand the remaining window region to the
-    // 3D scene, so the ImGui overlay no longer draws on top of the scene. The panel geometry mirrors
-    // plinth's ImGuiOverlay layout (an 8px margin on each side of a fixed-width panel).
+    // 3D scene, so the ImGui overlay no longer draws on top of the scene. The panel width is measured
+    // during the previous UI layout, matching plinth's one-frame-delayed resize behavior.
     if (const ImGuiViewport* viewport = ImGui::GetMainViewport(); viewport != nullptr) {
-        constexpr float controlPanelMargin = 8.0F;
-        constexpr float controlPanelWidth = 320.0F;
-        const float reservedLeft = (2.0F * controlPanelMargin) + controlPanelWidth;
+        const float reservedLeft = (2.0F * controlPanelMargin) + m_cameraGuiState->controlPanelWidth;
         const float sceneWidth = std::max(1.0F, viewport->WorkSize.x - reservedLeft);
         ctx.sceneViewportHint = renderer::LogicalViewportRect{static_cast<double>(viewport->WorkPos.x + reservedLeft),
                                                               static_cast<double>(viewport->WorkPos.y),
@@ -1715,6 +1737,8 @@ void Context::start_replay(std::vector<GeoQikLogEntry> entries, const ReplayOpti
     m_baseEntriesPerSecond = m_replayOptions.entriesPerSecond;
     m_currentSpeedMultiplier = 1.0;
     m_isReplayBackward = false;
+    // Keep m_deferredMessages intact. Live messages received after replay starts are queued there
+    // and applied in order once replay mode ends, so starting a replay cannot discard them.
 }
 
 void Context::process_replay_entries(const std::chrono::high_resolution_clock::time_point& now) {
