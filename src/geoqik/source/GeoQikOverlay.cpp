@@ -114,7 +114,7 @@ void select_save_log_path(FileGuiState& state, geoqik_log_format_t format) {
     }
 }
 
-void select_log_to_load(FileGuiState& state) {
+void select_log_file(FileGuiState& state, FileGuiState::Command command) {
     constexpr std::array<nfdu8filteritem_t, 2> filters{nfdu8filteritem_t{"GeoQik binary log", "gqklog"},
                                                        nfdu8filteritem_t{"JSON log", "json"}};
     const std::string directory = path_to_utf8(state.defaultLogDirectory);
@@ -130,9 +130,9 @@ void select_log_to_load(FileGuiState& state) {
         NFD_FreePathU8(selectedPath);
         state.requestedFormat =
             lowercase_extension(state.requestedPath) == ".json" ? GEOQIK_LOG_FORMAT_JSON : GEOQIK_LOG_FORMAT_BINARY;
-        state.command = FileGuiState::Command::Load;
+        state.command = command;
     } else if (result == NFD_ERROR) {
-        set_file_dialog_error(state, "Could not open the load dialog");
+        set_file_dialog_error(state, "Could not open the log file dialog");
     }
 }
 
@@ -242,16 +242,21 @@ void render_replay_speed_controls(ReplayGuiState& state) {
     ImGui::AlignTextToFramePadding();
     ImGui::TextUnformatted("Speed");
     ImGui::SameLine();
-    const float buttonWidth = equal_button_width(static_cast<int>(speedOptions.size()));
+    const float buttonWidth = equal_button_width(static_cast<int>(speedOptions.size()) + 1);
     for (std::size_t index = 0; index < speedOptions.size(); ++index) {
         if (index != 0) {
             ImGui::SameLine();
         }
-        const bool current = std::abs(state.speedMultiplier - speedOptions[index]) < 0.01;
+        const bool current = !state.isMaxSpeed && std::abs(state.speedMultiplier - speedOptions[index]) < 0.01;
         if (highlighted_button(speedLabels[index], buttonWidth, current)) {
             state.requestedSpeedMultiplier = speedOptions[index];
         }
     }
+    ImGui::SameLine();
+    if (highlighted_button("Max", buttonWidth, state.isMaxSpeed)) {
+        state.requestMaxSpeed = true;
+    }
+    item_tooltip("Process as many entries per frame as the replay limit allows.");
 }
 
 void render_replay_transport_controls(ReplayGuiState& state) {
@@ -646,6 +651,15 @@ void GeoQikOverlay::render_main_menu_bar() {
         ImGui::EndMenu();
     }
 
+    if (ImGui::BeginMenu("Replay")) {
+        if (ImGui::MenuItem("Load Log...", nullptr, false, m_fileState.nativeDialogsInitialized)) {
+            m_fileState.dialogRequest = FileGuiState::DialogRequest::Replay;
+        }
+        item_tooltip(m_fileState.nativeDialogsInitialized ? "Load a .gqklog or .json log and start replaying it."
+                                                          : "Native file dialogs could not be initialized.");
+        ImGui::EndMenu();
+    }
+
     if (ImGui::BeginMenu("Settings")) {
         if (ImGui::MenuItem("Default Log Directory...", nullptr, false, m_fileState.nativeDialogsInitialized)) {
             m_fileState.dialogRequest = FileGuiState::DialogRequest::SelectDefaultDirectory;
@@ -660,7 +674,8 @@ void GeoQikOverlay::render_main_menu_bar() {
     switch (std::exchange(m_fileState.dialogRequest, FileGuiState::DialogRequest::None)) {
     case FileGuiState::DialogRequest::SaveBinary:             select_save_log_path(m_fileState, GEOQIK_LOG_FORMAT_BINARY); break;
     case FileGuiState::DialogRequest::SaveJson:               select_save_log_path(m_fileState, GEOQIK_LOG_FORMAT_JSON); break;
-    case FileGuiState::DialogRequest::Load:                   select_log_to_load(m_fileState); break;
+    case FileGuiState::DialogRequest::Load:                   select_log_file(m_fileState, FileGuiState::Command::Load); break;
+    case FileGuiState::DialogRequest::Replay:                 select_log_file(m_fileState, FileGuiState::Command::Replay); break;
     case FileGuiState::DialogRequest::SelectDefaultDirectory: select_default_log_directory(m_fileState); break;
     case FileGuiState::DialogRequest::None:                   break;
     }

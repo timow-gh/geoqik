@@ -85,6 +85,7 @@ class Context {
     std::unique_ptr<GeoQikSceneRenderer> m_sceneRenderer;
     bool m_isDrawing{false};
     bool m_isReplayBackward{false};
+    bool m_isReplayMaxSpeed{false};
     double m_baseEntriesPerSecond{60.0};
     double m_currentSpeedMultiplier{1.0};
     std::size_t m_frameCount{0};
@@ -230,6 +231,8 @@ class Context {
     void consume_file_gui_commands(FileGuiState& state);
     geoqik_error_code_t save_log_path(const std::filesystem::path& path, geoqik_log_format_t format) const;
     geoqik_error_code_t load_log_path(const std::filesystem::path& path, geoqik_log_format_t format);
+    geoqik_error_code_t
+    replay_log_path(const std::filesystem::path& path, geoqik_log_format_t format, const ReplayOptions& options);
     void populate_camera_gui_state(CameraGuiState& state) const;
     void consume_camera_gui_commands(CameraGuiState& state);
     [[nodiscard]] static bool has_replay_key(const std::vector<Key>& keys, Key key);

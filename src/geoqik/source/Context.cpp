@@ -556,6 +556,7 @@ void Context::populate_replay_gui_state(ReplayGuiState& state) const {
     state.currentEntry = current;
     state.totalEntries = total;
     state.speedMultiplier = m_currentSpeedMultiplier;
+    state.isMaxSpeed = m_isReplayMaxSpeed;
     state.entriesPerStep = m_replayOptions.entriesPerStep;
     state.pauseKeysLabel = key_labels(m_replayOptions.pauseKeys);
     state.resumeKeysLabel = key_labels(m_replayOptions.resumeKeys);
@@ -572,6 +573,7 @@ void Context::consume_replay_gui_commands(ReplayGuiState& state) {
     // playback never advances. Mirrors how consume_camera_gui_commands resets its optionals.
     const ReplayGuiState::Command command = std::exchange(state.command, ReplayGuiState::Command::None);
     const std::optional<double> requestedSpeedMultiplier = std::exchange(state.requestedSpeedMultiplier, std::nullopt);
+    const bool requestMaxSpeed = std::exchange(state.requestMaxSpeed, false);
     const std::optional<std::size_t> requestedEntriesPerStep =
         std::exchange(state.requestedEntriesPerStep, std::nullopt);
     const std::optional<std::size_t> requestedEntry = std::exchange(state.requestedEntry, std::nullopt);
@@ -581,8 +583,13 @@ void Context::consume_replay_gui_commands(ReplayGuiState& state) {
     }
 
     if (requestedSpeedMultiplier.has_value()) {
+        m_isReplayMaxSpeed = false;
         m_currentSpeedMultiplier = *requestedSpeedMultiplier;
         m_replayOptions.entriesPerSecond = m_baseEntriesPerSecond * m_currentSpeedMultiplier;
+        m_replayEntryBudget = 0.0;
+    } else if (requestMaxSpeed) {
+        m_isReplayMaxSpeed = true;
+        m_replayEntryBudget = 0.0;
     }
 
     if (requestedEntriesPerStep.has_value()) {
@@ -707,11 +714,20 @@ void Context::consume_file_gui_commands(FileGuiState& state) {
         return;
     }
 
-    const geoqik_error_code_t result = command == FileGuiState::Command::Save
-                                           ? save_log_path(state.requestedPath, state.requestedFormat)
-                                           : load_log_path(state.requestedPath, state.requestedFormat);
+    geoqik_error_code_t result = GEOQIK_SUCCESS;
+    switch (command) {
+    case FileGuiState::Command::Save: result = save_log_path(state.requestedPath, state.requestedFormat); break;
+    case FileGuiState::Command::Load: result = load_log_path(state.requestedPath, state.requestedFormat); break;
+    case FileGuiState::Command::Replay:
+        result = replay_log_path(state.requestedPath, state.requestedFormat, ReplayOptions{});
+        break;
+    case FileGuiState::Command::None:
+    case FileGuiState::Command::SetDefaultDirectory: break;
+    }
     if (result != GEOQIK_SUCCESS) {
-        const char* operation = command == FileGuiState::Command::Save ? "save" : "load";
+        const char* operation = command == FileGuiState::Command::Save
+                                    ? "save"
+                                    : (command == FileGuiState::Command::Replay ? "replay" : "load");
         state.errorMessage = fmt::format("Could not {} log '{}'. Error code: {}",
                                          operation,
                                          path_to_utf8(state.requestedPath),
@@ -850,6 +866,15 @@ geoqik_error_code_t Context::replay_log(const char* path, geoqik_log_format_t fo
         return GEOQIK_ERROR_INVALID_PARAMETER;
     }
 
+    return replay_log_path(std::filesystem::path{path}, format, options);
+}
+
+geoqik_error_code_t
+Context::replay_log_path(const std::filesystem::path& path, geoqik_log_format_t format, const ReplayOptions& options) {
+    if (path.empty() || (format != GEOQIK_LOG_FORMAT_BINARY && format != GEOQIK_LOG_FORMAT_JSON)) {
+        return GEOQIK_ERROR_INVALID_PARAMETER;
+    }
+
     try {
         if (!is_existing_regular_file(path)) {
             return GEOQIK_ERROR_UNKNOWN;
@@ -891,6 +916,7 @@ void Context::cancel_replay() {
     m_isReplayActive = false;
     m_isReplayPaused = false;
     m_isReplayBackward = false;
+    m_isReplayMaxSpeed = false;
     m_currentSpeedMultiplier = 1.0;
 }
 
@@ -1466,6 +1492,7 @@ void Context::start_replay(std::vector<GeoQikLogEntry> entries, const ReplayOpti
     m_baseEntriesPerSecond = m_replayOptions.entriesPerSecond;
     m_currentSpeedMultiplier = 1.0;
     m_isReplayBackward = false;
+    m_isReplayMaxSpeed = false;
     // Keep m_deferredMessages intact. Live messages received after replay starts are queued there
     // and applied in order once replay mode ends, so starting a replay cannot discard them.
 }
@@ -1497,12 +1524,13 @@ void Context::process_replay_entries(const std::chrono::high_resolution_clock::t
 
         const std::chrono::duration<double> elapsed = now - m_lastReplayTick;
         m_lastReplayTick = now;
-        m_replayEntryBudget += elapsed.count() * m_replayOptions.entriesPerSecond;
-
-        auto entriesToUndo = static_cast<std::size_t>(m_replayEntryBudget);
-        entriesToUndo = std::min(entriesToUndo, m_replayOptions.maxEntriesPerFrame);
+        std::size_t entriesToUndo = m_replayOptions.maxEntriesPerFrame;
+        if (!m_isReplayMaxSpeed) {
+            m_replayEntryBudget += elapsed.count() * m_replayOptions.entriesPerSecond;
+            entriesToUndo = std::min(static_cast<std::size_t>(m_replayEntryBudget), m_replayOptions.maxEntriesPerFrame);
+        }
         undo_replay_entries(entriesToUndo);
-        if (m_replayEntryBudget >= 1.0) {
+        if (!m_isReplayMaxSpeed && m_replayEntryBudget >= 1.0) {
             m_replayEntryBudget -= static_cast<double>(entriesToUndo);
         }
         return;
@@ -1517,10 +1545,11 @@ void Context::process_replay_entries(const std::chrono::high_resolution_clock::t
 
     const std::chrono::duration<double> elapsed = now - m_lastReplayTick;
     m_lastReplayTick = now;
-    m_replayEntryBudget += elapsed.count() * m_replayOptions.entriesPerSecond;
-
-    auto entriesToApply = static_cast<std::size_t>(m_replayEntryBudget);
-    entriesToApply = std::min(entriesToApply, m_replayOptions.maxEntriesPerFrame);
+    std::size_t entriesToApply = m_replayOptions.maxEntriesPerFrame;
+    if (!m_isReplayMaxSpeed) {
+        m_replayEntryBudget += elapsed.count() * m_replayOptions.entriesPerSecond;
+        entriesToApply = std::min(static_cast<std::size_t>(m_replayEntryBudget), m_replayOptions.maxEntriesPerFrame);
+    }
 
     apply_replay_entries(entriesToApply);
 
@@ -1591,6 +1620,7 @@ void Context::finish_replay() {
     m_isReplayActive = false;
     m_isReplayPaused = false;
     m_isReplayBackward = false;
+    m_isReplayMaxSpeed = false;
     m_currentSpeedMultiplier = 1.0;
 }
 

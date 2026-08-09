@@ -28,6 +28,7 @@ struct ReplayGuiState {
     std::size_t currentEntry{0};
     std::size_t totalEntries{0};
     double speedMultiplier{1.0};
+    bool isMaxSpeed{false};
     std::size_t entriesPerStep{1};
     std::string pauseKeysLabel;
     std::string resumeKeysLabel;
@@ -48,6 +49,7 @@ struct ReplayGuiState {
     };
     Command command{Command::None};
     std::optional<double> requestedSpeedMultiplier;
+    bool requestMaxSpeed{false};
     std::optional<std::size_t> requestedEntriesPerStep;
     std::optional<std::size_t> requestedEntry;
 };
@@ -70,12 +72,14 @@ struct FileGuiState {
         SaveBinary,
         SaveJson,
         Load,
+        Replay,
         SelectDefaultDirectory
     };
     enum class Command : std::uint8_t {
         None,
         Save,
         Load,
+        Replay,
         SetDefaultDirectory
     };
 
