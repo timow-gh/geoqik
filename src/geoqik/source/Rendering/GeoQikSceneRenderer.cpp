@@ -6,7 +6,6 @@
 #include <plinth/BufferAccessPattern.hpp>
 #include <plinth/MeshCullFaceMode.hpp>
 #include <plinth/Renderer.hpp>
-#include <plinth/SphereStyle.hpp>
 #include <plinth/StrokeStyle.hpp>
 
 #include <array>
@@ -90,7 +89,6 @@ bool GeoQikSceneRenderer::sync_points(Scene& scene) {
                 m_renderer.add_sphere_point_drawable(pointBuffer.get_points(),
                                                      radii,
                                                      pointBuffer.get_point_colors(),
-                                                     renderer::SphereStyle{renderer::SphereSizeSpace::Screen},
                                                      renderer::BufferAccessPattern::Static);
         }
         pointBuffer.reset_points_have_changed();
@@ -111,11 +109,12 @@ bool GeoQikSceneRenderer::sync_lines(Scene& scene) {
             style.lineWidth = scene.get_line_width();
             style.dashSpace = renderer::DashSpace::World;
             m_mergedLineDrawable = m_renderer.add_line_drawable(lineBuffer.get_lines(),
-                                                                lineBuffer.get_line_indices(),
-                                                                lineBuffer.get_line_colors(),
-                                                                m_lineType,
-                                                                style,
-                                                                renderer::BufferAccessPattern::Static);
+                                                                 lineBuffer.get_line_indices(),
+                                                                 lineBuffer.get_line_colors(),
+                                                                 m_lineType,
+                                                                 style,
+                                                                 0.0F,
+                                                                 renderer::BufferAccessPattern::Static);
         }
         lineBuffer.reset_lines_have_changed();
         return true;
@@ -276,7 +275,6 @@ void GeoQikSceneRenderer::recreate_point_drawables(const Scene& scene) {
             m_renderer.add_sphere_point_drawable(pointBuffer.get_points(),
                                                  radii,
                                                  pointBuffer.get_point_colors(),
-                                                 renderer::SphereStyle{renderer::SphereSizeSpace::Screen},
                                                  renderer::BufferAccessPattern::Static);
     }
     for (const auto& [uuid, data]: scene.get_styled_points()) {
@@ -305,6 +303,7 @@ void GeoQikSceneRenderer::recreate_line_drawables(const Scene& scene) {
                                                             lineBuffer.get_line_colors(),
                                                             m_lineType,
                                                             style,
+                                                            0.0F,
                                                             renderer::BufferAccessPattern::Static);
     }
     for (const auto& [uuid, data]: scene.get_styled_lines()) {
@@ -349,7 +348,6 @@ void GeoQikSceneRenderer::rebuild_all_drawables(const Scene& scene) {
             m_renderer.add_sphere_point_drawable(pointBuffer.get_points(),
                                                  radii,
                                                  pointBuffer.get_point_colors(),
-                                                 renderer::SphereStyle{renderer::SphereSizeSpace::Screen},
                                                  renderer::BufferAccessPattern::Static);
     }
     const auto& lineBuffer = scene.get_line_buffer();
@@ -362,6 +360,7 @@ void GeoQikSceneRenderer::rebuild_all_drawables(const Scene& scene) {
                                                             lineBuffer.get_line_colors(),
                                                             m_lineType,
                                                             style,
+                                                            0.0F,
                                                             renderer::BufferAccessPattern::Static);
     }
     for (const auto& [uuid, data]: scene.get_styled_points()) {
@@ -391,7 +390,6 @@ void GeoQikSceneRenderer::create_styled_point_drawable(const core::UUID& uuid,
         m_renderer.add_sphere_point_drawable(data.points,
                                              radii,
                                              data.colors,
-                                             renderer::SphereStyle{to_plinth_size_space(data.sizeSpace)},
                                              renderer::BufferAccessPattern::Static);
     m_styledPointBundles.emplace(uuid, handle);
 }
@@ -413,6 +411,7 @@ void GeoQikSceneRenderer::create_styled_line_drawable(const core::UUID& uuid,
                                                      inputs.colors,
                                                      to_plinth_line_type(data.lineType),
                                                      style,
+                                                     0.0F,
                                                      renderer::BufferAccessPattern::Static,
                                                      inputs.dashFlags);
     m_styledLineBundles.emplace(uuid, handle);

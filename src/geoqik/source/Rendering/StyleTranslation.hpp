@@ -3,7 +3,6 @@
 
 #include <plinth/DashSpace.hpp>
 #include <plinth/LineType.hpp>
-#include <plinth/SphereSizeSpace.hpp>
 #include <plinth/StrokeStyle.hpp>
 
 #include <GeoQik/ApiTypes.h>
@@ -34,14 +33,6 @@ namespace geoqik {
     case GEOQIK_DASH_SPACE_SCREEN: return renderer::DashSpace::Screen;
     case GEOQIK_DASH_SPACE_WORLD:
     default:                       return renderer::DashSpace::World;
-    }
-}
-
-[[nodiscard]] inline renderer::SphereSizeSpace to_plinth_size_space(std::uint8_t value) {
-    switch (value) {
-    case GEOQIK_SPHERE_SIZE_SPACE_WORLD:  return renderer::SphereSizeSpace::World;
-    case GEOQIK_SPHERE_SIZE_SPACE_SCREEN:
-    default:                              return renderer::SphereSizeSpace::Screen;
     }
 }
 
