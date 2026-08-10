@@ -6,6 +6,7 @@
 #include <plinth/BufferAccessPattern.hpp>
 #include <plinth/MeshCullFaceMode.hpp>
 #include <plinth/Renderer.hpp>
+#include <plinth/SphereStyle.hpp>
 #include <plinth/StrokeStyle.hpp>
 
 #include <array>
@@ -89,6 +90,7 @@ bool GeoQikSceneRenderer::sync_points(Scene& scene) {
                 m_renderer.add_sphere_point_drawable(pointBuffer.get_points(),
                                                      radii,
                                                      pointBuffer.get_point_colors(),
+                                                     renderer::SphereStyle{renderer::SphereSizeSpace::Screen},
                                                      renderer::BufferAccessPattern::Static);
         }
         pointBuffer.reset_points_have_changed();
@@ -275,6 +277,7 @@ void GeoQikSceneRenderer::recreate_point_drawables(const Scene& scene) {
             m_renderer.add_sphere_point_drawable(pointBuffer.get_points(),
                                                  radii,
                                                  pointBuffer.get_point_colors(),
+                                                 renderer::SphereStyle{renderer::SphereSizeSpace::Screen},
                                                  renderer::BufferAccessPattern::Static);
     }
     for (const auto& [uuid, data]: scene.get_styled_points()) {
@@ -348,6 +351,7 @@ void GeoQikSceneRenderer::rebuild_all_drawables(const Scene& scene) {
             m_renderer.add_sphere_point_drawable(pointBuffer.get_points(),
                                                  radii,
                                                  pointBuffer.get_point_colors(),
+                                                 renderer::SphereStyle{renderer::SphereSizeSpace::Screen},
                                                  renderer::BufferAccessPattern::Static);
     }
     const auto& lineBuffer = scene.get_line_buffer();
@@ -390,6 +394,7 @@ void GeoQikSceneRenderer::create_styled_point_drawable(const core::UUID& uuid,
         m_renderer.add_sphere_point_drawable(data.points,
                                              radii,
                                              data.colors,
+                                             renderer::SphereStyle{to_plinth_size_space(data.sizeSpace)},
                                              renderer::BufferAccessPattern::Static);
     m_styledPointBundles.emplace(uuid, handle);
 }

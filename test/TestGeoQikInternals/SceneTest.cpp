@@ -147,6 +147,8 @@ TEST(SceneTest, StyledGeometryMutatesAndSnapshotRestores) {
 }
 
 TEST(SceneTest, StyleTranslationPreservesExplicitEnumMeaning) {
+    EXPECT_EQ(geoqik::to_plinth_size_space(GEOQIK_SPHERE_SIZE_SPACE_SCREEN), renderer::SphereSizeSpace::Screen);
+    EXPECT_EQ(geoqik::to_plinth_size_space(GEOQIK_SPHERE_SIZE_SPACE_WORLD), renderer::SphereSizeSpace::World);
     EXPECT_EQ(geoqik::to_plinth_dash_space(GEOQIK_DASH_SPACE_WORLD), renderer::DashSpace::World);
     EXPECT_EQ(geoqik::to_plinth_dash_space(GEOQIK_DASH_SPACE_SCREEN), renderer::DashSpace::Screen);
 }
