@@ -115,7 +115,6 @@ bool GeoQikSceneRenderer::sync_lines(Scene& scene) {
                                                                  lineBuffer.get_line_colors(),
                                                                  m_lineType,
                                                                  style,
-                                                                 0.0F,
                                                                  renderer::BufferAccessPattern::Static);
         }
         lineBuffer.reset_lines_have_changed();
@@ -306,7 +305,6 @@ void GeoQikSceneRenderer::recreate_line_drawables(const Scene& scene) {
                                                             lineBuffer.get_line_colors(),
                                                             m_lineType,
                                                             style,
-                                                            0.0F,
                                                             renderer::BufferAccessPattern::Static);
     }
     for (const auto& [uuid, data]: scene.get_styled_lines()) {
@@ -364,7 +362,6 @@ void GeoQikSceneRenderer::rebuild_all_drawables(const Scene& scene) {
                                                             lineBuffer.get_line_colors(),
                                                             m_lineType,
                                                             style,
-                                                            0.0F,
                                                             renderer::BufferAccessPattern::Static);
     }
     for (const auto& [uuid, data]: scene.get_styled_points()) {
@@ -416,7 +413,6 @@ void GeoQikSceneRenderer::create_styled_line_drawable(const core::UUID& uuid,
                                                      inputs.colors,
                                                      to_plinth_line_type(data.lineType),
                                                      style,
-                                                     0.0F,
                                                      renderer::BufferAccessPattern::Static,
                                                      inputs.dashFlags);
     m_styledLineBundles.emplace(uuid, handle);
