@@ -29,14 +29,26 @@ namespace {
 constexpr float controlPanelMinWidth = 280.0F;
 constexpr float controlPanelMaxWidth = 480.0F;
 constexpr float resizeGripWidth = 8.0F;
+constexpr float tooltipWrapWidth = 360.0F;
+constexpr float autoFitColumnStretch = 0.8F;
+constexpr float projectionColumnStretch = 1.2F;
+constexpr float hdrDisplayMinimum = 0.1F;
+constexpr float hdrDisplayMaximum = 100.0F;
+constexpr float fxaaEdgeThresholdMaximum = 0.5F;
+constexpr float fxaaMinimumEdgeContrastMaximum = 0.25F;
+constexpr float errorPopupButtonWidth = 120.0F;
+constexpr float exposureMinimum = -10.0F;
+constexpr float exposureMaximum = 10.0F;
 
 std::string path_to_utf8(const std::filesystem::path& path) {
     const std::u8string value = path.u8string();
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     return {reinterpret_cast<const char*>(value.data()), value.size()};
 }
 
 std::filesystem::path path_from_utf8(const char* value) {
     const std::string_view bytes{value};
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     const auto* begin = reinterpret_cast<const char8_t*>(bytes.data());
     return std::filesystem::path{std::u8string{begin, begin + bytes.size()}};
 }
@@ -52,7 +64,7 @@ std::string lowercase_extension(const std::filesystem::path& path) {
 void item_tooltip(const std::string& text) {
     if (!text.empty() && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
         ImGui::BeginTooltip();
-        ImGui::PushTextWrapPos(360.0F);
+        ImGui::PushTextWrapPos(tooltipWrapWidth);
         ImGui::TextUnformatted(text.c_str());
         ImGui::PopTextWrapPos();
         ImGui::EndTooltip();
@@ -170,8 +182,8 @@ void render_camera_controls(CameraGuiState& state, bool replayActive) {
     constexpr std::array<const char*, 2> projectionItems{"Perspective", "Orthographic"};
     int projectionItem = static_cast<int>(state.projectionType);
     if (ImGui::BeginTable("##CameraOptions", 2, ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoSavedSettings)) {
-        ImGui::TableSetupColumn("##AutoFitColumn", ImGuiTableColumnFlags_WidthStretch, 0.8F);
-        ImGui::TableSetupColumn("##ProjectionColumn", ImGuiTableColumnFlags_WidthStretch, 1.2F);
+        ImGui::TableSetupColumn("##AutoFitColumn", ImGuiTableColumnFlags_WidthStretch, autoFitColumnStretch);
+        ImGui::TableSetupColumn("##ProjectionColumn", ImGuiTableColumnFlags_WidthStretch, projectionColumnStretch);
         ImGui::TableNextColumn();
         ImGui::Checkbox("Auto Fit", &state.autoZoom);
         item_tooltip("Keep the scene fitted as geometry changes.");
@@ -334,12 +346,17 @@ void render_replay_controls(ReplayGuiState& state) {
         return;
     }
 
-    const char* status = state.isPaused ? "Paused" : (state.isBackward ? "Reversing" : "Playing");
+    const char* status = "Playing";
+    if (state.isPaused) {
+        status = "Paused";
+    } else if (state.isBackward) {
+        status = "Reversing";
+    }
     ImGui::TextUnformatted(fmt::format("{}  -  {} / {}", status, state.currentEntry, state.totalEntries).c_str());
 
-    std::uint64_t position = static_cast<std::uint64_t>(state.currentEntry);
+    auto position = static_cast<std::uint64_t>(state.currentEntry);
     constexpr std::uint64_t firstEntry = 0;
-    const std::uint64_t lastEntry = static_cast<std::uint64_t>(state.totalEntries);
+    const auto lastEntry = static_cast<std::uint64_t>(state.totalEntries);
     ImGui::SetNextItemWidth(-1.0F);
     if (ImGui::SliderScalar("##ReplayPosition",
                             ImGuiDataType_U64,
@@ -428,11 +445,12 @@ void render_release_display_controls(renderer::Renderer& renderer) {
         renderer.set_fxaa_enabled(fxaaEnabled);
     }
     float exposureStops = renderer.get_exposure_stops();
-    if (ImGui::SliderFloat("Exposure", &exposureStops, -10.0F, 10.0F, "%.1f stops")) {
+    if (ImGui::SliderFloat("Exposure", &exposureStops, exposureMinimum, exposureMaximum, "%.1f stops")) {
         renderer.set_exposure_stops(exposureStops);
     }
 }
 
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
 void render_debug_display_controls(renderer::Renderer& renderer) {
     if (ImGui::CollapsingHeader("Visualization", ImGuiTreeNodeFlags_DefaultOpen)) {
         constexpr std::array<const char*, 10> modes{"Final",
@@ -466,7 +484,7 @@ void render_debug_display_controls(renderer::Renderer& renderer) {
         }
         if (mode == renderer::VisualizationMode::RawHdr || mode == renderer::VisualizationMode::Luminance) {
             float hdrMaximum = renderer.get_hdr_display_max();
-            if (ImGui::SliderFloat("HDR maximum", &hdrMaximum, 0.1F, 100.0F, "%.1f")) {
+            if (ImGui::SliderFloat("HDR maximum", &hdrMaximum, hdrDisplayMinimum, hdrDisplayMaximum, "%.1f")) {
                 renderer.set_hdr_display_max(hdrMaximum);
             }
         }
@@ -481,11 +499,11 @@ void render_debug_display_controls(renderer::Renderer& renderer) {
     render_release_display_controls(renderer);
     if (renderer.get_fxaa_enabled() && ImGui::CollapsingHeader("FXAA tuning")) {
         float edgeThreshold = renderer.get_fxaa_edge_threshold();
-        if (ImGui::SliderFloat("Edge threshold", &edgeThreshold, 0.0F, 0.5F, "%.3f")) {
+        if (ImGui::SliderFloat("Edge threshold", &edgeThreshold, 0.0F, fxaaEdgeThresholdMaximum, "%.3f")) {
             renderer.set_fxaa_edge_threshold(edgeThreshold);
         }
         float minimumEdgeContrast = renderer.get_fxaa_edge_threshold_min();
-        if (ImGui::SliderFloat("Minimum edge contrast", &minimumEdgeContrast, 0.0F, 0.25F, "%.4f")) {
+        if (ImGui::SliderFloat("Minimum edge contrast", &minimumEdgeContrast, 0.0F, fxaaMinimumEdgeContrastMaximum, "%.4f")) {
             renderer.set_fxaa_edge_threshold_min(minimumEdgeContrast);
         }
         float subpixelAmount = renderer.get_fxaa_subpixel_amount();
@@ -501,9 +519,10 @@ void render_file_error_popup(FileGuiState& state) {
         state.openErrorPopup = false;
     }
     if (ImGui::BeginPopupModal("File operation failed###GeoQikFileError", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg)
         ImGui::TextWrapped("%s", state.errorMessage.c_str());
         ImGui::Spacing();
-        if (ImGui::Button("OK", ImVec2{120.0F, 0.0F})) {
+        if (ImGui::Button("OK", ImVec2{errorPopupButtonWidth, 0.0F})) {
             ImGui::CloseCurrentPopup();
         }
         ImGui::EndPopup();
@@ -623,6 +642,7 @@ void GeoQikOverlay::build_controls(renderer::OverlayFrameContext& context) {
     add_display_controls(context.renderer);
 }
 
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
 void GeoQikOverlay::render_main_menu_bar() {
     if (!ImGui::BeginMainMenuBar()) {
         return;

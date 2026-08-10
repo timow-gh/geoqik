@@ -80,6 +80,7 @@ bool is_existing_regular_file(const std::filesystem::path& path) {
 
 std::string path_to_utf8(const std::filesystem::path& path) {
     const std::u8string value = path.u8string();
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     return {reinterpret_cast<const char*>(value.data()), value.size()};
 }
 
@@ -725,9 +726,12 @@ void Context::consume_file_gui_commands(FileGuiState& state) {
     case FileGuiState::Command::SetDefaultDirectory: break;
     }
     if (result != GEOQIK_SUCCESS) {
-        const char* operation = command == FileGuiState::Command::Save
-                                    ? "save"
-                                    : (command == FileGuiState::Command::Replay ? "replay" : "load");
+        const char* operation = "load";
+        if (command == FileGuiState::Command::Save) {
+            operation = "save";
+        } else if (command == FileGuiState::Command::Replay) {
+            operation = "replay";
+        }
         state.errorMessage = fmt::format("Could not {} log '{}'. Error code: {}",
                                          operation,
                                          path_to_utf8(state.requestedPath),

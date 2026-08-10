@@ -36,14 +36,15 @@ struct LineDrawableInputs {
 };
 
 [[nodiscard]] LineDrawableInputs build_line_drawable_inputs(const StyledLineData& data) {
+    constexpr std::size_t minVerticesForStripLoop = 6;
     LineDrawableInputs result;
-    if (data.lineType == GEOQIK_LINE_TYPE_LINES || data.vertices.size() < 6) {
+    if (data.lineType == GEOQIK_LINE_TYPE_LINES || data.vertices.size() < minVerticesForStripLoop) {
         result.vertices = data.vertices;
         result.colors = data.colors;
         result.dashFlags = data.perVertexDashFlags;
     } else {
         const std::size_t rawVertexCount = data.vertices.size() / 3;
-        const auto append_vertex = [&](std::size_t vertexIndex) {
+        const auto appendVertex = [&](std::size_t vertexIndex) {
             const auto vertexBegin = data.vertices.begin() + static_cast<std::ptrdiff_t>(vertexIndex * 3);
             result.vertices.insert(result.vertices.end(), vertexBegin, vertexBegin + 3);
             if (data.colors.size() >= (vertexIndex + 1) * ColorChannelCount) {
@@ -55,11 +56,11 @@ struct LineDrawableInputs {
                 result.dashFlags.push_back(data.perVertexDashFlags[vertexIndex]);
             }
         };
-        append_vertex(0);
+        appendVertex(0);
         for (std::size_t vertexIndex = 1; vertexIndex < rawVertexCount; vertexIndex += 2) {
-            append_vertex(vertexIndex);
+            appendVertex(vertexIndex);
         }
-        if (data.lineType == GEOQIK_LINE_TYPE_LINE_LOOP && result.vertices.size() >= 6) {
+        if (data.lineType == GEOQIK_LINE_TYPE_LINE_LOOP && result.vertices.size() >= minVerticesForStripLoop) {
             const auto last = result.vertices.size() - 3;
             if (result.vertices[0] == result.vertices[last] && result.vertices[1] == result.vertices[last + 1] &&
                 result.vertices[2] == result.vertices[last + 2]) {
@@ -399,11 +400,12 @@ void GeoQikSceneRenderer::create_styled_point_drawable(const core::UUID& uuid,
 void GeoQikSceneRenderer::create_styled_line_drawable(const core::UUID& uuid,
                                                       const StyledLineData& data,
                                                       float fallbackWidth) {
+    constexpr float defaultMiterLimit = 4.0F;
     renderer::StrokeStyle style;
     style.lineWidth = data.style.lineWidth > 0.0F ? data.style.lineWidth : fallbackWidth;
     style.cap = to_plinth_cap(data.style.cap);
     style.join = to_plinth_join(data.style.join);
-    style.miterLimit = data.style.miterLimit > 0.0F ? data.style.miterLimit : 4.0F;
+    style.miterLimit = data.style.miterLimit > 0.0F ? data.style.miterLimit : defaultMiterLimit;
     style.dashPattern = data.style.dashPattern;
     style.dashPhase = data.style.dashPhase;
     style.dashSpace = to_plinth_dash_space(data.style.dashSpace);
