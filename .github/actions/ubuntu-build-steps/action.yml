@@ -22,7 +22,18 @@ runs:
     
     - name: Install build tools
       run: |
-        sudo apt-get update
+        # The runner's Google Chrome repository can occasionally be mid-sync.
+        # Retry with fresh indexes rather than failing the entire build.
+        for attempt in 1 2 3; do
+          if sudo apt-get update; then
+            break
+          fi
+          if [ "$attempt" = 3 ]; then
+            exit 1
+          fi
+          sudo rm -rf /var/lib/apt/lists/*
+          sleep 10
+        done
         # gcc-14/g++-14 and clang-20/clang++-20: compilers used by the presets.
         # libclang-rt-20-dev: clang sanitizer runtime (ASan/TSan/UBSan)
         # ninja-build: fast build backend used by the CMake presets

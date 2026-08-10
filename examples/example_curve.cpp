@@ -23,6 +23,8 @@ constexpr double translationX = 15.0;
 constexpr double translationZ = 8.0;
 constexpr double rotationAngleDegrees = 260.0;
 constexpr double opaque = 1.0;
+constexpr float gridLineWidthPixels = 2.0F;
+constexpr float gridPointRadiusWorld = 0.1F;
 constexpr float curvePointSizePixels = 6.0F;
 constexpr float curvePointRed = 1.0F;
 constexpr float curvePointGreen = 0.65F;
@@ -101,7 +103,7 @@ int main() {
     geoqik_init();
 
     geoqik::examples::draw_origin(1.0);
-    geoqik::examples::add_grid(gridExtent, 1.0, 2.0F, 0.1F);
+    geoqik::examples::add_grid(gridExtent, 1.0, gridLineWidthPixels, gridPointRadiusWorld);
 
     geoqik_draw();
 
