@@ -195,3 +195,50 @@ TEST_F(TestGeoQikApi_Points, UpdatePointsEnqueues) {
 
     geoqik_cleanup();
 }
+
+TEST_F(TestGeoQikApi_Points, StyledRadiiValidateAndEnqueue) {
+    const double points[] = {0.0, 0.0, 0.0, 1.0, 1.0, 1.0};
+    const float radii[] = {2.0f, 3.0f};
+    geoqik_add_points_options_t opts{};
+    opts.radii = radii;
+    opts.radiusCount = 2;
+    opts.sizeSpace = GEOQIK_SPHERE_SIZE_SPACE_WORLD;
+
+    ASSERT_EQ(GEOQIK_SUCCESS, init_hidden_geoqik());
+    geoqik_add_points_options_t zeroOptions{};
+    const auto unstyledResult = geoqik_add_points_opts(points, std::size(points), &zeroOptions);
+    ASSERT_EQ(GEOQIK_SUCCESS, unstyledResult.err);
+    EXPECT_EQ(GEOQIK_SUCCESS, geoqik_remove_point(&unstyledResult.geometryId));
+
+    const auto result = geoqik_add_points_opts(points, std::size(points), &opts);
+    ASSERT_EQ(GEOQIK_SUCCESS, result.err);
+
+    const double updated[] = {2.0, 2.0, 2.0, 3.0, 3.0, 3.0};
+    const float uniformRadius = 4.0f;
+    geoqik_update_points_options_t updateOpts{};
+    updateOpts.radii = &uniformRadius;
+    updateOpts.radiusCount = 1;
+    updateOpts.sizeSpace = GEOQIK_SPHERE_SIZE_SPACE_SCREEN;
+    EXPECT_EQ(GEOQIK_SUCCESS, geoqik_update_points_opts(&result.geometryId, updated, std::size(updated), &updateOpts));
+    EXPECT_EQ(GEOQIK_SUCCESS, geoqik_remove_point(&result.geometryId));
+    geoqik_cleanup();
+}
+
+TEST_F(TestGeoQikApi_Points, StyledRadiiRejectInvalidOptions) {
+    const double points[] = {0.0, 0.0, 0.0, 1.0, 1.0, 1.0};
+    const float radii[] = {1.0f, 2.0f, 3.0f};
+    geoqik_add_points_options_t opts{};
+    opts.radii = radii;
+    opts.radiusCount = 3;
+    EXPECT_EQ(GEOQIK_ERROR_INVALID_PARAMETER, geoqik_add_points_opts(points, std::size(points), &opts).err);
+
+    opts.radiusCount = 0;
+    opts.sizeSpace = static_cast<geoqik_sphere_size_space_t>(99);
+    EXPECT_EQ(GEOQIK_ERROR_INVALID_PARAMETER, geoqik_add_points_opts(points, std::size(points), &opts).err);
+
+    const float negativeRadius = -1.0f;
+    opts.radii = &negativeRadius;
+    opts.radiusCount = 1;
+    opts.sizeSpace = GEOQIK_SPHERE_SIZE_SPACE_SCREEN;
+    EXPECT_EQ(GEOQIK_ERROR_INVALID_PARAMETER, geoqik_add_points_opts(points, std::size(points), &opts).err);
+}

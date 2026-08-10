@@ -8,6 +8,7 @@ set(geoqik_SOURCE_FILES
         source/Context.cpp
         source/GeometryHelpers.hpp
         source/GeometryBuffers/Buffer.hpp
+        source/GeometryBuffers/GeometryStyle.hpp
         source/GeometryBuffers/LineBuffer.hpp
         source/GeometryBuffers/PointBuffer.hpp
         source/GeoQik.cpp
@@ -15,11 +16,15 @@ set(geoqik_SOURCE_FILES
         source/GeoQikMessageSerialization.hpp
         source/GeoQikMessageJsonSerialization.hpp
         source/GeoQikMessages.hpp
+        source/GeoQikOverlay.cpp
+        source/GeoQikOverlay.hpp
         source/GeoQikReplayUndo.hpp
         source/GeoQikSettings.hpp
+        source/GeoQikUserSettings.hpp
         source/IdempotencyData.hpp
         source/Rendering/GeoQikSceneRenderer.cpp
         source/Rendering/GeoQikSceneRenderer.hpp
+        source/Rendering/StyleTranslation.hpp
         source/Scene.hpp
 )
 
@@ -28,7 +33,8 @@ set(geoqik_INTERNAL_SOURCE_FILES
         source/GeoQikLog.cpp
         source/GeoQikMessageSerialization.cpp
         source/GeoQikMessageJsonSerialization.cpp
-        source/GeoQikReplayUndo.cpp)
+        source/GeoQikReplayUndo.cpp
+        source/GeoQikUserSettings.cpp)
 
 add_library(geoqik_internal_objects OBJECT ${geoqik_INTERNAL_SOURCE_FILES})
 
@@ -94,6 +100,7 @@ target_link_libraries(${TARGET_NAME}
         $<BUILD_LOCAL_INTERFACE:geoqik::core>
         $<BUILD_LOCAL_INTERFACE:plinth::plinth>
         $<BUILD_LOCAL_INTERFACE:imgui::imgui>
+        $<BUILD_LOCAL_INTERFACE:nfd::nfd>
         $<BUILD_LOCAL_INTERFACE:fmt::fmt>
         $<BUILD_LOCAL_INTERFACE:linal::linal>
         Threads::Threads

@@ -22,6 +22,7 @@
 #include <chrono>
 #include <cstddef>
 #include <deque>
+#include <filesystem>
 #include <memory>
 #include <optional>
 #include <span>
@@ -31,13 +32,13 @@
 
 namespace renderer {
 class Renderer;
-struct OverlayFrameContext;
-}
+} // namespace renderer
 
 namespace geoqik {
 
 struct ReplayGuiState;
 struct CameraGuiState;
+struct FileGuiState;
 class GeoQikOverlay;
 
 using renderer::Action;
@@ -81,11 +82,10 @@ class Context {
     std::shared_ptr<GeoQikOverlay> m_overlay;
     renderer::CallbackSubscription m_keyCallback;
     std::optional<renderer::PresetView> m_activePresetView; // nullopt == "Free" navigation
-    std::unique_ptr<CameraGuiState> m_cameraGuiState;
-    std::unique_ptr<ReplayGuiState> m_replayGuiState;
     std::unique_ptr<GeoQikSceneRenderer> m_sceneRenderer;
     bool m_isDrawing{false};
     bool m_isReplayBackward{false};
+    bool m_isReplayMaxSpeed{false};
     double m_baseEntriesPerSecond{60.0};
     double m_currentSpeedMultiplier{1.0};
     std::size_t m_frameCount{0};
@@ -228,7 +228,11 @@ class Context {
     void apply_preset_view(renderer::PresetView view);
     void apply_navigation_style(renderer::CameraInteractor::NavigationStyle style);
     void request_fit_all_geometry();
-    void build_overlay(renderer::OverlayFrameContext& ctx);
+    void consume_file_gui_commands(FileGuiState& state);
+    geoqik_error_code_t save_log_path(const std::filesystem::path& path, geoqik_log_format_t format) const;
+    geoqik_error_code_t load_log_path(const std::filesystem::path& path, geoqik_log_format_t format);
+    geoqik_error_code_t
+    replay_log_path(const std::filesystem::path& path, geoqik_log_format_t format, const ReplayOptions& options);
     void populate_camera_gui_state(CameraGuiState& state) const;
     void consume_camera_gui_commands(CameraGuiState& state);
     [[nodiscard]] static bool has_replay_key(const std::vector<Key>& keys, Key key);

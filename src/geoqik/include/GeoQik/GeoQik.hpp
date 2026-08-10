@@ -10,6 +10,7 @@
 #include <stdbool.h>
 #endif
 
+// clang-format off
 /**
  * @file GeoQik.hpp
  * @brief C API for GeoQik ΓÇö real-time 3D geometry visualization for debugging.
@@ -34,6 +35,20 @@
  * Internal locking is used; avoid calling the API from a tight hot loop on
  * multiple threads simultaneously to prevent contention.
  *
+ * ## Styling: opts-only
+ *
+ * Point radii (with a world/screen `sizeSpace`) and line stroke/topology styling
+ * (width, cap, join, miter limit, dash pattern/phase/space, line type, per-vertex
+ * dash flags) are available only through the `*_opts` functions and their option
+ * structs. The global setters (`geoqik_set_point_size`, `geoqik_set_line_width`,
+ * the color setters) and the simple `geoqik_add_point*` / `geoqik_add_line*` and
+ * non-opts `update_*` functions retain their existing default meaning.
+ *
+ * Point sizes default to screen-space diameters in pixels, like the legacy
+ * point size.
+ *
+ * Line dash lengths default to world space.
+ *
  * ## Quick example
  *
  * @code
@@ -45,6 +60,7 @@
  * geoqik_wait_for_exit_and_cleanup();
  * @endcode
  */
+// clang-format on
 
 #ifdef __cplusplus
 extern "C" {
@@ -308,9 +324,12 @@ GEOQIK_EXPORT geoqik_result_t geoqik_add_point(double x, double y, double z);
 GEOQIK_EXPORT geoqik_result_t
 geoqik_add_point_with_color(double x, double y, double z, float r, float g, float b, float a);
 
-/** \brief Adds a single point with extended options (idempotency key, per-point color). */
+/** \brief Adds a single point with extended options (idempotency key, per-point color, sphere
+ * radius, and radius size space). See geoqik_add_points_options_t. */
 GEOQIK_EXPORT geoqik_result_t geoqik_add_point_opts(double x, double y, double z, geoqik_add_points_options_t* options);
-/** \brief Adds multiple points from a flat XYZ array (size = number of double values, must be a multiple of 3). */
+/** \brief Adds multiple points from a flat XYZ array (size = number of double values, must be a
+ * multiple of 3). Radii and size space are controlled via geoqik_add_points_options_t; a NULL
+ * options pointer or zero radiusCount uses a uniform radius from the global point size. */
 GEOQIK_EXPORT geoqik_result_t geoqik_add_points_opts(const double* points,
                                                      size_t size,
                                                      geoqik_add_points_options_t* options);
@@ -326,7 +345,8 @@ GEOQIK_EXPORT geoqik_error_code_t geoqik_update_point_with_color(const geoqik_uu
                                                                  float g,
                                                                  float b,
                                                                  float a);
-/** \brief Updates the point identified by geometryId with extended options. */
+/** \brief Updates the point identified by geometryId with extended options (per-point color,
+ * sphere radius, and radius size space). See geoqik_update_points_options_t. */
 GEOQIK_EXPORT geoqik_error_code_t geoqik_update_point_opts(const geoqik_uuid_t* geometryId,
                                                            double x,
                                                            double y,
@@ -371,11 +391,22 @@ GEOQIK_EXPORT geoqik_error_code_t geoqik_set_mesh_color(float r, float g, float 
 /** \brief Gets the current default mesh color. */
 GEOQIK_EXPORT geoqik_error_code_t geoqik_get_mesh_color(float* r, float* g, float* b, float* a);
 
-/** \brief Adds a single line with extended options (idempotency key, per-line color). */
+/** \brief Adds a single line with extended options (idempotency key, per-line color, and full
+ * stroke styling / topology when style is set). See geoqik_add_line_opts_t. */
 GEOQIK_EXPORT geoqik_result_t
 geoqik_add_line_opts(double x1, double y1, double z1, double x2, double y2, double z2, geoqik_add_line_opts_t* options);
-/** \brief Adds multiple lines from a flat array of endpoint pairs (size = number of double values, must be a multiple
- * of 6). */
+// clang-format off
+/** \brief Adds multiple lines from a flat endpoint-pair array.
+ *
+ * `size` is the number of double values and must be a multiple of 6.
+ *
+ * Stroke style, line type, and per-vertex dash flags are controlled through
+ * geoqik_add_line_opts_t.
+ *
+ * When styleSet is 0, the line is solid at the default width and uses
+ * GEOQIK_LINE_TYPE_LINES.
+ */
+// clang-format on
 GEOQIK_EXPORT geoqik_result_t geoqik_add_lines_opts(const double* lines, size_t size, geoqik_add_line_opts_t* options);
 
 /** \brief Updates the line identified by geometryId. */
@@ -393,7 +424,8 @@ GEOQIK_EXPORT geoqik_error_code_t geoqik_update_line_with_color(const geoqik_uui
                                                                 float g,
                                                                 float b,
                                                                 float a);
-/** \brief Updates the line identified by geometryId with extended options. */
+/** \brief Updates the line identified by geometryId with extended options (per-line color, and
+ * full stroke styling / topology when style is set). See geoqik_update_line_opts_t. */
 GEOQIK_EXPORT geoqik_error_code_t geoqik_update_line_opts(const geoqik_uuid_t* geometryId,
                                                           double x1,
                                                           double y1,

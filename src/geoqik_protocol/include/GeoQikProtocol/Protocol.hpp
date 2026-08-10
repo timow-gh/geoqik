@@ -20,11 +20,11 @@ inline constexpr std::size_t responseHeaderByteCount = 24;
 inline constexpr std::size_t pointPayloadByteCount = 3 * sizeof(double);
 inline constexpr std::size_t linePayloadByteCount = 6 * sizeof(double);
 
-inline constexpr std::size_t floatPayloadByteCount = sizeof(float);                          // 4
-inline constexpr std::size_t colorPayloadByteCount = 4 * sizeof(float);                      // 16
-inline constexpr std::size_t uuidPayloadByteCount = uuidByteCount;                           // 16
-inline constexpr std::size_t translatePayloadByteCount = uuidByteCount + 3 * sizeof(double); // 40
-inline constexpr std::size_t rotatePayloadByteCount = uuidByteCount + 7 * sizeof(double);    // 72
+inline constexpr std::size_t floatPayloadByteCount = sizeof(float);                                // 4
+inline constexpr std::size_t colorPayloadByteCount = 4 * sizeof(float);                            // 16
+inline constexpr std::size_t uuidPayloadByteCount = uuidByteCount;                                 // 16
+inline constexpr std::size_t translatePayloadByteCount = uuidByteCount + 3 * sizeof(double);       // 40
+inline constexpr std::size_t rotatePayloadByteCount = uuidByteCount + 7 * sizeof(double);          // 72
 inline constexpr std::size_t scaleGeometryPayloadByteCount = uuidByteCount + 6 * sizeof(double);   // 64
 inline constexpr std::size_t setGeometryColorPayloadByteCount = uuidByteCount + 4 * sizeof(float); // 32
 
@@ -308,6 +308,83 @@ inline void write_optional_float_array(std::vector<std::uint8_t>& buf, const flo
         const auto* bytes = reinterpret_cast<const std::uint8_t*>(data);
         buf.insert(buf.end(), bytes, bytes + count * sizeof(float));
     }
+}
+
+inline void write_optional_uint8_array(std::vector<std::uint8_t>& buf, const std::uint8_t* data, std::uint32_t count) {
+    write_pod(buf, count);
+    if (data != nullptr && count > 0) {
+        buf.insert(buf.end(), data, data + count);
+    }
+}
+
+[[nodiscard]] inline std::vector<std::uint8_t> read_optional_uint8_array(const std::vector<std::uint8_t>& payload,
+                                                                         std::size_t& offset) {
+    const auto count = read_pod<std::uint32_t>(payload, offset);
+    offset += sizeof(std::uint32_t);
+    if (offset > payload.size() || payload.size() - offset < count) {
+        throw std::out_of_range("geoqik protocol: uint8 array payload truncated");
+    }
+    std::vector<std::uint8_t> values(payload.begin() + static_cast<std::ptrdiff_t>(offset),
+                                     payload.begin() + static_cast<std::ptrdiff_t>(offset + count));
+    offset += count;
+    return values;
+}
+
+struct StrokeStyleWire {
+    float lineWidth{};
+    std::uint8_t cap{};
+    std::uint8_t join{};
+    float miterLimit{};
+    std::vector<float> dashPattern;
+    float dashPhase{};
+    std::uint8_t dashSpace{};
+};
+
+inline void write_stroke_style_wire(std::vector<std::uint8_t>& buf,
+                                    float lineWidth,
+                                    std::uint8_t cap,
+                                    std::uint8_t join,
+                                    float miterLimit,
+                                    const float* dashPattern,
+                                    std::uint32_t dashPatternCount,
+                                    float dashPhase,
+                                    std::uint8_t dashSpace) {
+    write_pod(buf, lineWidth);
+    write_pod(buf, cap);
+    write_pod(buf, join);
+    write_pod(buf, miterLimit);
+    write_optional_float_array(buf, dashPattern, dashPatternCount);
+    write_pod(buf, dashPhase);
+    write_pod(buf, dashSpace);
+}
+
+[[nodiscard]] inline StrokeStyleWire read_stroke_style_wire(const std::vector<std::uint8_t>& payload,
+                                                            std::size_t& offset) {
+    StrokeStyleWire style;
+    style.lineWidth = read_pod<float>(payload, offset);
+    offset += sizeof(float);
+    style.cap = read_pod<std::uint8_t>(payload, offset);
+    offset += sizeof(std::uint8_t);
+    style.join = read_pod<std::uint8_t>(payload, offset);
+    offset += sizeof(std::uint8_t);
+    style.miterLimit = read_pod<float>(payload, offset);
+    offset += sizeof(float);
+    const auto count = read_pod<std::uint32_t>(payload, offset);
+    offset += sizeof(std::uint32_t);
+    const std::size_t bytes = static_cast<std::size_t>(count) * sizeof(float);
+    if (offset > payload.size() || payload.size() - offset < bytes) {
+        throw std::out_of_range("geoqik protocol: stroke dash pattern truncated");
+    }
+    style.dashPattern.resize(count);
+    if (bytes > 0) {
+        std::memcpy(style.dashPattern.data(), payload.data() + offset, bytes);
+    }
+    offset += bytes;
+    style.dashPhase = read_pod<float>(payload, offset);
+    offset += sizeof(float);
+    style.dashSpace = read_pod<std::uint8_t>(payload, offset);
+    offset += sizeof(std::uint8_t);
+    return style;
 }
 
 inline void

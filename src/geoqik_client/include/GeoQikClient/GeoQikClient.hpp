@@ -40,26 +40,81 @@ typedef struct {
     geoqik_uuid_t geometryId;
 } geoqik_result_t;
 
+typedef enum {
+    GEOQIK_LINE_CAP_BUTT = 0,
+    GEOQIK_LINE_CAP_SQUARE = 1,
+    GEOQIK_LINE_CAP_ROUND = 2
+} geoqik_line_cap_t;
+
+typedef enum {
+    GEOQIK_LINE_JOIN_MITER = 0,
+    GEOQIK_LINE_JOIN_BEVEL = 1,
+    GEOQIK_LINE_JOIN_ROUND = 2
+} geoqik_line_join_t;
+
+typedef enum {
+    GEOQIK_DASH_SPACE_WORLD = 0,
+    GEOQIK_DASH_SPACE_SCREEN = 1
+} geoqik_dash_space_t;
+
+typedef enum {
+    GEOQIK_LINE_TYPE_LINES = 0,
+    GEOQIK_LINE_TYPE_LINE_STRIP = 1,
+    GEOQIK_LINE_TYPE_LINE_LOOP = 2
+} geoqik_line_type_t;
+
+typedef enum {
+    GEOQIK_SPHERE_SIZE_SPACE_SCREEN = 0,
+    GEOQIK_SPHERE_SIZE_SPACE_WORLD = 1
+} geoqik_sphere_size_space_t;
+
+typedef struct {
+    float lineWidth;
+    geoqik_line_cap_t cap;
+    geoqik_line_join_t join;
+    float miterLimit;
+    const float* dashPattern;
+    size_t dashPatternCount;
+    float dashPhase;
+    geoqik_dash_space_t dashSpace;
+} geoqik_stroke_style_t;
+
 typedef struct {
     geoqik_uuid_t idempotencyKey;
     const float* color;
     size_t colorCount;
+    const float* radii;
+    size_t radiusCount;
+    geoqik_sphere_size_space_t sizeSpace;
 } geoqik_add_points_options_t;
 
 typedef struct {
     const float* color;
     size_t colorCount;
+    const float* radii;
+    size_t radiusCount;
+    geoqik_sphere_size_space_t sizeSpace;
 } geoqik_update_points_options_t;
 
 typedef struct {
     geoqik_uuid_t idempotencyKey;
     const float* color;
     size_t colorCount;
+    int styleSet;
+    geoqik_stroke_style_t style;
+    geoqik_line_type_t lineType;
+    const uint8_t* perVertexDashFlags;
+    size_t perVertexDashFlagCount;
 } geoqik_add_line_opts_t;
 
 typedef struct {
     const float* color;
     size_t colorCount;
+    int styleSet;
+    geoqik_stroke_style_t style;
+    geoqik_line_type_t lineType;
+    const uint8_t* perVertexDashFlags;
+    size_t perVertexDashFlagCount;
 } geoqik_update_line_opts_t;
 
 typedef enum {
@@ -519,6 +574,83 @@ inline void write_optional_float_array(std::vector<std::uint8_t>& buf, const flo
         const auto* bytes = reinterpret_cast<const std::uint8_t*>(data);
         buf.insert(buf.end(), bytes, bytes + count * sizeof(float));
     }
+}
+
+inline void write_optional_uint8_array(std::vector<std::uint8_t>& buf, const std::uint8_t* data, std::uint32_t count) {
+    write_pod(buf, count);
+    if (data != nullptr && count > 0) {
+        buf.insert(buf.end(), data, data + count);
+    }
+}
+
+[[nodiscard]] inline std::vector<std::uint8_t> read_optional_uint8_array(const std::vector<std::uint8_t>& payload,
+                                                                         std::size_t& offset) {
+    const auto count = read_pod<std::uint32_t>(payload, offset);
+    offset += sizeof(std::uint32_t);
+    if (offset > payload.size() || payload.size() - offset < count) {
+        throw std::out_of_range("geoqik protocol: uint8 array payload truncated");
+    }
+    std::vector<std::uint8_t> values(payload.begin() + static_cast<std::ptrdiff_t>(offset),
+                                     payload.begin() + static_cast<std::ptrdiff_t>(offset + count));
+    offset += count;
+    return values;
+}
+
+struct StrokeStyleWire {
+    float lineWidth{};
+    std::uint8_t cap{};
+    std::uint8_t join{};
+    float miterLimit{};
+    std::vector<float> dashPattern;
+    float dashPhase{};
+    std::uint8_t dashSpace{};
+};
+
+inline void write_stroke_style_wire(std::vector<std::uint8_t>& buf,
+                                    float lineWidth,
+                                    std::uint8_t cap,
+                                    std::uint8_t join,
+                                    float miterLimit,
+                                    const float* dashPattern,
+                                    std::uint32_t dashPatternCount,
+                                    float dashPhase,
+                                    std::uint8_t dashSpace) {
+    write_pod(buf, lineWidth);
+    write_pod(buf, cap);
+    write_pod(buf, join);
+    write_pod(buf, miterLimit);
+    write_optional_float_array(buf, dashPattern, dashPatternCount);
+    write_pod(buf, dashPhase);
+    write_pod(buf, dashSpace);
+}
+
+[[nodiscard]] inline StrokeStyleWire read_stroke_style_wire(const std::vector<std::uint8_t>& payload,
+                                                            std::size_t& offset) {
+    StrokeStyleWire style;
+    style.lineWidth = read_pod<float>(payload, offset);
+    offset += sizeof(float);
+    style.cap = read_pod<std::uint8_t>(payload, offset);
+    offset += sizeof(std::uint8_t);
+    style.join = read_pod<std::uint8_t>(payload, offset);
+    offset += sizeof(std::uint8_t);
+    style.miterLimit = read_pod<float>(payload, offset);
+    offset += sizeof(float);
+    const auto count = read_pod<std::uint32_t>(payload, offset);
+    offset += sizeof(std::uint32_t);
+    const std::size_t bytes = static_cast<std::size_t>(count) * sizeof(float);
+    if (offset > payload.size() || payload.size() - offset < bytes) {
+        throw std::out_of_range("geoqik protocol: stroke dash pattern truncated");
+    }
+    style.dashPattern.resize(count);
+    if (bytes > 0) {
+        std::memcpy(style.dashPattern.data(), payload.data() + offset, bytes);
+    }
+    offset += bytes;
+    style.dashPhase = read_pod<float>(payload, offset);
+    offset += sizeof(float);
+    style.dashSpace = read_pod<std::uint8_t>(payload, offset);
+    offset += sizeof(std::uint8_t);
+    return style;
 }
 
 inline void
@@ -1783,6 +1915,38 @@ inline void append_colors(std::vector<std::uint8_t>& buf, const float* color, st
     proto::write_optional_colors(buf, color, static_cast<std::uint32_t>(colorCount));
 }
 
+template <typename Options>
+inline void append_point_style(std::vector<std::uint8_t>& buf, const Options* options) {
+    namespace proto = geoqik::protocol;
+    proto::write_optional_float_array(buf,
+                                      options != nullptr ? options->radii : nullptr,
+                                      options != nullptr ? static_cast<std::uint32_t>(options->radiusCount) : 0U);
+    proto::write_pod(
+        buf,
+        static_cast<std::uint8_t>(options != nullptr ? options->sizeSpace : GEOQIK_SPHERE_SIZE_SPACE_SCREEN));
+}
+
+template <typename Options>
+inline void append_line_style(std::vector<std::uint8_t>& buf, const Options* options) {
+    namespace proto = geoqik::protocol;
+    const bool styleSet = options != nullptr && options->styleSet != 0;
+    proto::write_pod(buf, static_cast<std::uint8_t>(styleSet ? 1 : 0));
+    const geoqik_stroke_style_t style = styleSet ? options->style : geoqik_stroke_style_t{};
+    proto::write_stroke_style_wire(buf,
+                                   style.lineWidth,
+                                   static_cast<std::uint8_t>(style.cap),
+                                   static_cast<std::uint8_t>(style.join),
+                                   style.miterLimit,
+                                   style.dashPattern,
+                                   static_cast<std::uint32_t>(style.dashPatternCount),
+                                   style.dashPhase,
+                                   static_cast<std::uint8_t>(style.dashSpace));
+    proto::write_pod(buf, static_cast<std::uint8_t>(styleSet ? options->lineType : GEOQIK_LINE_TYPE_LINES));
+    proto::write_optional_uint8_array(buf,
+                                      styleSet ? options->perVertexDashFlags : nullptr,
+                                      styleSet ? static_cast<std::uint32_t>(options->perVertexDashFlagCount) : 0U);
+}
+
 [[nodiscard]] inline std::uint64_t size_to_wire_count(std::size_t value) {
     if constexpr (std::is_same_v<std::size_t, std::uint64_t>) {
         return value;
@@ -2465,6 +2629,7 @@ geoqik_add_point_opts(double x, double y, double z, geoqik_add_points_options_t*
         const float* col = (options != nullptr) ? options->color : nullptr;
         const auto colCount = (options != nullptr) ? options->colorCount : 0;
         geoqik_client_impl::append_colors(payload, col, colCount);
+        geoqik_client_impl::append_point_style(payload, options);
         const auto resp = geoqik_client_impl::call(proto::CommandId::AddPointOpts, payload);
         geoqik_client_impl::set_server_response_error(resp, "geoqik_add_point_opts");
         geoqik_result_t result{};
@@ -2493,6 +2658,7 @@ geoqik_add_points_opts(const double* points, std::size_t size, geoqik_add_points
         const float* col = (options != nullptr) ? options->color : nullptr;
         const auto colCount = (options != nullptr) ? options->colorCount : 0;
         geoqik_client_impl::append_colors(payload, col, colCount);
+        geoqik_client_impl::append_point_style(payload, options);
         const auto resp = geoqik_client_impl::call(proto::CommandId::AddPointsOpts, payload);
         geoqik_client_impl::set_server_response_error(resp, "geoqik_add_points_opts");
         geoqik_result_t result{};
@@ -2568,6 +2734,7 @@ geoqik_update_point(const geoqik_uuid_t* geometryId, double x, double y, double 
         const float* col = (options != nullptr) ? options->color : nullptr;
         const auto colCount = (options != nullptr) ? options->colorCount : 0;
         geoqik_client_impl::append_colors(payload, col, colCount);
+        geoqik_client_impl::append_point_style(payload, options);
         const auto resp = geoqik_client_impl::call(proto::CommandId::UpdatePointOpts, payload);
         geoqik_client_impl::set_server_response_error(resp, "geoqik_update_point_opts");
         return static_cast<geoqik_error_code_t>(resp.errorCode);
@@ -2592,6 +2759,7 @@ geoqik_update_point(const geoqik_uuid_t* geometryId, double x, double y, double 
         const float* col = (options != nullptr) ? options->color : nullptr;
         const auto colCount = (options != nullptr) ? options->colorCount : 0;
         geoqik_client_impl::append_colors(payload, col, colCount);
+        geoqik_client_impl::append_point_style(payload, options);
         const auto resp = geoqik_client_impl::call(proto::CommandId::UpdatePointsOpts, payload);
         geoqik_client_impl::set_server_response_error(resp, "geoqik_update_points_opts");
         return static_cast<geoqik_error_code_t>(resp.errorCode);
@@ -2668,6 +2836,7 @@ geoqik_update_point(const geoqik_uuid_t* geometryId, double x, double y, double 
         const float* col = (options != nullptr) ? options->color : nullptr;
         const auto colCount = (options != nullptr) ? options->colorCount : 0;
         geoqik_client_impl::append_colors(payload, col, colCount);
+        geoqik_client_impl::append_line_style(payload, options);
         const auto resp = geoqik_client_impl::call(proto::CommandId::AddLineOpts, payload);
         geoqik_client_impl::set_server_response_error(resp, "geoqik_add_line_opts");
         geoqik_result_t result{};
@@ -2695,6 +2864,7 @@ geoqik_add_lines_opts(const double* lines, std::size_t size, geoqik_add_line_opt
         const float* col = (options != nullptr) ? options->color : nullptr;
         const auto colCount = (options != nullptr) ? options->colorCount : 0;
         geoqik_client_impl::append_colors(payload, col, colCount);
+        geoqik_client_impl::append_line_style(payload, options);
         const auto resp = geoqik_client_impl::call(proto::CommandId::AddLinesOpts, payload);
         geoqik_client_impl::set_server_response_error(resp, "geoqik_add_lines_opts");
         geoqik_result_t result{};
@@ -2785,6 +2955,7 @@ geoqik_update_line(const geoqik_uuid_t* geometryId, double x1, double y1, double
         const float* col = (options != nullptr) ? options->color : nullptr;
         const auto colCount = (options != nullptr) ? options->colorCount : 0;
         geoqik_client_impl::append_colors(payload, col, colCount);
+        geoqik_client_impl::append_line_style(payload, options);
         const auto resp = geoqik_client_impl::call(proto::CommandId::UpdateLineOpts, payload);
         geoqik_client_impl::set_server_response_error(resp, "geoqik_update_line_opts");
         return static_cast<geoqik_error_code_t>(resp.errorCode);
@@ -2809,6 +2980,7 @@ geoqik_update_line(const geoqik_uuid_t* geometryId, double x1, double y1, double
         const float* col = (options != nullptr) ? options->color : nullptr;
         const auto colCount = (options != nullptr) ? options->colorCount : 0;
         geoqik_client_impl::append_colors(payload, col, colCount);
+        geoqik_client_impl::append_line_style(payload, options);
         const auto resp = geoqik_client_impl::call(proto::CommandId::UpdateLinesOpts, payload);
         geoqik_client_impl::set_server_response_error(resp, "geoqik_update_lines_opts");
         return static_cast<geoqik_error_code_t>(resp.errorCode);

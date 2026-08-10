@@ -101,6 +101,27 @@ TEST(GeoQikLogTest, MessageReaderWriterRoundTripPreservesRepresentativeEntries) 
     EXPECT_EQ(entries, loadedEntries);
 }
 
+TEST(GeoQikLogTest, StyledPointAndLineMessagesRoundTrip) {
+    using namespace geoqik;
+    const GeoQikMessageCommonData commonData{make_uuid(90), make_uuid(100), {0.2f, 0.3f, 0.4f, 1.0f}};
+    const StrokeStyleData style{5.0f, 2, 1, 6.0f, {4.0f, 2.0f}, 0.25f, 1};
+    const std::vector<GeoQikLogEntry> entries{
+        AddPointsWithOpts{{1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f}, commonData, {2.0f, 3.0f}, 1, true},
+        UpdatePointsWithOpts{make_uuid(91), {7.0f, 8.0f, 9.0f}, {}, {4.0f}, 0, true},
+        AddLinesWithOpts{{0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f}, commonData, true, style, 1, {1, 1}},
+        UpdateLinesWithOpts{make_uuid(92), {1.0f, 0.0f, 0.0f, 2.0f, 0.0f, 0.0f}, {}, true, style, 2, {0, 1}}};
+    std::stringstream stream(std::ios::in | std::ios::out | std::ios::binary);
+    MessageWriter writer(stream);
+    for (const auto& entry: entries) {
+        writer.write(entry);
+    }
+    stream.seekg(0);
+    MessageReader reader(stream);
+    for (const auto& expected: entries) {
+        EXPECT_EQ(expected, reader.read());
+    }
+}
+
 TEST(GeoQikLogTest, BinaryLoadRejectsMissingFile) {
     EXPECT_THROW(
         {

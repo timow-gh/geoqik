@@ -22,7 +22,18 @@ runs:
     
     - name: Install build tools
       run: |
-        sudo apt-get update
+        # The runner's Google Chrome repository can occasionally be mid-sync.
+        # Retry with fresh indexes rather than failing the entire build.
+        for attempt in 1 2 3; do
+          if sudo apt-get update; then
+            break
+          fi
+          if [ "$attempt" = 3 ]; then
+            exit 1
+          fi
+          sudo rm -rf /var/lib/apt/lists/*
+          sleep 10
+        done
         # gcc-14/g++-14 and clang-20/clang++-20: compilers used by the presets.
         # libclang-rt-20-dev: clang sanitizer runtime (ASan/TSan/UBSan)
         # ninja-build: fast build backend used by the CMake presets
@@ -34,7 +45,8 @@ runs:
         #   display that call fails and every test that opens a window aborts immediately.
         #   xvfb-run (see Test step) starts a temporary in-process display so glfwInit()
         #   and glfwCreateWindow() succeed against the system Mesa/llvmpipe renderer.
-        sudo apt-get install -y gcc-14 g++-14 clang-20 libclang-rt-20-dev ninja-build uuid-dev libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libgl-dev xvfb ${{ inputs.install_tools }}
+        # autoconf autoconf-archive automake libtool libltdl-dev: required by vcpkg's libxcrypt port
+        sudo apt-get install -y gcc-14 g++-14 clang-20 libclang-rt-20-dev ninja-build uuid-dev libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libgl-dev xvfb autoconf autoconf-archive automake libtool libltdl-dev ${{ inputs.install_tools }}
       shell: bash
     
     - name: Extract preset names

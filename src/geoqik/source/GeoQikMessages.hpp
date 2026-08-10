@@ -2,6 +2,7 @@
 #define GEOQIKMESSAGES_HPP
 
 #include "Core/UUID.hpp"
+#include "GeometryBuffers/GeometryStyle.hpp"
 #include "GeometryBuffers/MeshBuffer.hpp"
 
 #include <plinth/Color.hpp>
@@ -27,6 +28,9 @@ struct GeoQikMessageCommonData {
 struct AddPointWithOpts {
     float x, y, z;
     GeoQikMessageCommonData commonData;
+    std::vector<float> radii;
+    std::uint8_t sizeSpace{0};
+    bool styled{false};
 
     [[nodiscard]] bool operator==(const AddPointWithOpts&) const = default;
 };
@@ -34,6 +38,9 @@ struct AddPointWithOpts {
 struct AddPointsWithOpts {
     std::vector<float> points;
     GeoQikMessageCommonData commonData;
+    std::vector<float> radii;
+    std::uint8_t sizeSpace{0};
+    bool styled{false};
 
     [[nodiscard]] bool operator==(const AddPointsWithOpts&) const = default;
 };
@@ -42,6 +49,9 @@ struct UpdatePointWithOpts {
     core::UUID handle;
     float x, y, z;
     std::vector<float> rgba;
+    std::vector<float> radii;
+    std::uint8_t sizeSpace{0};
+    bool styled{false};
 
     [[nodiscard]] bool operator==(const UpdatePointWithOpts&) const = default;
 };
@@ -50,6 +60,9 @@ struct UpdatePointsWithOpts {
     core::UUID handle;
     std::vector<float> points;
     std::vector<float> rgba;
+    std::vector<float> radii;
+    std::uint8_t sizeSpace{0};
+    bool styled{false};
 
     [[nodiscard]] bool operator==(const UpdatePointsWithOpts&) const = default;
 };
@@ -76,6 +89,10 @@ struct AddLineWithOpts {
     float x1, y1, z1;
     float x2, y2, z2;
     GeoQikMessageCommonData commonData;
+    bool styleSet{false};
+    StrokeStyleData style;
+    std::uint8_t lineType{0};
+    std::vector<std::uint8_t> perVertexDashFlags;
 
     [[nodiscard]] bool operator==(const AddLineWithOpts&) const = default;
 };
@@ -83,6 +100,10 @@ struct AddLineWithOpts {
 struct AddLinesWithOpts {
     std::vector<float> lines;
     GeoQikMessageCommonData commonData;
+    bool styleSet{false};
+    StrokeStyleData style;
+    std::uint8_t lineType{0};
+    std::vector<std::uint8_t> perVertexDashFlags;
 
     [[nodiscard]] bool operator==(const AddLinesWithOpts&) const = default;
 };
@@ -92,6 +113,10 @@ struct UpdateLineWithOpts {
     float x1, y1, z1;
     float x2, y2, z2;
     std::vector<float> rgba;
+    bool styleSet{false};
+    StrokeStyleData style;
+    std::uint8_t lineType{0};
+    std::vector<std::uint8_t> perVertexDashFlags;
 
     [[nodiscard]] bool operator==(const UpdateLineWithOpts&) const = default;
 };
@@ -100,6 +125,10 @@ struct UpdateLinesWithOpts {
     core::UUID handle;
     std::vector<float> lines;
     std::vector<float> rgba;
+    bool styleSet{false};
+    StrokeStyleData style;
+    std::uint8_t lineType{0};
+    std::vector<std::uint8_t> perVertexDashFlags;
 
     [[nodiscard]] bool operator==(const UpdateLinesWithOpts&) const = default;
 };

@@ -35,7 +35,7 @@ int main() {
     opts.segmentLineWidth = 1.0f;
     opts.vertexColor = NULL;
     opts.showVertices = 1;
-    opts.vertexPointSize = 3.0f;
+    opts.vertexPointSize = 6.0f;
     geoqik_result_t result =
         geoqik_add_mesh_opts(vertices.data(), vertices.size() / 3, indices.data(), indices.size() / 3, &opts);
 

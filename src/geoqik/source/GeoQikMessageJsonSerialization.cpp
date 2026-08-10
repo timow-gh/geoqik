@@ -84,6 +84,28 @@ Color color_from_json(const nlohmann::json& json) {
     return color;
 }
 
+nlohmann::json stroke_style_to_json(const StrokeStyleData& style) {
+    return nlohmann::json{{"lineWidth", style.lineWidth},
+                          {"cap", style.cap},
+                          {"join", style.join},
+                          {"miterLimit", style.miterLimit},
+                          {"dashPattern", style.dashPattern},
+                          {"dashPhase", style.dashPhase},
+                          {"dashSpace", style.dashSpace}};
+}
+
+StrokeStyleData stroke_style_from_json(const nlohmann::json& json) {
+    StrokeStyleData style;
+    style.lineWidth = json.value("lineWidth", 0.0F);
+    style.cap = json.value("cap", std::uint8_t{0});
+    style.join = json.value("join", std::uint8_t{0});
+    style.miterLimit = json.value("miterLimit", 0.0F);
+    style.dashPattern = json.value("dashPattern", std::vector<float>{});
+    style.dashPhase = json.value("dashPhase", 0.0F);
+    style.dashSpace = json.value("dashSpace", std::uint8_t{0});
+    return style;
+}
+
 } // namespace
 
 nlohmann::json to_json(const GeoQikLogEntry& message) {
@@ -97,10 +119,16 @@ nlohmann::json to_json(const GeoQikLogEntry& message) {
                 json["y"] = value.y;
                 json["z"] = value.z;
                 json["commonData"] = common_data_to_json(value.commonData);
+                json["radii"] = value.radii;
+                json["sizeSpace"] = value.sizeSpace;
+                json["styled"] = value.styled;
             } else if constexpr (std::is_same_v<T, AddPointsWithOpts>) {
                 json["type"] = "AddPointsWithOpts";
                 json["points"] = value.points;
                 json["commonData"] = common_data_to_json(value.commonData);
+                json["radii"] = value.radii;
+                json["sizeSpace"] = value.sizeSpace;
+                json["styled"] = value.styled;
             } else if constexpr (std::is_same_v<T, UpdatePointWithOpts>) {
                 json["type"] = "UpdatePointWithOpts";
                 write_uuid(json, "handle", value.handle);
@@ -108,11 +136,17 @@ nlohmann::json to_json(const GeoQikLogEntry& message) {
                 json["y"] = value.y;
                 json["z"] = value.z;
                 json["rgba"] = value.rgba;
+                json["radii"] = value.radii;
+                json["sizeSpace"] = value.sizeSpace;
+                json["styled"] = value.styled;
             } else if constexpr (std::is_same_v<T, UpdatePointsWithOpts>) {
                 json["type"] = "UpdatePointsWithOpts";
                 write_uuid(json, "handle", value.handle);
                 json["points"] = value.points;
                 json["rgba"] = value.rgba;
+                json["radii"] = value.radii;
+                json["sizeSpace"] = value.sizeSpace;
+                json["styled"] = value.styled;
             } else if constexpr (std::is_same_v<T, RemovePoint>) {
                 json["type"] = "RemovePoint";
                 write_uuid(json, "handle", value.handle);
@@ -131,10 +165,18 @@ nlohmann::json to_json(const GeoQikLogEntry& message) {
                 json["y2"] = value.y2;
                 json["z2"] = value.z2;
                 json["commonData"] = common_data_to_json(value.commonData);
+                json["styleSet"] = value.styleSet;
+                json["style"] = stroke_style_to_json(value.style);
+                json["lineType"] = value.lineType;
+                json["perVertexDashFlags"] = value.perVertexDashFlags;
             } else if constexpr (std::is_same_v<T, AddLinesWithOpts>) {
                 json["type"] = "AddLinesWithOpts";
                 json["lines"] = value.lines;
                 json["commonData"] = common_data_to_json(value.commonData);
+                json["styleSet"] = value.styleSet;
+                json["style"] = stroke_style_to_json(value.style);
+                json["lineType"] = value.lineType;
+                json["perVertexDashFlags"] = value.perVertexDashFlags;
             } else if constexpr (std::is_same_v<T, UpdateLineWithOpts>) {
                 json["type"] = "UpdateLineWithOpts";
                 write_uuid(json, "handle", value.handle);
@@ -145,11 +187,19 @@ nlohmann::json to_json(const GeoQikLogEntry& message) {
                 json["y2"] = value.y2;
                 json["z2"] = value.z2;
                 json["rgba"] = value.rgba;
+                json["styleSet"] = value.styleSet;
+                json["style"] = stroke_style_to_json(value.style);
+                json["lineType"] = value.lineType;
+                json["perVertexDashFlags"] = value.perVertexDashFlags;
             } else if constexpr (std::is_same_v<T, UpdateLinesWithOpts>) {
                 json["type"] = "UpdateLinesWithOpts";
                 write_uuid(json, "handle", value.handle);
                 json["lines"] = value.lines;
                 json["rgba"] = value.rgba;
+                json["styleSet"] = value.styleSet;
+                json["style"] = stroke_style_to_json(value.style);
+                json["lineType"] = value.lineType;
+                json["perVertexDashFlags"] = value.perVertexDashFlags;
             } else if constexpr (std::is_same_v<T, RemoveLine>) {
                 json["type"] = "RemoveLine";
                 write_uuid(json, "handle", value.handle);
@@ -241,12 +291,18 @@ GeoQikLogEntry from_json(const nlohmann::json& value) {
         msg.y = value.at("y").get<float>();
         msg.z = value.at("z").get<float>();
         msg.commonData = common_data_from_json(value.at("commonData"));
+        msg.radii = value.value("radii", std::vector<float>{});
+        msg.sizeSpace = value.value("sizeSpace", std::uint8_t{0});
+        msg.styled = value.value("styled", false);
         return msg;
     }
     if (typeStr == "AddPointsWithOpts") {
         AddPointsWithOpts msg;
         msg.points = value.at("points").get<std::vector<float>>();
         msg.commonData = common_data_from_json(value.at("commonData"));
+        msg.radii = value.value("radii", std::vector<float>{});
+        msg.sizeSpace = value.value("sizeSpace", std::uint8_t{0});
+        msg.styled = value.value("styled", false);
         return msg;
     }
     if (typeStr == "UpdatePointWithOpts") {
@@ -256,6 +312,9 @@ GeoQikLogEntry from_json(const nlohmann::json& value) {
         msg.y = value.at("y").get<float>();
         msg.z = value.at("z").get<float>();
         msg.rgba = value.at("rgba").get<std::vector<float>>();
+        msg.radii = value.value("radii", std::vector<float>{});
+        msg.sizeSpace = value.value("sizeSpace", std::uint8_t{0});
+        msg.styled = value.value("styled", false);
         return msg;
     }
     if (typeStr == "UpdatePointsWithOpts") {
@@ -263,6 +322,9 @@ GeoQikLogEntry from_json(const nlohmann::json& value) {
         msg.handle = read_uuid(value, "handle");
         msg.points = value.at("points").get<std::vector<float>>();
         msg.rgba = value.at("rgba").get<std::vector<float>>();
+        msg.radii = value.value("radii", std::vector<float>{});
+        msg.sizeSpace = value.value("sizeSpace", std::uint8_t{0});
+        msg.styled = value.value("styled", false);
         return msg;
     }
     if (typeStr == "RemovePoint") {
@@ -289,12 +351,24 @@ GeoQikLogEntry from_json(const nlohmann::json& value) {
         msg.y2 = value.at("y2").get<float>();
         msg.z2 = value.at("z2").get<float>();
         msg.commonData = common_data_from_json(value.at("commonData"));
+        msg.styleSet = value.value("styleSet", false);
+        if (auto it = value.find("style"); it != value.end()) {
+            msg.style = stroke_style_from_json(*it);
+        }
+        msg.lineType = value.value("lineType", std::uint8_t{0});
+        msg.perVertexDashFlags = value.value("perVertexDashFlags", std::vector<std::uint8_t>{});
         return msg;
     }
     if (typeStr == "AddLinesWithOpts") {
         AddLinesWithOpts msg;
         msg.lines = value.at("lines").get<std::vector<float>>();
         msg.commonData = common_data_from_json(value.at("commonData"));
+        msg.styleSet = value.value("styleSet", false);
+        if (auto it = value.find("style"); it != value.end()) {
+            msg.style = stroke_style_from_json(*it);
+        }
+        msg.lineType = value.value("lineType", std::uint8_t{0});
+        msg.perVertexDashFlags = value.value("perVertexDashFlags", std::vector<std::uint8_t>{});
         return msg;
     }
     if (typeStr == "UpdateLineWithOpts") {
@@ -307,6 +381,12 @@ GeoQikLogEntry from_json(const nlohmann::json& value) {
         msg.y2 = value.at("y2").get<float>();
         msg.z2 = value.at("z2").get<float>();
         msg.rgba = value.at("rgba").get<std::vector<float>>();
+        msg.styleSet = value.value("styleSet", false);
+        if (auto it = value.find("style"); it != value.end()) {
+            msg.style = stroke_style_from_json(*it);
+        }
+        msg.lineType = value.value("lineType", std::uint8_t{0});
+        msg.perVertexDashFlags = value.value("perVertexDashFlags", std::vector<std::uint8_t>{});
         return msg;
     }
     if (typeStr == "UpdateLinesWithOpts") {
@@ -314,6 +394,12 @@ GeoQikLogEntry from_json(const nlohmann::json& value) {
         msg.handle = read_uuid(value, "handle");
         msg.lines = value.at("lines").get<std::vector<float>>();
         msg.rgba = value.at("rgba").get<std::vector<float>>();
+        msg.styleSet = value.value("styleSet", false);
+        if (auto it = value.find("style"); it != value.end()) {
+            msg.style = stroke_style_from_json(*it);
+        }
+        msg.lineType = value.value("lineType", std::uint8_t{0});
+        msg.perVertexDashFlags = value.value("perVertexDashFlags", std::vector<std::uint8_t>{});
         return msg;
     }
     if (typeStr == "RemoveLine") {

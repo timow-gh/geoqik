@@ -262,6 +262,41 @@ struct ColorSlot {
     return s;
 }
 
+struct LineStyleTail {
+    bool styleSet{false};
+    proto::StrokeStyleWire style;
+    std::uint8_t lineType{GEOQIK_LINE_TYPE_LINES};
+    std::vector<std::uint8_t> dashFlags;
+};
+
+[[nodiscard]] LineStyleTail read_line_style_tail(const std::vector<std::uint8_t>& payload, std::size_t& offset) {
+    LineStyleTail tail;
+    if (offset == payload.size()) {
+        return tail;
+    }
+    tail.styleSet = read_field<std::uint8_t>(payload, offset) != 0;
+    tail.style = proto::read_stroke_style_wire(payload, offset);
+    tail.lineType = read_field<std::uint8_t>(payload, offset);
+    tail.dashFlags = proto::read_optional_uint8_array(payload, offset);
+    return tail;
+}
+
+template <typename Options>
+void apply_line_style_tail(Options& opts, const LineStyleTail& tail) {
+    opts.styleSet = tail.styleSet ? 1 : 0;
+    opts.style.lineWidth = tail.style.lineWidth;
+    opts.style.cap = static_cast<geoqik_line_cap_t>(tail.style.cap);
+    opts.style.join = static_cast<geoqik_line_join_t>(tail.style.join);
+    opts.style.miterLimit = tail.style.miterLimit;
+    opts.style.dashPattern = tail.style.dashPattern.empty() ? nullptr : tail.style.dashPattern.data();
+    opts.style.dashPatternCount = tail.style.dashPattern.size();
+    opts.style.dashPhase = tail.style.dashPhase;
+    opts.style.dashSpace = static_cast<geoqik_dash_space_t>(tail.style.dashSpace);
+    opts.lineType = static_cast<geoqik_line_type_t>(tail.lineType);
+    opts.perVertexDashFlags = tail.dashFlags.empty() ? nullptr : tail.dashFlags.data();
+    opts.perVertexDashFlagCount = tail.dashFlags.size();
+}
+
 // Owns the key vectors whose lifetimes must outlive the geoqik_replay_options_t that points into them.
 struct ReplayOptionsData {
     std::vector<geoqik_key_t> stepKeys;
@@ -610,6 +645,12 @@ void handle_connection(PipeStream& stream) {
             const auto y = read_field<double>(payload, offset);
             const auto z = read_field<double>(payload, offset);
             const auto colors = proto::read_optional_colors(payload, offset);
+            std::vector<float> radii;
+            std::uint8_t sizeSpace = GEOQIK_SPHERE_SIZE_SPACE_SCREEN;
+            if (offset < payload.size()) {
+                radii = read_float_array(payload, offset);
+                sizeSpace = read_field<std::uint8_t>(payload, offset);
+            }
 
             geoqik_add_points_options_t opts{};
             if (!uuid_is_zero(key)) {
@@ -619,6 +660,9 @@ void handle_connection(PipeStream& stream) {
                 opts.color = colors.data();
                 opts.colorCount = colors.size();
             }
+            opts.radii = radii.empty() ? nullptr : radii.data();
+            opts.radiusCount = radii.size();
+            opts.sizeSpace = static_cast<geoqik_sphere_size_space_t>(sizeSpace);
             const auto result = geoqik_add_point_opts(x, y, z, &opts);
             send_api_response(stream, result.err, &result.geometryId);
             break;
@@ -646,6 +690,12 @@ void handle_connection(PipeStream& stream) {
             const double* points = reinterpret_cast<const double*>(payload.data() + offset);
             offset += coordBytes;
             const auto colors = proto::read_optional_colors(payload, offset);
+            std::vector<float> radii;
+            std::uint8_t sizeSpace = GEOQIK_SPHERE_SIZE_SPACE_SCREEN;
+            if (offset < payload.size()) {
+                radii = read_float_array(payload, offset);
+                sizeSpace = read_field<std::uint8_t>(payload, offset);
+            }
 
             geoqik_add_points_options_t opts{};
             if (!uuid_is_zero(key)) {
@@ -655,6 +705,9 @@ void handle_connection(PipeStream& stream) {
                 opts.color = colors.data();
                 opts.colorCount = colors.size();
             }
+            opts.radii = radii.empty() ? nullptr : radii.data();
+            opts.radiusCount = radii.size();
+            opts.sizeSpace = static_cast<geoqik_sphere_size_space_t>(sizeSpace);
             const auto result = geoqik_add_points_opts(points, wire_count_to_size(count) * 3, &opts);
             send_api_response(stream, result.err, &result.geometryId);
             break;
@@ -693,12 +746,21 @@ void handle_connection(PipeStream& stream) {
             const auto y = read_field<double>(payload, offset);
             const auto z = read_field<double>(payload, offset);
             const auto colors = proto::read_optional_colors(payload, offset);
+            std::vector<float> radii;
+            std::uint8_t sizeSpace = GEOQIK_SPHERE_SIZE_SPACE_SCREEN;
+            if (offset < payload.size()) {
+                radii = read_float_array(payload, offset);
+                sizeSpace = read_field<std::uint8_t>(payload, offset);
+            }
 
             geoqik_update_points_options_t opts{};
             if (!colors.empty()) {
                 opts.color = colors.data();
                 opts.colorCount = colors.size();
             }
+            opts.radii = radii.empty() ? nullptr : radii.data();
+            opts.radiusCount = radii.size();
+            opts.sizeSpace = static_cast<geoqik_sphere_size_space_t>(sizeSpace);
             const auto err = geoqik_update_point_opts(&id, x, y, z, &opts);
             send_api_response(stream, err);
             break;
@@ -726,12 +788,21 @@ void handle_connection(PipeStream& stream) {
             const double* points = reinterpret_cast<const double*>(payload.data() + offset);
             offset += coordBytes;
             const auto colors = proto::read_optional_colors(payload, offset);
+            std::vector<float> radii;
+            std::uint8_t sizeSpace = GEOQIK_SPHERE_SIZE_SPACE_SCREEN;
+            if (offset < payload.size()) {
+                radii = read_float_array(payload, offset);
+                sizeSpace = read_field<std::uint8_t>(payload, offset);
+            }
 
             geoqik_update_points_options_t opts{};
             if (!colors.empty()) {
                 opts.color = colors.data();
                 opts.colorCount = colors.size();
             }
+            opts.radii = radii.empty() ? nullptr : radii.data();
+            opts.radiusCount = radii.size();
+            opts.sizeSpace = static_cast<geoqik_sphere_size_space_t>(sizeSpace);
             const auto err = geoqik_update_points_opts(&id, points, wire_count_to_size(count) * 3, &opts);
             send_api_response(stream, err);
             break;
@@ -772,6 +843,7 @@ void handle_connection(PipeStream& stream) {
             const auto y2 = read_field<double>(payload, offset);
             const auto z2 = read_field<double>(payload, offset);
             const auto colors = proto::read_optional_colors(payload, offset);
+            const auto styleTail = read_line_style_tail(payload, offset);
 
             geoqik_add_line_opts_t opts{};
             if (!uuid_is_zero(key)) {
@@ -781,6 +853,7 @@ void handle_connection(PipeStream& stream) {
                 opts.color = colors.data();
                 opts.colorCount = colors.size();
             }
+            apply_line_style_tail(opts, styleTail);
             const auto result = geoqik_add_line_opts(x1, y1, z1, x2, y2, z2, &opts);
             send_api_response(stream, result.err, &result.geometryId);
             break;
@@ -808,6 +881,7 @@ void handle_connection(PipeStream& stream) {
             const double* lines = reinterpret_cast<const double*>(payload.data() + offset);
             offset += coordBytes;
             const auto colors = proto::read_optional_colors(payload, offset);
+            const auto styleTail = read_line_style_tail(payload, offset);
 
             geoqik_add_line_opts_t opts{};
             if (!uuid_is_zero(key)) {
@@ -817,6 +891,7 @@ void handle_connection(PipeStream& stream) {
                 opts.color = colors.data();
                 opts.colorCount = colors.size();
             }
+            apply_line_style_tail(opts, styleTail);
             const auto result = geoqik_add_lines_opts(lines, wire_count_to_size(count) * 6, &opts);
             send_api_response(stream, result.err, &result.geometryId);
             break;
@@ -864,12 +939,14 @@ void handle_connection(PipeStream& stream) {
             const auto y2 = read_field<double>(payload, offset);
             const auto z2 = read_field<double>(payload, offset);
             const auto colors = proto::read_optional_colors(payload, offset);
+            const auto styleTail = read_line_style_tail(payload, offset);
 
             geoqik_update_line_opts_t opts{};
             if (!colors.empty()) {
                 opts.color = colors.data();
                 opts.colorCount = colors.size();
             }
+            apply_line_style_tail(opts, styleTail);
             const auto err = geoqik_update_line_opts(&id, x1, y1, z1, x2, y2, z2, &opts);
             send_api_response(stream, err);
             break;
@@ -897,12 +974,14 @@ void handle_connection(PipeStream& stream) {
             const double* lines = reinterpret_cast<const double*>(payload.data() + offset);
             offset += coordBytes;
             const auto colors = proto::read_optional_colors(payload, offset);
+            const auto styleTail = read_line_style_tail(payload, offset);
 
             geoqik_update_line_opts_t opts{};
             if (!colors.empty()) {
                 opts.color = colors.data();
                 opts.colorCount = colors.size();
             }
+            apply_line_style_tail(opts, styleTail);
             const auto err = geoqik_update_lines_opts(&id, lines, wire_count_to_size(count) * 6, &opts);
             send_api_response(stream, err);
             break;

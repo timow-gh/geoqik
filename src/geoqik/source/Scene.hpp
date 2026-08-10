@@ -2,6 +2,7 @@
 #define GEOQIK_SOURCE_SCENE_HPP
 
 #include "GeoQikSettings.hpp"
+#include "GeometryBuffers/GeometryStyle.hpp"
 #include "GeometryBuffers/LineBuffer.hpp"
 #include "GeometryBuffers/MeshBuffer.hpp"
 #include "GeometryBuffers/PointBuffer.hpp"
@@ -10,6 +11,7 @@
 #include <memory>
 #include <optional>
 #include <span>
+#include <unordered_map>
 
 namespace geoqik {
 
@@ -19,6 +21,8 @@ struct SceneSnapshot {
     MeshBufferSnapshot meshBuffer;
     float pointSize{3.0f};
     float lineWidth{1.0f};
+    std::unordered_map<core::UUID, StyledPointData> styledPoints;
+    std::unordered_map<core::UUID, StyledLineData> styledLines;
 };
 
 struct BoundingSphere {
@@ -36,6 +40,9 @@ class Scene {
     std::size_t m_geomBufferGrowthFactor{2};
     float m_pointSize{3.0f};
     float m_lineWidth{1.0f};
+    std::unordered_map<core::UUID, StyledPointData> m_styledPoints;
+    std::unordered_map<core::UUID, StyledLineData> m_styledLines;
+    bool m_styledDirty{false};
 
   public:
     Scene() = default;
@@ -57,6 +64,13 @@ class Scene {
     [[nodiscard]] bool
     update_points(core::UUID handle, std::span<const float> points, std::span<const float> colors = {});
     void remove_point(core::UUID handle);
+    void add_styled_points(core::UUID handle, StyledPointData data);
+    [[nodiscard]] bool update_styled_points(core::UUID handle,
+                                            std::span<const float> points,
+                                            std::span<const float> colors,
+                                            std::span<const float> radii,
+                                            std::uint8_t sizeSpace,
+                                            bool restyle);
 
     void add_line(float x1, float y1, float z1, float x2, float y2, float z2, const core::UUID* handle = nullptr);
     void add_line(float x1,
@@ -82,6 +96,14 @@ class Scene {
     [[nodiscard]] bool
     update_lines(core::UUID handle, std::span<const float> lines, std::span<const float> colors = {});
     void remove_line(core::UUID handle);
+    void add_styled_line(core::UUID handle, StyledLineData data);
+    [[nodiscard]] bool update_styled_line(core::UUID handle,
+                                          std::span<const float> vertices,
+                                          std::span<const float> colors,
+                                          const StrokeStyleData& style,
+                                          std::uint8_t lineType,
+                                          std::span<const std::uint8_t> perVertexDashFlags,
+                                          bool restyle);
 
     void add_mesh(std::span<const float> vertices,
                   std::span<const float> normals,
@@ -121,6 +143,17 @@ class Scene {
     void restore_snapshot(const SceneSnapshot& snapshot);
     [[nodiscard]] std::optional<PointBufferGeometry> get_point_geometry(core::UUID handle) const;
     [[nodiscard]] std::optional<LineBufferGeometry> get_line_geometry(core::UUID handle) const;
+    [[nodiscard]] bool is_styled(core::UUID handle) const;
+    [[nodiscard]] bool is_styled_point(core::UUID handle) const { return m_styledPoints.contains(handle); }
+    [[nodiscard]] bool is_styled_line(core::UUID handle) const { return m_styledLines.contains(handle); }
+    [[nodiscard]] const std::unordered_map<core::UUID, StyledPointData>& get_styled_points() const {
+        return m_styledPoints;
+    }
+    [[nodiscard]] const std::unordered_map<core::UUID, StyledLineData>& get_styled_lines() const {
+        return m_styledLines;
+    }
+    [[nodiscard]] bool styled_dirty() const { return m_styledDirty; }
+    void reset_styled_dirty() { m_styledDirty = false; }
 
     [[nodiscard]] float get_point_size() const { return m_pointSize; }
     void set_point_size(float pointSize) { m_pointSize = pointSize; }

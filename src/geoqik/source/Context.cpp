@@ -3,22 +3,22 @@
 #include "Core/FmtIncludeHelper.hpp"
 #include "GeoQikMessages.hpp"
 #include "GeoQikOverlay.hpp"
+#include "GeoQikUserSettings.hpp"
 
 #include <Core/Assert.hpp>
-#include <plinth/FrameState.hpp>
 
 #include <plinth/CameraAutoFit.hpp>
 #include <plinth/CameraProjectionType.hpp>
+#include <plinth/FrameState.hpp>
 #include <plinth/IOverlay.hpp>
-#include <plinth/LogicalViewportRect.hpp>
 #include <plinth/Renderer.hpp>
-#include <plinth/Warnings.hpp>
 #include <plinth/WindowSettings.hpp>
 
 #include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstdint>
+#include <exception>
 #include <filesystem>
 #include <optional>
 #include <string>
@@ -26,70 +26,42 @@
 #include <type_traits>
 #include <utility>
 
-RENDERER_DISABLE_ALL_WARNINGS
-#include <imgui.h>
-RENDERER_ENABLE_ALL_WARNINGS
-
 namespace geoqik {
 
 using renderer::CameraAutoFitSettings;
 using renderer::Viewport;
 
-struct ReplayGuiState {
-    bool isActive{false};
-    bool isPaused{false};
-    bool isBackward{false};
-    std::size_t currentEntry{0};
-    std::size_t totalEntries{0};
-    double speedMultiplier{1.0};
-    std::size_t entriesPerStep{1};
-    std::string pauseKeysLabel;
-    std::string resumeKeysLabel;
-    std::string stepForwardKeysLabel;
-    std::string stepBackwardKeysLabel;
-    std::string increaseStepKeysLabel;
-    std::string decreaseStepKeysLabel;
-
-    enum class Command : std::uint8_t {
-        None,
-        Play,
-        PlayReverse,
-        Pause,
-        Finish,
-        StepForward,
-        StepBackward,
-    };
-    // One-shot requests filled in by the UI and drained (reset) after rendering, mirroring the
-    // std::optional requests in CameraGuiState. Command::None is the "no request" sentinel.
-    Command command{Command::None};
-    std::optional<double> requestedSpeedMultiplier;
-    std::optional<std::size_t> requestedEntriesPerStep;
-};
-
-struct CameraGuiState {
-    renderer::CameraInteractor::NavigationStyle navigationStyle{renderer::CameraInteractor::NavigationStyle::ORBIT};
-    std::optional<renderer::PresetView> activePreset; // nullopt == free navigation
-
-    // Built-in camera controls (driven straight through the OverlayFrameContext each frame).
-    bool autoZoom{false};
-    renderer::CameraProjectionType projectionType{renderer::CameraProjectionType::PERSPECTIVE};
-
-    // Read-only interaction-lock display (decoded from CameraViewMode bit flags).
-    bool fixRotate{false};
-    bool fixPan{false};
-    bool fixZoom{false};
-
-    // Requests filled in by the UI and applied after rendering.
-    std::optional<renderer::CameraInteractor::NavigationStyle> requestedNavigationStyle;
-    std::optional<renderer::PresetView> requestedPreset;
-    std::optional<renderer::CameraProjectionType> requestedProjection;
-    bool requestHome{false};
-};
-
 namespace {
 
 constexpr std::size_t lineCoordinateCount = 6;
 constexpr std::size_t frameInfoPrintInterval = 10;
+
+[[nodiscard]] std::vector<float> expand_vertex_colors(std::span<const float> colors,
+                                                      std::size_t vertexCount,
+                                                      const Color& fallback,
+                                                      bool duplicateLineColors = false) {
+    std::vector<float> expanded;
+    expanded.reserve(vertexCount * ColorChannelCount);
+    if (colors.empty() || colors.size() == ColorChannelCount) {
+        const auto source = colors.empty() ? std::span<const float>(fallback) : colors;
+        for (std::size_t i = 0; i < vertexCount; ++i) {
+            expanded.insert(expanded.end(), source.begin(), source.end());
+        }
+        return expanded;
+    }
+    if (colors.size() == vertexCount * ColorChannelCount) {
+        expanded.assign(colors.begin(), colors.end());
+        return expanded;
+    }
+    if (duplicateLineColors && vertexCount % 2 == 0 && colors.size() == vertexCount / 2 * ColorChannelCount) {
+        for (std::size_t i = 0; i < vertexCount / 2; ++i) {
+            const auto begin = colors.begin() + static_cast<std::ptrdiff_t>(i * ColorChannelCount);
+            expanded.insert(expanded.end(), begin, begin + static_cast<std::ptrdiff_t>(ColorChannelCount));
+            expanded.insert(expanded.end(), begin, begin + static_cast<std::ptrdiff_t>(ColorChannelCount));
+        }
+    }
+    return expanded;
+}
 
 ConcurrentQueue<GeoQikMessage>& message_queue_storage() {
     static ConcurrentQueue<GeoQikMessage> messageQueue; // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
@@ -101,9 +73,15 @@ std::atomic<bool>& replay_cancel_requested_storage() {
     return replayCancelRequested;
 }
 
-bool is_existing_regular_file(const char* path) {
+bool is_existing_regular_file(const std::filesystem::path& path) {
     std::error_code ec;
     return std::filesystem::is_regular_file(path, ec);
+}
+
+std::string path_to_utf8(const std::filesystem::path& path) {
+    const std::u8string value = path.u8string();
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+    return {reinterpret_cast<const char*>(value.data()), value.size()};
 }
 
 std::string key_label(Key key) {
@@ -139,231 +117,6 @@ std::string key_labels(const std::vector<Key>& keys) {
         result += key_label(key);
     }
     return result;
-}
-
-float equal_button_width(int buttonCount) {
-    const float availableWidth = ImGui::GetContentRegionAvail().x;
-    const float spacing = ImGui::GetStyle().ItemSpacing.x * static_cast<float>(buttonCount - 1);
-    return std::max(1.0F, (availableWidth - spacing) / static_cast<float>(buttonCount));
-}
-
-bool full_width_button(const char* label) {
-    return ImGui::Button(label, ImVec2{-1.0F, 0.0F});
-}
-
-bool equal_width_button(const char* label, float width) {
-    return ImGui::Button(label, ImVec2{width, 0.0F});
-}
-
-// Draws a button that appears "active" (highlighted) when isActive is true, matching the
-// highlight idiom used by the replay speed controls. Returns true when clicked.
-bool highlighted_button(const char* label, float width, bool isActive) {
-    if (isActive) {
-        ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive));
-    }
-    const bool clicked = equal_width_button(label, width);
-    if (isActive) {
-        ImGui::PopStyleColor();
-    }
-    return clicked;
-}
-
-void render_camera_controls(CameraGuiState& cameraState) {
-    if (!ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen)) {
-        return;
-    }
-
-    // Auto Zoom and Projection mirror plinth's built-in camera controls, so everything camera
-    // related lives under this single header.
-    ImGui::Checkbox("Auto Zoom", &cameraState.autoZoom);
-
-    constexpr std::array<const char*, 2> projectionItems{"Perspective", "Orthographic"};
-    int projectionItem = static_cast<int>(cameraState.projectionType);
-    ImGui::TextUnformatted("Projection");
-    ImGui::SetNextItemWidth(-1.0F);
-    if (ImGui::Combo("##Projection",
-                     &projectionItem,
-                     projectionItems.data(),
-                     static_cast<int>(projectionItems.size()))) {
-        cameraState.requestedProjection = static_cast<renderer::CameraProjectionType>(projectionItem);
-    }
-
-    ImGui::Separator();
-
-    // Navigation style. The current style is highlighted only when no preset view is active, so
-    // the navigation and preset selections read as mutually exclusive.
-    ImGui::TextUnformatted("Navigation");
-    const bool isFree = !cameraState.activePreset.has_value();
-    const float navButtonWidth = equal_button_width(2);
-    const bool orbitActive = isFree && cameraState.navigationStyle == renderer::CameraInteractor::NavigationStyle::ORBIT;
-    if (highlighted_button("Orbit", navButtonWidth, orbitActive)) {
-        cameraState.requestedNavigationStyle = renderer::CameraInteractor::NavigationStyle::ORBIT;
-    }
-    ImGui::SameLine();
-    const bool flyActive = isFree && cameraState.navigationStyle == renderer::CameraInteractor::NavigationStyle::FLY;
-    if (highlighted_button("Fly", navButtonWidth, flyActive)) {
-        cameraState.requestedNavigationStyle = renderer::CameraInteractor::NavigationStyle::FLY;
-    }
-
-    ImGui::Separator();
-
-    // Preset views. Two rows of buttons; the active preset (if any) is highlighted.
-    ImGui::TextUnformatted("Preset view");
-    struct PresetButton {
-        const char* label;
-        renderer::PresetView view;
-    };
-    constexpr std::array<PresetButton, 7> presets{{
-        {"Front", renderer::PresetView::FRONT},
-        {"Back", renderer::PresetView::BACK},
-        {"Left", renderer::PresetView::LEFT},
-        {"Right", renderer::PresetView::RIGHT},
-        {"Top", renderer::PresetView::TOP},
-        {"Bottom", renderer::PresetView::BOTTOM},
-        {"Iso", renderer::PresetView::ISO},
-    }};
-    constexpr int presetsPerRow = 4;
-    const float presetButtonWidth = equal_button_width(presetsPerRow);
-    for (std::size_t i = 0; i < presets.size(); ++i) {
-        if (i % presetsPerRow != 0) {
-            ImGui::SameLine();
-        }
-        const bool active = cameraState.activePreset.has_value() && *cameraState.activePreset == presets[i].view;
-        if (highlighted_button(presets[i].label, presetButtonWidth, active)) {
-            cameraState.requestedPreset = presets[i].view;
-        }
-    }
-
-    // Home refits all geometry into view along the current viewing direction, so the active
-    // preset (and its interaction locks) are preserved.
-    if (full_width_button("Home")) {
-        cameraState.requestHome = true;
-    }
-
-    ImGui::Separator();
-
-    // Interaction locks (read-only): shows which movements are currently fixed for mouse/keyboard.
-    ImGui::TextUnformatted("Interaction locks");
-    const auto lockLabel = [](bool locked) { return locked ? "Locked" : "Unlocked"; };
-    ImGui::TextUnformatted(fmt::format("Rotate: {}", lockLabel(cameraState.fixRotate)).c_str());
-    ImGui::TextUnformatted(fmt::format("Pan:    {}", lockLabel(cameraState.fixPan)).c_str());
-    ImGui::TextUnformatted(fmt::format("Zoom:   {}", lockLabel(cameraState.fixZoom)).c_str());
-}
-
-void render_replay_speed_controls(ReplayGuiState& replayState) {
-    constexpr std::array<double, 4> speedOptions{1.0, 2.0, 4.0, 8.0};
-    constexpr std::array<const char*, 4> speedLabels{"1x", "2x", "4x", "8x"};
-
-    ImGui::TextUnformatted("Speed");
-    const float buttonWidth = equal_button_width(static_cast<int>(speedOptions.size()));
-    for (std::size_t i = 0; i < speedOptions.size(); ++i) {
-        if (i != 0) {
-            ImGui::SameLine();
-        }
-
-        const bool isCurrent = std::abs(replayState.speedMultiplier - speedOptions[i]) < 0.01;
-        if (isCurrent) {
-            ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive));
-        }
-        if (equal_width_button(speedLabels[i], buttonWidth)) {
-            replayState.requestedSpeedMultiplier = speedOptions[i];
-        }
-        if (isCurrent) {
-            ImGui::PopStyleColor();
-        }
-    }
-}
-
-void render_replay_transport_controls(ReplayGuiState& replayState) {
-    if (full_width_button("End replay")) {
-        replayState.command = ReplayGuiState::Command::Finish;
-    }
-
-    ImGui::Separator();
-
-    const bool canStepBack = replayState.currentEntry > 0;
-    const bool canStepForward = replayState.currentEntry < replayState.totalEntries;
-    const float twoButtonWidth = equal_button_width(2);
-
-    if (!canStepBack) {
-        ImGui::BeginDisabled();
-    }
-    if (equal_width_button("Step Back", twoButtonWidth)) {
-        replayState.command = ReplayGuiState::Command::StepBackward;
-    }
-    ImGui::SameLine();
-    if (equal_width_button(replayState.isBackward && !replayState.isPaused ? "Reverse *" : "Reverse", twoButtonWidth)) {
-        replayState.command = ReplayGuiState::Command::PlayReverse;
-    }
-    if (!canStepBack) {
-        ImGui::EndDisabled();
-    }
-
-    const char* playPauseLabel = replayState.isPaused ? "Play" : "Pause";
-    if (full_width_button(playPauseLabel)) {
-        replayState.command = replayState.isPaused ? ReplayGuiState::Command::Play : ReplayGuiState::Command::Pause;
-    }
-
-    if (!canStepForward) {
-        ImGui::BeginDisabled();
-    }
-    if (equal_width_button(!replayState.isBackward && !replayState.isPaused ? "Forward *" : "Forward",
-                           twoButtonWidth)) {
-        replayState.command = ReplayGuiState::Command::Play;
-    }
-    ImGui::SameLine();
-    if (equal_width_button("Step Forward", twoButtonWidth)) {
-        replayState.command = ReplayGuiState::Command::StepForward;
-    }
-    if (!canStepForward) {
-        ImGui::EndDisabled();
-    }
-}
-
-void render_replay_controls(ReplayGuiState& replayState) {
-    if (!replayState.isActive) {
-        return;
-    }
-
-    if (ImGui::CollapsingHeader("Replay", ImGuiTreeNodeFlags_DefaultOpen)) {
-        const float progress = replayState.totalEntries > 0
-                                   ? static_cast<float>(std::min(replayState.currentEntry, replayState.totalEntries)) /
-                                         static_cast<float>(replayState.totalEntries)
-                                   : 0.0F;
-        ImGui::TextUnformatted(
-            fmt::format("Entry {} / {}", replayState.currentEntry, replayState.totalEntries).c_str());
-        ImGui::ProgressBar(progress, ImVec2{-1.0F, 0.0F});
-
-        render_replay_speed_controls(replayState);
-        render_replay_transport_controls(replayState);
-
-        const std::size_t remainingEntryCount = replayState.totalEntries > replayState.currentEntry
-                                                    ? replayState.totalEntries - replayState.currentEntry
-                                                    : 0U;
-        const int remainingEntries = static_cast<int>(remainingEntryCount);
-        const int sliderMax = std::max(1, remainingEntries);
-        int stepSize = static_cast<int>(replayState.entriesPerStep);
-        stepSize = std::max(1, std::min(stepSize, sliderMax));
-        ImGui::TextUnformatted("Step size");
-        ImGui::SetNextItemWidth(-1.0F);
-        if (ImGui::SliderInt("##StepSize", &stepSize, 1, sliderMax)) {
-            replayState.requestedEntriesPerStep = static_cast<std::size_t>(stepSize);
-        }
-    }
-
-    if (ImGui::CollapsingHeader("Shortcuts")) {
-        ImGui::PushTextWrapPos(0.0F);
-        ImGui::TextUnformatted(
-            fmt::format("Play: {}, pause: {}", replayState.resumeKeysLabel, replayState.pauseKeysLabel).c_str());
-        ImGui::TextUnformatted(fmt::format("Step: forward {}, back {}",
-                                           replayState.stepForwardKeysLabel,
-                                           replayState.stepBackwardKeysLabel)
-                                   .c_str());
-        ImGui::TextUnformatted(
-            fmt::format("Step size: + {}, - {}", replayState.increaseStepKeysLabel, replayState.decreaseStepKeysLabel)
-                .c_str());
-        ImGui::PopTextWrapPos();
-    }
 }
 
 } // namespace
@@ -442,12 +195,8 @@ bool Context::init_window(const GeoQikSettings& geoqikSettings, const WindowSett
     m_renderer->set_exposure_stops(defaultExposureStops);
 
     m_overlay = std::make_shared<GeoQikOverlay>(m_renderer->window().get_native_handle());
-    m_overlay->inner().set_ui_mode(renderer::UiMode::Release);
-    m_overlay->set_build_controls([this](renderer::OverlayFrameContext& ctx) { build_overlay(ctx); });
+    m_overlay->set_ui_mode(renderer::UiMode::Release);
     m_renderer->set_overlay(m_overlay);
-
-    m_cameraGuiState = std::make_unique<CameraGuiState>();
-    m_replayGuiState = std::make_unique<ReplayGuiState>();
 
     m_sceneRenderer = std::make_unique<GeoQikSceneRenderer>(*m_renderer);
 
@@ -472,7 +221,7 @@ float Context::get_point_size() {
 
 void Context::set_point_size(float pointSize) {
     m_scene.set_point_size(pointSize);
-    m_sceneRenderer->clear_drawables();
+    m_sceneRenderer->recreate_point_drawables(m_scene);
     ++m_geometryMessagesProcessedThisFrame;
 }
 
@@ -491,7 +240,7 @@ float Context::get_line_width() {
 
 void Context::set_line_width(float lineWidth) {
     m_scene.set_line_width(lineWidth);
-    m_sceneRenderer->clear_drawables();
+    m_sceneRenderer->recreate_line_drawables(m_scene);
     ++m_geometryMessagesProcessedThisFrame;
 }
 
@@ -732,9 +481,9 @@ void Context::run_event_loop() {
         }
 
         const renderer::ClearColor clearColor{m_backgroundColor[0],
-                                            m_backgroundColor[1],
-                                            m_backgroundColor[2],
-                                            m_backgroundColor[3]};
+                                              m_backgroundColor[1],
+                                              m_backgroundColor[2],
+                                              m_backgroundColor[3]};
         m_renderer->begin_frame(clearColor);
 
         m_sceneRenderer->sync_scene(m_scene);
@@ -748,13 +497,18 @@ void Context::run_event_loop() {
         lighting.shininess = std::max(0.0F, m_geoqikSettings.meshShininess);
 
         m_renderer->draw(lighting);
-        // The overlay's build_controls (invoked inside end_frame) populates m_cameraGuiState /
-        // m_replayGuiState and renders the unified panel. Widget edits are applied afterwards in
-        // consume_camera_gui_commands (a Home click there re-enables auto-fit for its fit).
+        populate_replay_gui_state(m_overlay->replay_state());
+        auto& cameraState = m_overlay->camera_state();
+        populate_camera_gui_state(cameraState);
+        cameraState.autoZoom = m_geoqikSettings.autoFitCameraEnabled;
+
+        // The overlay builds and renders the complete UI inside end_frame. Apply widget commands
+        // after rendering has completed.
         bool autoFitEnabled = m_geoqikSettings.autoFitCameraEnabled;
         m_renderer->end_frame(autoFitEnabled);
-        consume_camera_gui_commands(*m_cameraGuiState);
-        consume_replay_gui_commands(*m_replayGuiState);
+        consume_camera_gui_commands(m_overlay->camera_state());
+        consume_replay_gui_commands(m_overlay->replay_state());
+        consume_file_gui_commands(m_overlay->file_state());
 
         process_replay_entries(std::chrono::high_resolution_clock::now());
         if (!is_replaying()) {
@@ -803,6 +557,7 @@ void Context::populate_replay_gui_state(ReplayGuiState& state) const {
     state.currentEntry = current;
     state.totalEntries = total;
     state.speedMultiplier = m_currentSpeedMultiplier;
+    state.isMaxSpeed = m_isReplayMaxSpeed;
     state.entriesPerStep = m_replayOptions.entriesPerStep;
     state.pauseKeysLabel = key_labels(m_replayOptions.pauseKeys);
     state.resumeKeysLabel = key_labels(m_replayOptions.resumeKeys);
@@ -813,27 +568,54 @@ void Context::populate_replay_gui_state(ReplayGuiState& state) const {
 }
 
 void Context::consume_replay_gui_commands(ReplayGuiState& state) {
-    // m_replayGuiState is a persistent member reused every frame, so drain these one-shot requests
+    // The overlay state persists across frames, so drain these one-shot requests
     // as they are consumed - otherwise a lingering command (e.g. Play) re-runs every frame,
     // repeatedly zeroing m_replayEntryBudget / m_lastReplayTick so the budget never accumulates and
     // playback never advances. Mirrors how consume_camera_gui_commands resets its optionals.
     const ReplayGuiState::Command command = std::exchange(state.command, ReplayGuiState::Command::None);
     const std::optional<double> requestedSpeedMultiplier = std::exchange(state.requestedSpeedMultiplier, std::nullopt);
+    const bool requestMaxSpeed = std::exchange(state.requestMaxSpeed, false);
     const std::optional<std::size_t> requestedEntriesPerStep =
         std::exchange(state.requestedEntriesPerStep, std::nullopt);
+    const std::optional<std::size_t> requestedEntry = std::exchange(state.requestedEntry, std::nullopt);
 
     if (!is_replaying()) {
         return;
     }
 
     if (requestedSpeedMultiplier.has_value()) {
+        m_isReplayMaxSpeed = false;
         m_currentSpeedMultiplier = *requestedSpeedMultiplier;
         m_replayOptions.entriesPerSecond = m_baseEntriesPerSecond * m_currentSpeedMultiplier;
+        m_replayEntryBudget = 0.0;
+    } else if (requestMaxSpeed) {
+        m_isReplayMaxSpeed = true;
+        m_replayEntryBudget = 0.0;
     }
 
     if (requestedEntriesPerStep.has_value()) {
         m_replayOptions.entriesPerStep = *requestedEntriesPerStep;
     }
+
+    if (requestedEntry.has_value()) {
+        const std::size_t targetEntry = std::min(*requestedEntry, m_replayEntries.size());
+        m_isReplayPaused = true;
+        m_replayEntryBudget = 0.0;
+        if (targetEntry > m_replayEntryIndex) {
+            apply_replay_entries(targetEntry - m_replayEntryIndex);
+        } else if (targetEntry < m_replayEntryIndex) {
+            undo_replay_entries(m_replayEntryIndex - targetEntry);
+        }
+    }
+
+    const auto skipToEnd = [this]() {
+        m_isReplayBackward = false;
+        m_isReplayPaused = true;
+        const std::size_t remaining = m_replayEntries.size() - m_replayEntryIndex;
+        if (remaining > 0) {
+            apply_replay_entries(remaining);
+        }
+    };
 
     switch (command) {
     case ReplayGuiState::Command::Play:
@@ -852,16 +634,12 @@ void Context::consume_replay_gui_commands(ReplayGuiState& state) {
 
     case ReplayGuiState::Command::Pause: m_isReplayPaused = true; break;
 
-    case ReplayGuiState::Command::Finish: {
-        m_isReplayBackward = false;
-        m_isReplayPaused = false;
-        const std::size_t remaining = m_replayEntries.size() - m_replayEntryIndex;
-        if (remaining > 0) {
-            apply_replay_entries(remaining);
-        }
+    case ReplayGuiState::Command::SkipToEnd: skipToEnd(); break;
+
+    case ReplayGuiState::Command::EndReplay:
+        skipToEnd();
         finish_replay();
         break;
-    }
 
     case ReplayGuiState::Command::StepForward:
         m_isReplayPaused = true;
@@ -881,23 +659,15 @@ void Context::populate_camera_gui_state(CameraGuiState& state) const {
     state.activePreset = m_activePresetView;
     if (auto camera = m_renderer->get_camera().lock()) {
         state.navigationStyle = camera->get_navigation_style();
-        const auto viewMode = camera->get_view_mode();
-        using ViewMode = renderer::CameraInteractor::CameraViewMode;
-        const auto isFixed = [viewMode](ViewMode flag) {
-            return (static_cast<std::uint8_t>(viewMode) & static_cast<std::uint8_t>(flag)) != 0U;
-        };
-        state.fixRotate = isFixed(ViewMode::FIX_ROTATE);
-        state.fixPan = isFixed(ViewMode::FIX_PAN);
-        state.fixZoom = isFixed(ViewMode::FIX_ZOOM);
     }
 }
 
 void Context::consume_camera_gui_commands(CameraGuiState& state) {
     // The widget callbacks ran during the overlay's render() (inside end_frame), so their edits are
     // now visible. Apply them here and clear the one-shot requests so they are not re-applied every
-    // frame (m_cameraGuiState is a persistent member, not a per-frame local).
+    // frame (the overlay state is persistent, not a per-frame local).
 
-    // Auto Zoom: persist the checkbox into the settings; it takes effect from the next frame.
+    // Auto Fit: persist the checkbox into the settings; it takes effect from the next frame.
     m_geoqikSettings.autoFitCameraEnabled = state.autoZoom;
 
     if (state.requestedProjection.has_value()) {
@@ -923,46 +693,50 @@ void Context::consume_camera_gui_commands(CameraGuiState& state) {
 void Context::request_fit_all_geometry() {
     // Re-frame the geometry along the current viewing direction, so it stays within the restrictions
     // of the active preset view and does not change the navigation style or view mode. This moves the
-    // camera immediately and unconditionally - it does not depend on the persistent Auto Zoom setting
-    // and is not suppressed right after a user camera interaction, so the Home button always acts.
+    // camera immediately and unconditionally - it does not depend on the persistent Auto Fit setting
+    // and is not suppressed right after a user camera interaction, so Fit scene always acts.
     m_renderer->refit_current_view();
 }
 
-void Context::build_overlay(renderer::OverlayFrameContext& ctx) {
-    auto& ui = m_overlay->inner();
-
-    // Reserve the left control-panel strip for the UI and hand the remaining window region to the
-    // 3D scene, so the ImGui overlay no longer draws on top of the scene. The panel geometry mirrors
-    // plinth's ImGuiOverlay layout (an 8px margin on each side of a fixed-width panel).
-    if (const ImGuiViewport* viewport = ImGui::GetMainViewport(); viewport != nullptr) {
-        constexpr float controlPanelMargin = 8.0F;
-        constexpr float controlPanelWidth = 320.0F;
-        const float reservedLeft = (2.0F * controlPanelMargin) + controlPanelWidth;
-        const float sceneWidth = std::max(1.0F, viewport->WorkSize.x - reservedLeft);
-        ctx.sceneViewportHint = renderer::LogicalViewportRect{static_cast<double>(viewport->WorkPos.x + reservedLeft),
-                                                              static_cast<double>(viewport->WorkPos.y),
-                                                              static_cast<double>(sceneWidth),
-                                                              static_cast<double>(viewport->WorkSize.y)};
+void Context::consume_file_gui_commands(FileGuiState& state) {
+    const FileGuiState::Command command = std::exchange(state.command, FileGuiState::Command::None);
+    if (command == FileGuiState::Command::None) {
+        return;
     }
 
-    // Snapshot the current camera state into the GUI struct so the widgets display it. The widget
-    // callbacks (which record the user's edits) run later, inside ui.render(); those edits are
-    // applied afterwards in consume_camera_gui_commands, once end_frame has returned.
-    populate_camera_gui_state(*m_cameraGuiState);
-    m_cameraGuiState->autoZoom = m_geoqikSettings.autoFitCameraEnabled;
-    m_cameraGuiState->projectionType = ctx.projectionType;
-    ui.add_control([this]() { render_camera_controls(*m_cameraGuiState); });
-
-    populate_replay_gui_state(*m_replayGuiState);
-    if (m_replayGuiState->isActive) {
-        ui.add_control([this]() { render_replay_controls(*m_replayGuiState); });
+    if (command == FileGuiState::Command::SetDefaultDirectory) {
+        try {
+            save_user_settings(state.settingsFilePath, UserSettings{state.requestedPath});
+            state.defaultLogDirectory = state.requestedPath;
+        } catch (const std::exception& exception) {
+            state.errorMessage = fmt::format("Could not save the default log directory: {}", exception.what());
+            state.openErrorPopup = true;
+        }
+        return;
     }
 
-    // Retain plinth's post-processing panel, choosing Debug vs Release like plinth's own overlay.
-    if (ui.ui_mode() == renderer::UiMode::Debug) {
-        ui.add_post_processing_controls(ctx.renderer);
-    } else {
-        ui.add_release_post_processing_controls(ctx.renderer);
+    geoqik_error_code_t result = GEOQIK_SUCCESS;
+    switch (command) {
+    case FileGuiState::Command::Save: result = save_log_path(state.requestedPath, state.requestedFormat); break;
+    case FileGuiState::Command::Load: result = load_log_path(state.requestedPath, state.requestedFormat); break;
+    case FileGuiState::Command::Replay:
+        result = replay_log_path(state.requestedPath, state.requestedFormat, ReplayOptions{});
+        break;
+    case FileGuiState::Command::None:
+    case FileGuiState::Command::SetDefaultDirectory: break;
+    }
+    if (result != GEOQIK_SUCCESS) {
+        const char* operation = "load";
+        if (command == FileGuiState::Command::Save) {
+            operation = "save";
+        } else if (command == FileGuiState::Command::Replay) {
+            operation = "replay";
+        }
+        state.errorMessage = fmt::format("Could not {} log '{}'. Error code: {}",
+                                         operation,
+                                         path_to_utf8(state.requestedPath),
+                                         static_cast<int>(result));
+        state.openErrorPopup = true;
     }
 }
 
@@ -1014,6 +788,11 @@ bool Context::cleanup() {
     }
 
     m_renderer->window().make_context_current();
+    if (m_overlay) {
+        m_overlay->shutdown_native_dialogs();
+        m_renderer->set_overlay(nullptr);
+        m_overlay.reset();
+    }
     m_sceneRenderer.reset();
     m_renderer.reset();
 
@@ -1023,6 +802,14 @@ bool Context::cleanup() {
 geoqik_error_code_t Context::save_log(const char* path, geoqik_log_format_t format) const {
     if (path == nullptr || path[0] == '\0' ||
         (format != GEOQIK_LOG_FORMAT_BINARY && format != GEOQIK_LOG_FORMAT_JSON)) {
+        return GEOQIK_ERROR_INVALID_PARAMETER;
+    }
+
+    return save_log_path(std::filesystem::path{path}, format);
+}
+
+geoqik_error_code_t Context::save_log_path(const std::filesystem::path& path, geoqik_log_format_t format) const {
+    if (path.empty() || (format != GEOQIK_LOG_FORMAT_BINARY && format != GEOQIK_LOG_FORMAT_JSON)) {
         return GEOQIK_ERROR_INVALID_PARAMETER;
     }
 
@@ -1046,6 +833,14 @@ geoqik_error_code_t Context::load_log(const char* path, geoqik_log_format_t form
         return GEOQIK_ERROR_INVALID_PARAMETER;
     }
 
+    return load_log_path(std::filesystem::path{path}, format);
+}
+
+geoqik_error_code_t Context::load_log_path(const std::filesystem::path& path, geoqik_log_format_t format) {
+    if (path.empty() || (format != GEOQIK_LOG_FORMAT_BINARY && format != GEOQIK_LOG_FORMAT_JSON)) {
+        return GEOQIK_ERROR_INVALID_PARAMETER;
+    }
+
     try {
         if (!is_existing_regular_file(path)) {
             return GEOQIK_ERROR_UNKNOWN;
@@ -1053,10 +848,14 @@ geoqik_error_code_t Context::load_log(const char* path, geoqik_log_format_t form
 
         std::vector<GeoQikLogEntry> loadedEntries =
             format == GEOQIK_LOG_FORMAT_JSON ? load_log_json(path) : load_log_binary(path);
+        // A successful load replaces the replayed session. Apply any live messages that arrived
+        // during replay afterwards so switching logs cannot discard them.
+        cancel_replay();
         remove_all_geometry();
         m_idempotencySet.clear();
         replay_log_entries(loadedEntries);
         m_messageLog = std::move(loadedEntries);
+        process_deferred_messages();
         return GEOQIK_SUCCESS;
     } catch (const std::bad_alloc&) {
         return GEOQIK_ERROR_MEMORY_ALLOCATION;
@@ -1068,6 +867,15 @@ geoqik_error_code_t Context::load_log(const char* path, geoqik_log_format_t form
 geoqik_error_code_t Context::replay_log(const char* path, geoqik_log_format_t format, const ReplayOptions& options) {
     if (path == nullptr || path[0] == '\0' ||
         (format != GEOQIK_LOG_FORMAT_BINARY && format != GEOQIK_LOG_FORMAT_JSON)) {
+        return GEOQIK_ERROR_INVALID_PARAMETER;
+    }
+
+    return replay_log_path(std::filesystem::path{path}, format, options);
+}
+
+geoqik_error_code_t
+Context::replay_log_path(const std::filesystem::path& path, geoqik_log_format_t format, const ReplayOptions& options) {
+    if (path.empty() || (format != GEOQIK_LOG_FORMAT_BINARY && format != GEOQIK_LOG_FORMAT_JSON)) {
         return GEOQIK_ERROR_INVALID_PARAMETER;
     }
 
@@ -1112,6 +920,7 @@ void Context::cancel_replay() {
     m_isReplayActive = false;
     m_isReplayPaused = false;
     m_isReplayBackward = false;
+    m_isReplayMaxSpeed = false;
     m_currentSpeedMultiplier = 1.0;
 }
 
@@ -1164,18 +973,75 @@ std::pair<std::size_t, std::size_t> Context::get_replay_progress() const {
 }
 
 void Context::handle_message(const AddPointWithOpts& message) {
+    if (message.styled) {
+        if (is_known_idempotency_key(&message.commonData.idempotencyId)) {
+            return;
+        }
+        StyledPointData data;
+        data.points = {message.x, message.y, message.z};
+        data.colors = expand_vertex_colors(message.commonData.rgba, 1, m_scene.get_default_point_color());
+        data.radii = message.radii;
+        data.sizeSpace = message.sizeSpace;
+        m_scene.add_styled_points(message.commonData.geometryId, std::move(data));
+        ++m_geometryMessagesProcessedThisFrame;
+        return;
+    }
     add_point_with_opts(message.x, message.y, message.z, message.commonData);
 }
 
 void Context::handle_message(const AddPointsWithOpts& message) {
+    if (message.styled) {
+        if (is_known_idempotency_key(&message.commonData.idempotencyId)) {
+            return;
+        }
+        StyledPointData data;
+        data.points = message.points;
+        data.colors =
+            expand_vertex_colors(message.commonData.rgba, message.points.size() / 3, m_scene.get_default_point_color());
+        data.radii = message.radii;
+        data.sizeSpace = message.sizeSpace;
+        m_scene.add_styled_points(message.commonData.geometryId, std::move(data));
+        ++m_geometryMessagesProcessedThisFrame;
+        return;
+    }
     add_points_with_opts(message.points, message.commonData);
 }
 
 void Context::handle_message(const UpdatePointWithOpts& message) {
+    if (m_scene.is_styled_point(message.handle)) {
+        const std::array<float, 3> points{message.x, message.y, message.z};
+        const auto colors = message.rgba.empty()
+                                ? std::vector<float>{}
+                                : expand_vertex_colors(message.rgba, 1, m_scene.get_default_point_color());
+        if (m_scene.update_styled_points(message.handle,
+                                         points,
+                                         colors,
+                                         message.radii,
+                                         message.sizeSpace,
+                                         message.styled)) {
+            ++m_geometryMessagesProcessedThisFrame;
+        }
+        return;
+    }
     update_point_with_opts(message.handle, message.x, message.y, message.z, message.rgba);
 }
 
 void Context::handle_message(const UpdatePointsWithOpts& message) {
+    if (m_scene.is_styled_point(message.handle)) {
+        const auto colors =
+            message.rgba.empty()
+                ? std::vector<float>{}
+                : expand_vertex_colors(message.rgba, message.points.size() / 3, m_scene.get_default_point_color());
+        if (m_scene.update_styled_points(message.handle,
+                                         message.points,
+                                         colors,
+                                         message.radii,
+                                         message.sizeSpace,
+                                         message.styled)) {
+            ++m_geometryMessagesProcessedThisFrame;
+        }
+        return;
+    }
     update_points_with_opts(message.handle, message.points, message.rgba);
 }
 
@@ -1192,14 +1058,61 @@ void Context::handle_message(const SetPointColor& message) {
 }
 
 void Context::handle_message(const AddLineWithOpts& message) {
+    if (message.styleSet) {
+        if (is_known_idempotency_key(&message.commonData.idempotencyId)) {
+            return;
+        }
+        StyledLineData data;
+        data.vertices = {message.x1, message.y1, message.z1, message.x2, message.y2, message.z2};
+        data.colors = expand_vertex_colors(message.commonData.rgba, 2, m_scene.get_default_line_color(), true);
+        data.style = message.style;
+        data.lineType = message.lineType;
+        data.perVertexDashFlags = message.perVertexDashFlags;
+        m_scene.add_styled_line(message.commonData.geometryId, std::move(data));
+        ++m_geometryMessagesProcessedThisFrame;
+        return;
+    }
     add_line_with_opts(message.x1, message.y1, message.z1, message.x2, message.y2, message.z2, message.commonData);
 }
 
 void Context::handle_message(const AddLinesWithOpts& message) {
+    if (message.styleSet) {
+        if (is_known_idempotency_key(&message.commonData.idempotencyId)) {
+            return;
+        }
+        StyledLineData data;
+        data.vertices = message.lines;
+        data.colors = expand_vertex_colors(message.commonData.rgba,
+                                           message.lines.size() / 3,
+                                           m_scene.get_default_line_color(),
+                                           true);
+        data.style = message.style;
+        data.lineType = message.lineType;
+        data.perVertexDashFlags = message.perVertexDashFlags;
+        m_scene.add_styled_line(message.commonData.geometryId, std::move(data));
+        ++m_geometryMessagesProcessedThisFrame;
+        return;
+    }
     add_lines_with_opts(message.lines, message.commonData);
 }
 
 void Context::handle_message(const UpdateLineWithOpts& message) {
+    if (m_scene.is_styled_line(message.handle)) {
+        const std::array<float, 6> vertices{message.x1, message.y1, message.z1, message.x2, message.y2, message.z2};
+        const auto colors = message.rgba.empty()
+                                ? std::vector<float>{}
+                                : expand_vertex_colors(message.rgba, 2, m_scene.get_default_line_color(), true);
+        if (m_scene.update_styled_line(message.handle,
+                                       vertices,
+                                       colors,
+                                       message.style,
+                                       message.lineType,
+                                       message.perVertexDashFlags,
+                                       message.styleSet)) {
+            ++m_geometryMessagesProcessedThisFrame;
+        }
+        return;
+    }
     update_line_with_opts(message.handle,
                           message.x1,
                           message.y1,
@@ -1211,6 +1124,22 @@ void Context::handle_message(const UpdateLineWithOpts& message) {
 }
 
 void Context::handle_message(const UpdateLinesWithOpts& message) {
+    if (m_scene.is_styled_line(message.handle)) {
+        const auto colors =
+            message.rgba.empty()
+                ? std::vector<float>{}
+                : expand_vertex_colors(message.rgba, message.lines.size() / 3, m_scene.get_default_line_color(), true);
+        if (m_scene.update_styled_line(message.handle,
+                                       message.lines,
+                                       colors,
+                                       message.style,
+                                       message.lineType,
+                                       message.perVertexDashFlags,
+                                       message.styleSet)) {
+            ++m_geometryMessagesProcessedThisFrame;
+        }
+        return;
+    }
     update_lines_with_opts(message.handle, message.lines, message.rgba);
 }
 
@@ -1450,9 +1379,8 @@ bool Context::is_control_message(const GeoQikMessage& message) {
 void Context::apply_preset_view(renderer::PresetView view) {
     // ISO is a free 3D vantage point, so it leaves all interactive movement unlocked. The
     // orthographic presets lock rotation so the fixed view is not accidentally orbited away.
-    const auto viewMode = view == renderer::PresetView::ISO
-                              ? renderer::CameraInteractor::CameraViewMode::NONE
-                              : renderer::CameraInteractor::CameraViewMode::FIX_ROTATE;
+    const auto viewMode = view == renderer::PresetView::ISO ? renderer::CameraInteractor::CameraViewMode::NONE
+                                                            : renderer::CameraInteractor::CameraViewMode::FIX_ROTATE;
     m_renderer->go_to_preset_view(view);
     if (auto camera = m_renderer->get_camera().lock()) {
         camera->set_view_mode(viewMode);
@@ -1480,17 +1408,15 @@ void Context::handle_camera_key(Key key, Action action) {
     // F1 toggles between the game-like Release control panel (the default) and the full Debug
     // panel exposing every post-processing and visualization control.
     if (key == Key::KEY_F1) {
-        auto& ui = m_overlay->inner();
-        ui.set_ui_mode(ui.ui_mode() == renderer::UiMode::Release ? renderer::UiMode::Debug
-                                                                 : renderer::UiMode::Release);
+        auto& ui = *m_overlay;
+        ui.set_ui_mode(ui.ui_mode() == renderer::UiMode::Release ? renderer::UiMode::Debug : renderer::UiMode::Release);
         return;
     }
 
     // Tab toggles between orbit navigation and fly (WASD+QE) navigation.
     if (key == Key::KEY_TAB) {
         if (auto camera = m_renderer->get_camera().lock()) {
-            apply_navigation_style(camera->get_navigation_style() ==
-                                           renderer::CameraInteractor::NavigationStyle::ORBIT
+            apply_navigation_style(camera->get_navigation_style() == renderer::CameraInteractor::NavigationStyle::ORBIT
                                        ? renderer::CameraInteractor::NavigationStyle::FLY
                                        : renderer::CameraInteractor::NavigationStyle::ORBIT);
         }
@@ -1570,6 +1496,9 @@ void Context::start_replay(std::vector<GeoQikLogEntry> entries, const ReplayOpti
     m_baseEntriesPerSecond = m_replayOptions.entriesPerSecond;
     m_currentSpeedMultiplier = 1.0;
     m_isReplayBackward = false;
+    m_isReplayMaxSpeed = false;
+    // Keep m_deferredMessages intact. Live messages received after replay starts are queued there
+    // and applied in order once replay mode ends, so starting a replay cannot discard them.
 }
 
 void Context::process_replay_entries(const std::chrono::high_resolution_clock::time_point& now) {
@@ -1599,12 +1528,13 @@ void Context::process_replay_entries(const std::chrono::high_resolution_clock::t
 
         const std::chrono::duration<double> elapsed = now - m_lastReplayTick;
         m_lastReplayTick = now;
-        m_replayEntryBudget += elapsed.count() * m_replayOptions.entriesPerSecond;
-
-        auto entriesToUndo = static_cast<std::size_t>(m_replayEntryBudget);
-        entriesToUndo = std::min(entriesToUndo, m_replayOptions.maxEntriesPerFrame);
+        std::size_t entriesToUndo = m_replayOptions.maxEntriesPerFrame;
+        if (!m_isReplayMaxSpeed) {
+            m_replayEntryBudget += elapsed.count() * m_replayOptions.entriesPerSecond;
+            entriesToUndo = std::min(static_cast<std::size_t>(m_replayEntryBudget), m_replayOptions.maxEntriesPerFrame);
+        }
         undo_replay_entries(entriesToUndo);
-        if (m_replayEntryBudget >= 1.0) {
+        if (!m_isReplayMaxSpeed && m_replayEntryBudget >= 1.0) {
             m_replayEntryBudget -= static_cast<double>(entriesToUndo);
         }
         return;
@@ -1619,10 +1549,11 @@ void Context::process_replay_entries(const std::chrono::high_resolution_clock::t
 
     const std::chrono::duration<double> elapsed = now - m_lastReplayTick;
     m_lastReplayTick = now;
-    m_replayEntryBudget += elapsed.count() * m_replayOptions.entriesPerSecond;
-
-    auto entriesToApply = static_cast<std::size_t>(m_replayEntryBudget);
-    entriesToApply = std::min(entriesToApply, m_replayOptions.maxEntriesPerFrame);
+    std::size_t entriesToApply = m_replayOptions.maxEntriesPerFrame;
+    if (!m_isReplayMaxSpeed) {
+        m_replayEntryBudget += elapsed.count() * m_replayOptions.entriesPerSecond;
+        entriesToApply = std::min(static_cast<std::size_t>(m_replayEntryBudget), m_replayOptions.maxEntriesPerFrame);
+    }
 
     apply_replay_entries(entriesToApply);
 
@@ -1693,6 +1624,7 @@ void Context::finish_replay() {
     m_isReplayActive = false;
     m_isReplayPaused = false;
     m_isReplayBackward = false;
+    m_isReplayMaxSpeed = false;
     m_currentSpeedMultiplier = 1.0;
 }
 

@@ -4,8 +4,8 @@
 
 namespace {
 
-constexpr float pointSize = 5.0F;
-constexpr float lineWidth = 2.0F;
+constexpr float gridPointRadiusWorld = 1.0F;
+constexpr float gridLineWidthPixels = 2.0F;
 constexpr double gridSize = 500.0;
 constexpr double gridSpacing = 10.0;
 
@@ -14,12 +14,9 @@ constexpr double gridSpacing = 10.0;
 int main() {
     geoqik_init();
 
-    geoqik_set_point_size(pointSize);
-    geoqik_set_line_width(lineWidth);
-
     geoqik_draw();
 
-    geoqik::examples::add_grid(gridSize, gridSpacing);
+    geoqik::examples::add_grid(gridSize, gridSpacing, gridLineWidthPixels, gridPointRadiusWorld);
 
     geoqik_wait_for_exit_and_cleanup();
 

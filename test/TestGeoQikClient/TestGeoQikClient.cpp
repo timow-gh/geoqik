@@ -54,6 +54,39 @@ class GeoQikClientTest : public ::testing::Test {
     }
 };
 
+TEST_F(GeoQikClientTest, StyledPointsAndLinesRoundTripThroughServer) {
+    ASSERT_EQ(GEOQIK_SUCCESS, geoqik_init());
+
+    const double points[] = {0.0, 0.0, 0.0, 1.0, 1.0, 1.0};
+    const float radii[] = {2.0f, 3.0f};
+    geoqik_add_points_options_t pointOpts{};
+    pointOpts.radii = radii;
+    pointOpts.radiusCount = 2;
+    pointOpts.sizeSpace = GEOQIK_SPHERE_SIZE_SPACE_WORLD;
+    const auto pointResult = geoqik_add_points_opts(points, std::size(points), &pointOpts);
+    ASSERT_EQ(GEOQIK_SUCCESS, pointResult.err);
+
+    const double lines[] = {0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 2.0, 1.0, 0.0};
+    const float dash[] = {4.0f, 2.0f};
+    const std::uint8_t flags[] = {1, 1, 0, 1};
+    geoqik_add_line_opts_t lineOpts{};
+    lineOpts.styleSet = 1;
+    lineOpts.style.lineWidth = 4.0f;
+    lineOpts.style.cap = GEOQIK_LINE_CAP_ROUND;
+    lineOpts.style.join = GEOQIK_LINE_JOIN_BEVEL;
+    lineOpts.style.dashPattern = dash;
+    lineOpts.style.dashPatternCount = std::size(dash);
+    lineOpts.style.dashSpace = GEOQIK_DASH_SPACE_SCREEN;
+    lineOpts.lineType = GEOQIK_LINE_TYPE_LINE_STRIP;
+    lineOpts.perVertexDashFlags = flags;
+    lineOpts.perVertexDashFlagCount = std::size(flags);
+    const auto lineResult = geoqik_add_lines_opts(lines, std::size(lines), &lineOpts);
+    ASSERT_EQ(GEOQIK_SUCCESS, lineResult.err);
+
+    EXPECT_EQ(GEOQIK_SUCCESS, geoqik_remove_point(&pointResult.geometryId));
+    EXPECT_EQ(GEOQIK_SUCCESS, geoqik_remove_line(&lineResult.geometryId));
+}
+
 // --- Happy-path tests -------------------------------------------------------
 
 TEST_F(GeoQikClientTest, InitAndCleanup) {

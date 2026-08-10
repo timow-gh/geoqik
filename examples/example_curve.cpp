@@ -23,11 +23,17 @@ constexpr double translationX = 15.0;
 constexpr double translationZ = 8.0;
 constexpr double rotationAngleDegrees = 260.0;
 constexpr double opaque = 1.0;
+constexpr float gridLineWidthPixels = 2.0F;
+constexpr float gridPointRadiusWorld = 0.1F;
+constexpr float curvePointSizePixels = 6.0F;
+constexpr float curvePointRed = 1.0F;
+constexpr float curvePointGreen = 0.65F;
+constexpr float curvePointBlue = 0.1F;
 
 } // namespace
 
-static void add_float3_with_color(const linal::double3& point) {
-    geoqik_add_point_with_color(point[0], point[1], point[2], 0.0F, opaque, 0.0F, opaque);
+static void add_curve_point(const linal::double3& point) {
+    geoqik_add_point_with_color(point[0], point[1], point[2], curvePointRed, curvePointGreen, curvePointBlue, opaque);
 }
 
 static void add_line_with_color(const linal::double3& start, const linal::double3& end) {
@@ -35,12 +41,14 @@ static void add_line_with_color(const linal::double3& start, const linal::double
 }
 
 static void draw_curve_points(const std::array<linal::double3, curveControlPointCount>& startPoints,
-                              std::size_t approxSteps) {
+                              std::size_t approxSteps,
+                              float pointSize) {
     bool initialized = false;
     geoqik_is_api_initialized(&initialized);
     assert(initialized);
 
-    std::for_each(startPoints.begin(), startPoints.end(), add_float3_with_color);
+    geoqik_set_point_size(pointSize);
+    std::for_each(startPoints.begin(), startPoints.end(), add_curve_point);
 
     const linal::double3 translationA{translationX, 0.0, 0.0};
     const linal::double3 translationB{0.0, 0.0, translationZ};
@@ -71,6 +79,9 @@ static void draw_curve_points(const std::array<linal::double3, curveControlPoint
         for (std::size_t j = 0; j < prevPoints.size(); ++j) {
             add_line_with_color(prevPoints[j], transformedPoint[j]);
         }
+        for (const auto& point: transformedPoint) {
+            add_curve_point(point);
+        }
         prevPoints = transformedPoint;
     }
 }
@@ -92,7 +103,7 @@ int main() {
     geoqik_init();
 
     geoqik::examples::draw_origin(1.0);
-    geoqik::examples::add_grid(gridExtent, 1.0);
+    geoqik::examples::add_grid(gridExtent, 1.0, gridLineWidthPixels, gridPointRadiusWorld);
 
     geoqik_draw();
 
@@ -100,12 +111,12 @@ int main() {
                                                                    linal::double3{opaque, 0.0, 0.0},
                                                                    linal::double3{opaque, 0.0, opaque},
                                                                    linal::double3{0.0, 0.0, opaque}};
-    draw_curve_points(startPoints, curveStepCount);
+    draw_curve_points(startPoints, curveStepCount, curvePointSizePixels);
 
     for (auto& point: startPoints) {
         point += linal::double3{translationX, 0.0, 0.0};
     }
-    draw_curve_points(startPoints, translatedCurveStepCount);
+    draw_curve_points(startPoints, translatedCurveStepCount, curvePointSizePixels);
 
     geoqik::examples::sleep_for_seconds(replayDelaySeconds);
 

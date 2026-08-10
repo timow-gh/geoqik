@@ -13,6 +13,8 @@ namespace geoqik {
 class GeoQikSceneRenderer {
     renderer::Renderer& m_renderer;
     renderer::LineType m_lineType{renderer::LineType::lines()};
+    renderer::DrawableHandle m_mergedPointDrawable;
+    renderer::DrawableHandle m_mergedLineDrawable;
 
     struct MeshDrawableBundle {
         renderer::DrawableHandle surface;
@@ -21,6 +23,8 @@ class GeoQikSceneRenderer {
     };
 
     std::unordered_map<core::UUID, MeshDrawableBundle> m_meshBundles;
+    std::unordered_map<core::UUID, renderer::DrawableHandle> m_styledPointBundles;
+    std::unordered_map<core::UUID, renderer::DrawableHandle> m_styledLineBundles;
 
   public:
     explicit GeoQikSceneRenderer(renderer::Renderer& renderer)
@@ -42,10 +46,14 @@ class GeoQikSceneRenderer {
     bool sync_points(Scene& scene);
     bool sync_lines(Scene& scene);
     bool sync_meshes(MeshBuffer& meshBuffer);
+    bool sync_styled(Scene& scene);
     bool sync_mesh_changes(MeshBuffer& meshBuffer);
     bool sync_overlay_drawables(MeshBuffer& meshBuffer);
     void create_surface_bundle(const core::UUID& uuid, const MeshBuffer& meshBuffer);
     void remove_bundle(const core::UUID& uuid);
+    void rebuild_all_drawables(const Scene& scene);
+    void create_styled_point_drawable(const core::UUID& uuid, const StyledPointData& data, float fallbackRadius);
+    void create_styled_line_drawable(const core::UUID& uuid, const StyledLineData& data, float fallbackWidth);
 };
 
 } // namespace geoqik

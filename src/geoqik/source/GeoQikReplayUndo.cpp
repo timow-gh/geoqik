@@ -35,6 +35,10 @@ ReplayUndoFrame make_replay_undo_frame(const AddPointsWithOpts& message, const R
 
 ReplayUndoFrame make_replay_undo_frame(const UpdatePointWithOpts& message, const ReplayUndoContext& context) {
     ReplayUndoFrame frame;
+    if (context.scene.is_styled(message.handle)) {
+        frame.action = ReplayUndoFrame::RestoreScene{context.scene.create_snapshot()};
+        return frame;
+    }
     if (auto geometry = context.scene.get_point_geometry(message.handle)) {
         frame.action = GeoQikLogEntry{
             UpdatePointsWithOpts{message.handle, std::move(geometry->points), std::move(geometry->colors)}};
@@ -44,6 +48,10 @@ ReplayUndoFrame make_replay_undo_frame(const UpdatePointWithOpts& message, const
 
 ReplayUndoFrame make_replay_undo_frame(const UpdatePointsWithOpts& message, const ReplayUndoContext& context) {
     ReplayUndoFrame frame;
+    if (context.scene.is_styled(message.handle)) {
+        frame.action = ReplayUndoFrame::RestoreScene{context.scene.create_snapshot()};
+        return frame;
+    }
     if (auto geometry = context.scene.get_point_geometry(message.handle)) {
         frame.action = GeoQikLogEntry{
             UpdatePointsWithOpts{message.handle, std::move(geometry->points), std::move(geometry->colors)}};
@@ -53,6 +61,10 @@ ReplayUndoFrame make_replay_undo_frame(const UpdatePointsWithOpts& message, cons
 
 ReplayUndoFrame make_replay_undo_frame(const RemovePoint& message, const ReplayUndoContext& context) {
     ReplayUndoFrame frame;
+    if (context.scene.is_styled(message.handle)) {
+        frame.action = ReplayUndoFrame::RestoreScene{context.scene.create_snapshot()};
+        return frame;
+    }
     if (auto geometry = context.scene.get_point_geometry(message.handle)) {
         GeoQikMessageCommonData commonData;
         commonData.geometryId = message.handle;
@@ -99,6 +111,10 @@ ReplayUndoFrame make_replay_undo_frame(const AddLinesWithOpts& message, const Re
 
 ReplayUndoFrame make_replay_undo_frame(const UpdateLineWithOpts& message, const ReplayUndoContext& context) {
     ReplayUndoFrame frame;
+    if (context.scene.is_styled(message.handle)) {
+        frame.action = ReplayUndoFrame::RestoreScene{context.scene.create_snapshot()};
+        return frame;
+    }
     if (auto geometry = context.scene.get_line_geometry(message.handle)) {
         frame.action = GeoQikLogEntry{
             UpdateLinesWithOpts{message.handle, std::move(geometry->lines), std::move(geometry->colors)}};
@@ -108,6 +124,10 @@ ReplayUndoFrame make_replay_undo_frame(const UpdateLineWithOpts& message, const 
 
 ReplayUndoFrame make_replay_undo_frame(const UpdateLinesWithOpts& message, const ReplayUndoContext& context) {
     ReplayUndoFrame frame;
+    if (context.scene.is_styled(message.handle)) {
+        frame.action = ReplayUndoFrame::RestoreScene{context.scene.create_snapshot()};
+        return frame;
+    }
     if (auto geometry = context.scene.get_line_geometry(message.handle)) {
         frame.action = GeoQikLogEntry{
             UpdateLinesWithOpts{message.handle, std::move(geometry->lines), std::move(geometry->colors)}};
@@ -117,6 +137,10 @@ ReplayUndoFrame make_replay_undo_frame(const UpdateLinesWithOpts& message, const
 
 ReplayUndoFrame make_replay_undo_frame(const RemoveLine& message, const ReplayUndoContext& context) {
     ReplayUndoFrame frame;
+    if (context.scene.is_styled(message.handle)) {
+        frame.action = ReplayUndoFrame::RestoreScene{context.scene.create_snapshot()};
+        return frame;
+    }
     if (auto geometry = context.scene.get_line_geometry(message.handle)) {
         GeoQikMessageCommonData commonData;
         commonData.geometryId = message.handle;
@@ -151,16 +175,22 @@ ReplayUndoFrame make_replay_undo_frame([[maybe_unused]] const RemoveAllGeometry&
     return frame;
 }
 
-ReplayUndoFrame make_replay_undo_frame(const TranslateGeometry& message,
-                                       [[maybe_unused]] const ReplayUndoContext& context) {
+ReplayUndoFrame make_replay_undo_frame(const TranslateGeometry& message, const ReplayUndoContext& context) {
     ReplayUndoFrame frame;
+    if (context.scene.is_styled(message.handle)) {
+        frame.action = ReplayUndoFrame::RestoreScene{context.scene.create_snapshot()};
+        return frame;
+    }
     frame.action = GeoQikLogEntry{TranslateGeometry{message.handle, -message.dx, -message.dy, -message.dz}};
     return frame;
 }
 
-ReplayUndoFrame make_replay_undo_frame(const RotateGeometry& message,
-                                       [[maybe_unused]] const ReplayUndoContext& context) {
+ReplayUndoFrame make_replay_undo_frame(const RotateGeometry& message, const ReplayUndoContext& context) {
     ReplayUndoFrame frame;
+    if (context.scene.is_styled(message.handle)) {
+        frame.action = ReplayUndoFrame::RestoreScene{context.scene.create_snapshot()};
+        return frame;
+    }
     frame.action = GeoQikLogEntry{RotateGeometry{message.handle,
                                                  message.centerX,
                                                  message.centerY,

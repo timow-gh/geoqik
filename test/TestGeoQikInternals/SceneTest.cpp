@@ -1,5 +1,7 @@
 #include "Scene.hpp"
 
+#include "Rendering/StyleTranslation.hpp"
+
 #include <plinth/MathConstants.hpp>
 
 #include <gtest/gtest.h>
@@ -105,9 +107,50 @@ TEST(SceneTest, AddsBulkPointsAndLines) {
     EXPECT_EQ(scene.get_point_buffer().get_points().size(), std::size(points));
     EXPECT_EQ(scene.get_point_buffer().get_point_colors().size(), 2 * renderer::ColorChannelCount);
     EXPECT_EQ(scene.get_point_buffer().get_point_indices().size(), 2);
+    ASSERT_EQ(scene.get_point_buffer().get_point_radii().size(), 2);
+    EXPECT_FLOAT_EQ(scene.get_point_buffer().get_point_radii()[0], 0.0f);
+    EXPECT_FLOAT_EQ(scene.get_point_buffer().get_point_radii()[1], 0.0f);
     EXPECT_EQ(scene.get_line_buffer().get_lines().size(), std::size(lines));
     EXPECT_EQ(scene.get_line_buffer().get_line_colors().size(), 4 * renderer::ColorChannelCount);
     EXPECT_EQ(scene.get_line_buffer().get_line_indices().size(), 4);
+}
+
+TEST(SceneTest, StyledGeometryMutatesAndSnapshotRestores) {
+    auto scene = geoqik::Scene::create(make_scene_test_settings());
+    const auto pointId = core::UUID::generate();
+    const auto lineId = core::UUID::generate();
+
+    geoqik::StyledPointData points{{0.0f, 0.0f, 0.0f}, {1.0f, 0.0f, 0.0f, 1.0f}, {2.0f}, 1};
+    geoqik::StyledLineData line{{0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f},
+                                {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f},
+                                {3.0f, 2, 1, 5.0f, {4.0f, 2.0f}, 0.5f, 1},
+                                2,
+                                {1, 1}};
+    scene.add_styled_points(pointId, points);
+    scene.add_styled_line(lineId, line);
+    ASSERT_TRUE(scene.is_styled(pointId));
+    ASSERT_TRUE(scene.is_styled(lineId));
+
+    const auto snapshot = scene.create_snapshot();
+    scene.translate_geometry(pointId, 1.0f, 2.0f, 3.0f);
+    scene.set_geometry_color(lineId, 0.2f, 0.3f, 0.4f, 0.5f);
+    EXPECT_FLOAT_EQ(scene.get_styled_points().at(pointId).points[0], 1.0f);
+    EXPECT_FLOAT_EQ(scene.get_styled_lines().at(lineId).colors[0], 0.2f);
+
+    scene.remove_point(pointId);
+    scene.remove_line(lineId);
+    EXPECT_FALSE(scene.is_styled(pointId));
+    EXPECT_FALSE(scene.is_styled(lineId));
+    scene.restore_snapshot(snapshot);
+    EXPECT_EQ(scene.get_styled_points().at(pointId), points);
+    EXPECT_EQ(scene.get_styled_lines().at(lineId), line);
+}
+
+TEST(SceneTest, StyleTranslationPreservesExplicitEnumMeaning) {
+    EXPECT_EQ(geoqik::to_plinth_size_space(GEOQIK_SPHERE_SIZE_SPACE_SCREEN), renderer::SphereSizeSpace::Screen);
+    EXPECT_EQ(geoqik::to_plinth_size_space(GEOQIK_SPHERE_SIZE_SPACE_WORLD), renderer::SphereSizeSpace::World);
+    EXPECT_EQ(geoqik::to_plinth_dash_space(GEOQIK_DASH_SPACE_WORLD), renderer::DashSpace::World);
+    EXPECT_EQ(geoqik::to_plinth_dash_space(GEOQIK_DASH_SPACE_SCREEN), renderer::DashSpace::Screen);
 }
 
 TEST(SceneTest, RemovesPointAndLineGeometry) {

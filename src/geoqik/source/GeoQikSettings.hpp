@@ -53,9 +53,8 @@ struct GEOQIK_EXPORT GeoQikSettings {
     std::size_t capacityGrowthFactor{2}; // Growth factor for the geometry buffers. Then new buffer will have a capacity
                                          // of current_capacity * growth_factor.
 
-    float defaultPointSize{
-        4.0f}; // Default world-space sphere radius for points. If no other size is set using the GeoQik API, this
-               // radius will be used.
+    float defaultPointSize{4.0f}; // Default screen-space sphere diameter in pixels. If no other size is set using the
+                                  // GeoQik API, this diameter will be used.
     float defaultLineWidth{
         2.0f}; // Default width for lines. If not other width is set using the GeoQik API, this width will be used.
     Color defaultPointColor{
