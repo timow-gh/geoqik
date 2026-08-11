@@ -104,6 +104,10 @@ struct VideoGuiState {
     // Offline log->video pacing. Speed and Duration are mutually exclusive.
     enum class Pacing : std::uint8_t { Speed, Duration };
 
+    // Severity of the inline, non-blocking status line shown for recording actions. Unlike the
+    // shared modal error popup (still used by file-log operations), recording feedback never blocks.
+    enum class StatusKind : std::uint8_t { None, Info, Success, Error };
+
     enum class Command : std::uint8_t {
         None,
         StartRecording,
@@ -140,7 +144,23 @@ struct VideoGuiState {
     Format requestedFormat{Format::Mp4};
     std::filesystem::path requestedPath;   // for SetFfmpegPath / SetRecordingDirectory / RenderLogToVideo
     geoqik_log_format_t requestedLogFormat{GEOQIK_LOG_FORMAT_BINARY}; // for RenderLogToVideo
-    bool showSavedNotice{false};           // pulse a "Saved to ..." confirmation after finishing
+
+    // --- Inline, non-blocking status feedback (set by Context, rendered by the overlay) ---
+    // Shown as a colored line in the Record menu and as a transient toast near the badge; it fades
+    // automatically after a few seconds. statusSetAtSeconds holds the ImGui::GetTime() at which the
+    // message was set, so the overlay can expire it without any timer plumbing.
+    StatusKind statusKind{StatusKind::None};
+    std::string statusMessage;
+    double statusSetAtSeconds{0.0};
+    bool statusIsNew{false}; // set by set_status(); the overlay stamps statusSetAtSeconds and clears it
+
+    // Record a status message to show inline. Context has no ImGui context, so the timestamp used
+    // for auto-fade is stamped by the overlay on the next render (see statusIsNew).
+    void set_status(StatusKind kind, std::string message) {
+        statusKind = kind;
+        statusMessage = std::move(message);
+        statusIsNew = true;
+    }
 
     // --- Render settings edited in the menu (apply to the next Start/Render) ---
     Quality quality{Quality::High};
@@ -219,7 +239,8 @@ class GeoQikOverlay final : public renderer::IOverlay {
     void render_main_menu_bar();
     void render_record_menu();
     void render_log_video_settings(VideoGuiState& state);
-    void render_recording_badge() const;
+    void render_recording_badge();
+    void render_recording_status();
     void layout_controls();
 };
 

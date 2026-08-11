@@ -27,6 +27,7 @@
 #include <filesystem>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <system_error>
 #include <type_traits>
 #include <utility>
@@ -832,6 +833,24 @@ namespace {
     return video::VideoQuality::High;
 }
 
+/// Maps a recording failure to a short, actionable message. Kept out of the UI layer so the same
+/// wording is reused for the live-record, stop, and log->video paths. @p action names the operation
+/// (e.g. "start recording") for the generic fallback.
+[[nodiscard]] std::string recording_error_message(geoqik_error_code_t code, std::string_view action) {
+    switch (code) {
+    case GEOQIK_ERROR_UNSUPPORTED_FORMAT:
+        return "ffmpeg was not found. Set ffmpeg.exe under Record \xE2\x96\xB8 Set ffmpeg.exe Path\xE2\x80\xA6";
+    case GEOQIK_ERROR_IO:
+        return "Could not write the video file. Check the recording folder is writable and has free space.";
+    case GEOQIK_ERROR_INVALID_STATE:
+        return "A recording is already in progress.";
+    case GEOQIK_ERROR_INVALID_PARAMETER:
+        return "Invalid recording settings. Check the resolution and frame rate.";
+    default:
+        return fmt::format("Could not {} (code {}).", action, static_cast<int>(code));
+    }
+}
+
 /// Opens a folder / selects a file in the platform file browser so the user can find the output.
 void reveal_in_file_browser(const std::filesystem::path& path) {
     if (path.empty()) {
@@ -897,10 +916,10 @@ void Context::consume_video_gui_commands(VideoGuiState& state) {
         break;
     case VideoGuiState::Command::StartRecording: {
         const geoqik_error_code_t result = start_recording(make_record_options_from_gui(state));
-        if (result != GEOQIK_SUCCESS) {
-            m_overlay->file_state().errorMessage =
-                fmt::format("Could not start recording. Error code: {}", static_cast<int>(result));
-            m_overlay->file_state().openErrorPopup = true;
+        if (result == GEOQIK_SUCCESS) {
+            state.set_status(VideoGuiState::StatusKind::Info, "Recording\xE2\x80\xA6");
+        } else {
+            state.set_status(VideoGuiState::StatusKind::Error, recording_error_message(result, "start recording"));
         }
         break;
     }
@@ -909,10 +928,10 @@ void Context::consume_video_gui_commands(VideoGuiState& state) {
         const geoqik_error_code_t result = stop_recording();
         if (result == GEOQIK_SUCCESS) {
             state.lastOutputPath = output;
+            state.set_status(VideoGuiState::StatusKind::Success,
+                             fmt::format("Saved {}", path_to_utf8(output.filename())));
         } else {
-            m_overlay->file_state().errorMessage =
-                fmt::format("Recording finished with an error. Error code: {}", static_cast<int>(result));
-            m_overlay->file_state().openErrorPopup = true;
+            state.set_status(VideoGuiState::StatusKind::Error, recording_error_message(result, "finish recording"));
         }
         break;
     }
@@ -922,10 +941,10 @@ void Context::consume_video_gui_commands(VideoGuiState& state) {
             render_log_to_video_path(state.requestedPath, state.requestedLogFormat, options);
         if (result == GEOQIK_SUCCESS) {
             state.lastOutputPath = m_recorder.final_output_path();
+            state.set_status(VideoGuiState::StatusKind::Success,
+                             fmt::format("Saved {}", path_to_utf8(state.lastOutputPath.filename())));
         } else {
-            m_overlay->file_state().errorMessage =
-                fmt::format("Could not render log to video. Error code: {}", static_cast<int>(result));
-            m_overlay->file_state().openErrorPopup = true;
+            state.set_status(VideoGuiState::StatusKind::Error, recording_error_message(result, "render log to video"));
         }
         break;
     }

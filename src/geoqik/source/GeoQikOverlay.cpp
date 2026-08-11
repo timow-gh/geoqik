@@ -40,6 +40,29 @@ constexpr float errorPopupButtonWidth = 120.0F;
 constexpr float exposureMinimum = -10.0F;
 constexpr float exposureMaximum = 10.0F;
 
+// Recording status/badge presentation.
+constexpr double recordingStatusTimeoutSeconds = 4.0; // inline status fades after this long
+constexpr float recordingBadgePadding = 8.0F;
+constexpr float recordingBadgeMargin = 12.0F;
+constexpr float recordingBadgeRounding = 4.0F;
+// Field widths reused by the record menu and log->video settings.
+constexpr float logVideoFieldWidth = 200.0F;
+constexpr float recordQualityFieldWidth = 160.0F;
+// Frame-rate bounds for the log->video FPS slider.
+constexpr int logVideoMinFps = 15;
+constexpr int logVideoMaxFps = 120;
+
+/// ImGui text color for a recording status message. None falls back to the default text color.
+[[nodiscard]] ImU32 recording_status_color(VideoGuiState::StatusKind kind) {
+    switch (kind) {
+    case VideoGuiState::StatusKind::Success: return IM_COL32(96, 208, 96, 255);
+    case VideoGuiState::StatusKind::Error: return IM_COL32(240, 96, 96, 255);
+    case VideoGuiState::StatusKind::Info:
+    case VideoGuiState::StatusKind::None: return ImGui::GetColorU32(ImGuiCol_Text);
+    }
+    return ImGui::GetColorU32(ImGuiCol_Text);
+}
+
 // Standard video resolution presets offered for log->video rendering. Index 0 keeps the current
 // window size; the rest resize the window during the offline render. Shared by the menu UI and by
 // Context::make_record_options_from_gui via video_resolution_preset().
@@ -717,6 +740,7 @@ void GeoQikOverlay::apply_scene_viewport_hint(renderer::OverlayFrameContext& con
 void GeoQikOverlay::build_controls(renderer::OverlayFrameContext& context) {
     render_main_menu_bar();
     render_recording_badge();
+    render_recording_status();
     apply_scene_viewport_hint(context);
 
     m_cameraState.projectionType = context.projectionType;
@@ -727,15 +751,16 @@ void GeoQikOverlay::build_controls(renderer::OverlayFrameContext& context) {
     add_display_controls(context.renderer);
 }
 
-void GeoQikOverlay::render_recording_badge() const {
+void GeoQikOverlay::render_recording_badge() {
     if (!m_videoState.isRecording) {
         return;
     }
 
     // Draw an always-visible "REC" badge in the top-right of the scene area so the user can tell a
-    // recording is running even with all menus closed. It is drawn via ImGui's foreground draw list
-    // and is not part of the recorded pixels (capture reads the swapped front buffer, and this badge
-    // belongs to the overlay composited into the current frame that is not captured verbatim).
+    // recording is running even with all menus closed. The badge text/timer is drawn via ImGui's
+    // foreground draw list and is not part of the recorded pixels (capture reads the swapped front
+    // buffer). A borderless overlay window pins a clickable Stop button under the badge so the user
+    // can end a recording without reopening the menu.
     const ImGuiViewport* viewport = ImGui::GetMainViewport();
     if (viewport == nullptr) {
         return;
@@ -751,13 +776,68 @@ void GeoQikOverlay::render_recording_badge() const {
 
     ImDrawList* drawList = ImGui::GetForegroundDrawList();
     const ImVec2 textSize = ImGui::CalcTextSize(label.c_str());
-    constexpr float padding = 8.0F;
-    constexpr float margin = 12.0F;
     const ImVec2 topRight{viewport->WorkPos.x + viewport->WorkSize.x, viewport->WorkPos.y};
-    const ImVec2 boxMin{topRight.x - textSize.x - 2.0F * padding - margin, topRight.y + margin};
-    const ImVec2 boxMax{topRight.x - margin, boxMin.y + textSize.y + 2.0F * padding};
-    drawList->AddRectFilled(boxMin, boxMax, IM_COL32(0, 0, 0, 160), 4.0F);
-    drawList->AddText(ImVec2{boxMin.x + padding, boxMin.y + padding}, IM_COL32(255, 64, 64, 255), label.c_str());
+    const ImVec2 boxMin{topRight.x - textSize.x - 2.0F * recordingBadgePadding - recordingBadgeMargin,
+                        topRight.y + recordingBadgeMargin};
+    const ImVec2 boxMax{topRight.x - recordingBadgeMargin, boxMin.y + textSize.y + 2.0F * recordingBadgePadding};
+    drawList->AddRectFilled(boxMin, boxMax, IM_COL32(0, 0, 0, 160), recordingBadgeRounding);
+    drawList->AddText(ImVec2{boxMin.x + recordingBadgePadding, boxMin.y + recordingBadgePadding},
+                      IM_COL32(255, 64, 64, 255), label.c_str());
+
+    // A borderless, no-nav overlay window holds the actual Stop hit-target directly beneath the
+    // badge. It lives in the overlay (like the badge) so it is not captured into the recording.
+    ImGui::SetNextWindowPos(ImVec2{boxMin.x, boxMax.y + recordingBadgeMargin});
+    ImGui::SetNextWindowBgAlpha(0.0F);
+    constexpr ImGuiWindowFlags overlayFlags =
+        ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings |
+        ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoNav;
+    if (ImGui::Begin("##GeoQikRecStop", nullptr, overlayFlags)) {
+        if (ImGui::Button("\xE2\x96\xA0 Stop")) {
+            m_videoState.command = VideoGuiState::Command::StopRecording;
+        }
+        item_tooltip("Stop the current recording.");
+    }
+    ImGui::End();
+}
+
+void GeoQikOverlay::render_recording_status() {
+    VideoGuiState& state = m_videoState;
+    if (state.statusKind == VideoGuiState::StatusKind::None) {
+        return;
+    }
+
+    const double now = ImGui::GetTime();
+    // Context has no ImGui context, so it flags a freshly-set message; stamp the display time here.
+    if (state.statusIsNew) {
+        state.statusSetAtSeconds = now;
+        state.statusIsNew = false;
+    }
+
+    // A recording in progress keeps its "Recording…" info line up until stop replaces it; other
+    // messages fade after a few seconds so they do not linger.
+    const bool persistent = state.isRecording && state.statusKind == VideoGuiState::StatusKind::Info;
+    if (!persistent && now - state.statusSetAtSeconds > recordingStatusTimeoutSeconds) {
+        state.statusKind = VideoGuiState::StatusKind::None;
+        state.statusMessage.clear();
+        return;
+    }
+
+    // Transient toast near the bottom-center of the scene so success/failure is visible with all
+    // menus closed. Drawn in the overlay, so it is not captured into the recording.
+    const ImGuiViewport* viewport = ImGui::GetMainViewport();
+    if (viewport == nullptr) {
+        return;
+    }
+    ImDrawList* drawList = ImGui::GetForegroundDrawList();
+    const ImVec2 textSize = ImGui::CalcTextSize(state.statusMessage.c_str());
+    const ImVec2 center{viewport->WorkPos.x + viewport->WorkSize.x * 0.5F,
+                        viewport->WorkPos.y + viewport->WorkSize.y - recordingBadgeMargin * 4.0F};
+    const ImVec2 boxMin{center.x - textSize.x * 0.5F - recordingBadgePadding, center.y - recordingBadgePadding};
+    const ImVec2 boxMax{center.x + textSize.x * 0.5F + recordingBadgePadding,
+                        center.y + textSize.y + recordingBadgePadding};
+    drawList->AddRectFilled(boxMin, boxMax, IM_COL32(0, 0, 0, 180), recordingBadgeRounding);
+    drawList->AddText(ImVec2{boxMin.x + recordingBadgePadding, boxMin.y + recordingBadgePadding},
+                      recording_status_color(state.statusKind), state.statusMessage.c_str());
 }
 
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
@@ -837,18 +917,15 @@ std::pair<int, int> video_resolution_preset(int index) {
 }
 
 void GeoQikOverlay::render_log_video_settings(VideoGuiState& state) {
-    constexpr float fieldWidth = 200.0F;
+    constexpr float fieldWidth = logVideoFieldWidth;
 
     // Output format for the rendered log.
     constexpr std::array<const char*, 3> formatLabels{"MP4 (H.264)", "WebM (VP9)", "GIF"};
     constexpr std::array<VideoGuiState::Format, 3> formatValues{
         VideoGuiState::Format::Mp4, VideoGuiState::Format::WebM, VideoGuiState::Format::Gif};
-    int formatIndex = 0;
-    for (std::size_t i = 0; i < formatValues.size(); ++i) {
-        if (formatValues[i] == state.requestedFormat) {
-            formatIndex = static_cast<int>(i);
-        }
-    }
+    const auto formatIt = std::ranges::find(formatValues, state.requestedFormat);
+    int formatIndex =
+        formatIt == formatValues.end() ? 0 : static_cast<int>(std::distance(formatValues.begin(), formatIt));
     ImGui::TextUnformatted("Format");
     ImGui::SameLine();
     ImGui::SetNextItemWidth(fieldWidth);
@@ -872,7 +949,7 @@ void GeoQikOverlay::render_log_video_settings(VideoGuiState& state) {
     ImGui::TextUnformatted("FPS");
     ImGui::SameLine();
     ImGui::SetNextItemWidth(fieldWidth);
-    ImGui::SliderInt("##LogVideoFps", &state.requestedFps, 15, 120);
+    ImGui::SliderInt("##LogVideoFps", &state.requestedFps, logVideoMinFps, logVideoMaxFps);
 
     ImGui::Separator();
     ImGui::TextUnformatted("Pacing");
@@ -957,6 +1034,11 @@ void GeoQikOverlay::render_record_menu() {
             }
             item_tooltip("Write numbered PNG frames. Requires no ffmpeg.");
 
+            // Make the reason MP4/WebM are greyed out visible without hovering each disabled item.
+            if (!state.ffmpegAvailable) {
+                ImGui::TextDisabled("ffmpeg not set \xE2\x80\x94 PNG sequence still works");
+            }
+
             ImGui::Separator();
             if (ImGui::BeginMenu("Render Log to Video...", canRecordVideo)) {
                 render_log_video_settings(state);
@@ -973,7 +1055,7 @@ void GeoQikOverlay::render_record_menu() {
             int qualityIndex = static_cast<int>(state.quality);
             ImGui::TextUnformatted("Quality");
             ImGui::SameLine();
-            ImGui::SetNextItemWidth(160.0F);
+            ImGui::SetNextItemWidth(recordQualityFieldWidth);
             if (ImGui::Combo("##RecordQuality", &qualityIndex, qualityLabels.data(),
                              static_cast<int>(qualityLabels.size()))) {
                 state.quality = static_cast<VideoGuiState::Quality>(qualityIndex);
@@ -982,6 +1064,7 @@ void GeoQikOverlay::render_record_menu() {
         }
 
         ImGui::Separator();
+        ImGui::TextDisabled("Settings");
         if (ImGui::MenuItem("Recording Folder...", nullptr, false, dialogsReady)) {
             state.dialogRequest = VideoGuiState::DialogRequest::SelectRecordingDirectory;
         }
@@ -1002,6 +1085,16 @@ void GeoQikOverlay::render_record_menu() {
         }
         if (ImGui::MenuItem("Open Recordings Folder")) {
             state.command = VideoGuiState::Command::OpenRecordingDirectory;
+        }
+
+        // Inline, non-blocking status for the last recording action (mirrors the badge toast).
+        if (state.statusKind != VideoGuiState::StatusKind::None) {
+            ImGui::Separator();
+            ImGui::PushTextWrapPos(recordQualityFieldWidth + logVideoFieldWidth);
+            ImGui::PushStyleColor(ImGuiCol_Text, recording_status_color(state.statusKind));
+            ImGui::TextUnformatted(state.statusMessage.c_str());
+            ImGui::PopStyleColor();
+            ImGui::PopTextWrapPos();
         }
         ImGui::EndMenu();
     }

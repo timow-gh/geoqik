@@ -17,7 +17,7 @@ class FrameCapture {
     /// (see capture_front) and stores it, top-row first, in @p out (sized to width*height*3).
     /// Must be called on the thread owning the GL context, with that context current.
     /// Returns false when width or height is not positive.
-    bool capture(int width, int height, std::vector<std::uint8_t>& out);
+    [[nodiscard]] bool capture(int width, int height, std::vector<std::uint8_t>& out);
 
     /// Convenience overload capturing into the reusable internal buffer. The returned span is
     /// valid until the next capture() call. Empty on failure.

@@ -73,8 +73,12 @@ class VideoRecorder {
   public:
     VideoRecorder();
     ~VideoRecorder();
+    // Owns a live capture session and an open sink; copying or moving mid-recording is meaningless,
+    // so all of copy/move are deleted explicitly (C.21 rule of five).
     VideoRecorder(const VideoRecorder&) = delete;
     VideoRecorder& operator=(const VideoRecorder&) = delete;
+    VideoRecorder(VideoRecorder&&) = delete;
+    VideoRecorder& operator=(VideoRecorder&&) = delete;
 
     /// Begins a recording. @p windowWidth/@p windowHeight are the current framebuffer pixel
     /// dimensions used when the options request the window size. Returns false if a recording is

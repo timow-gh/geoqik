@@ -18,6 +18,11 @@ class FfmpegProcessSink final : public VideoSink {
   public:
     explicit FfmpegProcessSink(std::filesystem::path ffmpegExecutable, VideoQuality quality = VideoQuality::High);
     ~FfmpegProcessSink() override;
+    // VideoSink already deletes copy/move; restate here since we declare a destructor (C.21).
+    FfmpegProcessSink(const FfmpegProcessSink&) = delete;
+    FfmpegProcessSink& operator=(const FfmpegProcessSink&) = delete;
+    FfmpegProcessSink(FfmpegProcessSink&&) = delete;
+    FfmpegProcessSink& operator=(FfmpegProcessSink&&) = delete;
 
     [[nodiscard]] bool open(int width, int height, int fps, const std::filesystem::path& outputPath) override;
     [[nodiscard]] bool write_frame(std::span<const std::uint8_t> rgb) override;
