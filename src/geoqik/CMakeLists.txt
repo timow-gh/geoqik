@@ -26,6 +26,12 @@ set(geoqik_SOURCE_FILES
         source/Rendering/GeoQikSceneRenderer.hpp
         source/Rendering/StyleTranslation.hpp
         source/Scene.hpp
+        source/Video/FfmpegLocator.hpp
+        source/Video/FfmpegProcessSink.hpp
+        source/Video/FrameCapture.hpp
+        source/Video/PngSequenceSink.hpp
+        source/Video/VideoRecorder.hpp
+        source/Video/VideoSink.hpp
 )
 
 set(geoqik_INTERNAL_SOURCE_FILES
@@ -34,14 +40,21 @@ set(geoqik_INTERNAL_SOURCE_FILES
         source/GeoQikMessageSerialization.cpp
         source/GeoQikMessageJsonSerialization.cpp
         source/GeoQikReplayUndo.cpp
-        source/GeoQikUserSettings.cpp)
+        source/GeoQikUserSettings.cpp
+        source/Video/FfmpegLocator.cpp
+        source/Video/FfmpegProcessSink.cpp
+        source/Video/FrameCapture.cpp
+        source/Video/PngSequenceSink.cpp
+        source/Video/VideoRecorder.cpp)
 
 add_library(geoqik_internal_objects OBJECT ${geoqik_INTERNAL_SOURCE_FILES})
 
 target_include_directories(geoqik_internal_objects
         PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/source>
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/export_header_includes>)
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/export_header_includes>
+        PRIVATE
+        $<BUILD_INTERFACE:${Stb_INCLUDE_DIR}>)
 
 target_link_libraries(geoqik_internal_objects
         PRIVATE
@@ -49,10 +62,16 @@ target_link_libraries(geoqik_internal_objects
         $<BUILD_LOCAL_INTERFACE:plinth::plinth>
         $<BUILD_LOCAL_INTERFACE:fmt::fmt>
         $<BUILD_LOCAL_INTERFACE:linal::linal>
-        $<BUILD_LOCAL_INTERFACE:nlohmann_json::nlohmann_json>)
+        $<BUILD_LOCAL_INTERFACE:nlohmann_json::nlohmann_json>
+        Boost::process)
 
 target_compile_features(geoqik_internal_objects PRIVATE cxx_std_23)
 set_target_properties(geoqik_internal_objects PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
+# Boost.Process needs a Windows API target level; without it Boost assumes Windows 7 and warns.
+if (WIN32)
+    target_compile_definitions(geoqik_internal_objects PRIVATE _WIN32_WINNT=0x0601)
+endif ()
 
 set(TARGET_NAME geoqik)
 add_library(${TARGET_NAME} SHARED ${geoqik_SOURCE_FILES} ${geoqik_HEADER_FILES})

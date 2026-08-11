@@ -10,6 +10,7 @@
 #include "IdempotencyData.hpp"
 #include "Rendering/GeoQikSceneRenderer.hpp"
 #include "Scene.hpp"
+#include "Video/VideoRecorder.hpp"
 
 #include <Core/UUID.hpp>
 
@@ -39,6 +40,7 @@ namespace geoqik {
 struct ReplayGuiState;
 struct CameraGuiState;
 struct FileGuiState;
+struct VideoGuiState;
 class GeoQikOverlay;
 
 using renderer::Action;
@@ -100,6 +102,11 @@ class Context {
     bool m_isReplayPaused{false};
     std::chrono::high_resolution_clock::time_point m_lastReplayTick;
     std::deque<GeoQikMessage> m_deferredMessages;
+
+    video::VideoRecorder m_recorder;
+    std::filesystem::path m_ffmpegPath;             // resolved ffmpeg executable, empty if none
+    std::filesystem::path m_recordingDirectory;     // default output directory for recordings
+    bool m_ffmpegAvailable{false};
 
   public:
     Context();
@@ -205,10 +212,26 @@ class Context {
 
     void run_event_loop();
 
+  private:
+    /// Renders one frame (begin/sync/draw/end). Shared by the interactive loop and offline
+    /// log-to-video rendering. Does not capture; callers capture afterwards if recording.
+    void render_single_frame();
+
+  public:
+
     geoqik_error_code_t save_log(const char* path, geoqik_log_format_t format) const;
     geoqik_error_code_t load_log(const char* path, geoqik_log_format_t format);
     geoqik_error_code_t replay_log(const char* path, geoqik_log_format_t format, const ReplayOptions& options);
     geoqik_error_code_t replay_current_log(const ReplayOptions& options);
+
+    // --- Video recording ---
+    geoqik_error_code_t start_recording(const video::VideoRecordOptions& options);
+    geoqik_error_code_t stop_recording();
+    geoqik_error_code_t render_log_to_video(const char* logPath,
+                                            geoqik_log_format_t format,
+                                            const video::VideoRecordOptions& options);
+    void set_ffmpeg_path(const std::filesystem::path& path);
+    [[nodiscard]] bool is_ffmpeg_available() const { return m_ffmpegAvailable; }
     void cancel_replay();
     void pause_replay();
     void resume_replay();
@@ -229,6 +252,17 @@ class Context {
     void apply_navigation_style(renderer::CameraInteractor::NavigationStyle style);
     void request_fit_all_geometry();
     void consume_file_gui_commands(FileGuiState& state);
+    void populate_video_gui_state(VideoGuiState& state) const;
+    void consume_video_gui_commands(VideoGuiState& state);
+    void persist_recording_settings();
+    [[nodiscard]] video::VideoRecordOptions make_record_options_from_gui(const VideoGuiState& state) const;
+    geoqik_error_code_t render_log_to_video_path(const std::filesystem::path& logPath,
+                                                 geoqik_log_format_t format,
+                                                 const video::VideoRecordOptions& options);
+    /// Drives the loaded replay entries frame-by-frame into m_recorder using the pacing (Speed or
+    /// Duration) and hold-at-start/end from @p options. Assumes a replay has been started and the
+    /// recorder is active.
+    void render_log_frames(const video::VideoRecordOptions& options);
     geoqik_error_code_t save_log_path(const std::filesystem::path& path, geoqik_log_format_t format) const;
     geoqik_error_code_t load_log_path(const std::filesystem::path& path, geoqik_log_format_t format);
     geoqik_error_code_t
@@ -285,6 +319,7 @@ class Context {
     void handle_message(const Draw& message);
     void handle_message(const StopDraw& message);
     void handle_message(const SaveLog& message);
+    void handle_message(const VideoCommand& message);
     void handle_message(const LoadLog& message);
     void handle_message(const ReplayLog& message);
     void handle_message(const ReplayCurrentLog& message);
