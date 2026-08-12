@@ -29,7 +29,22 @@ jobs:
       
       - name: Configure
         run: |
-          cmake --preset conf-msvc-${{ matrix.build_type }} -DBUILD_SHARED_LIBS=ON
+          # vcpkg downloads third-party source archives while configuring. Retry transient GitHub
+          # download failures before failing the build.
+          $configured = $false
+          for ($attempt = 1; $attempt -le 3; $attempt++) {
+            cmake --preset conf-msvc-${{ matrix.build_type }} -DBUILD_SHARED_LIBS=ON
+            if ($LASTEXITCODE -eq 0) {
+              $configured = $true
+              break
+            }
+            if ($attempt -lt 3) {
+              Start-Sleep -Seconds 15
+            }
+          }
+          if (-not $configured) {
+            exit 1
+          }
         shell: pwsh
       
       - name: Build

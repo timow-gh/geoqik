@@ -63,7 +63,17 @@ runs:
 
     - name: Configure
       run: |
-        cmake --preset ${{ steps.preset.outputs.configure }} -DBUILD_SHARED_LIBS=ON
+        # vcpkg downloads third-party source archives while configuring. GitHub occasionally returns
+        # transient 5xx/connection errors, so retry the complete configure step.
+        for attempt in 1 2 3; do
+          if cmake --preset ${{ steps.preset.outputs.configure }} -DBUILD_SHARED_LIBS=ON; then
+            break
+          fi
+          if [ "$attempt" = 3 ]; then
+            exit 1
+          fi
+          sleep 15
+        done
       shell: bash
     
     - name: Build
