@@ -1315,7 +1315,7 @@ void Context::render_log_frames(const video::VideoRecordOptions& options) {
     }
 
     // Freeze the final frame for hold-at-end.
-    m_recorder.hold_last_frame(seconds_to_extra_frames(options.holdEndSeconds));
+    m_recorder.hold_last_frame(secondsToExtraFrames(options.holdEndSeconds));
 }
 
 void Context::cancel_replay() {
