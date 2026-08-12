@@ -25,6 +25,8 @@
 using namespace geoqik;
 
 namespace {
+
+constexpr int defaultVideoFps = 60;
 constexpr std::size_t coordinateCount = 3;
 constexpr std::size_t lineCoordinateCount = 6;
 constexpr std::size_t uuidByteCount = 16;
@@ -2180,7 +2182,7 @@ namespace {
     if (options != nullptr) {
         result.width = options->width;
         result.height = options->height;
-        result.fps = options->fps > 0 ? options->fps : 60;
+        result.fps = options->fps > 0 ? options->fps : defaultVideoFps;
         result.format = to_internal_video_format(options->format);
         result.quality = to_internal_video_quality(options->quality);
         if (options->outputPath != nullptr && options->outputPath[0] != '\0') {

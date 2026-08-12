@@ -777,9 +777,9 @@ void GeoQikOverlay::render_recording_badge() {
     ImDrawList* drawList = ImGui::GetForegroundDrawList();
     const ImVec2 textSize = ImGui::CalcTextSize(label.c_str());
     const ImVec2 topRight{viewport->WorkPos.x + viewport->WorkSize.x, viewport->WorkPos.y};
-    const ImVec2 boxMin{topRight.x - textSize.x - 2.0F * recordingBadgePadding - recordingBadgeMargin,
-                        topRight.y + recordingBadgeMargin};
-    const ImVec2 boxMax{topRight.x - recordingBadgeMargin, boxMin.y + textSize.y + 2.0F * recordingBadgePadding};
+    const ImVec2 boxMin{topRight.x - textSize.x - (2.0F * recordingBadgePadding) - recordingBadgeMargin,
+                         topRight.y + recordingBadgeMargin};
+    const ImVec2 boxMax{topRight.x - recordingBadgeMargin, boxMin.y + textSize.y + (2.0F * recordingBadgePadding)};
     drawList->AddRectFilled(boxMin, boxMax, IM_COL32(0, 0, 0, 160), recordingBadgeRounding);
     drawList->AddText(ImVec2{boxMin.x + recordingBadgePadding, boxMin.y + recordingBadgePadding},
                       IM_COL32(255, 64, 64, 255), label.c_str());
@@ -830,10 +830,10 @@ void GeoQikOverlay::render_recording_status() {
     }
     ImDrawList* drawList = ImGui::GetForegroundDrawList();
     const ImVec2 textSize = ImGui::CalcTextSize(state.statusMessage.c_str());
-    const ImVec2 center{viewport->WorkPos.x + viewport->WorkSize.x * 0.5F,
-                        viewport->WorkPos.y + viewport->WorkSize.y - recordingBadgeMargin * 4.0F};
-    const ImVec2 boxMin{center.x - textSize.x * 0.5F - recordingBadgePadding, center.y - recordingBadgePadding};
-    const ImVec2 boxMax{center.x + textSize.x * 0.5F + recordingBadgePadding,
+    const ImVec2 center{viewport->WorkPos.x + (viewport->WorkSize.x * 0.5F),
+                         viewport->WorkPos.y + viewport->WorkSize.y - (recordingBadgeMargin * 4.0F)};
+    const ImVec2 boxMin{center.x - (textSize.x * 0.5F) - recordingBadgePadding, center.y - recordingBadgePadding};
+    const ImVec2 boxMax{center.x + (textSize.x * 0.5F) + recordingBadgePadding,
                         center.y + textSize.y + recordingBadgePadding};
     drawList->AddRectFilled(boxMin, boxMax, IM_COL32(0, 0, 0, 180), recordingBadgeRounding);
     drawList->AddText(ImVec2{boxMin.x + recordingBadgePadding, boxMin.y + recordingBadgePadding},
@@ -918,12 +918,19 @@ std::pair<int, int> video_resolution_preset(int index) {
 
 void GeoQikOverlay::render_log_video_settings(VideoGuiState& state) {
     constexpr float fieldWidth = logVideoFieldWidth;
+    constexpr float speedStep = 1.0F;
+    constexpr float speedStepFast = 10.0F;
+    constexpr float durationStep = 0.5F;
+    constexpr float durationStepFast = 5.0F;
+    constexpr float holdStep = 0.25F;
+    constexpr float holdStepFast = 1.0F;
+    constexpr float minimumPacingValue = 0.1F;
 
     // Output format for the rendered log.
     constexpr std::array<const char*, 3> formatLabels{"MP4 (H.264)", "WebM (VP9)", "GIF"};
     constexpr std::array<VideoGuiState::Format, 3> formatValues{
         VideoGuiState::Format::Mp4, VideoGuiState::Format::WebM, VideoGuiState::Format::Gif};
-    const auto formatIt = std::ranges::find(formatValues, state.requestedFormat);
+    const auto* const formatIt = std::ranges::find(formatValues, state.requestedFormat);
     int formatIndex =
         formatIt == formatValues.end() ? 0 : static_cast<int>(std::distance(formatValues.begin(), formatIt));
     ImGui::TextUnformatted("Format");
@@ -968,26 +975,26 @@ void GeoQikOverlay::render_log_video_settings(VideoGuiState& state) {
 
     ImGui::BeginDisabled(!speedSelected);
     ImGui::SetNextItemWidth(fieldWidth);
-    ImGui::InputFloat("entries / second", &state.entriesPerSecond, 1.0F, 10.0F, "%.1f");
+    ImGui::InputFloat("entries / second", &state.entriesPerSecond, speedStep, speedStepFast, "%.1f");
     ImGui::EndDisabled();
     item_tooltip("Speed mode: how many log entries play per second. Duration = entries / this.");
 
     ImGui::BeginDisabled(speedSelected);
     ImGui::SetNextItemWidth(fieldWidth);
-    ImGui::InputFloat("target duration (s)", &state.targetDurationSeconds, 0.5F, 5.0F, "%.1f");
+    ImGui::InputFloat("target duration (s)", &state.targetDurationSeconds, durationStep, durationStepFast, "%.1f");
     ImGui::EndDisabled();
     item_tooltip("Duration mode: total video length for the log body, regardless of entry count.");
 
     ImGui::Separator();
     ImGui::SetNextItemWidth(fieldWidth);
-    ImGui::InputFloat("hold start (s)", &state.holdStartSeconds, 0.25F, 1.0F, "%.2f");
+    ImGui::InputFloat("hold start (s)", &state.holdStartSeconds, holdStep, holdStepFast, "%.2f");
     ImGui::SetNextItemWidth(fieldWidth);
-    ImGui::InputFloat("hold end (s)", &state.holdEndSeconds, 0.25F, 1.0F, "%.2f");
+    ImGui::InputFloat("hold end (s)", &state.holdEndSeconds, holdStep, holdStepFast, "%.2f");
     item_tooltip("Freeze the first/last frame for this many seconds.");
 
     // Clamp negatives that InputFloat's step buttons could produce.
-    state.entriesPerSecond = std::max(0.1F, state.entriesPerSecond);
-    state.targetDurationSeconds = std::max(0.1F, state.targetDurationSeconds);
+    state.entriesPerSecond = std::max(minimumPacingValue, state.entriesPerSecond);
+    state.targetDurationSeconds = std::max(minimumPacingValue, state.targetDurationSeconds);
     state.holdStartSeconds = std::max(0.0F, state.holdStartSeconds);
     state.holdEndSeconds = std::max(0.0F, state.holdEndSeconds);
 
@@ -1000,6 +1007,7 @@ void GeoQikOverlay::render_log_video_settings(VideoGuiState& state) {
     }
 }
 
+// NOLINTNEXTLINE(readability-function-cognitive-complexity): ImGui menu composition is necessarily branch-heavy.
 void GeoQikOverlay::render_record_menu() {
     VideoGuiState& state = m_videoState;
     const bool dialogsReady = m_fileState.nativeDialogsInitialized;
@@ -1036,7 +1044,7 @@ void GeoQikOverlay::render_record_menu() {
 
             // Make the reason MP4/WebM are greyed out visible without hovering each disabled item.
             if (!state.ffmpegAvailable) {
-                ImGui::TextDisabled("ffmpeg not set \xE2\x80\x94 PNG sequence still works");
+                ImGui::TextDisabled("ffmpeg not set \xE2\x80\x94 PNG sequence still works"); // NOLINT(cppcoreguidelines-pro-type-vararg)
             }
 
             ImGui::Separator();
@@ -1064,7 +1072,7 @@ void GeoQikOverlay::render_record_menu() {
         }
 
         ImGui::Separator();
-        ImGui::TextDisabled("Settings");
+        ImGui::TextDisabled("Settings"); // NOLINT(cppcoreguidelines-pro-type-vararg)
         if (ImGui::MenuItem("Recording Folder...", nullptr, false, dialogsReady)) {
             state.dialogRequest = VideoGuiState::DialogRequest::SelectRecordingDirectory;
         }

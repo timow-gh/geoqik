@@ -41,6 +41,9 @@ namespace {
 
 constexpr std::size_t lineCoordinateCount = 6;
 constexpr std::size_t frameInfoPrintInterval = 10;
+constexpr int defaultVideoFps = 60;
+constexpr double defaultEntriesPerSecond = 60.0;
+constexpr double minimumEntriesPerFrame = 1e-6;
 
 /// RAII guard that temporarily resizes the GLFW window and restores its original size on
 /// destruction (covering normal and exceptional exits). Used to render a log to video at a
@@ -56,6 +59,8 @@ class ScopedWindowSize {
 
     ScopedWindowSize(const ScopedWindowSize&) = delete;
     ScopedWindowSize& operator=(const ScopedWindowSize&) = delete;
+    ScopedWindowSize(ScopedWindowSize&&) = delete;
+    ScopedWindowSize& operator=(ScopedWindowSize&&) = delete;
 
     ~ScopedWindowSize() {
         if (m_window != nullptr && m_resized) {
@@ -863,11 +868,11 @@ void reveal_in_file_browser(const std::filesystem::path& path) {
     const std::string command =
         isDirectory ? fmt::format("explorer \"{}\"", path.string())
                     : fmt::format("explorer /select,\"{}\"", path.string());
-    std::system(command.c_str());
+    (void)std::system(command.c_str());
 #elif defined(__APPLE__)
-    std::system(fmt::format("open \"{}\"", path.string()).c_str());
+    (void)std::system(fmt::format("open \"{}\"", path.string()).c_str());
 #else
-    std::system(fmt::format("xdg-open \"{}\"", path.string()).c_str());
+    (void)std::system(fmt::format("xdg-open \"{}\"", path.string()).c_str());
 #endif
 }
 
@@ -891,7 +896,7 @@ video::VideoRecordOptions Context::make_record_options_from_gui(const VideoGuiSt
     video::VideoRecordOptions options;
     options.format = to_video_format(state.requestedFormat);
     options.quality = to_video_quality(state.quality);
-    options.fps = state.requestedFps > 0 ? state.requestedFps : 60;
+    options.fps = state.requestedFps > 0 ? state.requestedFps : defaultVideoFps;
     // Resolution preset: {0,0} means current window size, resolved by the recorder.
     const auto [presetWidth, presetHeight] = video_resolution_preset(state.resolutionPresetIndex);
     options.width = presetWidth;
@@ -901,10 +906,11 @@ video::VideoRecordOptions Context::make_record_options_from_gui(const VideoGuiSt
     // Offline pacing/holds (ignored by live recording).
     options.pacingMode =
         state.pacing == VideoGuiState::Pacing::Duration ? video::PacingMode::Duration : video::PacingMode::Speed;
-    options.entriesPerSecond = state.entriesPerSecond > 0.0F ? state.entriesPerSecond : 60.0;
-    options.targetDurationSeconds = state.targetDurationSeconds;
-    options.holdStartSeconds = state.holdStartSeconds;
-    options.holdEndSeconds = state.holdEndSeconds;
+    options.entriesPerSecond =
+        state.entriesPerSecond > 0.0F ? static_cast<double>(state.entriesPerSecond) : defaultEntriesPerSecond;
+    options.targetDurationSeconds = static_cast<double>(state.targetDurationSeconds);
+    options.holdStartSeconds = static_cast<double>(state.holdStartSeconds);
+    options.holdEndSeconds = static_cast<double>(state.holdEndSeconds);
     return options;
 }
 
@@ -1265,16 +1271,16 @@ geoqik_error_code_t Context::render_log_to_video_path(const std::filesystem::pat
 }
 
 void Context::render_log_frames(const video::VideoRecordOptions& options) {
-    const int fps = options.fps > 0 ? options.fps : 60;
+    const int fps = options.fps > 0 ? options.fps : defaultVideoFps;
     const std::size_t entryCount = m_replayEntries.size();
 
     // Render the initial (empty) state and hold it for hold-at-start.
     render_single_frame();
     m_recorder.capture_frame();
-    const auto seconds_to_extra_frames = [fps](double seconds) -> std::size_t {
+    const auto secondsToExtraFrames = [fps](double seconds) -> std::size_t {
         return seconds > 0.0 ? static_cast<std::size_t>(std::llround(seconds * fps)) : 0;
     };
-    m_recorder.hold_last_frame(seconds_to_extra_frames(options.holdStartSeconds));
+    m_recorder.hold_last_frame(secondsToExtraFrames(options.holdStartSeconds));
 
     if (entryCount > 0) {
         // How many entries to advance per captured frame. Speed sets it directly; Duration derives
@@ -1285,10 +1291,11 @@ void Context::render_log_frames(const video::VideoRecordOptions& options) {
             const double bodyFrames = std::max(1.0, std::round(options.targetDurationSeconds * fps));
             entriesPerFrame = static_cast<double>(entryCount) / bodyFrames;
         } else {
-            const double entriesPerSecond = options.entriesPerSecond > 0.0 ? options.entriesPerSecond : 60.0;
+            const double entriesPerSecond =
+                options.entriesPerSecond > 0.0 ? options.entriesPerSecond : defaultEntriesPerSecond;
             entriesPerFrame = entriesPerSecond / fps;
         }
-        entriesPerFrame = std::max(entriesPerFrame, 1e-6); // Never stall.
+        entriesPerFrame = std::max(entriesPerFrame, minimumEntriesPerFrame); // Never stall.
 
         double accumulator = 0.0;
         while (m_replayEntryIndex < m_replayEntries.size()) {

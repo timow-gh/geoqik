@@ -238,7 +238,7 @@ class GeoQikOverlay final : public renderer::IOverlay {
   private:
     void render_main_menu_bar();
     void render_record_menu();
-    void render_log_video_settings(VideoGuiState& state);
+    static void render_log_video_settings(VideoGuiState& state);
     void render_recording_badge();
     void render_recording_status();
     void layout_controls();
