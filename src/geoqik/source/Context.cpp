@@ -868,11 +868,14 @@ void reveal_in_file_browser(const std::filesystem::path& path) {
     const std::string command =
         isDirectory ? fmt::format("explorer \"{}\"", path.string())
                     : fmt::format("explorer /select,\"{}\"", path.string());
-    (void)std::system(command.c_str());
+    const int systemResult = std::system(command.c_str());
+    (void)systemResult;
 #elif defined(__APPLE__)
-    (void)std::system(fmt::format("open \"{}\"", path.string()).c_str());
+    const int systemResult = std::system(fmt::format("open \"{}\"", path.string()).c_str());
+    (void)systemResult;
 #else
-    (void)std::system(fmt::format("xdg-open \"{}\"", path.string()).c_str());
+    const int systemResult = std::system(fmt::format("xdg-open \"{}\"", path.string()).c_str());
+    (void)systemResult;
 #endif
 }
 
