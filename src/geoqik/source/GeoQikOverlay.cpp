@@ -930,10 +930,11 @@ void GeoQikOverlay::render_log_video_settings(VideoGuiState& state) {
     constexpr std::array<const char*, 3> formatLabels{"MP4 (H.264)", "WebM (VP9)", "GIF"};
     constexpr std::array<VideoGuiState::Format, 3> formatValues{
         VideoGuiState::Format::Mp4, VideoGuiState::Format::WebM, VideoGuiState::Format::Gif};
-    const std::array<VideoGuiState::Format, 3>::const_iterator formatIt =
-        std::ranges::find(formatValues, state.requestedFormat);
-    int formatIndex =
-        formatIt == formatValues.end() ? 0 : static_cast<int>(std::distance(formatValues.begin(), formatIt));
+    int formatIndex = static_cast<int>(
+        std::distance(formatValues.begin(), std::ranges::find(formatValues, state.requestedFormat)));
+    if (formatIndex == static_cast<int>(formatValues.size())) {
+        formatIndex = 0;
+    }
     ImGui::TextUnformatted("Format");
     ImGui::SameLine();
     ImGui::SetNextItemWidth(fieldWidth);
