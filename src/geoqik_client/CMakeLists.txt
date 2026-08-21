@@ -16,6 +16,10 @@ endif()
 if (${PROJECT_NAME}_INSTALL)
     install(FILES "include/GeoQikClient/GeoQikClient.hpp"
             DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/GeoQikClient"
+            COMPONENT runtime)
+
+    install(FILES "include/GeoQikClient/GeoQikClient.hpp"
+            DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/GeoQikClient"
             COMPONENT dev)
 
     install(TARGETS geoqik_client
