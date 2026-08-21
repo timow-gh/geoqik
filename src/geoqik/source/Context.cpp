@@ -4,6 +4,7 @@
 #include "GeoQikMessages.hpp"
 #include "GeoQikOverlay.hpp"
 #include "GeoQikUserSettings.hpp"
+#include "Video/FfmpegLocator.hpp"
 
 #include <Core/Assert.hpp>
 
@@ -14,14 +15,19 @@
 #include <plinth/Renderer.hpp>
 #include <plinth/WindowSettings.hpp>
 
+#include <GLFW/glfw3.h>
+
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cmath>
 #include <cstdint>
+#include <cstdlib>
 #include <exception>
 #include <filesystem>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <system_error>
 #include <type_traits>
 #include <utility>
@@ -35,6 +41,51 @@ namespace {
 
 constexpr std::size_t lineCoordinateCount = 6;
 constexpr std::size_t frameInfoPrintInterval = 10;
+constexpr int defaultVideoFps = 60;
+constexpr double defaultEntriesPerSecond = 60.0;
+constexpr double minimumEntriesPerFrame = 1e-6;
+
+/// RAII guard that temporarily resizes the GLFW window and restores its original size on
+/// destruction (covering normal and exceptional exits). Used to render a log to video at a
+/// resolution preset different from the current window without any offscreen-render support.
+class ScopedWindowSize {
+  public:
+    explicit ScopedWindowSize(renderer::Renderer& renderer)
+        : m_window(static_cast<GLFWwindow*>(renderer.window().get_native_handle())) {
+        if (m_window != nullptr) {
+            glfwGetWindowSize(m_window, &m_originalWidth, &m_originalHeight);
+        }
+    }
+
+    ScopedWindowSize(const ScopedWindowSize&) = delete;
+    ScopedWindowSize& operator=(const ScopedWindowSize&) = delete;
+    ScopedWindowSize(ScopedWindowSize&&) = delete;
+    ScopedWindowSize& operator=(ScopedWindowSize&&) = delete;
+
+    ~ScopedWindowSize() {
+        if (m_window != nullptr && m_resized) {
+            glfwSetWindowSize(m_window, m_originalWidth, m_originalHeight);
+            // Pump the resize so the framebuffer/scene targets return to the original size.
+            renderer::Renderer::poll_events();
+        }
+    }
+
+    void resize_to(int width, int height) {
+        if (m_window == nullptr || (width == m_originalWidth && height == m_originalHeight)) {
+            return;
+        }
+        glfwSetWindowSize(m_window, width, height);
+        m_resized = true;
+        // Process the resize event so plinth rebuilds its scene targets before we render.
+        renderer::Renderer::poll_events();
+    }
+
+  private:
+    GLFWwindow* m_window{nullptr};
+    int m_originalWidth{0};
+    int m_originalHeight{0};
+    bool m_resized{false};
+};
 
 [[nodiscard]] std::vector<float> expand_vertex_colors(std::span<const float> colors,
                                                       std::size_t vertexCount,
@@ -201,6 +252,17 @@ bool Context::init_window(const GeoQikSettings& geoqikSettings, const WindowSett
     m_sceneRenderer = std::make_unique<GeoQikSceneRenderer>(*m_renderer);
 
     setup_window_callbacks();
+
+    // Load persisted recording preferences and resolve an ffmpeg executable (empty if none found).
+    try {
+        const UserSettings userSettings = load_user_settings(user_settings_file_path());
+        m_recordingDirectory =
+            userSettings.recordingDirectory.empty() ? default_recording_directory() : userSettings.recordingDirectory;
+        set_ffmpeg_path(userSettings.ffmpegPath);
+    } catch (...) {
+        m_recordingDirectory = default_recording_directory();
+        set_ffmpeg_path({});
+    }
 
     return true;
 }
@@ -463,6 +525,35 @@ const Viewport& Context::get_viewport() {
     return m_renderer->get_camera().lock()->get_viewport();
 }
 
+void Context::render_single_frame() {
+    const renderer::ClearColor clearColor{m_backgroundColor[0],
+                                          m_backgroundColor[1],
+                                          m_backgroundColor[2],
+                                          m_backgroundColor[3]};
+    m_renderer->begin_frame(clearColor);
+
+    m_sceneRenderer->sync_scene(m_scene);
+
+    renderer::LightingConfig lighting;
+    lighting.lightColor = scale_rgb(m_geoqikSettings.meshHeadLightColor, m_geoqikSettings.meshHeadLightIntensity);
+    lighting.fillLightDir = to_float3(m_geoqikSettings.meshFillLightDirection);
+    lighting.fillLightColor = scale_rgb(m_geoqikSettings.meshFillLightColor, m_geoqikSettings.meshFillLightIntensity);
+    lighting.ambientColor = scale_rgb(m_geoqikSettings.meshAmbientColor, m_geoqikSettings.meshAmbientIntensity);
+    lighting.shininess = std::max(0.0F, m_geoqikSettings.meshShininess);
+
+    m_renderer->draw(lighting);
+    populate_replay_gui_state(m_overlay->replay_state());
+    populate_video_gui_state(m_overlay->video_state());
+    auto& cameraState = m_overlay->camera_state();
+    populate_camera_gui_state(cameraState);
+    cameraState.autoZoom = m_geoqikSettings.autoFitCameraEnabled;
+
+    // The overlay builds and renders the complete UI inside end_frame. Apply widget commands
+    // after rendering has completed.
+    bool autoFitEnabled = m_geoqikSettings.autoFitCameraEnabled;
+    m_renderer->end_frame(autoFitEnabled);
+}
+
 // #define PRINT_FRAME_INFO
 
 void Context::run_event_loop() {
@@ -480,35 +571,17 @@ void Context::run_event_loop() {
             break;
         }
 
-        const renderer::ClearColor clearColor{m_backgroundColor[0],
-                                              m_backgroundColor[1],
-                                              m_backgroundColor[2],
-                                              m_backgroundColor[3]};
-        m_renderer->begin_frame(clearColor);
+        render_single_frame();
 
-        m_sceneRenderer->sync_scene(m_scene);
+        // Capture the just-presented frame from the front buffer (end_frame has already swapped).
+        if (m_recorder.is_recording()) {
+            m_recorder.capture_frame();
+        }
 
-        renderer::LightingConfig lighting;
-        lighting.lightColor = scale_rgb(m_geoqikSettings.meshHeadLightColor, m_geoqikSettings.meshHeadLightIntensity);
-        lighting.fillLightDir = to_float3(m_geoqikSettings.meshFillLightDirection);
-        lighting.fillLightColor =
-            scale_rgb(m_geoqikSettings.meshFillLightColor, m_geoqikSettings.meshFillLightIntensity);
-        lighting.ambientColor = scale_rgb(m_geoqikSettings.meshAmbientColor, m_geoqikSettings.meshAmbientIntensity);
-        lighting.shininess = std::max(0.0F, m_geoqikSettings.meshShininess);
-
-        m_renderer->draw(lighting);
-        populate_replay_gui_state(m_overlay->replay_state());
-        auto& cameraState = m_overlay->camera_state();
-        populate_camera_gui_state(cameraState);
-        cameraState.autoZoom = m_geoqikSettings.autoFitCameraEnabled;
-
-        // The overlay builds and renders the complete UI inside end_frame. Apply widget commands
-        // after rendering has completed.
-        bool autoFitEnabled = m_geoqikSettings.autoFitCameraEnabled;
-        m_renderer->end_frame(autoFitEnabled);
         consume_camera_gui_commands(m_overlay->camera_state());
         consume_replay_gui_commands(m_overlay->replay_state());
         consume_file_gui_commands(m_overlay->file_state());
+        consume_video_gui_commands(m_overlay->video_state());
 
         process_replay_entries(std::chrono::high_resolution_clock::now());
         if (!is_replaying()) {
@@ -706,7 +779,10 @@ void Context::consume_file_gui_commands(FileGuiState& state) {
 
     if (command == FileGuiState::Command::SetDefaultDirectory) {
         try {
-            save_user_settings(state.settingsFilePath, UserSettings{state.requestedPath});
+            // Preserve the other persisted fields (ffmpeg path, recording directory).
+            UserSettings settings = load_user_settings(state.settingsFilePath);
+            settings.defaultLogDirectory = state.requestedPath;
+            save_user_settings(state.settingsFilePath, settings);
             state.defaultLogDirectory = state.requestedPath;
         } catch (const std::exception& exception) {
             state.errorMessage = fmt::format("Could not save the default log directory: {}", exception.what());
@@ -737,6 +813,176 @@ void Context::consume_file_gui_commands(FileGuiState& state) {
                                          path_to_utf8(state.requestedPath),
                                          static_cast<int>(result));
         state.openErrorPopup = true;
+    }
+}
+
+namespace {
+
+[[nodiscard]] video::VideoFormat to_video_format(VideoGuiState::Format format) {
+    switch (format) {
+    case VideoGuiState::Format::Mp4: return video::VideoFormat::Mp4;
+    case VideoGuiState::Format::WebM: return video::VideoFormat::WebM;
+    case VideoGuiState::Format::Gif: return video::VideoFormat::Gif;
+    case VideoGuiState::Format::PngSequence: return video::VideoFormat::PngSequence;
+    }
+    return video::VideoFormat::Mp4;
+}
+
+[[nodiscard]] video::VideoQuality to_video_quality(VideoGuiState::Quality quality) {
+    switch (quality) {
+    case VideoGuiState::Quality::High: return video::VideoQuality::High;
+    case VideoGuiState::Quality::Medium: return video::VideoQuality::Medium;
+    case VideoGuiState::Quality::Low: return video::VideoQuality::Low;
+    case VideoGuiState::Quality::Lossless: return video::VideoQuality::Lossless;
+    }
+    return video::VideoQuality::High;
+}
+
+/// Maps a recording failure to a short, actionable message. Kept out of the UI layer so the same
+/// wording is reused for the live-record, stop, and log->video paths. @p action names the operation
+/// (e.g. "start recording") for the generic fallback.
+[[nodiscard]] std::string recording_error_message(geoqik_error_code_t code, std::string_view action) {
+    switch (code) {
+    case GEOQIK_ERROR_UNSUPPORTED_FORMAT:
+        return "ffmpeg was not found. Set ffmpeg.exe under Record \xE2\x96\xB8 Set ffmpeg.exe Path\xE2\x80\xA6";
+    case GEOQIK_ERROR_IO:
+        return "Could not write the video file. Check the recording folder is writable and has free space.";
+    case GEOQIK_ERROR_INVALID_STATE:
+        return "A recording is already in progress.";
+    case GEOQIK_ERROR_INVALID_PARAMETER:
+        return "Invalid recording settings. Check the resolution and frame rate.";
+    default:
+        return fmt::format("Could not {} (code {}).", action, static_cast<int>(code));
+    }
+}
+
+/// Opens a folder / selects a file in the platform file browser so the user can find the output.
+void reveal_in_file_browser(const std::filesystem::path& path) {
+    if (path.empty()) {
+        return;
+    }
+#ifdef _WIN32
+    // "explorer /select,<file>" highlights the file; for a directory it simply opens it.
+    std::error_code error;
+    const bool isDirectory = std::filesystem::is_directory(path, error);
+    const std::string command =
+        isDirectory ? fmt::format("explorer \"{}\"", path.string())
+                    : fmt::format("explorer /select,\"{}\"", path.string());
+    const int systemResult = std::system(command.c_str());
+    (void)systemResult;
+#elif defined(__APPLE__)
+    const int systemResult = std::system(fmt::format("open \"{}\"", path.string()).c_str());
+    (void)systemResult;
+#else
+    const int systemResult = std::system(fmt::format("xdg-open \"{}\"", path.string()).c_str());
+    (void)systemResult;
+#endif
+}
+
+} // namespace
+
+void Context::populate_video_gui_state(VideoGuiState& state) const {
+    state.isRecording = m_recorder.is_recording();
+    state.ffmpegAvailable = m_ffmpegAvailable;
+    state.ffmpegPath = m_ffmpegPath;
+    state.recordingDirectory = m_recordingDirectory;
+    if (m_recorder.is_recording()) {
+        state.width = m_recorder.width();
+        state.height = m_recorder.height();
+        state.fps = m_recorder.fps();
+        state.elapsedSeconds =
+            std::chrono::duration<double>(m_recorder.elapsed()).count();
+    }
+}
+
+video::VideoRecordOptions Context::make_record_options_from_gui(const VideoGuiState& state) const {
+    video::VideoRecordOptions options;
+    options.format = to_video_format(state.requestedFormat);
+    options.quality = to_video_quality(state.quality);
+    options.fps = state.requestedFps > 0 ? state.requestedFps : defaultVideoFps;
+    // Resolution preset: {0,0} means current window size, resolved by the recorder.
+    const auto [presetWidth, presetHeight] = video_resolution_preset(state.resolutionPresetIndex);
+    options.width = presetWidth;
+    options.height = presetHeight;
+    options.recordingDirectory = m_recordingDirectory;
+
+    // Offline pacing/holds (ignored by live recording).
+    options.pacingMode =
+        state.pacing == VideoGuiState::Pacing::Duration ? video::PacingMode::Duration : video::PacingMode::Speed;
+    options.entriesPerSecond =
+        state.entriesPerSecond > 0.0F ? static_cast<double>(state.entriesPerSecond) : defaultEntriesPerSecond;
+    options.targetDurationSeconds = static_cast<double>(state.targetDurationSeconds);
+    options.holdStartSeconds = static_cast<double>(state.holdStartSeconds);
+    options.holdEndSeconds = static_cast<double>(state.holdEndSeconds);
+    return options;
+}
+
+void Context::consume_video_gui_commands(VideoGuiState& state) {
+    const VideoGuiState::Command command = std::exchange(state.command, VideoGuiState::Command::None);
+
+    switch (command) {
+    case VideoGuiState::Command::None:
+        break;
+    case VideoGuiState::Command::StartRecording: {
+        const geoqik_error_code_t result = start_recording(make_record_options_from_gui(state));
+        if (result == GEOQIK_SUCCESS) {
+            state.set_status(VideoGuiState::StatusKind::Info, "Recording\xE2\x80\xA6");
+        } else {
+            state.set_status(VideoGuiState::StatusKind::Error, recording_error_message(result, "start recording"));
+        }
+        break;
+    }
+    case VideoGuiState::Command::StopRecording: {
+        const std::filesystem::path output = m_recorder.final_output_path();
+        const geoqik_error_code_t result = stop_recording();
+        if (result == GEOQIK_SUCCESS) {
+            state.lastOutputPath = output;
+            state.set_status(VideoGuiState::StatusKind::Success,
+                             fmt::format("Saved {}", path_to_utf8(output.filename())));
+        } else {
+            state.set_status(VideoGuiState::StatusKind::Error, recording_error_message(result, "finish recording"));
+        }
+        break;
+    }
+    case VideoGuiState::Command::RenderLogToVideo: {
+        video::VideoRecordOptions options = make_record_options_from_gui(state);
+        const geoqik_error_code_t result =
+            render_log_to_video_path(state.requestedPath, state.requestedLogFormat, options);
+        if (result == GEOQIK_SUCCESS) {
+            state.lastOutputPath = m_recorder.final_output_path();
+            state.set_status(VideoGuiState::StatusKind::Success,
+                             fmt::format("Saved {}", path_to_utf8(state.lastOutputPath.filename())));
+        } else {
+            state.set_status(VideoGuiState::StatusKind::Error, recording_error_message(result, "render log to video"));
+        }
+        break;
+    }
+    case VideoGuiState::Command::SetFfmpegPath:
+        set_ffmpeg_path(state.requestedPath);
+        persist_recording_settings();
+        break;
+    case VideoGuiState::Command::SetRecordingDirectory:
+        m_recordingDirectory = state.requestedPath;
+        persist_recording_settings();
+        break;
+    case VideoGuiState::Command::RevealLastOutput:
+        reveal_in_file_browser(state.lastOutputPath);
+        break;
+    case VideoGuiState::Command::OpenRecordingDirectory:
+        reveal_in_file_browser(m_recordingDirectory);
+        break;
+    }
+}
+
+void Context::persist_recording_settings() {
+    try {
+        const std::filesystem::path settingsPath = user_settings_file_path();
+        UserSettings settings = load_user_settings(settingsPath);
+        settings.ffmpegPath = m_ffmpegPath;
+        settings.recordingDirectory = m_recordingDirectory;
+        save_user_settings(settingsPath, settings);
+    } catch (...) {
+        // Persisting preferences is best-effort; a failure must not disrupt recording.
     }
 }
 
@@ -904,6 +1150,175 @@ geoqik_error_code_t Context::replay_current_log(const ReplayOptions& options) {
     } catch (...) {
         return GEOQIK_ERROR_UNKNOWN;
     }
+}
+
+void Context::set_ffmpeg_path(const std::filesystem::path& path) {
+    m_ffmpegPath = video::FfmpegLocator::find(path).value_or(std::filesystem::path{});
+    m_ffmpegAvailable = !m_ffmpegPath.empty();
+}
+
+geoqik_error_code_t Context::start_recording(const video::VideoRecordOptions& options) {
+    if (m_recorder.is_recording() || is_replaying()) {
+        return GEOQIK_ERROR_INVALID_PARAMETER;
+    }
+    if (video::format_requires_ffmpeg(options.format) && !m_ffmpegAvailable) {
+        return GEOQIK_ERROR_INVALID_PARAMETER;
+    }
+
+    try {
+        video::VideoRecordOptions opts = options;
+        if (opts.recordingDirectory.empty()) {
+            opts.recordingDirectory = m_recordingDirectory;
+        }
+        if (video::format_requires_ffmpeg(opts.format)) {
+            opts.ffmpegExecutable = m_ffmpegPath;
+        }
+
+        m_renderer->window().make_context_current();
+        const auto [fbWidth, fbHeight] = m_renderer->window().get_framebuffer_size();
+        if (!m_recorder.start(opts, fbWidth, fbHeight)) {
+            return GEOQIK_ERROR_UNKNOWN;
+        }
+        return GEOQIK_SUCCESS;
+    } catch (const std::bad_alloc&) {
+        return GEOQIK_ERROR_MEMORY_ALLOCATION;
+    } catch (...) {
+        return GEOQIK_ERROR_UNKNOWN;
+    }
+}
+
+geoqik_error_code_t Context::stop_recording() {
+    if (!m_recorder.is_recording()) {
+        return GEOQIK_ERROR_INVALID_PARAMETER;
+    }
+    return m_recorder.stop() ? GEOQIK_SUCCESS : GEOQIK_ERROR_UNKNOWN;
+}
+
+geoqik_error_code_t Context::render_log_to_video(const char* logPath,
+                                                 geoqik_log_format_t format,
+                                                 const video::VideoRecordOptions& options) {
+    if (logPath == nullptr || logPath[0] == '\0' ||
+        (format != GEOQIK_LOG_FORMAT_BINARY && format != GEOQIK_LOG_FORMAT_JSON)) {
+        return GEOQIK_ERROR_INVALID_PARAMETER;
+    }
+    return render_log_to_video_path(std::filesystem::path{logPath}, format, options);
+}
+
+geoqik_error_code_t Context::render_log_to_video_path(const std::filesystem::path& logPath,
+                                                      geoqik_log_format_t format,
+                                                      const video::VideoRecordOptions& options) {
+    if (m_recorder.is_recording()) {
+        return GEOQIK_ERROR_INVALID_PARAMETER;
+    }
+    if (video::format_requires_ffmpeg(options.format) && !m_ffmpegAvailable) {
+        return GEOQIK_ERROR_INVALID_PARAMETER;
+    }
+
+    // A resolution preset that differs from the current window is produced by temporarily resizing
+    // the GLFW window to the target size for the duration of the render, then restoring it. This
+    // needs no offscreen-render support from plinth. The guard restores the size on every exit.
+    ScopedWindowSize windowSizeGuard{*m_renderer};
+
+    try {
+        if (!is_existing_regular_file(logPath)) {
+            return GEOQIK_ERROR_UNKNOWN;
+        }
+
+        std::vector<GeoQikLogEntry> loadedEntries =
+            format == GEOQIK_LOG_FORMAT_JSON ? load_log_json(logPath) : load_log_binary(logPath);
+
+        // Deterministic offline render: apply the log paced by options, rendering and capturing a
+        // frame per step so the resulting video is smooth and machine-speed independent.
+        ReplayOptions replayOptions;
+        replayOptions.startPaused = true; // We drive stepping manually below.
+        start_replay(loadedEntries, replayOptions);
+
+        video::VideoRecordOptions opts = options;
+        if (opts.recordingDirectory.empty()) {
+            opts.recordingDirectory = m_recordingDirectory;
+        }
+        if (video::format_requires_ffmpeg(opts.format)) {
+            opts.ffmpegExecutable = m_ffmpegPath;
+        }
+
+        m_renderer->window().make_context_current();
+        // Apply the requested resolution by resizing the window; the framebuffer-size callback
+        // rebuilds the scene targets. Pump one frame so the framebuffer reflects the new size
+        // before we start capturing.
+        if (opts.width > 0 && opts.height > 0) {
+            windowSizeGuard.resize_to(opts.width, opts.height);
+            render_single_frame();
+        }
+        const auto [fbWidth, fbHeight] = m_renderer->window().get_framebuffer_size();
+        if (!m_recorder.start(opts, fbWidth, fbHeight)) {
+            cancel_replay();
+            return GEOQIK_ERROR_UNKNOWN;
+        }
+
+        render_log_frames(opts);
+
+        finish_replay();
+        const bool ok = m_recorder.stop();
+        return ok ? GEOQIK_SUCCESS : GEOQIK_ERROR_UNKNOWN;
+    } catch (const std::bad_alloc&) {
+        if (m_recorder.is_recording()) {
+            (void)m_recorder.stop();
+        }
+        return GEOQIK_ERROR_MEMORY_ALLOCATION;
+    } catch (...) {
+        if (m_recorder.is_recording()) {
+            (void)m_recorder.stop();
+        }
+        return GEOQIK_ERROR_UNKNOWN;
+    }
+}
+
+void Context::render_log_frames(const video::VideoRecordOptions& options) {
+    const int fps = options.fps > 0 ? options.fps : defaultVideoFps;
+    const std::size_t entryCount = m_replayEntries.size();
+
+    // Render the initial (empty) state and hold it for hold-at-start.
+    render_single_frame();
+    m_recorder.capture_frame();
+    const auto secondsToExtraFrames = [fps](double seconds) -> std::size_t {
+        return seconds > 0.0 ? static_cast<std::size_t>(std::llround(seconds * fps)) : 0;
+    };
+    m_recorder.hold_last_frame(secondsToExtraFrames(options.holdStartSeconds));
+
+    if (entryCount > 0) {
+        // How many entries to advance per captured frame. Speed sets it directly; Duration derives
+        // it so all entries land within the target time. A fractional accumulator carries the
+        // remainder across frames so pacing stays exact over the whole video.
+        double entriesPerFrame = 0.0;
+        if (options.pacingMode == video::PacingMode::Duration && options.targetDurationSeconds > 0.0) {
+            const double bodyFrames = std::max(1.0, std::round(options.targetDurationSeconds * fps));
+            entriesPerFrame = static_cast<double>(entryCount) / bodyFrames;
+        } else {
+            const double entriesPerSecond =
+                options.entriesPerSecond > 0.0 ? options.entriesPerSecond : defaultEntriesPerSecond;
+            entriesPerFrame = entriesPerSecond / fps;
+        }
+        entriesPerFrame = std::max(entriesPerFrame, minimumEntriesPerFrame); // Never stall.
+
+        double accumulator = 0.0;
+        while (m_replayEntryIndex < m_replayEntries.size()) {
+            accumulator += entriesPerFrame;
+            auto entriesThisFrame = static_cast<std::size_t>(accumulator);
+            if (entriesThisFrame == 0) {
+                // Slow pacing (<1 entry/frame): the frame holds the current state; keep accumulating.
+                render_single_frame();
+                m_recorder.capture_frame();
+                continue;
+            }
+            accumulator -= static_cast<double>(entriesThisFrame);
+            apply_replay_entries(entriesThisFrame);
+            render_single_frame();
+            m_recorder.capture_frame();
+        }
+    }
+
+    // Freeze the final frame for hold-at-end.
+    m_recorder.hold_last_frame(secondsToExtraFrames(options.holdEndSeconds));
 }
 
 void Context::cancel_replay() {
@@ -1291,6 +1706,11 @@ void Context::handle_message(const SaveLog& message) {
     message.callback(*this);
 }
 
+void Context::handle_message(const VideoCommand& message) {
+    CORE_ASSERT(message.callback);
+    message.callback(*this);
+}
+
 void Context::handle_message(const LoadLog& message) {
     CORE_ASSERT(message.callback);
     message.callback(*this);
@@ -1373,7 +1793,7 @@ bool Context::is_control_message(const GeoQikMessage& message) {
     return std::holds_alternative<Cleanup>(message) || std::holds_alternative<PauseReplay>(message) ||
            std::holds_alternative<ResumeReplay>(message) || std::holds_alternative<StepReplay>(message) ||
            std::holds_alternative<StepReplayBackward>(message) || std::holds_alternative<GetReplayState>(message) ||
-           std::holds_alternative<GetReplayProgress>(message);
+           std::holds_alternative<GetReplayProgress>(message) || std::holds_alternative<VideoCommand>(message);
 }
 
 void Context::apply_preset_view(renderer::PresetView view) {

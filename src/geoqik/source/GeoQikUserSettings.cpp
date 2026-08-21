@@ -83,8 +83,30 @@ std::filesystem::path default_log_directory() {
     return home.empty() ? current_directory() : home;
 }
 
+std::filesystem::path default_recording_directory() {
+    const std::filesystem::path home = home_directory();
+    const std::filesystem::path base = home.empty() ? current_directory() : home;
+    return base / "GeoQik" / "Recordings";
+}
+
+namespace {
+
+/// Reads a non-empty UTF-8 path from @p json under @p key into @p target, leaving @p target
+/// unchanged when the key is absent, not a string, or empty.
+void read_path_field(const nlohmann::json& json, const char* key, std::filesystem::path& target) {
+    const auto field = json.find(key);
+    if (field != json.end() && field->is_string()) {
+        const std::string value = field->get<std::string>();
+        if (!value.empty()) {
+            target = path_from_utf8(value);
+        }
+    }
+}
+
+} // namespace
+
 UserSettings load_user_settings(const std::filesystem::path& path) {
-    UserSettings settings{default_log_directory()};
+    UserSettings settings{default_log_directory(), std::filesystem::path{}, default_recording_directory()};
     std::error_code error;
     if (!std::filesystem::is_regular_file(path, error)) {
         return settings;
@@ -96,13 +118,9 @@ UserSettings load_user_settings(const std::filesystem::path& path) {
     }
 
     const nlohmann::json json = nlohmann::json::parse(stream);
-    const auto directory = json.find("defaultLogDirectory");
-    if (directory != json.end() && directory->is_string()) {
-        const std::string value = directory->get<std::string>();
-        if (!value.empty()) {
-            settings.defaultLogDirectory = path_from_utf8(value);
-        }
-    }
+    read_path_field(json, "defaultLogDirectory", settings.defaultLogDirectory);
+    read_path_field(json, "ffmpegPath", settings.ffmpegPath);
+    read_path_field(json, "recordingDirectory", settings.recordingDirectory);
     return settings;
 }
 
@@ -116,7 +134,9 @@ void save_user_settings(const std::filesystem::path& path, const UserSettings& s
         throw std::runtime_error("Failed to open GeoQik user settings for writing");
     }
 
-    const nlohmann::json json{{"defaultLogDirectory", path_to_utf8(settings.defaultLogDirectory)}};
+    const nlohmann::json json{{"defaultLogDirectory", path_to_utf8(settings.defaultLogDirectory)},
+                              {"ffmpegPath", path_to_utf8(settings.ffmpegPath)},
+                              {"recordingDirectory", path_to_utf8(settings.recordingDirectory)}};
     stream << json.dump(2) << '\n';
     if (!stream) {
         throw std::runtime_error("Failed to write GeoQik user settings");

@@ -94,6 +94,91 @@ struct FileGuiState {
     bool openErrorPopup{false};
 };
 
+struct VideoGuiState {
+    // Format the recording menu offers. Video formats require ffmpeg; PngSequence never does.
+    enum class Format : std::uint8_t { Mp4, WebM, Gif, PngSequence };
+
+    // Encode quality (maps to CRF in the encoder). High is the sharp default.
+    enum class Quality : std::uint8_t { High, Medium, Low, Lossless };
+
+    // Offline log->video pacing. Speed and Duration are mutually exclusive.
+    enum class Pacing : std::uint8_t { Speed, Duration };
+
+    // Severity of the inline, non-blocking status line shown for recording actions. Unlike the
+    // shared modal error popup (still used by file-log operations), recording feedback never blocks.
+    enum class StatusKind : std::uint8_t { None, Info, Success, Error };
+
+    enum class Command : std::uint8_t {
+        None,
+        StartRecording,
+        StopRecording,
+        RenderLogToVideo,
+        SetFfmpegPath,
+        SetRecordingDirectory,
+        RevealLastOutput,
+        OpenRecordingDirectory,
+    };
+
+    // Which native dialog the menu asked to open; opened after the menu bar is torn down.
+    enum class DialogRequest : std::uint8_t {
+        None,
+        SelectFfmpeg,
+        SelectRecordingDirectory,
+        SelectLogForVideo,
+    };
+
+    // --- State populated by Context for display ---
+    bool isRecording{false};
+    bool ffmpegAvailable{false};
+    double elapsedSeconds{0.0};
+    int width{0};
+    int height{0};
+    int fps{60};
+    std::filesystem::path ffmpegPath;
+    std::filesystem::path recordingDirectory;
+    std::filesystem::path lastOutputPath;
+
+    // --- Requests produced by the menu, consumed by Context ---
+    Command command{Command::None};
+    DialogRequest dialogRequest{DialogRequest::None};
+    Format requestedFormat{Format::Mp4};
+    std::filesystem::path requestedPath;   // for SetFfmpegPath / SetRecordingDirectory / RenderLogToVideo
+    geoqik_log_format_t requestedLogFormat{GEOQIK_LOG_FORMAT_BINARY}; // for RenderLogToVideo
+
+    // --- Inline, non-blocking status feedback (set by Context, rendered by the overlay) ---
+    // Shown as a colored line in the Record menu and as a transient toast near the badge; it fades
+    // automatically after a few seconds. statusSetAtSeconds holds the ImGui::GetTime() at which the
+    // message was set, so the overlay can expire it without any timer plumbing.
+    StatusKind statusKind{StatusKind::None};
+    std::string statusMessage;
+    double statusSetAtSeconds{0.0};
+    bool statusIsNew{false}; // set by set_status(); the overlay stamps statusSetAtSeconds and clears it
+
+    // Record a status message to show inline. Context has no ImGui context, so the timestamp used
+    // for auto-fade is stamped by the overlay on the next render (see statusIsNew).
+    void set_status(StatusKind kind, std::string message) {
+        statusKind = kind;
+        statusMessage = std::move(message);
+        statusIsNew = true;
+    }
+
+    // --- Render settings edited in the menu (apply to the next Start/Render) ---
+    Quality quality{Quality::High};
+    int requestedFps{60};
+    // Resolution preset index into the standard-size table (0 = current window size).
+    int resolutionPresetIndex{0};
+    // Offline log->video pacing settings.
+    Pacing pacing{Pacing::Speed};
+    float entriesPerSecond{60.0F};
+    float targetDurationSeconds{10.0F};
+    float holdStartSeconds{0.0F};
+    float holdEndSeconds{1.0F};
+};
+
+/// Resolution (in pixels) for a preset index; {0,0} means "use the current window size". Shared
+/// between the Record menu UI and Context so both agree on the standard presets.
+[[nodiscard]] std::pair<int, int> video_resolution_preset(int index);
+
 // GeoQik owns its controls and docked sidebar. Plinth's ImGuiOverlay is retained only as the
 // platform/backend adapter that owns the ImGui context and translates window input.
 class GeoQikOverlay final : public renderer::IOverlay {
@@ -102,6 +187,7 @@ class GeoQikOverlay final : public renderer::IOverlay {
     CameraGuiState m_cameraState;
     ReplayGuiState m_replayState;
     FileGuiState m_fileState;
+    VideoGuiState m_videoState;
     float m_controlPanelWidth{320.0F};
     renderer::UiMode m_uiMode{renderer::UiMode::Release};
 
@@ -118,6 +204,7 @@ class GeoQikOverlay final : public renderer::IOverlay {
     [[nodiscard]] CameraGuiState& camera_state() { return m_cameraState; }
     [[nodiscard]] ReplayGuiState& replay_state() { return m_replayState; }
     [[nodiscard]] FileGuiState& file_state() { return m_fileState; }
+    [[nodiscard]] VideoGuiState& video_state() { return m_videoState; }
     [[nodiscard]] float control_panel_width() const { return m_controlPanelWidth; }
     void set_control_panel_width(float width) { m_controlPanelWidth = width; }
     [[nodiscard]] renderer::UiMode ui_mode() const { return m_uiMode; }
@@ -150,6 +237,10 @@ class GeoQikOverlay final : public renderer::IOverlay {
 
   private:
     void render_main_menu_bar();
+    void render_record_menu();
+    static void render_log_video_settings(VideoGuiState& state);
+    void render_recording_badge();
+    void render_recording_status();
     void layout_controls();
 };
 

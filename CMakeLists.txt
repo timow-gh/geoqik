@@ -84,6 +84,8 @@ find_package(imgui CONFIG REQUIRED)
 find_package(nfd CONFIG REQUIRED)
 find_package(stduuid CONFIG REQUIRED)
 find_package(Boost REQUIRED)
+find_package(boost_process CONFIG REQUIRED)
+find_package(Stb REQUIRED)
 find_package(Threads REQUIRED)
 
 add_subdirectory(src)

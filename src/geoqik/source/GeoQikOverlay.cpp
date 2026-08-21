@@ -40,6 +40,45 @@ constexpr float errorPopupButtonWidth = 120.0F;
 constexpr float exposureMinimum = -10.0F;
 constexpr float exposureMaximum = 10.0F;
 
+// Recording status/badge presentation.
+constexpr double recordingStatusTimeoutSeconds = 4.0; // inline status fades after this long
+constexpr float recordingBadgePadding = 8.0F;
+constexpr float recordingBadgeMargin = 12.0F;
+constexpr float recordingBadgeRounding = 4.0F;
+// Field widths reused by the record menu and log->video settings.
+constexpr float logVideoFieldWidth = 200.0F;
+constexpr float recordQualityFieldWidth = 160.0F;
+// Frame-rate bounds for the log->video FPS slider.
+constexpr int logVideoMinFps = 15;
+constexpr int logVideoMaxFps = 120;
+
+/// ImGui text color for a recording status message. None falls back to the default text color.
+[[nodiscard]] ImU32 recording_status_color(VideoGuiState::StatusKind kind) {
+    switch (kind) {
+    case VideoGuiState::StatusKind::Success: return IM_COL32(96, 208, 96, 255);
+    case VideoGuiState::StatusKind::Error: return IM_COL32(240, 96, 96, 255);
+    case VideoGuiState::StatusKind::Info:
+    case VideoGuiState::StatusKind::None: return ImGui::GetColorU32(ImGuiCol_Text);
+    }
+    return ImGui::GetColorU32(ImGuiCol_Text);
+}
+
+// Standard video resolution presets offered for log->video rendering. Index 0 keeps the current
+// window size; the rest resize the window during the offline render. Shared by the menu UI and by
+// Context::make_record_options_from_gui via video_resolution_preset().
+struct ResolutionPreset {
+    const char* label;
+    int width;  // 0 = current window size
+    int height;
+};
+constexpr std::array<ResolutionPreset, 5> videoResolutionPresets{{
+    {"Window size", 0, 0},
+    {"720p (1280x720)", 1280, 720},
+    {"1080p (1920x1080)", 1920, 1080},
+    {"1440p (2560x1440)", 2560, 1440},
+    {"4K (3840x2160)", 3840, 2160},
+}};
+
 std::string path_to_utf8(const std::filesystem::path& path) {
     const std::u8string value = path.u8string();
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
@@ -161,6 +200,74 @@ void select_default_log_directory(FileGuiState& state) {
         state.command = FileGuiState::Command::SetDefaultDirectory;
     } else if (result == NFD_ERROR) {
         set_file_dialog_error(state, "Could not open the folder dialog");
+    }
+}
+
+void set_video_dialog_error(VideoGuiState& state, FileGuiState& fileState, const std::string& prefix) {
+    // Video dialogs reuse the shared file error popup for consistency.
+    (void)state;
+    set_file_dialog_error(fileState, prefix);
+}
+
+void select_ffmpeg_executable(VideoGuiState& state, FileGuiState& fileState) {
+#ifdef _WIN32
+    const nfdu8filteritem_t filter = {"ffmpeg executable", "exe"};
+    nfdopendialogu8args_t arguments{};
+    arguments.filterList = &filter;
+    arguments.filterCount = 1;
+#else
+    nfdopendialogu8args_t arguments{};
+#endif
+    const std::string directory = path_to_utf8(state.ffmpegPath.has_parent_path() ? state.ffmpegPath.parent_path()
+                                                                                  : std::filesystem::path{});
+    arguments.defaultPath = directory.empty() ? nullptr : directory.c_str();
+
+    nfdu8char_t* selectedPath = nullptr;
+    const nfdresult_t result = NFD_OpenDialogU8_With(&selectedPath, &arguments);
+    if (result == NFD_OKAY) {
+        state.requestedPath = path_from_utf8(selectedPath);
+        NFD_FreePathU8(selectedPath);
+        state.command = VideoGuiState::Command::SetFfmpegPath;
+    } else if (result == NFD_ERROR) {
+        set_video_dialog_error(state, fileState, "Could not open the ffmpeg file dialog");
+    }
+}
+
+void select_recording_directory(VideoGuiState& state, FileGuiState& fileState) {
+    const std::string directory = path_to_utf8(state.recordingDirectory);
+    nfdpickfolderu8args_t arguments{};
+    arguments.defaultPath = directory.empty() ? nullptr : directory.c_str();
+
+    nfdu8char_t* selectedPath = nullptr;
+    const nfdresult_t result = NFD_PickFolderU8_With(&selectedPath, &arguments);
+    if (result == NFD_OKAY) {
+        state.requestedPath = path_from_utf8(selectedPath);
+        NFD_FreePathU8(selectedPath);
+        state.command = VideoGuiState::Command::SetRecordingDirectory;
+    } else if (result == NFD_ERROR) {
+        set_video_dialog_error(state, fileState, "Could not open the folder dialog");
+    }
+}
+
+void select_log_for_video(VideoGuiState& state, FileGuiState& fileState) {
+    constexpr std::array<nfdu8filteritem_t, 2> filters{nfdu8filteritem_t{"GeoQik binary log", "gqklog"},
+                                                       nfdu8filteritem_t{"JSON log", "json"}};
+    const std::string directory = path_to_utf8(state.recordingDirectory);
+    nfdopendialogu8args_t arguments{};
+    arguments.filterList = filters.data();
+    arguments.filterCount = static_cast<nfdfiltersize_t>(filters.size());
+    arguments.defaultPath = directory.empty() ? nullptr : directory.c_str();
+
+    nfdu8char_t* selectedPath = nullptr;
+    const nfdresult_t result = NFD_OpenDialogU8_With(&selectedPath, &arguments);
+    if (result == NFD_OKAY) {
+        state.requestedPath = path_from_utf8(selectedPath);
+        NFD_FreePathU8(selectedPath);
+        state.requestedLogFormat =
+            lowercase_extension(state.requestedPath) == ".json" ? GEOQIK_LOG_FORMAT_JSON : GEOQIK_LOG_FORMAT_BINARY;
+        state.command = VideoGuiState::Command::RenderLogToVideo;
+    } else if (result == NFD_ERROR) {
+        set_video_dialog_error(state, fileState, "Could not open the log file dialog");
     }
 }
 
@@ -632,6 +739,8 @@ void GeoQikOverlay::apply_scene_viewport_hint(renderer::OverlayFrameContext& con
 
 void GeoQikOverlay::build_controls(renderer::OverlayFrameContext& context) {
     render_main_menu_bar();
+    render_recording_badge();
+    render_recording_status();
     apply_scene_viewport_hint(context);
 
     m_cameraState.projectionType = context.projectionType;
@@ -640,6 +749,95 @@ void GeoQikOverlay::build_controls(renderer::OverlayFrameContext& context) {
     }
     add_camera_controls();
     add_display_controls(context.renderer);
+}
+
+void GeoQikOverlay::render_recording_badge() {
+    if (!m_videoState.isRecording) {
+        return;
+    }
+
+    // Draw an always-visible "REC" badge in the top-right of the scene area so the user can tell a
+    // recording is running even with all menus closed. The badge text/timer is drawn via ImGui's
+    // foreground draw list and is not part of the recorded pixels (capture reads the swapped front
+    // buffer). A borderless overlay window pins a clickable Stop button under the badge so the user
+    // can end a recording without reopening the menu.
+    const ImGuiViewport* viewport = ImGui::GetMainViewport();
+    if (viewport == nullptr) {
+        return;
+    }
+
+    const int seconds = static_cast<int>(m_videoState.elapsedSeconds);
+    const std::string label = fmt::format("\xE2\x97\x8F REC  {:02d}:{:02d}  {}x{}  {}fps",
+                                          seconds / 60,
+                                          seconds % 60,
+                                          m_videoState.width,
+                                          m_videoState.height,
+                                          m_videoState.fps);
+
+    ImDrawList* drawList = ImGui::GetForegroundDrawList();
+    const ImVec2 textSize = ImGui::CalcTextSize(label.c_str());
+    const ImVec2 topRight{viewport->WorkPos.x + viewport->WorkSize.x, viewport->WorkPos.y};
+    const ImVec2 boxMin{topRight.x - textSize.x - (2.0F * recordingBadgePadding) - recordingBadgeMargin,
+                         topRight.y + recordingBadgeMargin};
+    const ImVec2 boxMax{topRight.x - recordingBadgeMargin, boxMin.y + textSize.y + (2.0F * recordingBadgePadding)};
+    drawList->AddRectFilled(boxMin, boxMax, IM_COL32(0, 0, 0, 160), recordingBadgeRounding);
+    drawList->AddText(ImVec2{boxMin.x + recordingBadgePadding, boxMin.y + recordingBadgePadding},
+                      IM_COL32(255, 64, 64, 255), label.c_str());
+
+    // A borderless, no-nav overlay window holds the actual Stop hit-target directly beneath the
+    // badge. It lives in the overlay (like the badge) so it is not captured into the recording.
+    ImGui::SetNextWindowPos(ImVec2{boxMin.x, boxMax.y + recordingBadgeMargin});
+    ImGui::SetNextWindowBgAlpha(0.0F);
+    constexpr ImGuiWindowFlags overlayFlags =
+        ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings |
+        ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoNav;
+    if (ImGui::Begin("##GeoQikRecStop", nullptr, overlayFlags)) {
+        if (ImGui::Button("\xE2\x96\xA0 Stop")) {
+            m_videoState.command = VideoGuiState::Command::StopRecording;
+        }
+        item_tooltip("Stop the current recording.");
+    }
+    ImGui::End();
+}
+
+void GeoQikOverlay::render_recording_status() {
+    VideoGuiState& state = m_videoState;
+    if (state.statusKind == VideoGuiState::StatusKind::None) {
+        return;
+    }
+
+    const double now = ImGui::GetTime();
+    // Context has no ImGui context, so it flags a freshly-set message; stamp the display time here.
+    if (state.statusIsNew) {
+        state.statusSetAtSeconds = now;
+        state.statusIsNew = false;
+    }
+
+    // A recording in progress keeps its "Recording…" info line up until stop replaces it; other
+    // messages fade after a few seconds so they do not linger.
+    const bool persistent = state.isRecording && state.statusKind == VideoGuiState::StatusKind::Info;
+    if (!persistent && now - state.statusSetAtSeconds > recordingStatusTimeoutSeconds) {
+        state.statusKind = VideoGuiState::StatusKind::None;
+        state.statusMessage.clear();
+        return;
+    }
+
+    // Transient toast near the bottom-center of the scene so success/failure is visible with all
+    // menus closed. Drawn in the overlay, so it is not captured into the recording.
+    const ImGuiViewport* viewport = ImGui::GetMainViewport();
+    if (viewport == nullptr) {
+        return;
+    }
+    ImDrawList* drawList = ImGui::GetForegroundDrawList();
+    const ImVec2 textSize = ImGui::CalcTextSize(state.statusMessage.c_str());
+    const ImVec2 center{viewport->WorkPos.x + (viewport->WorkSize.x * 0.5F),
+                         viewport->WorkPos.y + viewport->WorkSize.y - (recordingBadgeMargin * 4.0F)};
+    const ImVec2 boxMin{center.x - (textSize.x * 0.5F) - recordingBadgePadding, center.y - recordingBadgePadding};
+    const ImVec2 boxMax{center.x + (textSize.x * 0.5F) + recordingBadgePadding,
+                        center.y + textSize.y + recordingBadgePadding};
+    drawList->AddRectFilled(boxMin, boxMax, IM_COL32(0, 0, 0, 180), recordingBadgeRounding);
+    drawList->AddText(ImVec2{boxMin.x + recordingBadgePadding, boxMin.y + recordingBadgePadding},
+                      recording_status_color(state.statusKind), state.statusMessage.c_str());
 }
 
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
@@ -690,6 +888,8 @@ void GeoQikOverlay::render_main_menu_bar() {
         ImGui::EndMenu();
     }
 
+    render_record_menu();
+
     ImGui::EndMainMenuBar();
     switch (std::exchange(m_fileState.dialogRequest, FileGuiState::DialogRequest::None)) {
     case FileGuiState::DialogRequest::SaveBinary:             select_save_log_path(m_fileState, GEOQIK_LOG_FORMAT_BINARY); break;
@@ -699,7 +899,215 @@ void GeoQikOverlay::render_main_menu_bar() {
     case FileGuiState::DialogRequest::SelectDefaultDirectory: select_default_log_directory(m_fileState); break;
     case FileGuiState::DialogRequest::None:                   break;
     }
+    switch (std::exchange(m_videoState.dialogRequest, VideoGuiState::DialogRequest::None)) {
+    case VideoGuiState::DialogRequest::SelectFfmpeg:             select_ffmpeg_executable(m_videoState, m_fileState); break;
+    case VideoGuiState::DialogRequest::SelectRecordingDirectory: select_recording_directory(m_videoState, m_fileState); break;
+    case VideoGuiState::DialogRequest::SelectLogForVideo:        select_log_for_video(m_videoState, m_fileState); break;
+    case VideoGuiState::DialogRequest::None:                     break;
+    }
     render_file_error_popup(m_fileState);
+}
+
+std::pair<int, int> video_resolution_preset(int index) {
+    if (index < 0 || index >= static_cast<int>(videoResolutionPresets.size())) {
+        return {0, 0};
+    }
+    const ResolutionPreset& preset = videoResolutionPresets[static_cast<std::size_t>(index)];
+    return {preset.width, preset.height};
+}
+
+void GeoQikOverlay::render_log_video_settings(VideoGuiState& state) {
+    constexpr float fieldWidth = logVideoFieldWidth;
+    constexpr float speedStep = 1.0F;
+    constexpr float speedStepFast = 10.0F;
+    constexpr float durationStep = 0.5F;
+    constexpr float durationStepFast = 5.0F;
+    constexpr float holdStep = 0.25F;
+    constexpr float holdStepFast = 1.0F;
+    constexpr float minimumPacingValue = 0.1F;
+
+    // Output format for the rendered log.
+    constexpr std::array<const char*, 3> formatLabels{"MP4 (H.264)", "WebM (VP9)", "GIF"};
+    constexpr std::array<VideoGuiState::Format, 3> formatValues{
+        VideoGuiState::Format::Mp4, VideoGuiState::Format::WebM, VideoGuiState::Format::Gif};
+    int formatIndex = static_cast<int>(
+        std::distance(formatValues.begin(), std::ranges::find(formatValues, state.requestedFormat)));
+    if (formatIndex == static_cast<int>(formatValues.size())) {
+        formatIndex = 0;
+    }
+    ImGui::TextUnformatted("Format");
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(fieldWidth);
+    if (ImGui::Combo("##LogVideoFormat", &formatIndex, formatLabels.data(), static_cast<int>(formatLabels.size()))) {
+        state.requestedFormat = formatValues[static_cast<std::size_t>(formatIndex)];
+    }
+
+    // Resolution preset.
+    std::array<const char*, videoResolutionPresets.size()> resolutionLabels{};
+    for (std::size_t i = 0; i < videoResolutionPresets.size(); ++i) {
+        resolutionLabels[i] = videoResolutionPresets[i].label;
+    }
+    ImGui::TextUnformatted("Resolution");
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(fieldWidth);
+    ImGui::Combo("##LogVideoResolution", &state.resolutionPresetIndex, resolutionLabels.data(),
+                 static_cast<int>(resolutionLabels.size()));
+    item_tooltip("Non-window sizes briefly resize the window while rendering.");
+
+    // Frames per second.
+    ImGui::TextUnformatted("FPS");
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(fieldWidth);
+    ImGui::SliderInt("##LogVideoFps", &state.requestedFps, logVideoMinFps, logVideoMaxFps);
+
+    ImGui::Separator();
+    ImGui::TextUnformatted("Pacing");
+
+    // Speed vs. Duration are mutually exclusive: the inactive field is disabled.
+    bool speedSelected = state.pacing == VideoGuiState::Pacing::Speed;
+    if (ImGui::RadioButton("Speed", speedSelected)) {
+        state.pacing = VideoGuiState::Pacing::Speed;
+        speedSelected = true;
+    }
+    ImGui::SameLine();
+    if (ImGui::RadioButton("Duration", !speedSelected)) {
+        state.pacing = VideoGuiState::Pacing::Duration;
+        speedSelected = false;
+    }
+
+    ImGui::BeginDisabled(!speedSelected);
+    ImGui::SetNextItemWidth(fieldWidth);
+    ImGui::InputFloat("entries / second", &state.entriesPerSecond, speedStep, speedStepFast, "%.1f");
+    ImGui::EndDisabled();
+    item_tooltip("Speed mode: how many log entries play per second. Duration = entries / this.");
+
+    ImGui::BeginDisabled(speedSelected);
+    ImGui::SetNextItemWidth(fieldWidth);
+    ImGui::InputFloat("target duration (s)", &state.targetDurationSeconds, durationStep, durationStepFast, "%.1f");
+    ImGui::EndDisabled();
+    item_tooltip("Duration mode: total video length for the log body, regardless of entry count.");
+
+    ImGui::Separator();
+    ImGui::SetNextItemWidth(fieldWidth);
+    ImGui::InputFloat("hold start (s)", &state.holdStartSeconds, holdStep, holdStepFast, "%.2f");
+    ImGui::SetNextItemWidth(fieldWidth);
+    ImGui::InputFloat("hold end (s)", &state.holdEndSeconds, holdStep, holdStepFast, "%.2f");
+    item_tooltip("Freeze the first/last frame for this many seconds.");
+
+    // Clamp negatives that InputFloat's step buttons could produce.
+    state.entriesPerSecond = std::max(minimumPacingValue, state.entriesPerSecond);
+    state.targetDurationSeconds = std::max(minimumPacingValue, state.targetDurationSeconds);
+    state.holdStartSeconds = std::max(0.0F, state.holdStartSeconds);
+    state.holdEndSeconds = std::max(0.0F, state.holdEndSeconds);
+
+    ImGui::Separator();
+    if (ImGui::Button("Choose Log and Render...")) {
+        // Opens the log picker; the picker sets RenderLogToVideo, and consume_video_gui_commands
+        // reads the settings gathered above.
+        state.dialogRequest = VideoGuiState::DialogRequest::SelectLogForVideo;
+        ImGui::CloseCurrentPopup();
+    }
+}
+
+// NOLINTNEXTLINE(readability-function-cognitive-complexity): ImGui menu composition is necessarily branch-heavy.
+void GeoQikOverlay::render_record_menu() {
+    VideoGuiState& state = m_videoState;
+    const bool dialogsReady = m_fileState.nativeDialogsInitialized;
+    const char* menuLabel = state.isRecording ? "Record \xE2\x97\x8F" : "Record";
+    if (ImGui::BeginMenu(menuLabel)) {
+        if (state.isRecording) {
+            if (ImGui::MenuItem("\xE2\x96\xA0 Stop Recording")) {
+                state.command = VideoGuiState::Command::StopRecording;
+            }
+            item_tooltip(fmt::format("Recording {}x{} @ {} fps ({:.0f}s)",
+                                     state.width,
+                                     state.height,
+                                     state.fps,
+                                     state.elapsedSeconds));
+        } else {
+            const bool canRecordVideo = state.ffmpegAvailable && dialogsReady;
+            if (ImGui::MenuItem("Start Recording (MP4)", nullptr, false, canRecordVideo)) {
+                state.requestedFormat = VideoGuiState::Format::Mp4;
+                state.command = VideoGuiState::Command::StartRecording;
+            }
+            item_tooltip(state.ffmpegAvailable ? "Record the live session to an H.264 MP4."
+                                               : "Set the ffmpeg.exe path to enable video recording.");
+            if (ImGui::MenuItem("Start Recording (WebM)", nullptr, false, canRecordVideo)) {
+                state.requestedFormat = VideoGuiState::Format::WebM;
+                state.command = VideoGuiState::Command::StartRecording;
+            }
+            item_tooltip(state.ffmpegAvailable ? "Record the live session to a VP9 WebM."
+                                               : "Set the ffmpeg.exe path to enable video recording.");
+            if (ImGui::MenuItem("Start Recording (PNG sequence)", nullptr, false, dialogsReady)) {
+                state.requestedFormat = VideoGuiState::Format::PngSequence;
+                state.command = VideoGuiState::Command::StartRecording;
+            }
+            item_tooltip("Write numbered PNG frames. Requires no ffmpeg.");
+
+            // Make the reason MP4/WebM are greyed out visible without hovering each disabled item.
+            if (!state.ffmpegAvailable) {
+                ImGui::TextDisabled("ffmpeg not set \xE2\x80\x94 PNG sequence still works"); // NOLINT(cppcoreguidelines-pro-type-vararg)
+            }
+
+            ImGui::Separator();
+            if (ImGui::BeginMenu("Render Log to Video...", canRecordVideo)) {
+                render_log_video_settings(state);
+                ImGui::EndMenu();
+            }
+            item_tooltip(state.ffmpegAvailable ? "Configure and render a log deterministically to a video."
+                                               : "Set the ffmpeg.exe path to enable video recording.");
+        }
+
+        ImGui::Separator();
+        // Quality applies to both live recording and log->video.
+        {
+            constexpr std::array<const char*, 4> qualityLabels{"High (sharp)", "Medium", "Low", "Lossless"};
+            int qualityIndex = static_cast<int>(state.quality);
+            ImGui::TextUnformatted("Quality");
+            ImGui::SameLine();
+            ImGui::SetNextItemWidth(recordQualityFieldWidth);
+            if (ImGui::Combo("##RecordQuality", &qualityIndex, qualityLabels.data(),
+                             static_cast<int>(qualityLabels.size()))) {
+                state.quality = static_cast<VideoGuiState::Quality>(qualityIndex);
+            }
+            item_tooltip("Higher quality = sharper edges and larger files.");
+        }
+
+        ImGui::Separator();
+        ImGui::TextDisabled("Settings"); // NOLINT(cppcoreguidelines-pro-type-vararg)
+        if (ImGui::MenuItem("Recording Folder...", nullptr, false, dialogsReady)) {
+            state.dialogRequest = VideoGuiState::DialogRequest::SelectRecordingDirectory;
+        }
+        item_tooltip(fmt::format("Current: {}", path_to_utf8(state.recordingDirectory)));
+        if (ImGui::MenuItem("Set ffmpeg.exe Path...", nullptr, false, dialogsReady)) {
+            state.dialogRequest = VideoGuiState::DialogRequest::SelectFfmpeg;
+        }
+        item_tooltip(state.ffmpegAvailable ? fmt::format("Current: {}", path_to_utf8(state.ffmpegPath))
+                                           : "ffmpeg not found. Click to choose ffmpeg.exe.");
+
+        ImGui::Separator();
+        const bool haveOutput = !state.lastOutputPath.empty();
+        if (ImGui::MenuItem("Reveal Last Recording", nullptr, false, haveOutput)) {
+            state.command = VideoGuiState::Command::RevealLastOutput;
+        }
+        if (haveOutput) {
+            item_tooltip(fmt::format("Saved to: {}", path_to_utf8(state.lastOutputPath)));
+        }
+        if (ImGui::MenuItem("Open Recordings Folder")) {
+            state.command = VideoGuiState::Command::OpenRecordingDirectory;
+        }
+
+        // Inline, non-blocking status for the last recording action (mirrors the badge toast).
+        if (state.statusKind != VideoGuiState::StatusKind::None) {
+            ImGui::Separator();
+            ImGui::PushTextWrapPos(recordQualityFieldWidth + logVideoFieldWidth);
+            ImGui::PushStyleColor(ImGuiCol_Text, recording_status_color(state.statusKind));
+            ImGui::TextUnformatted(state.statusMessage.c_str());
+            ImGui::PopStyleColor();
+            ImGui::PopTextWrapPos();
+        }
+        ImGui::EndMenu();
+    }
 }
 
 void GeoQikOverlay::layout_controls() {

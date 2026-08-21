@@ -300,6 +300,12 @@ struct GetLineColor {
     std::function<void(Context& context)> callback;
 };
 
+/// Generic control message that runs a callback on the render thread. Used by video recording
+/// commands, which must touch the GL context and therefore run on the render thread.
+struct VideoCommand {
+    std::function<void(Context& context)> callback;
+};
+
 struct Cleanup {};
 
 using GeoQikLogEntry = std::variant<AddPointWithOpts,
@@ -370,6 +376,7 @@ using GeoQikMessage = std::variant<AddPointWithOpts,
                                    GetLineWidth,
                                    GetLineColor,
                                    GetMeshColor,
+                                   VideoCommand,
                                    Cleanup>;
 
 } // namespace geoqik

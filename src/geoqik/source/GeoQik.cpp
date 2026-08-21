@@ -25,6 +25,8 @@
 using namespace geoqik;
 
 namespace {
+
+constexpr int defaultVideoFps = 60;
 constexpr std::size_t coordinateCount = 3;
 constexpr std::size_t lineCoordinateCount = 6;
 constexpr std::size_t uuidByteCount = 16;
@@ -2151,6 +2153,156 @@ geoqik_error_code_t geoqik_replay_current_log(const geoqik_replay_options_t* opt
             return future.get();
         },
         "geoqik_replay_current_log");
+}
+
+namespace {
+
+[[nodiscard]] geoqik::video::VideoFormat to_internal_video_format(geoqik_video_format_t format) {
+    switch (format) {
+    case GEOQIK_VIDEO_FORMAT_MP4: return geoqik::video::VideoFormat::Mp4;
+    case GEOQIK_VIDEO_FORMAT_WEBM: return geoqik::video::VideoFormat::WebM;
+    case GEOQIK_VIDEO_FORMAT_GIF: return geoqik::video::VideoFormat::Gif;
+    case GEOQIK_VIDEO_FORMAT_PNG_SEQUENCE: return geoqik::video::VideoFormat::PngSequence;
+    }
+    return geoqik::video::VideoFormat::Mp4;
+}
+
+[[nodiscard]] geoqik::video::VideoQuality to_internal_video_quality(geoqik_video_quality_t quality) {
+    switch (quality) {
+    case GEOQIK_VIDEO_QUALITY_HIGH: return geoqik::video::VideoQuality::High;
+    case GEOQIK_VIDEO_QUALITY_MEDIUM: return geoqik::video::VideoQuality::Medium;
+    case GEOQIK_VIDEO_QUALITY_LOW: return geoqik::video::VideoQuality::Low;
+    case GEOQIK_VIDEO_QUALITY_LOSSLESS: return geoqik::video::VideoQuality::Lossless;
+    }
+    return geoqik::video::VideoQuality::High;
+}
+
+[[nodiscard]] geoqik::video::VideoRecordOptions to_internal_video_options(const geoqik_video_options_t* options) {
+    geoqik::video::VideoRecordOptions result;
+    if (options != nullptr) {
+        result.width = options->width;
+        result.height = options->height;
+        result.fps = options->fps > 0 ? options->fps : defaultVideoFps;
+        result.format = to_internal_video_format(options->format);
+        result.quality = to_internal_video_quality(options->quality);
+        if (options->outputPath != nullptr && options->outputPath[0] != '\0') {
+            result.outputPath = std::filesystem::path{options->outputPath};
+        }
+        result.pacingMode = options->pacingMode == GEOQIK_VIDEO_PACING_DURATION
+            ? geoqik::video::PacingMode::Duration
+            : geoqik::video::PacingMode::Speed;
+        if (options->entriesPerSecond > 0.0) {
+            result.entriesPerSecond = options->entriesPerSecond;
+        }
+        result.targetDurationSeconds = options->targetDurationSeconds;
+        result.holdStartSeconds = options->holdStartSeconds;
+        result.holdEndSeconds = options->holdEndSeconds;
+    }
+    return result;
+}
+
+} // namespace
+
+geoqik_error_code_t geoqik_start_recording(const geoqik_video_options_t* options) {
+    return geoqik_internal::execute_if_initialized(
+        [&]() -> geoqik_error_code_t {
+            const geoqik::video::VideoRecordOptions recordOptions = to_internal_video_options(options);
+            auto promise = std::make_shared<std::promise<geoqik_error_code_t>>();
+            std::future<geoqik_error_code_t> future = promise->get_future();
+
+            auto enqueueResult = enqueue(GeoQikMessage{VideoCommand{[promise, recordOptions](Context& context) {
+                promise->set_value(context.start_recording(recordOptions));
+            }}});
+            if (enqueueResult != GEOQIK_SUCCESS) {
+                return enqueueResult;
+            }
+            return future.get();
+        },
+        "geoqik_start_recording");
+}
+
+geoqik_error_code_t geoqik_stop_recording() {
+    return geoqik_internal::execute_if_initialized(
+        [&]() -> geoqik_error_code_t {
+            auto promise = std::make_shared<std::promise<geoqik_error_code_t>>();
+            std::future<geoqik_error_code_t> future = promise->get_future();
+
+            auto enqueueResult = enqueue(GeoQikMessage{VideoCommand{[promise](Context& context) {
+                promise->set_value(context.stop_recording());
+            }}});
+            if (enqueueResult != GEOQIK_SUCCESS) {
+                return enqueueResult;
+            }
+            return future.get();
+        },
+        "geoqik_stop_recording");
+}
+
+geoqik_error_code_t geoqik_render_log_to_video(const char* logPath,
+                                               geoqik_log_format_t logFormat,
+                                               const geoqik_video_options_t* options) {
+    if (logPath == nullptr || logPath[0] == '\0' ||
+        (logFormat != GEOQIK_LOG_FORMAT_BINARY && logFormat != GEOQIK_LOG_FORMAT_JSON)) {
+        return geoqik_internal::invalid_parameter("geoqik_render_log_to_video",
+                                                  "parameter: logPath/logFormat");
+    }
+
+    return geoqik_internal::execute_if_initialized(
+        [&]() -> geoqik_error_code_t {
+            const geoqik::video::VideoRecordOptions recordOptions = to_internal_video_options(options);
+            auto promise = std::make_shared<std::promise<geoqik_error_code_t>>();
+            std::future<geoqik_error_code_t> future = promise->get_future();
+
+            auto enqueueResult = enqueue(GeoQikMessage{
+                VideoCommand{[promise, pathCopy = std::string(logPath), logFormat, recordOptions](Context& context) {
+                    promise->set_value(context.render_log_to_video(pathCopy.c_str(), logFormat, recordOptions));
+                }}});
+            if (enqueueResult != GEOQIK_SUCCESS) {
+                return enqueueResult;
+            }
+            return future.get();
+        },
+        "geoqik_render_log_to_video");
+}
+
+geoqik_error_code_t geoqik_set_ffmpeg_path(const char* path) {
+    return geoqik_internal::execute_if_initialized(
+        [&]() -> geoqik_error_code_t {
+            auto promise = std::make_shared<std::promise<geoqik_error_code_t>>();
+            std::future<geoqik_error_code_t> future = promise->get_future();
+
+            auto enqueueResult = enqueue(GeoQikMessage{
+                VideoCommand{[promise, pathCopy = std::string(path == nullptr ? "" : path)](Context& context) {
+                    context.set_ffmpeg_path(std::filesystem::path{pathCopy});
+                    promise->set_value(GEOQIK_SUCCESS);
+                }}});
+            if (enqueueResult != GEOQIK_SUCCESS) {
+                return enqueueResult;
+            }
+            return future.get();
+        },
+        "geoqik_set_ffmpeg_path");
+}
+
+geoqik_error_code_t geoqik_is_ffmpeg_available(int* available) {
+    if (available == nullptr) {
+        return geoqik_internal::invalid_parameter("geoqik_is_ffmpeg_available", "parameter: available");
+    }
+    return geoqik_internal::execute_if_initialized(
+        [&]() -> geoqik_error_code_t {
+            auto promise = std::make_shared<std::promise<bool>>();
+            std::future<bool> future = promise->get_future();
+
+            auto enqueueResult = enqueue(GeoQikMessage{VideoCommand{[promise](Context& context) {
+                promise->set_value(context.is_ffmpeg_available());
+            }}});
+            if (enqueueResult != GEOQIK_SUCCESS) {
+                return enqueueResult;
+            }
+            *available = future.get() ? 1 : 0;
+            return GEOQIK_SUCCESS;
+        },
+        "geoqik_is_ffmpeg_available");
 }
 
 geoqik_error_code_t geoqik_cancel_replay() {

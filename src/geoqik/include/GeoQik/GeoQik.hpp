@@ -549,6 +549,64 @@ GEOQIK_EXPORT geoqik_error_code_t geoqik_get_replay_state(geoqik_replay_state_t*
 /** \brief Gets the current replay progress as current and total log entries. */
 GEOQIK_EXPORT geoqik_error_code_t geoqik_get_replay_progress(size_t* currentEntry, size_t* totalEntries);
 
+/** \brief Video output format. Video formats require an ffmpeg executable; PNG sequence does not. */
+typedef enum {
+    GEOQIK_VIDEO_FORMAT_MP4 = 0,
+    GEOQIK_VIDEO_FORMAT_WEBM = 1,
+    GEOQIK_VIDEO_FORMAT_GIF = 2,
+    GEOQIK_VIDEO_FORMAT_PNG_SEQUENCE = 3
+} geoqik_video_format_t;
+
+/** \brief Encode quality, mapped to a codec CRF. HIGH is the sharp default. */
+typedef enum {
+    GEOQIK_VIDEO_QUALITY_HIGH = 0,
+    GEOQIK_VIDEO_QUALITY_MEDIUM = 1,
+    GEOQIK_VIDEO_QUALITY_LOW = 2,
+    GEOQIK_VIDEO_QUALITY_LOSSLESS = 3
+} geoqik_video_quality_t;
+
+/** \brief How an offline log->video render paces log entries. Speed and duration are mutually
+ * exclusive; the field for the unused mode is ignored. Ignored by live recording. */
+typedef enum {
+    GEOQIK_VIDEO_PACING_SPEED = 0,   /* uses entriesPerSecond */
+    GEOQIK_VIDEO_PACING_DURATION = 1 /* uses targetDurationSeconds */
+} geoqik_video_pacing_t;
+
+/** \brief Options for a video recording. Trailing fields left zero-initialized use defaults. */
+typedef struct {
+    int width;  /* 0 = use the current window/framebuffer width */
+    int height; /* 0 = use the current window/framebuffer height */
+    int fps;    /* frames per second; 0 defaults to 60 */
+    geoqik_video_format_t format;
+    const char* outputPath; /* null or empty = auto-generated timestamped name in the recording dir */
+    geoqik_video_quality_t quality; /* 0 = HIGH (sharp) */
+
+    /* Offline log->video pacing (ignored by live recording). */
+    geoqik_video_pacing_t pacingMode; /* 0 = SPEED */
+    double entriesPerSecond;          /* Speed mode; 0 = default 60 */
+    double targetDurationSeconds;     /* Duration mode; ignored unless pacingMode is DURATION */
+    double holdStartSeconds;          /* freeze the first frame this long; 0 = none */
+    double holdEndSeconds;            /* freeze the last frame this long; 0 = none */
+} geoqik_video_options_t;
+
+/** \brief Starts recording the live session to a video. Fails if a recording or replay is active,
+ * or if a video format is requested without a configured ffmpeg executable. */
+GEOQIK_EXPORT geoqik_error_code_t geoqik_start_recording(const geoqik_video_options_t* options);
+
+/** \brief Stops the active recording and finalizes the output file. */
+GEOQIK_EXPORT geoqik_error_code_t geoqik_stop_recording();
+
+/** \brief Renders a geometry event log deterministically to a video file. */
+GEOQIK_EXPORT geoqik_error_code_t geoqik_render_log_to_video(const char* logPath,
+                                                             geoqik_log_format_t logFormat,
+                                                             const geoqik_video_options_t* options);
+
+/** \brief Sets the ffmpeg executable path used for video encoding (empty = auto-detect). */
+GEOQIK_EXPORT geoqik_error_code_t geoqik_set_ffmpeg_path(const char* path);
+
+/** \brief Reports whether a usable ffmpeg executable is available for video encoding. */
+GEOQIK_EXPORT geoqik_error_code_t geoqik_is_ffmpeg_available(int* available);
+
 /** \brief Waits for user to close the window and then cleans up resources.
  *
  * This function blocks until the user closes the window, then automatically

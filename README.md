@@ -4,6 +4,8 @@ A lightweight C++ library for visualizing 3D geometry during debugging. Add poin
 
 > "A picture is worth a thousand words."
 
+https://github.com/timow-gh/geoqik/raw/main/assets/geoqik_spiral.mp4
+
 ## Requirements
 
 - Windows or Linux
