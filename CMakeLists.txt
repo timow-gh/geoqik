@@ -10,7 +10,7 @@ include(detect_ninja)
 set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
 
 project(geoqik
-        VERSION 0.1.0
+        VERSION 0.2.0
         LANGUAGES CXX)
 
 include(warnings)
