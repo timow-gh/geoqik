@@ -34,7 +34,7 @@ GitHub Releases provide these x64 packages:
 | Ubuntu 24.04 | `libgeoqik0_<version>_amd64.deb` | Runtime library and server |
 | Ubuntu 24.04 | `libgeoqik-dev_<version>_amd64.deb` | Headers and CMake package; depends on the runtime package |
 | Windows | `geoqik-<version>-windows-x64.zip` | Complete relocatable SDK |
-| Windows | `geoqik-<version>-windows-x64.exe` | NSIS runtime and development installer |
+| Windows | `geoqik-<version>-windows-x64.msi` | Windows Installer (MSI) runtime and development package |
 
 Every artifact has a matching `.sha256` checksum. Linux binaries currently target Ubuntu 24.04; broader distribution compatibility is not guaranteed.
 
@@ -51,7 +51,7 @@ Pass the install prefix to CMake:
 cmake -DCMAKE_PREFIX_PATH=/path/to/geoqik/install ...
 ```
 
-The header-only client target is available as `geoqik::client`. It starts the packaged `geoqik_server` process and must be able to find that executable through `PATH` or `GEOQIK_EXE_PATH`. DEB packages use the standard executable location. The NSIS installer offers to add its `bin` directory to `PATH`; archive users should add `<archive>/bin` themselves.
+The header-only client target is available as `geoqik::client`. It starts the packaged `geoqik_server` process and must be able to find that executable through `PATH` or `GEOQIK_EXE_PATH`. DEB packages use the standard executable location. The MSI installer adds its `bin` directory to the system `PATH`; archive users should add `<archive>/bin` themselves.
 
 ### via FetchContent
 

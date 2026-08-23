@@ -93,7 +93,7 @@
       },
       "cacheVariables": {
         "VCPKG_TARGET_TRIPLET": "x64-windows-static",
-        "CPACK_GENERATOR": "NSIS"
+        "CPACK_GENERATOR": "WIX"
       }
     },
     {
@@ -1196,7 +1196,7 @@
       "inherits": "package-common",
       "generators": [
         "ZIP",
-        "NSIS"
+        "WIX"
       ]
     },
     {
@@ -1220,15 +1220,15 @@
       "configurePreset": "conf-msvc-release"
     },
     {
-      "name": "package-msvc-release-nsis",
-      "displayName": "Windows NSIS Installer Package",
-      "description": "Create NSIS installer on Windows",
+      "name": "package-msvc-release-wix",
+      "displayName": "Windows WiX/MSI Installer Package",
+      "description": "Create WiX/MSI installer on Windows",
       "inherits": [
         "package-release"
       ],
       "configurePreset": "conf-msvc-release",
       "generators": [
-        "NSIS"
+        "WIX"
       ]
     },
     {

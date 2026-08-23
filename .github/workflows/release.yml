@@ -124,8 +124,11 @@ jobs:
       - name: Setup MSVC
         uses: microsoft/setup-msbuild@v2
 
-      - name: Install NSIS
-        run: choco install nsis -y
+      - name: Install WiX
+        # CPack's WIX generator drives WiX v3 (candle/light), which requires the
+        # .NET 3.5 feature. windows-latest ships WiX v3, but install it
+        # explicitly for reproducibility.
+        run: choco install wixtoolset -y
 
       - name: Configure
         run: cmake --preset conf-msvc-release -DBUILD_SHARED_LIBS=OFF -Dgeoqik_EXAMPLES=OFF
@@ -158,7 +161,7 @@ jobs:
         with:
           name: windows-x64-packages
           path: |
-            out/packages/package-msvc-release/*.exe
+            out/packages/package-msvc-release/*.msi
             out/packages/package-msvc-release/*.zip
             out/packages/package-msvc-release/*.sha256
             out/packages/package-msvc-release/*.SHA256
