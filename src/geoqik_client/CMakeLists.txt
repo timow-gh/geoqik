@@ -14,13 +14,14 @@ if (WIN32)
 endif()
 
 if (${PROJECT_NAME}_INSTALL)
+    # The client header ships only in the runtime component. The dev component
+    # depends on runtime (CPACK_COMPONENT_DEV_DEPENDS in cmake/packaging.cmake),
+    # so dev consumers still receive it. Installing it into both components made
+    # two WiX components claim the same path with the same auto-derived GUID,
+    # which the MSI generator rejects (LGHT0369 duplicate component GUID).
     install(FILES "include/GeoQikClient/GeoQikClient.hpp"
             DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/GeoQikClient"
             COMPONENT runtime)
-
-    install(FILES "include/GeoQikClient/GeoQikClient.hpp"
-            DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/GeoQikClient"
-            COMPONENT dev)
 
     install(TARGETS geoqik_client
             EXPORT ${project_export_set_name}

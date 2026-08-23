@@ -50,15 +50,40 @@ set(CPACK_DEBIAN_RUNTIME_PACKAGE_SECTION "libs")
 set(CPACK_DEBIAN_RUNTIME_PACKAGE_SHLIBDEPS ON)
 
 if(WIN32)
-    set(CPACK_NSIS_PACKAGE_NAME "GeoQik ${PROJECT_VERSION}")
-    set(CPACK_NSIS_DISPLAY_NAME "GeoQik ${PROJECT_VERSION}")
-    set(CPACK_NSIS_INSTALL_ROOT "$PROGRAMFILES64")
-    set(CPACK_NSIS_ENABLE_UNINSTALL_BEFORE_INSTALL ON)
-    set(CPACK_NSIS_MODIFY_PATH ON)
-    set(CPACK_NSIS_EXECUTABLES_DIRECTORY "${CMAKE_INSTALL_BINDIR}")
-    set(CPACK_NSIS_CONTACT "${CPACK_PACKAGE_CONTACT}")
-    set(CPACK_NSIS_HELP_LINK "${CPACK_PACKAGE_HOMEPAGE_URL}")
-    set(CPACK_NSIS_URL_INFO_ABOUT "${CPACK_PACKAGE_HOMEPAGE_URL}")
+    # WiX/MSI installer. The Windows Installer engine edits the PATH registry
+    # value through the OS API (see cmake/wix_patch.xml), avoiding the 1024-char
+    # string-buffer limit that made the old NSIS installer fail on machines with
+    # a long system PATH.
+    set(CPACK_PACKAGE_INSTALL_DIRECTORY "GeoQik")
+
+    # Stable upgrade GUID. Windows Installer uses this to recognize that a new
+    # package is an upgrade of a previously installed GeoQik rather than a
+    # separate product. It MUST NEVER CHANGE once released: changing it makes
+    # future versions install side-by-side instead of upgrading in place.
+    # CPACK_WIX_PRODUCT_GUID is intentionally left unset so CPack regenerates it
+    # per version, which together with the stable upgrade GUID gives clean
+    # major-upgrade (uninstall-old-then-install-new) behavior.
+    set(CPACK_WIX_UPGRADE_GUID "BA2A4EDA-3DED-41C4-8B20-11E7C6F0B62B")
+
+    # Add/Remove Programs links (carried over from the old NSIS help/about links).
+    set(CPACK_WIX_PROPERTY_ARPHELPLINK "${CPACK_PACKAGE_HOMEPAGE_URL}")
+    set(CPACK_WIX_PROPERTY_ARPURLINFOABOUT "${CPACK_PACKAGE_HOMEPAGE_URL}")
+
+    # WiX requires the license shown in the installer UI to be real RTF with an
+    # .rtf/.txt extension. The repo License is extensionless plain text (used by
+    # every other generator via CPACK_RESOURCE_FILE_LICENSE), so point WiX at an
+    # RTF rendering of the same Unlicense text instead.
+    set(CPACK_WIX_LICENSE_RTF "${CMAKE_CURRENT_LIST_DIR}/License.rtf")
+
+    # Custom WiX template using the WixUI_Advanced dialog set so the installer
+    # offers a per-user vs all-users choice, matching the old NSIS behavior.
+    set(CPACK_WIX_TEMPLATE "${CMAKE_CURRENT_LIST_DIR}/wix_template.wxs")
+    set(CPACK_WIX_UI_REF "WixUI_Advanced")
+
+    # Re-implement "add bin to PATH": CPack's WiX generator has no built-in
+    # equivalent of CPACK_NSIS_MODIFY_PATH, so an <Environment> element is
+    # injected via this patch fragment.
+    set(CPACK_WIX_PATCH_FILE "${CMAKE_CURRENT_LIST_DIR}/wix_patch.xml")
 endif()
 
 # Generator Selection
@@ -73,7 +98,7 @@ include(CPack)
 
 # Status Messages
 message(STATUS "CPack: Packaging enabled for ${PROJECT_NAME} ${PROJECT_VERSION}")
-message(STATUS "CPack: Supported generators: DEB, TGZ, ZIP, NSIS")
+message(STATUS "CPack: Supported generators: DEB, TGZ, ZIP, WIX")
 message(STATUS "CPack: Default generator: ${CPACK_GENERATOR}")
 message(STATUS "CPack: Components: runtime (shared library and server), dev (headers and CMake package)")
 message(STATUS "CPack: DEB packages: ${PKG_DEB_RUNTIME_NAME}, ${PKG_DEB_DEV_NAME}")

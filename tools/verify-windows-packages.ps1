@@ -14,9 +14,9 @@ Remove-Item $WorkDirectory -Recurse -Force -ErrorAction SilentlyContinue
 New-Item $WorkDirectory -ItemType Directory | Out-Null
 
 $Archives = @(Get-ChildItem $PackageDirectory -Filter '*.zip')
-$Installers = @(Get-ChildItem $PackageDirectory -Filter '*.exe')
+$Installers = @(Get-ChildItem $PackageDirectory -Filter '*.msi')
 if ($Archives.Count -ne 1 -or $Installers.Count -ne 1) {
-    throw "Expected one ZIP and one NSIS installer in $PackageDirectory"
+    throw "Expected one ZIP and one MSI installer in $PackageDirectory"
 }
 
 function Test-PackageChecksum {
@@ -104,20 +104,32 @@ if ($ArchiveRoots.Count -ne 1) {
 }
 Test-PackagePrefix -Prefix $ArchiveRoots[0].FullName -Name 'archive'
 
-$InstallDirectory = Join-Path $WorkDirectory 'nsis-install'
-$InstallResult = Start-Process $Installers[0].FullName -ArgumentList '/S', "/D=$InstallDirectory" -Wait -PassThru
+$InstallDirectory = Join-Path $WorkDirectory 'msi-install'
+$InstallLog = Join-Path $WorkDirectory 'msi-install.log'
+# The WixUI_Advanced install location is driven by APPLICATIONFOLDER (the custom
+# template copies it into CPack's INSTALL_ROOT). ALLUSERS=1 forces an all-users
+# (per-machine) install; CI runs elevated so the system-PATH component applies.
+$MsiPath = $Installers[0].FullName
+$InstallResult = Start-Process 'msiexec.exe' -ArgumentList @(
+    '/i', "`"$MsiPath`"", '/quiet', '/norestart', 'ALLUSERS=1',
+    "APPLICATIONFOLDER=`"$InstallDirectory`"", '/l*v', "`"$InstallLog`""
+) -Wait -PassThru
 if ($InstallResult.ExitCode -ne 0) {
-    throw "NSIS installation failed with exit code $($InstallResult.ExitCode)"
+    if (Test-Path $InstallLog) { Get-Content $InstallLog -Tail 50 | Write-Host }
+    throw "MSI installation failed with exit code $($InstallResult.ExitCode)"
 }
-Test-PackagePrefix -Prefix $InstallDirectory -Name 'nsis'
+Test-PackagePrefix -Prefix $InstallDirectory -Name 'msi'
 
-$Uninstaller = Join-Path $InstallDirectory 'Uninstall.exe'
-if (-not (Test-Path $Uninstaller)) {
-    throw 'NSIS package did not install an uninstaller'
-}
-$UninstallResult = Start-Process $Uninstaller -ArgumentList '/S' -Wait -PassThru
+$UninstallLog = Join-Path $WorkDirectory 'msi-uninstall.log'
+$UninstallResult = Start-Process 'msiexec.exe' -ArgumentList @(
+    '/x', "`"$MsiPath`"", '/quiet', '/norestart', '/l*v', "`"$UninstallLog`""
+) -Wait -PassThru
 if ($UninstallResult.ExitCode -ne 0) {
-    throw "NSIS uninstall failed with exit code $($UninstallResult.ExitCode)"
+    if (Test-Path $UninstallLog) { Get-Content $UninstallLog -Tail 50 | Write-Host }
+    throw "MSI uninstall failed with exit code $($UninstallResult.ExitCode)"
+}
+if (Test-Path (Join-Path $InstallDirectory 'bin/geoqik.dll')) {
+    throw 'MSI uninstall did not remove the installed files'
 }
 
-Write-Host "Verified ZIP and NSIS packages in $PackageDirectory"
+Write-Host "Verified ZIP and MSI packages in $PackageDirectory"
