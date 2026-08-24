@@ -60,7 +60,7 @@ include(FetchContent)
 FetchContent_Declare(
     geoqik
     GIT_REPOSITORY https://github.com/timow-gh/geoqik.git
-    GIT_TAG        v0.2.0
+    GIT_TAG        v0.3.0
 )
 set(geoqik_INSTALL OFF)
 FetchContent_MakeAvailable(geoqik)

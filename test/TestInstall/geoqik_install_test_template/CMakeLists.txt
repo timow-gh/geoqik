@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.21) # CMakePresets are supported since version 3.21
 
 project(use_installdir_proj
-        VERSION 0.2.0
+        VERSION 0.3.0
         LANGUAGES CXX)
 
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/cmake)
