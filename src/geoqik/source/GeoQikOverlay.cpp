@@ -1073,6 +1073,20 @@ void GeoQikOverlay::render_record_menu() {
             item_tooltip("Higher quality = sharper edges and larger files.");
         }
 
+        // Capture source applies to both live recording and log->video.
+        {
+            constexpr std::array<const char*, 2> captureLabels{"Full window (with UI)", "Viewport only (geometry)"};
+            int captureIndex = static_cast<int>(state.requestedCaptureMode);
+            ImGui::TextUnformatted("Capture");
+            ImGui::SameLine();
+            ImGui::SetNextItemWidth(recordQualityFieldWidth);
+            if (ImGui::Combo("##RecordCapture", &captureIndex, captureLabels.data(),
+                             static_cast<int>(captureLabels.size()))) {
+                state.requestedCaptureMode = static_cast<VideoGuiState::CaptureMode>(captureIndex);
+            }
+            item_tooltip("Viewport only records just the 3D geometry area \xE2\x80\x94 no panels or overlays.");
+        }
+
         ImGui::Separator();
         ImGui::TextDisabled("Settings"); // NOLINT(cppcoreguidelines-pro-type-vararg)
         if (ImGui::MenuItem("Recording Folder...", nullptr, false, dialogsReady)) {

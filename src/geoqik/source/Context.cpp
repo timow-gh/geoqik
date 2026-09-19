@@ -258,6 +258,7 @@ bool Context::init_window(const GeoQikSettings& geoqikSettings, const WindowSett
         const UserSettings userSettings = load_user_settings(user_settings_file_path());
         m_recordingDirectory =
             userSettings.recordingDirectory.empty() ? default_recording_directory() : userSettings.recordingDirectory;
+        m_captureMode = userSettings.defaultCaptureMode;
         set_ffmpeg_path(userSettings.ffmpegPath);
     } catch (...) {
         m_recordingDirectory = default_recording_directory();
@@ -838,6 +839,22 @@ namespace {
     return video::VideoQuality::High;
 }
 
+[[nodiscard]] video::CaptureMode to_capture_mode(VideoGuiState::CaptureMode mode) {
+    switch (mode) {
+    case VideoGuiState::CaptureMode::FullWindow: return video::CaptureMode::FullWindow;
+    case VideoGuiState::CaptureMode::ViewportOnly: return video::CaptureMode::ViewportOnly;
+    }
+    return video::CaptureMode::FullWindow;
+}
+
+[[nodiscard]] VideoGuiState::CaptureMode to_gui_capture_mode(video::CaptureMode mode) {
+    switch (mode) {
+    case video::CaptureMode::FullWindow: return VideoGuiState::CaptureMode::FullWindow;
+    case video::CaptureMode::ViewportOnly: return VideoGuiState::CaptureMode::ViewportOnly;
+    }
+    return VideoGuiState::CaptureMode::FullWindow;
+}
+
 /// Maps a recording failure to a short, actionable message. Kept out of the UI layer so the same
 /// wording is reused for the live-record, stop, and log->video paths. @p action names the operation
 /// (e.g. "start recording") for the generic fallback.
@@ -886,6 +903,11 @@ void Context::populate_video_gui_state(VideoGuiState& state) const {
     state.ffmpegAvailable = m_ffmpegAvailable;
     state.ffmpegPath = m_ffmpegPath;
     state.recordingDirectory = m_recordingDirectory;
+    // Seed the capture-mode combo from the persisted default once; the menu owns it thereafter.
+    if (!state.captureModeSeeded) {
+        state.requestedCaptureMode = to_gui_capture_mode(m_captureMode);
+        state.captureModeSeeded = true;
+    }
     if (m_recorder.is_recording()) {
         state.width = m_recorder.width();
         state.height = m_recorder.height();
@@ -899,6 +921,7 @@ video::VideoRecordOptions Context::make_record_options_from_gui(const VideoGuiSt
     video::VideoRecordOptions options;
     options.format = to_video_format(state.requestedFormat);
     options.quality = to_video_quality(state.quality);
+    options.captureMode = to_capture_mode(state.requestedCaptureMode);
     options.fps = state.requestedFps > 0 ? state.requestedFps : defaultVideoFps;
     // Resolution preset: {0,0} means current window size, resolved by the recorder.
     const auto [presetWidth, presetHeight] = video_resolution_preset(state.resolutionPresetIndex);
@@ -924,6 +947,12 @@ void Context::consume_video_gui_commands(VideoGuiState& state) {
     case VideoGuiState::Command::None:
         break;
     case VideoGuiState::Command::StartRecording: {
+        // Remember the chosen capture source as the persisted default.
+        const video::CaptureMode chosenMode = to_capture_mode(state.requestedCaptureMode);
+        if (chosenMode != m_captureMode) {
+            m_captureMode = chosenMode;
+            persist_recording_settings();
+        }
         const geoqik_error_code_t result = start_recording(make_record_options_from_gui(state));
         if (result == GEOQIK_SUCCESS) {
             state.set_status(VideoGuiState::StatusKind::Info, "Recording\xE2\x80\xA6");
@@ -980,6 +1009,7 @@ void Context::persist_recording_settings() {
         UserSettings settings = load_user_settings(settingsPath);
         settings.ffmpegPath = m_ffmpegPath;
         settings.recordingDirectory = m_recordingDirectory;
+        settings.defaultCaptureMode = m_captureMode;
         save_user_settings(settingsPath, settings);
     } catch (...) {
         // Persisting preferences is best-effort; a failure must not disrupt recording.
@@ -1176,7 +1206,7 @@ geoqik_error_code_t Context::start_recording(const video::VideoRecordOptions& op
 
         m_renderer->window().make_context_current();
         const auto [fbWidth, fbHeight] = m_renderer->window().get_framebuffer_size();
-        if (!m_recorder.start(opts, fbWidth, fbHeight)) {
+        if (!m_recorder.start(opts, *m_renderer, fbWidth, fbHeight)) {
             return GEOQIK_ERROR_UNKNOWN;
         }
         return GEOQIK_SUCCESS;
@@ -1250,7 +1280,7 @@ geoqik_error_code_t Context::render_log_to_video_path(const std::filesystem::pat
             render_single_frame();
         }
         const auto [fbWidth, fbHeight] = m_renderer->window().get_framebuffer_size();
-        if (!m_recorder.start(opts, fbWidth, fbHeight)) {
+        if (!m_recorder.start(opts, *m_renderer, fbWidth, fbHeight)) {
             cancel_replay();
             return GEOQIK_ERROR_UNKNOWN;
         }

@@ -103,6 +103,27 @@ void read_path_field(const nlohmann::json& json, const char* key, std::filesyste
     }
 }
 
+constexpr std::string_view captureModeViewportOnly = "viewport-only";
+constexpr std::string_view captureModeFullWindow = "full-window";
+
+[[nodiscard]] std::string_view capture_mode_to_string(video::CaptureMode mode) {
+    return mode == video::CaptureMode::ViewportOnly ? captureModeViewportOnly : captureModeFullWindow;
+}
+
+/// Reads the capture mode string under @p key into @p target, leaving @p target unchanged when the
+/// key is absent, not a string, or unrecognized (so an old/garbled file keeps the default).
+void read_capture_mode_field(const nlohmann::json& json, const char* key, video::CaptureMode& target) {
+    const auto field = json.find(key);
+    if (field != json.end() && field->is_string()) {
+        const std::string value = field->get<std::string>();
+        if (value == captureModeViewportOnly) {
+            target = video::CaptureMode::ViewportOnly;
+        } else if (value == captureModeFullWindow) {
+            target = video::CaptureMode::FullWindow;
+        }
+    }
+}
+
 } // namespace
 
 UserSettings load_user_settings(const std::filesystem::path& path) {
@@ -121,6 +142,7 @@ UserSettings load_user_settings(const std::filesystem::path& path) {
     read_path_field(json, "defaultLogDirectory", settings.defaultLogDirectory);
     read_path_field(json, "ffmpegPath", settings.ffmpegPath);
     read_path_field(json, "recordingDirectory", settings.recordingDirectory);
+    read_capture_mode_field(json, "defaultCaptureMode", settings.defaultCaptureMode);
     return settings;
 }
 
@@ -136,7 +158,8 @@ void save_user_settings(const std::filesystem::path& path, const UserSettings& s
 
     const nlohmann::json json{{"defaultLogDirectory", path_to_utf8(settings.defaultLogDirectory)},
                               {"ffmpegPath", path_to_utf8(settings.ffmpegPath)},
-                              {"recordingDirectory", path_to_utf8(settings.recordingDirectory)}};
+                              {"recordingDirectory", path_to_utf8(settings.recordingDirectory)},
+                              {"defaultCaptureMode", std::string{capture_mode_to_string(settings.defaultCaptureMode)}}};
     stream << json.dump(2) << '\n';
     if (!stream) {
         throw std::runtime_error("Failed to write GeoQik user settings");

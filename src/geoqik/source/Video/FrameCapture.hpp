@@ -4,6 +4,10 @@
 #include <cstdint>
 #include <vector>
 
+namespace renderer {
+class Renderer;
+} // namespace renderer
+
 namespace geoqik::video {
 
 /// Reads RGB pixels back from an OpenGL framebuffer into a CPU buffer.
@@ -22,6 +26,15 @@ class FrameCapture {
     /// Convenience overload capturing into the reusable internal buffer. The returned span is
     /// valid until the next capture() call. Empty on failure.
     [[nodiscard]] const std::vector<std::uint8_t>& capture_front(int width, int height);
+
+    /// Captures only the 3D scene image (no UI, no overlay) from @p renderer into the reusable
+    /// internal buffer, flipped to top-row-first like capture_front. Reads the renderer's
+    /// post-processed scene target, which is valid after the frame's end_frame(). @p width and
+    /// @p height are the expected scene dimensions; a mismatch or read failure yields an empty
+    /// span (last_capture_valid() then returns false). The returned span is valid until the next
+    /// capture call.
+    [[nodiscard]] const std::vector<std::uint8_t>&
+    capture_scene(const renderer::Renderer& renderer, int width, int height);
 
     /// The pixels from the most recent capture_front() call. Valid until the next capture.
     [[nodiscard]] const std::vector<std::uint8_t>& last_pixels() const { return m_buffer; }

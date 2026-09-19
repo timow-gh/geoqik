@@ -104,6 +104,10 @@ struct VideoGuiState {
     // Offline log->video pacing. Speed and Duration are mutually exclusive.
     enum class Pacing : std::uint8_t { Speed, Duration };
 
+    // What the recording captures: the whole window (geometry + UI) or only the 3D viewport.
+    // Order matches video::CaptureMode so Context can map by index.
+    enum class CaptureMode : std::uint8_t { FullWindow, ViewportOnly };
+
     // Severity of the inline, non-blocking status line shown for recording actions. Unlike the
     // shared modal error popup (still used by file-log operations), recording feedback never blocks.
     enum class StatusKind : std::uint8_t { None, Info, Success, Error };
@@ -164,6 +168,12 @@ struct VideoGuiState {
 
     // --- Render settings edited in the menu (apply to the next Start/Render) ---
     Quality quality{Quality::High};
+    // Whether to capture the whole window or only the 3D viewport. Seeded once from the persisted
+    // default by Context (see captureModeSeeded), then owned by the menu.
+    CaptureMode requestedCaptureMode{CaptureMode::FullWindow};
+    // Set the first time Context seeds requestedCaptureMode from the persisted default, so later
+    // per-frame populates do not clobber the user's in-session selection.
+    bool captureModeSeeded{false};
     int requestedFps{60};
     // Resolution preset index into the standard-size table (0 = current window size).
     int resolutionPresetIndex{0};

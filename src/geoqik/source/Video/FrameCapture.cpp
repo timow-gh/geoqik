@@ -1,6 +1,7 @@
 #include "Video/FrameCapture.hpp"
 
 #include <glad/glad.h>
+#include <plinth/Renderer.hpp>
 
 #include <cstddef>
 
@@ -50,6 +51,31 @@ const std::vector<std::uint8_t>& FrameCapture::capture_front(int width, int heig
     if (!capture(width, height, m_buffer)) {
         m_buffer.clear();
     }
+    return m_buffer;
+}
+
+const std::vector<std::uint8_t>&
+FrameCapture::capture_scene(const renderer::Renderer& renderer, int width, int height) {
+    m_lastValid = false;
+
+    // read_scene_pixels returns raw GL pixels (bottom-row first), like glReadPixels; we flip to
+    // top-row first below to match capture_front and the encoders' expectations.
+    int sceneWidth = 0;
+    int sceneHeight = 0;
+    if (!renderer.read_scene_pixels(m_buffer, sceneWidth, sceneHeight)) {
+        m_buffer.clear();
+        return m_buffer;
+    }
+
+    // The stream size is locked at start(); a mid-recording scene resize would corrupt it, so a
+    // mismatch is reported as an invalid capture and the recorder stops.
+    if (sceneWidth != width || sceneHeight != height) {
+        m_buffer.clear();
+        return m_buffer;
+    }
+
+    flip_rows(m_buffer, width, height, m_rowScratch);
+    m_lastValid = true;
     return m_buffer;
 }
 

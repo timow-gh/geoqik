@@ -10,6 +10,10 @@
 #include <filesystem>
 #include <memory>
 
+namespace renderer {
+class Renderer;
+} // namespace renderer
+
 namespace geoqik::video {
 
 enum class VideoFormat : std::uint8_t {
@@ -41,6 +45,14 @@ enum class PacingMode : std::uint8_t {
     Duration, // spread all entries across targetDurationSeconds seconds of video
 };
 
+/// What the recording captures. FullWindow reads the presented window (3D viewport plus the UI
+/// panels and menus, matching what is on screen). ViewportOnly reads just the post-processed 3D
+/// scene image with no UI or overlay. The transient recording badge is excluded from both.
+enum class CaptureMode : std::uint8_t {
+    FullWindow,   // whole window frame buffer (geometry + UI)
+    ViewportOnly, // only the 3D geometry viewport (no UI, no overlay)
+};
+
 struct VideoRecordOptions {
     /// Target dimensions in pixels. Zero means "use the current framebuffer/window size".
     int width{0};
@@ -48,6 +60,8 @@ struct VideoRecordOptions {
     int fps{60};
     VideoFormat format{VideoFormat::Mp4};
     VideoQuality quality{VideoQuality::High};
+    /// Which pixels to capture: the whole window, or only the 3D scene viewport.
+    CaptureMode captureMode{CaptureMode::FullWindow};
     /// Full output path. When empty, a timestamped name is generated under the recording directory.
     std::filesystem::path outputPath;
     /// Directory for the auto-generated filename when outputPath is empty.
@@ -80,13 +94,19 @@ class VideoRecorder {
     VideoRecorder(VideoRecorder&&) = delete;
     VideoRecorder& operator=(VideoRecorder&&) = delete;
 
-    /// Begins a recording. @p windowWidth/@p windowHeight are the current framebuffer pixel
-    /// dimensions used when the options request the window size. Returns false if a recording is
-    /// already active or the sink could not be opened.
-    [[nodiscard]] bool start(const VideoRecordOptions& options, int windowWidth, int windowHeight);
+    /// Begins a recording. @p renderer is the live renderer, used to read the scene image in
+    /// ViewportOnly mode and to size the stream; it must outlive the recording. @p windowWidth/
+    /// @p windowHeight are the current framebuffer pixel dimensions used to size FullWindow
+    /// captures. Returns false if a recording is already active, the sink could not be opened, or
+    /// the requested capture source could not be sized.
+    [[nodiscard]] bool start(const VideoRecordOptions& options,
+                             renderer::Renderer& renderer,
+                             int windowWidth,
+                             int windowHeight);
 
-    /// Captures one frame from the GL front buffer. Must be called with the GL context current,
-    /// after the frame has been presented. A capture/encode failure stops the recording.
+    /// Captures one frame. Must be called with the GL context current, after the frame has been
+    /// presented (FullWindow reads the front buffer; ViewportOnly reads the renderer's scene
+    /// image, valid after end_frame()). A capture/encode failure stops the recording.
     void capture_frame();
 
     /// Writes the most recently captured frame @p extraFrames additional times without
@@ -110,6 +130,10 @@ class VideoRecorder {
     FrameCapture m_capture;
     std::unique_ptr<VideoSink> m_sink;
     std::filesystem::path m_outputPath;
+    /// The live renderer, borrowed for the recording. Used to read the scene image in
+    /// ViewportOnly mode. Never null while m_recording is true.
+    renderer::Renderer* m_renderer{nullptr};
+    CaptureMode m_captureMode{CaptureMode::FullWindow};
     int m_width{0};
     int m_height{0};
     int m_fps{60};
