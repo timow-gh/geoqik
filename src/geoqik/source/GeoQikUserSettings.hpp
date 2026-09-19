@@ -1,6 +1,8 @@
 #ifndef GEOQIKUSERSETTINGS_HPP
 #define GEOQIKUSERSETTINGS_HPP
 
+#include "Video/VideoRecorder.hpp"
+
 #include <filesystem>
 
 namespace geoqik {
@@ -11,6 +13,8 @@ struct UserSettings {
     std::filesystem::path ffmpegPath;
     /// Directory where recordings are written by default.
     std::filesystem::path recordingDirectory;
+    /// Default capture source for new recordings (whole window vs. 3D viewport only).
+    video::CaptureMode defaultCaptureMode{video::CaptureMode::FullWindow};
 };
 
 [[nodiscard]] std::filesystem::path user_settings_file_path();

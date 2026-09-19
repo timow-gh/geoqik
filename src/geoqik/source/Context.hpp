@@ -107,6 +107,7 @@ class Context {
     std::filesystem::path m_ffmpegPath;             // resolved ffmpeg executable, empty if none
     std::filesystem::path m_recordingDirectory;     // default output directory for recordings
     bool m_ffmpegAvailable{false};
+    video::CaptureMode m_captureMode{video::CaptureMode::FullWindow}; // persisted default capture source
 
   public:
     Context();

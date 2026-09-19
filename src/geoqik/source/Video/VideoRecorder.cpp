@@ -3,6 +3,8 @@
 #include "Video/FfmpegProcessSink.hpp"
 #include "Video/PngSequenceSink.hpp"
 
+#include <plinth/Renderer.hpp>
+
 #include <fmt/chrono.h>
 #include <fmt/format.h>
 
@@ -64,7 +66,10 @@ VideoRecorder::~VideoRecorder() {
     }
 }
 
-bool VideoRecorder::start(const VideoRecordOptions& options, int windowWidth, int windowHeight) {
+bool VideoRecorder::start(const VideoRecordOptions& options,
+                          renderer::Renderer& renderer,
+                          int windowWidth,
+                          int windowHeight) {
     if (m_recording) {
         return false;
     }
@@ -72,12 +77,30 @@ bool VideoRecorder::start(const VideoRecordOptions& options, int windowWidth, in
         return false;
     }
 
-    // Resolution is locked here for the lifetime of the recording. Until the offscreen-FBO override
-    // lands, a requested size is honoured only when it matches the window; otherwise we fall back to
-    // the current window size so the captured pixels always match the requested dimensions.
-    m_width = (options.width > 0 && options.width == windowWidth) ? options.width : windowWidth;
-    m_height = (options.height > 0 && options.height == windowHeight) ? options.height : windowHeight;
+    m_captureMode = options.captureMode;
+    m_renderer = &renderer;
     m_fps = options.fps;
+
+    // Resolution is locked here for the lifetime of the recording so a mid-recording resize cannot
+    // corrupt the stream.
+    if (m_captureMode == CaptureMode::ViewportOnly) {
+        // ViewportOnly captures the 3D scene image, whose pixel size is the scene viewport, not the
+        // window. Lock to the current scene size; capture_scene() stops the recording if a later
+        // frame's scene size differs.
+        const renderer::ViewportRect scene = renderer.scene_viewport().framebuffer;
+        m_width = scene.width;
+        m_height = scene.height;
+        if (m_width <= 0 || m_height <= 0) {
+            m_renderer = nullptr;
+            return false;
+        }
+    } else {
+        // FullWindow. Until the offscreen-FBO override lands, a requested size is honoured only when
+        // it matches the window; otherwise we fall back to the current window size so the captured
+        // pixels always match the requested dimensions.
+        m_width = (options.width > 0 && options.width == windowWidth) ? options.width : windowWidth;
+        m_height = (options.height > 0 && options.height == windowHeight) ? options.height : windowHeight;
+    }
 
     m_outputPath = options.outputPath.empty()
         ? make_timestamped_output_path(options.recordingDirectory, options.format)
@@ -105,7 +128,10 @@ void VideoRecorder::capture_frame() {
         return;
     }
 
-    const std::vector<std::uint8_t>& pixels = m_capture.capture_front(m_width, m_height);
+    const std::vector<std::uint8_t>& pixels =
+        m_captureMode == CaptureMode::ViewportOnly
+            ? m_capture.capture_scene(*m_renderer, m_width, m_height)
+            : m_capture.capture_front(m_width, m_height);
     if (!m_capture.last_capture_valid()) {
         (void)stop();
         return;
@@ -137,6 +163,7 @@ bool VideoRecorder::stop() {
         return false;
     }
     m_recording = false;
+    m_renderer = nullptr;
     bool success = false;
     if (m_sink) {
         success = m_sink->close();
