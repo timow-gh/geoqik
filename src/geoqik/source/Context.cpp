@@ -1644,8 +1644,8 @@ void Context::handle_message(const AddMeshWithOpts& message) {
                        message.commonData);
 
     // Wire up overlay data if the message carries segment or vertex data.
-    const bool hasSegmentData = !message.segmentIndices.empty() || message.showSegments;
-    const bool hasVertexData = message.showVertices || !message.vertexColors.empty();
+    const bool hasSegmentData = !message.segmentIndices.empty() || message.showSegments || message.segmentStyleSet;
+    const bool hasVertexData = message.showVertices || !message.vertexColors.empty() || !message.vertexRadii.empty();
     if (hasSegmentData || hasVertexData) {
         const core::UUID& uuid = message.commonData.geometryId;
         if (!uuid.is_nil()) {
@@ -1672,6 +1672,14 @@ void Context::handle_message(const AddMeshWithOpts& message) {
                                             message.segmentColors[3]};
             }
 
+            // Full segment stroke styling (cap/join/miter/dash/depthLayer + line type).
+            overlayData.segmentStyleSet = message.segmentStyleSet;
+            if (message.segmentStyleSet) {
+                overlayData.segmentStyle = message.segmentStyle;
+                overlayData.segmentLineType = message.segmentLineType;
+                overlayData.segmentPerVertexDashFlags = message.segmentPerVertexDashFlags;
+            }
+
             // Vertex overlay
             overlayData.showVertices = message.showVertices;
             overlayData.vertexPointSize = message.vertexPointSize;
@@ -1681,6 +1689,8 @@ void Context::handle_message(const AddMeshWithOpts& message) {
                                            message.vertexColors[2],
                                            message.vertexColors[3]};
             }
+            overlayData.vertexRadii = message.vertexRadii;
+            overlayData.vertexSizeSpace = message.vertexSizeSpace;
 
             m_scene.get_mesh_buffer().set_mesh_overlay_data(uuid, std::move(overlayData));
         }
@@ -1699,6 +1709,29 @@ void Context::add_mesh_with_opts(std::span<const float> vertices,
 
 void Context::handle_message(const SetMeshOverlayOpts& message) {
     m_scene.set_mesh_overlay_opts(message.handle, message.showSegments, message.showVertices);
+
+    auto& meshBuffer = m_scene.get_mesh_buffer();
+    if (!meshBuffer.has_mesh_overlay_data(message.handle)) {
+        return; // no overlay to restyle
+    }
+    const std::size_t vertexCount = meshBuffer.get_mesh_vertices(message.handle).size() / 3;
+
+    if (message.segmentStyleSet) {
+        const std::size_t flagCount = message.segmentPerVertexDashFlags.size();
+        if (flagCount == 0 || flagCount == vertexCount) {
+            meshBuffer.set_mesh_segment_style(message.handle,
+                                              message.segmentStyle,
+                                              message.segmentLineType,
+                                              message.segmentPerVertexDashFlags);
+        }
+    }
+
+    if (message.vertexStyleSet) {
+        const std::size_t radiusCount = message.vertexRadii.size();
+        if (radiusCount == 0 || radiusCount == 1 || radiusCount == vertexCount) {
+            meshBuffer.set_mesh_vertex_style(message.handle, message.vertexRadii, message.vertexSizeSpace);
+        }
+    }
 }
 
 void Context::handle_message(const SetMeshRenderingOpts& message) {

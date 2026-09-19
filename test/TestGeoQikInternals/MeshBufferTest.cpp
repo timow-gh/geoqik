@@ -3,6 +3,8 @@
 #include "Core/UUID.hpp"
 #include "GeoQikTestMatchers.hpp"
 
+#include <GeoQik/ApiTypes.h>
+
 #include <array>
 #include <gtest/gtest.h>
 #include <span>
@@ -610,6 +612,109 @@ TEST_F(MeshBufferTest, VertexOverlay_SnapshotPreservesVertexData) {
     buffer->restore_snapshot(snap);
     ASSERT_TRUE(buffer->has_mesh_overlay_data(handle));
     EXPECT_FLOAT_EQ(buffer->get_mesh_overlay_data(handle).vertexPointSize, 7.0f);
+}
+
+// =============================================================================
+// Overlay styling tests (full segment stroke style + sphere-point vertex sizing)
+// =============================================================================
+
+TEST_F(MeshBufferTest, SegmentOverlay_FullStrokeStyleStoredAndRetrieved) {
+    auto buffer = geoqik::MeshBuffer::create(m_settings);
+    core::UUID handle = core::UUID::generate();
+    std::vector<float> v = {0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 1.f, 0.f};
+    std::vector<std::uint32_t> idx = {0, 1, 2};
+    buffer->add_mesh(v, {}, {}, idx, &handle);
+
+    geoqik::PerMeshOverlayData overlayData;
+    overlayData.showSegments = true;
+    overlayData.segmentPositions = v;
+    overlayData.segmentIndices = {0, 1, 1, 2, 2, 0};
+    overlayData.segmentStyleSet = true;
+    overlayData.segmentStyle.lineWidth = 3.0f;
+    overlayData.segmentStyle.cap = GEOQIK_LINE_CAP_ROUND;
+    overlayData.segmentStyle.join = GEOQIK_LINE_JOIN_ROUND;
+    overlayData.segmentStyle.dashPattern = {2.0f, 1.0f};
+    overlayData.segmentStyle.depthLayer = 2;
+    overlayData.segmentLineType = GEOQIK_LINE_TYPE_LINE_LOOP;
+    buffer->set_mesh_overlay_data(handle, overlayData);
+
+    const auto& stored = buffer->get_mesh_overlay_data(handle);
+    ASSERT_TRUE(stored.segmentStyleSet);
+    EXPECT_FLOAT_EQ(stored.segmentStyle.lineWidth, 3.0f);
+    EXPECT_EQ(stored.segmentStyle.cap, GEOQIK_LINE_CAP_ROUND);
+    EXPECT_EQ(stored.segmentStyle.join, GEOQIK_LINE_JOIN_ROUND);
+    EXPECT_EQ(stored.segmentStyle.depthLayer, 2);
+    EXPECT_EQ(stored.segmentLineType, GEOQIK_LINE_TYPE_LINE_LOOP);
+    ASSERT_EQ(stored.segmentStyle.dashPattern.size(), 2u);
+    EXPECT_FLOAT_EQ(stored.segmentStyle.dashPattern[1], 1.0f);
+}
+
+TEST_F(MeshBufferTest, VertexOverlay_RadiiAndSizeSpaceStoredAndRetrieved) {
+    auto buffer = geoqik::MeshBuffer::create(m_settings);
+    core::UUID handle = core::UUID::generate();
+    std::vector<float> v = {0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 1.f, 0.f};
+    std::vector<std::uint32_t> idx = {0, 1, 2};
+    buffer->add_mesh(v, {}, {}, idx, &handle);
+
+    geoqik::PerMeshOverlayData overlayData;
+    overlayData.showVertices = true;
+    overlayData.segmentPositions = v;
+    overlayData.vertexRadii = {0.1f, 0.2f, 0.3f};
+    overlayData.vertexSizeSpace = GEOQIK_SPHERE_SIZE_SPACE_WORLD;
+    buffer->set_mesh_overlay_data(handle, overlayData);
+
+    const auto& stored = buffer->get_mesh_overlay_data(handle);
+    ASSERT_EQ(stored.vertexRadii.size(), 3u);
+    EXPECT_FLOAT_EQ(stored.vertexRadii[2], 0.3f);
+    EXPECT_EQ(stored.vertexSizeSpace, GEOQIK_SPHERE_SIZE_SPACE_WORLD);
+}
+
+TEST_F(MeshBufferTest, SegmentStyleRestyle_MarksMeshUpdated) {
+    auto buffer = geoqik::MeshBuffer::create(m_settings);
+    core::UUID handle = core::UUID::generate();
+    std::vector<float> v = {0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 1.f, 0.f};
+    std::vector<std::uint32_t> idx = {0, 1, 2};
+    buffer->add_mesh(v, {}, {}, idx, &handle);
+
+    geoqik::PerMeshOverlayData overlayData;
+    overlayData.showSegments = true;
+    overlayData.segmentPositions = v;
+    buffer->set_mesh_overlay_data(handle, overlayData);
+    buffer->clear_change_tracking();
+
+    geoqik::StrokeStyleData style;
+    style.lineWidth = 4.0f;
+    style.depthLayer = 1;
+    // A restyle needs a drawable rebuild, so it MUST mark the mesh updated.
+    buffer->set_mesh_segment_style(handle, style, GEOQIK_LINE_TYPE_LINES, {});
+    EXPECT_EQ(buffer->get_updated_meshes().count(handle), 1u);
+
+    const auto& stored = buffer->get_mesh_overlay_data(handle);
+    ASSERT_TRUE(stored.segmentStyleSet);
+    EXPECT_FLOAT_EQ(stored.segmentStyle.lineWidth, 4.0f);
+    EXPECT_EQ(stored.segmentStyle.depthLayer, 1);
+}
+
+TEST_F(MeshBufferTest, VertexStyleRestyle_MarksMeshUpdated) {
+    auto buffer = geoqik::MeshBuffer::create(m_settings);
+    core::UUID handle = core::UUID::generate();
+    std::vector<float> v = {0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 1.f, 0.f};
+    std::vector<std::uint32_t> idx = {0, 1, 2};
+    buffer->add_mesh(v, {}, {}, idx, &handle);
+
+    geoqik::PerMeshOverlayData overlayData;
+    overlayData.showVertices = true;
+    overlayData.segmentPositions = v;
+    buffer->set_mesh_overlay_data(handle, overlayData);
+    buffer->clear_change_tracking();
+
+    buffer->set_mesh_vertex_style(handle, {0.5f}, GEOQIK_SPHERE_SIZE_SPACE_WORLD);
+    EXPECT_EQ(buffer->get_updated_meshes().count(handle), 1u);
+
+    const auto& stored = buffer->get_mesh_overlay_data(handle);
+    ASSERT_EQ(stored.vertexRadii.size(), 1u);
+    EXPECT_FLOAT_EQ(stored.vertexRadii[0], 0.5f);
+    EXPECT_EQ(stored.vertexSizeSpace, GEOQIK_SPHERE_SIZE_SPACE_WORLD);
 }
 
 // =============================================================================

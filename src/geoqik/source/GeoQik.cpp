@@ -573,6 +573,40 @@ static bool validate_line_color_count(std::size_t colorCount, std::size_t lineCo
     return colorCount == 0 || colorCount == ColorChannelCount || colorCount == lineCount * ColorChannelCount;
 }
 
+// Validates and copies sphere-point radii + size space from their raw fields. Shared by the
+// standalone point opts and the mesh vertex overlay opts (which name these fields differently).
+static bool copy_point_style_fields(const float* radiiIn,
+                                    std::size_t radiusCount,
+                                    geoqik_sphere_size_space_t sizeSpaceIn,
+                                    std::size_t pointCount,
+                                    std::vector<float>& radii,
+                                    std::uint8_t& sizeSpace,
+                                    bool& styled) {
+    radii.clear();
+    sizeSpace = GEOQIK_SPHERE_SIZE_SPACE_SCREEN;
+    styled = false;
+    if (sizeSpaceIn != GEOQIK_SPHERE_SIZE_SPACE_SCREEN && sizeSpaceIn != GEOQIK_SPHERE_SIZE_SPACE_WORLD) {
+        return false;
+    }
+    if (radiusCount != 0 && radiusCount != 1 && radiusCount != pointCount) {
+        return false;
+    }
+    if (radiusCount > 0 && radiiIn == nullptr) {
+        return false;
+    }
+    for (std::size_t i = 0; i < radiusCount; ++i) {
+        if (!std::isfinite(radiiIn[i]) || radiiIn[i] < 0.0F) {
+            return false;
+        }
+    }
+    if (radiusCount > 0) {
+        radii.assign(radiiIn, radiiIn + radiusCount);
+    }
+    sizeSpace = static_cast<std::uint8_t>(sizeSpaceIn);
+    styled = radiusCount > 0 || sizeSpaceIn != GEOQIK_SPHERE_SIZE_SPACE_SCREEN;
+    return true;
+}
+
 template <typename Options>
 static bool copy_point_style(const Options* options,
                              std::size_t pointCount,
@@ -585,25 +619,75 @@ static bool copy_point_style(const Options* options,
     if (options == nullptr) {
         return true;
     }
-    if (options->sizeSpace != GEOQIK_SPHERE_SIZE_SPACE_SCREEN && options->sizeSpace != GEOQIK_SPHERE_SIZE_SPACE_WORLD) {
+    return copy_point_style_fields(options->radii,
+                                   options->radiusCount,
+                                   options->sizeSpace,
+                                   pointCount,
+                                   radii,
+                                   sizeSpace,
+                                   styled);
+}
+
+// Validates and copies a stroke style + line type + per-vertex dash flags from their raw
+// fields. Shared by the standalone line opts and the mesh segment overlay opts, which name
+// these fields differently. On success style/lineType/dashFlags are populated; on any invalid
+// input it returns false and leaves outputs cleared.
+static bool copy_line_style_fields(const geoqik_stroke_style_t& input,
+                                   geoqik_line_type_t inputLineType,
+                                   const std::uint8_t* perVertexDashFlags,
+                                   std::size_t perVertexDashFlagCount,
+                                   std::size_t vertexCount,
+                                   StrokeStyleData& style,
+                                   std::uint8_t& lineType,
+                                   std::vector<std::uint8_t>& dashFlags) {
+    style = {};
+    lineType = GEOQIK_LINE_TYPE_LINES;
+    dashFlags.clear();
+    if (inputLineType != GEOQIK_LINE_TYPE_LINES && inputLineType != GEOQIK_LINE_TYPE_LINE_STRIP &&
+        inputLineType != GEOQIK_LINE_TYPE_LINE_LOOP) {
         return false;
     }
-    if (options->radiusCount != 0 && options->radiusCount != 1 && options->radiusCount != pointCount) {
+    if ((input.cap != GEOQIK_LINE_CAP_BUTT && input.cap != GEOQIK_LINE_CAP_SQUARE &&
+         input.cap != GEOQIK_LINE_CAP_ROUND) ||
+        (input.join != GEOQIK_LINE_JOIN_MITER && input.join != GEOQIK_LINE_JOIN_BEVEL &&
+         input.join != GEOQIK_LINE_JOIN_ROUND) ||
+        (input.dashSpace != GEOQIK_DASH_SPACE_WORLD && input.dashSpace != GEOQIK_DASH_SPACE_SCREEN) ||
+        !std::isfinite(input.lineWidth) || !std::isfinite(input.miterLimit) || !std::isfinite(input.dashPhase)) {
         return false;
     }
-    if (options->radiusCount > 0 && options->radii == nullptr) {
+    if (input.dashPatternCount > 0 && input.dashPattern == nullptr) {
         return false;
     }
-    for (std::size_t i = 0; i < options->radiusCount; ++i) {
-        if (!std::isfinite(options->radii[i]) || options->radii[i] < 0.0F) {
+    for (std::size_t i = 0; i < input.dashPatternCount; ++i) {
+        if (!std::isfinite(input.dashPattern[i]) || input.dashPattern[i] < 0.0F) {
             return false;
         }
     }
-    if (options->radiusCount > 0) {
-        radii.assign(options->radii, options->radii + options->radiusCount);
+    if (perVertexDashFlagCount != 0 && perVertexDashFlagCount != vertexCount) {
+        return false;
     }
-    sizeSpace = static_cast<std::uint8_t>(options->sizeSpace);
-    styled = options->radiusCount > 0 || options->sizeSpace != GEOQIK_SPHERE_SIZE_SPACE_SCREEN;
+    if (perVertexDashFlagCount > 0 && perVertexDashFlags == nullptr) {
+        return false;
+    }
+    for (std::size_t i = 0; i < perVertexDashFlagCount; ++i) {
+        if (perVertexDashFlags[i] > 1) {
+            return false;
+        }
+    }
+    style.lineWidth = input.lineWidth;
+    style.cap = static_cast<std::uint8_t>(input.cap);
+    style.join = static_cast<std::uint8_t>(input.join);
+    style.miterLimit = input.miterLimit;
+    if (input.dashPatternCount > 0) {
+        style.dashPattern.assign(input.dashPattern, input.dashPattern + input.dashPatternCount);
+    }
+    style.dashPhase = input.dashPhase;
+    style.dashSpace = static_cast<std::uint8_t>(input.dashSpace);
+    style.depthLayer = input.depthLayer;
+    lineType = static_cast<std::uint8_t>(inputLineType);
+    if (perVertexDashFlagCount > 0) {
+        dashFlags.assign(perVertexDashFlags, perVertexDashFlags + perVertexDashFlagCount);
+    }
     return true;
 }
 
@@ -621,52 +705,14 @@ static bool copy_line_style(const Options* options,
     if (!styleSet) {
         return true;
     }
-    if (options->lineType != GEOQIK_LINE_TYPE_LINES && options->lineType != GEOQIK_LINE_TYPE_LINE_STRIP &&
-        options->lineType != GEOQIK_LINE_TYPE_LINE_LOOP) {
-        return false;
-    }
-    const auto& input = options->style;
-    if ((input.cap != GEOQIK_LINE_CAP_BUTT && input.cap != GEOQIK_LINE_CAP_SQUARE &&
-         input.cap != GEOQIK_LINE_CAP_ROUND) ||
-        (input.join != GEOQIK_LINE_JOIN_MITER && input.join != GEOQIK_LINE_JOIN_BEVEL &&
-         input.join != GEOQIK_LINE_JOIN_ROUND) ||
-        (input.dashSpace != GEOQIK_DASH_SPACE_WORLD && input.dashSpace != GEOQIK_DASH_SPACE_SCREEN) ||
-        !std::isfinite(input.lineWidth) || !std::isfinite(input.miterLimit) || !std::isfinite(input.dashPhase)) {
-        return false;
-    }
-    if (input.dashPatternCount > 0 && input.dashPattern == nullptr) {
-        return false;
-    }
-    for (std::size_t i = 0; i < input.dashPatternCount; ++i) {
-        if (!std::isfinite(input.dashPattern[i]) || input.dashPattern[i] < 0.0F) {
-            return false;
-        }
-    }
-    if (options->perVertexDashFlagCount != 0 && options->perVertexDashFlagCount != vertexCount) {
-        return false;
-    }
-    if (options->perVertexDashFlagCount > 0 && options->perVertexDashFlags == nullptr) {
-        return false;
-    }
-    for (std::size_t i = 0; i < options->perVertexDashFlagCount; ++i) {
-        if (options->perVertexDashFlags[i] > 1) {
-            return false;
-        }
-    }
-    style.lineWidth = input.lineWidth;
-    style.cap = static_cast<std::uint8_t>(input.cap);
-    style.join = static_cast<std::uint8_t>(input.join);
-    style.miterLimit = input.miterLimit;
-    if (input.dashPatternCount > 0) {
-        style.dashPattern.assign(input.dashPattern, input.dashPattern + input.dashPatternCount);
-    }
-    style.dashPhase = input.dashPhase;
-    style.dashSpace = static_cast<std::uint8_t>(input.dashSpace);
-    lineType = static_cast<std::uint8_t>(options->lineType);
-    if (options->perVertexDashFlagCount > 0) {
-        dashFlags.assign(options->perVertexDashFlags, options->perVertexDashFlags + options->perVertexDashFlagCount);
-    }
-    return true;
+    return copy_line_style_fields(options->style,
+                                  options->lineType,
+                                  options->perVertexDashFlags,
+                                  options->perVertexDashFlagCount,
+                                  vertexCount,
+                                  style,
+                                  lineType,
+                                  dashFlags);
 }
 
 static bool convert_replay_keys(const geoqik_key_t* cKeys,
@@ -1724,7 +1770,8 @@ constexpr float kDefaultSegmentLineWidth = 1.0F;
 constexpr float kDefaultVertexPointSize = 3.0F;
 
 [[nodiscard]] geoqik_error_code_t apply_mesh_overlay_opts(geoqik::AddMeshWithOpts& message,
-                                                          const geoqik_add_mesh_opts_t* options) {
+                                                          const geoqik_add_mesh_opts_t* options,
+                                                          std::size_t vertexCount) {
     if (options == nullptr) {
         return GEOQIK_SUCCESS;
     }
@@ -1742,11 +1789,42 @@ constexpr float kDefaultVertexPointSize = 3.0F;
         (options->segmentLineWidth > 0.0F) ? options->segmentLineWidth : kDefaultSegmentLineWidth;
     message.showSegments = (options->showSegments != 0);
 
+    message.segmentStyleSet = (options->segmentStyleSet != 0);
+    if (message.segmentStyleSet) {
+        if (!geoqik_internal::copy_line_style_fields(options->segmentStyle,
+                                                     options->segmentLineType,
+                                                     options->segmentPerVertexDashFlags,
+                                                     options->segmentPerVertexDashFlagCount,
+                                                     vertexCount,
+                                                     message.segmentStyle,
+                                                     message.segmentLineType,
+                                                     message.segmentPerVertexDashFlags)) {
+            return GEOQIK_ERROR_INVALID_PARAMETER;
+        }
+    }
+
     if (options->vertexColor != nullptr) {
         message.vertexColors.assign(options->vertexColor, options->vertexColor + 4);
     }
     message.vertexPointSize = (options->vertexPointSize > 0.0F) ? options->vertexPointSize : kDefaultVertexPointSize;
     message.showVertices = (options->showVertices != 0);
+
+    {
+        std::vector<float> radii;
+        std::uint8_t sizeSpace = 0;
+        bool styled = false;
+        if (!geoqik_internal::copy_point_style_fields(options->vertexRadii,
+                                                      options->vertexRadiusCount,
+                                                      options->vertexSizeSpace,
+                                                      vertexCount,
+                                                      radii,
+                                                      sizeSpace,
+                                                      styled)) {
+            return GEOQIK_ERROR_INVALID_PARAMETER;
+        }
+        message.vertexRadii = std::move(radii);
+        message.vertexSizeSpace = sizeSpace;
+    }
 
     return GEOQIK_SUCCESS;
 }
@@ -1807,7 +1885,7 @@ geoqik_result_t geoqik_add_mesh_opts(const float* vertices,
             message.triangleIndices = std::move(indicesCopy);
             message.commonData = std::move(commonData);
 
-            if (const geoqik_error_code_t overlayErr = apply_mesh_overlay_opts(message, options);
+            if (const geoqik_error_code_t overlayErr = apply_mesh_overlay_opts(message, options, vertexCount);
                 overlayErr != GEOQIK_SUCCESS) {
                 return geoqik_result_t{overlayErr, {}};
             }
@@ -1879,13 +1957,54 @@ geoqik_error_code_t geoqik_set_mesh_overlay_opts(const geoqik_uuid_t* geometryId
                                                   "parameters: geometryId, opts; expected non-null pointers");
     }
 
+    geoqik::SetMeshOverlayOpts message;
+    message.showSegments = (opts->showSegments > 0);
+    message.showVertices = (opts->showVertices > 0);
+
+    message.segmentStyleSet = (opts->segmentStyleSet != 0);
+    if (message.segmentStyleSet) {
+        // The per-vertex dash flag length is validated against the mesh vertex count in the
+        // Context handler (not known here); pass the flag count itself so the length check is a
+        // no-op while the value/enum/finiteness checks still run.
+        if (!geoqik_internal::copy_line_style_fields(opts->segmentStyle,
+                                                     opts->segmentLineType,
+                                                     opts->segmentPerVertexDashFlags,
+                                                     opts->segmentPerVertexDashFlagCount,
+                                                     opts->segmentPerVertexDashFlagCount,
+                                                     message.segmentStyle,
+                                                     message.segmentLineType,
+                                                     message.segmentPerVertexDashFlags)) {
+            return geoqik_internal::invalid_parameter("geoqik_set_mesh_overlay_opts",
+                                                      "parameter: opts->segmentStyle/segmentLineType/"
+                                                      "segmentPerVertexDashFlags; expected valid finite style values");
+        }
+    }
+
+    message.vertexStyleSet = (opts->vertexStyleSet != 0);
+    if (message.vertexStyleSet) {
+        std::vector<float> radii;
+        std::uint8_t sizeSpace = 0;
+        bool styled = false;
+        // radiusCount is validated against the mesh vertex count in the Context handler; accept
+        // any count here (pass radiusCount as the bound) and validate values/size-space only.
+        if (!geoqik_internal::copy_point_style_fields(opts->vertexRadii,
+                                                      opts->vertexRadiusCount,
+                                                      opts->vertexSizeSpace,
+                                                      opts->vertexRadiusCount,
+                                                      radii,
+                                                      sizeSpace,
+                                                      styled)) {
+            return geoqik_internal::invalid_parameter(
+                "geoqik_set_mesh_overlay_opts",
+                "parameter: opts->vertexRadii/vertexSizeSpace; expected finite non-negative radii");
+        }
+        message.vertexRadii = std::move(radii);
+        message.vertexSizeSpace = sizeSpace;
+    }
+
     return geoqik_internal::execute_if_initialized([&]() -> geoqik_error_code_t {
-        core::UUID handle = convert_to_core_uuid(*geometryId);
-        geoqik::SetMeshOverlayOpts message;
-        message.handle = handle;
-        message.showSegments = (opts->showSegments > 0);
-        message.showVertices = (opts->showVertices > 0);
-        return enqueue(GeoQikMessage{message});
+        message.handle = convert_to_core_uuid(*geometryId);
+        return enqueue(GeoQikMessage{std::move(message)});
     });
 }
 

@@ -63,6 +63,7 @@ endforeach()
 
 add_geoqik_example(example_curve LIBRARIES geoqik::geoqik linal::linal)
 add_geoqik_example(example_mesh NO_TIDY LIBRARIES geoqik::geoqik linal::linal)
+add_geoqik_example(example_mesh_styled NO_TIDY LIBRARIES geoqik::geoqik linal::linal)
 
 set(geoqik_run_examples
     example_spiral
@@ -70,7 +71,8 @@ set(geoqik_run_examples
     example_removing_geometry
     example_curve
     example_sphere
-    example_mesh)
+    example_mesh
+    example_mesh_styled)
 
 foreach(example IN LISTS geoqik_run_examples)
     add_geoqik_example_run_target(${example})
