@@ -106,13 +106,13 @@ Test-PackagePrefix -Prefix $ArchiveRoots[0].FullName -Name 'archive'
 
 $InstallDirectory = Join-Path $WorkDirectory 'msi-install'
 $InstallLog = Join-Path $WorkDirectory 'msi-install.log'
-# The WixUI_Advanced install location is driven by APPLICATIONFOLDER (the custom
-# template copies it into CPack's INSTALL_ROOT). ALLUSERS=1 forces an all-users
-# (per-machine) install; CI runs elevated so the system-PATH component applies.
+# The WixUI_InstallDir install location is the INSTALL_ROOT directory (WIXUI_INSTALLDIR
+# points at it), so override INSTALL_ROOT for a silent install. The MSI forces
+# ALLUSERS=1 (per-machine); CI runs elevated so the system-PATH component applies.
 $MsiPath = $Installers[0].FullName
 $InstallResult = Start-Process 'msiexec.exe' -ArgumentList @(
-    '/i', "`"$MsiPath`"", '/quiet', '/norestart', 'ALLUSERS=1',
-    "APPLICATIONFOLDER=`"$InstallDirectory`"", '/l*v', "`"$InstallLog`""
+    '/i', "`"$MsiPath`"", '/quiet', '/norestart',
+    "INSTALL_ROOT=`"$InstallDirectory`"", '/l*v', "`"$InstallLog`""
 ) -Wait -PassThru
 if ($InstallResult.ExitCode -ne 0) {
     if (Test-Path $InstallLog) { Get-Content $InstallLog -Tail 50 | Write-Host }
