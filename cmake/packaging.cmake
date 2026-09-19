@@ -75,10 +75,11 @@ if(WIN32)
     # RTF rendering of the same Unlicense text instead.
     set(CPACK_WIX_LICENSE_RTF "${CMAKE_CURRENT_LIST_DIR}/License.rtf")
 
-    # Custom WiX template using the WixUI_Advanced dialog set so the installer
-    # offers a per-user vs all-users choice, matching the old NSIS behavior.
+    # Custom WiX template using the WixUI_InstallDir dialog set so the installer
+    # always shows a directory picker with a Browse button. The install is
+    # per-machine (into Program Files\GeoQik by default); see wix_template.wxs.
     set(CPACK_WIX_TEMPLATE "${CMAKE_CURRENT_LIST_DIR}/wix_template.wxs")
-    set(CPACK_WIX_UI_REF "WixUI_Advanced")
+    set(CPACK_WIX_UI_REF "WixUI_InstallDir")
 
     # Re-implement "add bin to PATH": CPack's WiX generator has no built-in
     # equivalent of CPACK_NSIS_MODIFY_PATH, so an <Environment> element is
