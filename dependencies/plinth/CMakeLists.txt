@@ -1,12 +1,10 @@
 CPMAddPackage(
         NAME plinth
         GITHUB_REPOSITORY "timow-gh/plinth"
-        GIT_TAG 81c853e79b334bb7a70160791d1ae10d1e9df781
-        # GIT_SHALLOW is intentionally omitted: this pin is a full commit SHA, and
-        # GitHub cannot shallow-fetch a SHA that is no longer the tip of its branch
-        # ("fatal: unable to read tree"). That breaks CI as soon as plinth/main
-        # advances past the pinned commit. A full clone can fetch any reachable
-        # SHA, so the build stays reproducible regardless of upstream pushes.
+        GIT_TAG v3.0.0
+        # Pinned to a stable release tag, so the dependency is reproducible and
+        # unambiguous. The tag is immutable and shallow-fetchable by GitHub, so
+        # this stays reliable as plinth/main advances.
         EXCLUDE_FROM_ALL YES
         OPTIONS
         "plinth_TESTS OFF"
