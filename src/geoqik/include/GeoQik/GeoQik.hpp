@@ -39,10 +39,17 @@
  *
  * Point radii (with a world/screen `sizeSpace`) and line stroke/topology styling
  * (width, cap, join, miter limit, dash pattern/phase/space, line type, per-vertex
- * dash flags) are available only through the `*_opts` functions and their option
- * structs. The global setters (`geoqik_set_point_size`, `geoqik_set_line_width`,
+ * dash flags, depth layer) are available only through the `*_opts` functions and their
+ * option structs. The global setters (`geoqik_set_point_size`, `geoqik_set_line_width`,
  * the color setters) and the simple `geoqik_add_point*` / `geoqik_add_line*` and
  * non-opts `update_*` functions retain their existing default meaning.
+ *
+ * The same line stroke styling (via `geoqik_stroke_style_t`, including `depthLayer`)
+ * and sphere-point vertex sizing (`vertexRadii` / `vertexSizeSpace`) apply to a mesh's
+ * wireframe segment overlay and vertex overlay through `geoqik_add_mesh_opts_t` and, at
+ * runtime, `geoqik_set_mesh_overlay_opts`. Use `depthLayer` on segment styling to keep
+ * wireframe edges from Z-fighting the mesh surface and each other. Sphere-point vertices
+ * do not support a depth layer.
  *
  * Point sizes default to screen-space diameters in pixels, like the legacy
  * point size.
@@ -461,7 +468,8 @@ GEOQIK_EXPORT geoqik_error_code_t geoqik_update_mesh_opts(const geoqik_uuid_t* g
                                                           size_t vertexCount,
                                                           geoqik_update_mesh_opts_t* options);
 
-/** \brief Set per-mesh overlay visibility (wireframe segments and/or vertex points). */
+/** \brief Set per-mesh overlay visibility (wireframe segments and/or vertex points), and optionally restyle the
+ * segment stroke (segmentStyleSet) and/or vertex sphere sizing (vertexStyleSet) without resubmitting the mesh. */
 GEOQIK_EXPORT geoqik_error_code_t geoqik_set_mesh_overlay_opts(const geoqik_uuid_t* geometryId,
                                                                const geoqik_mesh_overlay_opts_t* opts);
 

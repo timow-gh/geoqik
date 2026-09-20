@@ -62,7 +62,7 @@ namespace {
 VideoRecorder::VideoRecorder() = default;
 VideoRecorder::~VideoRecorder() {
     if (m_recording) {
-        (void)stop();
+        static_cast<void>(stop());
     }
 }
 
@@ -133,11 +133,11 @@ void VideoRecorder::capture_frame() {
             ? m_capture.capture_scene(*m_renderer, m_width, m_height)
             : m_capture.capture_front(m_width, m_height);
     if (!m_capture.last_capture_valid()) {
-        (void)stop();
+        static_cast<void>(stop());
         return;
     }
     if (!m_sink->write_frame(pixels)) {
-        (void)stop();
+        static_cast<void>(stop());
         return;
     }
     ++m_frameCount;
@@ -151,7 +151,7 @@ void VideoRecorder::hold_last_frame(std::size_t extraFrames) {
     const std::vector<std::uint8_t>& pixels = m_capture.last_pixels();
     for (std::size_t i = 0; i < extraFrames; ++i) {
         if (!m_sink->write_frame(pixels)) {
-            (void)stop();
+            static_cast<void>(stop());
             return;
         }
         ++m_frameCount;

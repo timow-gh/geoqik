@@ -76,6 +76,57 @@ struct LineDrawableInputs {
     return result;
 }
 
+// Creates the wireframe-segment line drawable for a mesh overlay. Honours the full segment
+// stroke style (cap/join/miter/dash/depthLayer + line type + per-vertex dash flags) when
+// overlay.segmentStyleSet is true; otherwise falls back to legacy width + LineType::lines.
+// Shared by the initial-create and runtime-sync paths so they stay identical.
+[[nodiscard]] renderer::DrawableHandle create_overlay_segment_drawable(renderer::Renderer& renderer,
+                                                                       const PerMeshOverlayData& overlay) {
+    const std::vector<float> colorVec{overlay.segmentColor[0],
+                                      overlay.segmentColor[1],
+                                      overlay.segmentColor[2],
+                                      overlay.segmentColor[3]};
+    if (overlay.segmentStyleSet) {
+        const renderer::StrokeStyle style = build_stroke_style(overlay.segmentStyle, overlay.segmentLineWidth);
+        return renderer.add_line_drawable(std::span<const float>(overlay.segmentPositions),
+                                          std::span<const std::uint32_t>(overlay.segmentIndices),
+                                          std::span<const float>(colorVec),
+                                          to_plinth_line_type(overlay.segmentLineType),
+                                          style,
+                                          renderer::BufferAccessPattern::Static,
+                                          std::span<const std::uint8_t>(overlay.segmentPerVertexDashFlags));
+    }
+    return renderer.add_line_drawable(std::span<const float>(overlay.segmentPositions),
+                                      std::span<const std::uint32_t>(overlay.segmentIndices),
+                                      std::span<const float>(colorVec),
+                                      renderer::LineType::lines(),
+                                      renderer::StrokeStyle{overlay.segmentLineWidth});
+}
+
+// Creates the sphere-point vertex drawable for a mesh overlay. Uses per-vertex radii and the
+// requested size space when supplied; otherwise a uniform vertexPointSize in screen space.
+[[nodiscard]] renderer::DrawableHandle create_overlay_vertex_drawable(renderer::Renderer& renderer,
+                                                                      const PerMeshOverlayData& overlay) {
+    const std::array<float, 4> colorArr{overlay.vertexColor[0],
+                                        overlay.vertexColor[1],
+                                        overlay.vertexColor[2],
+                                        overlay.vertexColor[3]};
+    const std::size_t vertexCount = overlay.segmentPositions.size() / 3;
+    std::vector<float> radii;
+    if (overlay.vertexRadii.size() == vertexCount) {
+        radii = overlay.vertexRadii;
+    } else if (overlay.vertexRadii.size() == 1) {
+        radii.assign(vertexCount, overlay.vertexRadii.front());
+    } else {
+        radii = radii_for(overlay.segmentPositions, overlay.vertexPointSize);
+    }
+    return renderer.add_sphere_point_drawable(std::span<const float>(overlay.segmentPositions),
+                                              radii,
+                                              colorArr,
+                                              renderer::SphereStyle{to_plinth_size_space(overlay.vertexSizeSpace)},
+                                              renderer::BufferAccessPattern::Static);
+}
+
 } // namespace
 
 bool GeoQikSceneRenderer::sync_points(Scene& scene) {
@@ -128,12 +179,10 @@ bool GeoQikSceneRenderer::sync_styled(Scene& scene) {
     if (!scene.styled_dirty()) {
         return false;
     }
-    for (const auto& [uuid, handle]: m_styledPointBundles) {
-        (void)uuid;
+    for ([[maybe_unused]] const auto& [uuid, handle]: m_styledPointBundles) {
         m_renderer.remove_drawable(handle);
     }
-    for (const auto& [uuid, handle]: m_styledLineBundles) {
-        (void)uuid;
+    for ([[maybe_unused]] const auto& [uuid, handle]: m_styledLineBundles) {
         m_renderer.remove_drawable(handle);
     }
     m_styledPointBundles.clear();
@@ -207,15 +256,7 @@ bool GeoQikSceneRenderer::sync_overlay_drawables(MeshBuffer& meshBuffer) {
         const bool wantSegments =
             overlay.showSegments && !overlay.segmentPositions.empty() && !overlay.segmentIndices.empty();
         if (wantSegments && !bundle.segments.is_valid()) {
-            const std::vector<float> colorVec{overlay.segmentColor[0],
-                                              overlay.segmentColor[1],
-                                              overlay.segmentColor[2],
-                                              overlay.segmentColor[3]};
-            bundle.segments = m_renderer.add_line_drawable(std::span<const float>(overlay.segmentPositions),
-                                                           std::span<const std::uint32_t>(overlay.segmentIndices),
-                                                           std::span<const float>(colorVec),
-                                                           renderer::LineType::lines(),
-                                                           renderer::StrokeStyle{overlay.segmentLineWidth});
+            bundle.segments = create_overlay_segment_drawable(m_renderer, overlay);
             updateOccurred = true;
         } else if (!wantSegments && bundle.segments.is_valid()) {
             m_renderer.remove_drawable(bundle.segments);
@@ -225,13 +266,7 @@ bool GeoQikSceneRenderer::sync_overlay_drawables(MeshBuffer& meshBuffer) {
 
         const bool wantVertices = overlay.showVertices && !overlay.segmentPositions.empty();
         if (wantVertices && !bundle.vertices.is_valid()) {
-            const std::array<float, 4> colorArr{overlay.vertexColor[0],
-                                                overlay.vertexColor[1],
-                                                overlay.vertexColor[2],
-                                                overlay.vertexColor[3]};
-            auto radii = radii_for(overlay.segmentPositions, overlay.vertexPointSize);
-            bundle.vertices =
-                m_renderer.add_sphere_point_drawable(std::span<const float>(overlay.segmentPositions), radii, colorArr);
+            bundle.vertices = create_overlay_vertex_drawable(m_renderer, overlay);
             updateOccurred = true;
         } else if (!wantVertices && bundle.vertices.is_valid()) {
             m_renderer.remove_drawable(bundle.vertices);
@@ -264,8 +299,7 @@ void GeoQikSceneRenderer::recreate_point_drawables(const Scene& scene) {
         m_renderer.remove_drawable(m_mergedPointDrawable);
         m_mergedPointDrawable = {};
     }
-    for (const auto& [uuid, handle]: m_styledPointBundles) {
-        (void)uuid;
+    for ([[maybe_unused]] const auto& [uuid, handle]: m_styledPointBundles) {
         m_renderer.remove_drawable(handle);
     }
     m_styledPointBundles.clear();
@@ -290,8 +324,7 @@ void GeoQikSceneRenderer::recreate_line_drawables(const Scene& scene) {
         m_renderer.remove_drawable(m_mergedLineDrawable);
         m_mergedLineDrawable = {};
     }
-    for (const auto& [uuid, handle]: m_styledLineBundles) {
-        (void)uuid;
+    for ([[maybe_unused]] const auto& [uuid, handle]: m_styledLineBundles) {
         m_renderer.remove_drawable(handle);
     }
     m_styledLineBundles.clear();
@@ -400,15 +433,7 @@ void GeoQikSceneRenderer::create_styled_point_drawable(const core::UUID& uuid,
 void GeoQikSceneRenderer::create_styled_line_drawable(const core::UUID& uuid,
                                                       const StyledLineData& data,
                                                       float fallbackWidth) {
-    constexpr float defaultMiterLimit = 4.0F;
-    renderer::StrokeStyle style;
-    style.lineWidth = data.style.lineWidth > 0.0F ? data.style.lineWidth : fallbackWidth;
-    style.cap = to_plinth_cap(data.style.cap);
-    style.join = to_plinth_join(data.style.join);
-    style.miterLimit = data.style.miterLimit > 0.0F ? data.style.miterLimit : defaultMiterLimit;
-    style.dashPattern = data.style.dashPattern;
-    style.dashPhase = data.style.dashPhase;
-    style.dashSpace = to_plinth_dash_space(data.style.dashSpace);
+    const renderer::StrokeStyle style = build_stroke_style(data.style, fallbackWidth);
     const auto inputs = build_line_drawable_inputs(data);
     const auto handle = m_renderer.add_line_drawable(inputs.vertices,
                                                      inputs.indices,
@@ -452,30 +477,14 @@ void GeoQikSceneRenderer::create_surface_bundle(const core::UUID& uuid, const Me
         }
     }
 
-    // Segment overlay
+    // Segment + vertex overlays
     if (meshBuffer.has_mesh_overlay_data(uuid)) {
         const auto& overlay = meshBuffer.get_mesh_overlay_data(uuid);
         if (overlay.showSegments && !overlay.segmentPositions.empty() && !overlay.segmentIndices.empty()) {
-            const std::vector<float> colorVec{overlay.segmentColor[0],
-                                              overlay.segmentColor[1],
-                                              overlay.segmentColor[2],
-                                              overlay.segmentColor[3]};
-            bundle.segments = m_renderer.add_line_drawable(std::span<const float>(overlay.segmentPositions),
-                                                           std::span<const std::uint32_t>(overlay.segmentIndices),
-                                                           std::span<const float>(colorVec),
-                                                           renderer::LineType::lines(),
-                                                           renderer::StrokeStyle{overlay.segmentLineWidth});
+            bundle.segments = create_overlay_segment_drawable(m_renderer, overlay);
         }
-
-        // Vertex overlay
         if (overlay.showVertices && !overlay.segmentPositions.empty()) {
-            const std::array<float, 4> colorArr{overlay.vertexColor[0],
-                                                overlay.vertexColor[1],
-                                                overlay.vertexColor[2],
-                                                overlay.vertexColor[3]};
-            auto radii = radii_for(overlay.segmentPositions, overlay.vertexPointSize);
-            bundle.vertices =
-                m_renderer.add_sphere_point_drawable(std::span<const float>(overlay.segmentPositions), radii, colorArr);
+            bundle.vertices = create_overlay_vertex_drawable(m_renderer, overlay);
         }
     }
 

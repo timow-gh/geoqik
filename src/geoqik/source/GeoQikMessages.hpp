@@ -175,6 +175,16 @@ struct AddMeshWithOpts {
     float vertexPointSize{3.0f};
     bool showVertices{false};
 
+    // Full segment stroke styling. segmentStyleSet == false => legacy width + LineType::lines.
+    bool segmentStyleSet{false};
+    StrokeStyleData segmentStyle;
+    std::uint8_t segmentLineType{0}; // GEOQIK_LINE_TYPE_LINES
+    std::vector<std::uint8_t> segmentPerVertexDashFlags;
+
+    // Sphere-point vertex sizing. Empty vertexRadii => uniform vertexPointSize.
+    std::vector<float> vertexRadii;
+    std::uint8_t vertexSizeSpace{0}; // GEOQIK_SPHERE_SIZE_SPACE_SCREEN
+
     [[nodiscard]] bool operator==(const AddMeshWithOpts&) const = default;
 };
 
@@ -197,6 +207,17 @@ struct SetMeshOverlayOpts {
     core::UUID handle;
     bool showSegments{false};
     bool showVertices{false};
+
+    // Optional segment restyle; applied only when segmentStyleSet is true.
+    bool segmentStyleSet{false};
+    StrokeStyleData segmentStyle;
+    std::uint8_t segmentLineType{0};
+    std::vector<std::uint8_t> segmentPerVertexDashFlags;
+
+    // Optional vertex sphere restyle; applied only when vertexStyleSet is true.
+    bool vertexStyleSet{false};
+    std::vector<float> vertexRadii;
+    std::uint8_t vertexSizeSpace{0};
 
     [[nodiscard]] bool operator==(const SetMeshOverlayOpts&) const = default;
 };

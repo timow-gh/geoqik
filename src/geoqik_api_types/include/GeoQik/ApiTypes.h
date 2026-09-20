@@ -81,6 +81,14 @@ typedef struct {
     size_t dashPatternCount;
     float dashPhase;               /* marching-ants offset along the arc length */
     geoqik_dash_space_t dashSpace; /* 0 = WORLD */
+
+    /* Render priority for coplanar / overlapping lines; higher = closer to the camera.
+       The renderer nudges lines toward the camera in clip space to beat coplanar faces
+       (e.g. edges drawn on a mesh surface) and stacks them by this value so overlapping
+       lines resolve in a stable, flicker-free order instead of by sub-pixel depth noise.
+       0 = default surface layer with NO bias (depth-tests normally, can be occluded);
+       each integer step adds a guaranteed depth gap between layers. */
+    int32_t depthLayer;
 } geoqik_stroke_style_t;
 
 typedef struct {
@@ -154,6 +162,23 @@ typedef struct {
     const float* vertexColor;
     int showVertices;
     float vertexPointSize;
+
+    /* Full segment (wireframe) stroke styling. When segmentStyleSet == 0 the segmentStyle,
+       segmentLineType, and segmentPerVertexDashFlags are ignored and segments fall back to
+       segmentLineWidth + GEOQIK_LINE_TYPE_LINES (the legacy behaviour). Mirrors
+       geoqik_add_line_opts_t. */
+    int segmentStyleSet;
+    geoqik_stroke_style_t segmentStyle;
+    geoqik_line_type_t segmentLineType;
+    const uint8_t* segmentPerVertexDashFlags; /* 0/1 per segment vertex; NULL/0 => not used */
+    size_t segmentPerVertexDashFlagCount;
+
+    /* Sphere-point vertex sizing. radii interpreted per vertexSizeSpace: 0 count => uniform
+       size from vertexPointSize; 1 => uniform; N => per-vertex. Mirrors
+       geoqik_add_points_options_t. */
+    const float* vertexRadii;
+    size_t vertexRadiusCount;
+    geoqik_sphere_size_space_t vertexSizeSpace; /* 0 = SCREEN (pixels, glPointSize-like) */
 } geoqik_add_mesh_opts_t;
 
 typedef struct {
@@ -167,6 +192,23 @@ typedef struct {
 typedef struct {
     int showSegments;
     int showVertices;
+
+    /* Optional runtime restyle without resubmitting the mesh. When segmentStyleSet == 0 the
+       segment style is left unchanged; otherwise segmentStyle / segmentLineType /
+       segmentPerVertexDashFlags replace the stored segment style. Mirrors the add-time fields
+       in geoqik_add_mesh_opts_t. */
+    int segmentStyleSet;
+    geoqik_stroke_style_t segmentStyle;
+    geoqik_line_type_t segmentLineType;
+    const uint8_t* segmentPerVertexDashFlags;
+    size_t segmentPerVertexDashFlagCount;
+
+    /* Optional vertex sphere-point restyle. When vertexStyleSet == 0 the vertex sizing is left
+       unchanged; otherwise vertexRadii / vertexSizeSpace replace the stored vertex sizing. */
+    int vertexStyleSet;
+    const float* vertexRadii;
+    size_t vertexRadiusCount;
+    geoqik_sphere_size_space_t vertexSizeSpace;
 } geoqik_mesh_overlay_opts_t;
 
 typedef struct {

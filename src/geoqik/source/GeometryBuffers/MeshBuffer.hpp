@@ -6,6 +6,7 @@
 #include "Core/UUID.hpp"
 #include "GeoQikSettings.hpp"
 #include "GeometryBuffers/GeometryBufferConcept.hpp"
+#include "GeometryBuffers/GeometryStyle.hpp"
 #include "linal/linal.hpp"
 
 #include <plinth/Color.hpp>
@@ -43,6 +44,17 @@ struct PerMeshOverlayData {
     Color vertexColor{1.0f, 1.0f, 1.0f, 1.0f};
     float vertexPointSize{3.0f};
     bool showVertices{false};
+
+    // Full segment stroke styling. When segmentStyleSet is false, segments fall back to
+    // segmentLineWidth + LineType::lines (legacy behaviour). depthLayer lives in segmentStyle.
+    bool segmentStyleSet{false};
+    StrokeStyleData segmentStyle;
+    std::uint8_t segmentLineType{0}; // GEOQIK_LINE_TYPE_LINES
+    std::vector<std::uint8_t> segmentPerVertexDashFlags;
+
+    // Sphere-point vertex sizing. Empty vertexRadii => uniform vertexPointSize.
+    std::vector<float> vertexRadii;
+    std::uint8_t vertexSizeSpace{0}; // GEOQIK_SPHERE_SIZE_SPACE_SCREEN
 };
 
 struct MeshGeoBufferIndex {
@@ -157,6 +169,33 @@ class MeshBuffer {
         if (it == m_meshOverlayData.end())
             return;
         it->second.showVertices = visible;
+    }
+
+    // Runtime segment restyle. Requires a drawable rebuild, so marks the mesh updated.
+    void set_mesh_segment_style(const core::UUID& handle,
+                                StrokeStyleData style,
+                                std::uint8_t lineType,
+                                std::vector<std::uint8_t> perVertexDashFlags) {
+        auto it = m_meshOverlayData.find(handle);
+        if (it == m_meshOverlayData.end())
+            return;
+        it->second.segmentStyleSet = true;
+        it->second.segmentStyle = std::move(style);
+        it->second.segmentLineType = lineType;
+        it->second.segmentPerVertexDashFlags = std::move(perVertexDashFlags);
+        mark_mesh_updated(handle);
+        m_hasChanged = true;
+    }
+
+    // Runtime vertex sphere restyle. Requires a drawable rebuild, so marks the mesh updated.
+    void set_mesh_vertex_style(const core::UUID& handle, std::vector<float> radii, std::uint8_t sizeSpace) {
+        auto it = m_meshOverlayData.find(handle);
+        if (it == m_meshOverlayData.end())
+            return;
+        it->second.vertexRadii = std::move(radii);
+        it->second.vertexSizeSpace = sizeSpace;
+        mark_mesh_updated(handle);
+        m_hasChanged = true;
     }
 
     [[nodiscard]] bool any_mesh_has_segment_overlay() const {
@@ -570,8 +609,8 @@ class MeshBuffer {
         m_normals.insert(m_normals.end(), normals.begin(), normals.end());
     }
 
-    void recompute_flat_normals_for_range(std::size_t vertexStartIndex,
-                                          std::size_t vertexCount,
+    void recompute_flat_normals_for_range([[maybe_unused]] std::size_t vertexStartIndex,
+                                          [[maybe_unused]] std::size_t vertexCount,
                                           std::size_t triangleStartIndex,
                                           std::size_t triangleCount) {
         for (std::size_t t = triangleStartIndex; t < triangleStartIndex + triangleCount; ++t) {
@@ -588,9 +627,6 @@ class MeshBuffer {
                 m_normals[k * 3 + 2] = normal[2];
             }
         }
-        // suppress unused variable warning when triangleCount==0
-        static_cast<void>(vertexStartIndex);
-        static_cast<void>(vertexCount);
     }
 };
 

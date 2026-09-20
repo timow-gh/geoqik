@@ -1,6 +1,8 @@
 #ifndef GEOQIK_SOURCE_RENDERING_STYLETRANSLATION_HPP
 #define GEOQIK_SOURCE_RENDERING_STYLETRANSLATION_HPP
 
+#include "GeometryBuffers/GeometryStyle.hpp"
+
 #include <plinth/DashSpace.hpp>
 #include <plinth/LineType.hpp>
 #include <plinth/SphereSizeSpace.hpp>
@@ -52,6 +54,24 @@ namespace geoqik {
     case GEOQIK_LINE_TYPE_LINES:
     default:                          return renderer::LineType::lines();
     }
+}
+
+// Builds a plinth StrokeStyle from GeoQik's internal StrokeStyleData, applying the same
+// fallbacks used across the API: a non-positive lineWidth falls back to fallbackWidth, and a
+// non-positive miterLimit falls back to plinth's SVG default (4.0). Shared by standalone styled
+// lines and mesh segment overlays so both honour cap/join/miter/dash/depthLayer identically.
+[[nodiscard]] inline renderer::StrokeStyle build_stroke_style(const StrokeStyleData& data, float fallbackWidth) {
+    constexpr float defaultMiterLimit = 4.0F;
+    renderer::StrokeStyle style;
+    style.lineWidth = data.lineWidth > 0.0F ? data.lineWidth : fallbackWidth;
+    style.cap = to_plinth_cap(data.cap);
+    style.join = to_plinth_join(data.join);
+    style.miterLimit = data.miterLimit > 0.0F ? data.miterLimit : defaultMiterLimit;
+    style.dashPattern = data.dashPattern;
+    style.dashPhase = data.dashPhase;
+    style.dashSpace = to_plinth_dash_space(data.dashSpace);
+    style.depthLayer = data.depthLayer;
+    return style;
 }
 
 } // namespace geoqik

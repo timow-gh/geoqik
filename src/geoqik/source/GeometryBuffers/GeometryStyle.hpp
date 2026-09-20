@@ -14,6 +14,7 @@ struct StrokeStyleData {
     std::vector<float> dashPattern;
     float dashPhase{0.0F};
     std::uint8_t dashSpace{0};
+    std::int32_t depthLayer{0}; // mirrors renderer::StrokeStyle::depthLayer; 0 = no bias
 
     [[nodiscard]] bool operator==(const StrokeStyleData&) const = default;
 };
