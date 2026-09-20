@@ -1121,7 +1121,9 @@ void handle_connection(PipeStream& stream) {
             const geoqik_uuid_t id = read_uuid(payload, offset);
             const auto showSegments = read_field<std::int32_t>(payload, offset);
             const auto showVertices = read_field<std::int32_t>(payload, offset);
-            geoqik_mesh_overlay_opts_t opts{showSegments, showVertices};
+            geoqik_mesh_overlay_opts_t opts{};
+            opts.showSegments = showSegments;
+            opts.showVertices = showVertices;
             const auto err = geoqik_set_mesh_overlay_opts(&id, &opts);
             send_api_response(stream, err);
             break;

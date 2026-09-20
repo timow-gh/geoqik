@@ -124,7 +124,7 @@ int main() {
     // Same representative-vertex scheme as vertexRadii: 8 visible spheres (blocks 0..7), zero
     // radius on the 16 duplicates.
     std::vector<float> smallerRadii(24, 0.0f);
-    for (int i = 0; i < 8; ++i)
+    for (std::size_t i = 0; i < 8; ++i)
         smallerRadii[i] = 0.05f;
     geoqik_mesh_overlay_opts_t overlay{};
     overlay.showSegments = 1;
@@ -144,8 +144,7 @@ int main() {
     geoqik_mesh_rendering_opts_t renderOpts{};
     renderOpts.cullMode = GEOQIK_MESH_CULL_NONE;
     renderOpts.surfaceVisible = 1;
-    geoqik_error_code_t err = geoqik_set_mesh_rendering_opts(&result.geometryId, &renderOpts);
-    assert(err == GEOQIK_SUCCESS);
+    assert(geoqik_set_mesh_rendering_opts(&result.geometryId, &renderOpts) == GEOQIK_SUCCESS);
 
     geoqik_wait_for_exit_and_cleanup();
     return 0;
