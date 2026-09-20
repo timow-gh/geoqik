@@ -609,8 +609,8 @@ class MeshBuffer {
         m_normals.insert(m_normals.end(), normals.begin(), normals.end());
     }
 
-    void recompute_flat_normals_for_range(std::size_t vertexStartIndex,
-                                          std::size_t vertexCount,
+    void recompute_flat_normals_for_range([[maybe_unused]] std::size_t vertexStartIndex,
+                                          [[maybe_unused]] std::size_t vertexCount,
                                           std::size_t triangleStartIndex,
                                           std::size_t triangleCount) {
         for (std::size_t t = triangleStartIndex; t < triangleStartIndex + triangleCount; ++t) {
@@ -627,9 +627,6 @@ class MeshBuffer {
                 m_normals[k * 3 + 2] = normal[2];
             }
         }
-        // suppress unused variable warning when triangleCount==0
-        static_cast<void>(vertexStartIndex);
-        static_cast<void>(vertexCount);
     }
 };
 

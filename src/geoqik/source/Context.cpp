@@ -885,14 +885,11 @@ void reveal_in_file_browser(const std::filesystem::path& path) {
     const std::string command =
         isDirectory ? fmt::format("explorer \"{}\"", path.string())
                     : fmt::format("explorer /select,\"{}\"", path.string());
-    const int systemResult = std::system(command.c_str());
-    (void)systemResult;
+    [[maybe_unused]] const int systemResult = std::system(command.c_str());
 #elif defined(__APPLE__)
-    const int systemResult = std::system(fmt::format("open \"{}\"", path.string()).c_str());
-    (void)systemResult;
+    [[maybe_unused]] const int systemResult = std::system(fmt::format("open \"{}\"", path.string()).c_str());
 #else
-    const int systemResult = std::system(fmt::format("xdg-open \"{}\"", path.string()).c_str());
-    (void)systemResult;
+    [[maybe_unused]] const int systemResult = std::system(fmt::format("xdg-open \"{}\"", path.string()).c_str());
 #endif
 }
 
@@ -1292,12 +1289,12 @@ geoqik_error_code_t Context::render_log_to_video_path(const std::filesystem::pat
         return ok ? GEOQIK_SUCCESS : GEOQIK_ERROR_UNKNOWN;
     } catch (const std::bad_alloc&) {
         if (m_recorder.is_recording()) {
-            (void)m_recorder.stop();
+            static_cast<void>(m_recorder.stop());
         }
         return GEOQIK_ERROR_MEMORY_ALLOCATION;
     } catch (...) {
         if (m_recorder.is_recording()) {
-            (void)m_recorder.stop();
+            static_cast<void>(m_recorder.stop());
         }
         return GEOQIK_ERROR_UNKNOWN;
     }

@@ -179,12 +179,10 @@ bool GeoQikSceneRenderer::sync_styled(Scene& scene) {
     if (!scene.styled_dirty()) {
         return false;
     }
-    for (const auto& [uuid, handle]: m_styledPointBundles) {
-        (void)uuid;
+    for ([[maybe_unused]] const auto& [uuid, handle]: m_styledPointBundles) {
         m_renderer.remove_drawable(handle);
     }
-    for (const auto& [uuid, handle]: m_styledLineBundles) {
-        (void)uuid;
+    for ([[maybe_unused]] const auto& [uuid, handle]: m_styledLineBundles) {
         m_renderer.remove_drawable(handle);
     }
     m_styledPointBundles.clear();
@@ -301,8 +299,7 @@ void GeoQikSceneRenderer::recreate_point_drawables(const Scene& scene) {
         m_renderer.remove_drawable(m_mergedPointDrawable);
         m_mergedPointDrawable = {};
     }
-    for (const auto& [uuid, handle]: m_styledPointBundles) {
-        (void)uuid;
+    for ([[maybe_unused]] const auto& [uuid, handle]: m_styledPointBundles) {
         m_renderer.remove_drawable(handle);
     }
     m_styledPointBundles.clear();
@@ -327,8 +324,7 @@ void GeoQikSceneRenderer::recreate_line_drawables(const Scene& scene) {
         m_renderer.remove_drawable(m_mergedLineDrawable);
         m_mergedLineDrawable = {};
     }
-    for (const auto& [uuid, handle]: m_styledLineBundles) {
-        (void)uuid;
+    for ([[maybe_unused]] const auto& [uuid, handle]: m_styledLineBundles) {
         m_renderer.remove_drawable(handle);
     }
     m_styledLineBundles.clear();

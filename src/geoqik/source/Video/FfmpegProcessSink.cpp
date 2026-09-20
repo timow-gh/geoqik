@@ -75,7 +75,7 @@ FfmpegProcessSink::FfmpegProcessSink(std::filesystem::path ffmpegExecutable, Vid
 FfmpegProcessSink::~FfmpegProcessSink() {
     if (m_impl) {
         // Best-effort cleanup if the caller never called close().
-        (void)close();
+        static_cast<void>(close());
     }
 }
 

@@ -203,9 +203,8 @@ void select_default_log_directory(FileGuiState& state) {
     }
 }
 
-void set_video_dialog_error(VideoGuiState& state, FileGuiState& fileState, const std::string& prefix) {
+void set_video_dialog_error([[maybe_unused]] VideoGuiState& state, FileGuiState& fileState, const std::string& prefix) {
     // Video dialogs reuse the shared file error popup for consistency.
-    (void)state;
     set_file_dialog_error(fileState, prefix);
 }
 

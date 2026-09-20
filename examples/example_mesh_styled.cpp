@@ -144,7 +144,9 @@ int main() {
     geoqik_mesh_rendering_opts_t renderOpts{};
     renderOpts.cullMode = GEOQIK_MESH_CULL_NONE;
     renderOpts.surfaceVisible = 1;
-    assert(geoqik_set_mesh_rendering_opts(&result.geometryId, &renderOpts) == GEOQIK_SUCCESS);
+    [[maybe_unused]] const geoqik_error_code_t renderErr =
+        geoqik_set_mesh_rendering_opts(&result.geometryId, &renderOpts);
+    assert(renderErr == GEOQIK_SUCCESS);
 
     geoqik_wait_for_exit_and_cleanup();
     return 0;

@@ -426,12 +426,10 @@ BoundingSphere Scene::calc_bounding_sphere(const linal::float3& center) const {
     if (!meshVertices.empty()) {
         calc_max_radius_squared(meshVertices, center, maxRadiusSq);
     }
-    for (const auto& [uuid, data]: m_styledPoints) {
-        (void)uuid;
+    for ([[maybe_unused]] const auto& [uuid, data]: m_styledPoints) {
         calc_max_radius_squared(data.points, center, maxRadiusSq);
     }
-    for (const auto& [uuid, data]: m_styledLines) {
-        (void)uuid;
+    for ([[maybe_unused]] const auto& [uuid, data]: m_styledLines) {
         calc_max_radius_squared(data.vertices, center, maxRadiusSq);
     }
 
@@ -454,12 +452,10 @@ linal::float3 Scene::calc_scene_centroid() const {
     accumulate(m_pointBuffer->get_points());
     accumulate(m_lineBuffer->get_lines());
     accumulate(m_meshBuffer->get_vertices());
-    for (const auto& [uuid, data]: m_styledPoints) {
-        (void)uuid;
+    for ([[maybe_unused]] const auto& [uuid, data]: m_styledPoints) {
         accumulate(data.points);
     }
-    for (const auto& [uuid, data]: m_styledLines) {
-        (void)uuid;
+    for ([[maybe_unused]] const auto& [uuid, data]: m_styledLines) {
         accumulate(data.vertices);
     }
 
