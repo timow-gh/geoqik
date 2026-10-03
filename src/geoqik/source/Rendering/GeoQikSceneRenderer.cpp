@@ -82,10 +82,13 @@ struct LineDrawableInputs {
 // Shared by the initial-create and runtime-sync paths so they stay identical.
 [[nodiscard]] renderer::DrawableHandle create_overlay_segment_drawable(renderer::Renderer& renderer,
                                                                        const PerMeshOverlayData& overlay) {
-    const std::vector<float> colorVec{overlay.segmentColor[0],
-                                      overlay.segmentColor[1],
-                                      overlay.segmentColor[2],
-                                      overlay.segmentColor[3]};
+    // The indexed plinth overload requires one RGBA per vertex, even for a uniform color.
+    const std::size_t vertexCount = overlay.segmentPositions.size() / 3;
+    std::vector<float> colorVec;
+    colorVec.reserve(vertexCount * ColorChannelCount);
+    for (std::size_t i = 0; i < vertexCount; ++i) {
+        colorVec.insert(colorVec.end(), overlay.segmentColor.begin(), overlay.segmentColor.end());
+    }
     if (overlay.segmentStyleSet) {
         const renderer::StrokeStyle style = build_stroke_style(overlay.segmentStyle, overlay.segmentLineWidth);
         return renderer.add_line_drawable(std::span<const float>(overlay.segmentPositions),

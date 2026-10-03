@@ -20,6 +20,12 @@ create_protocol_test(ProtocolTest)
 create_geoqik_internal_test(WindowSettingsTest)
 target_link_libraries(WindowSettingsTest PRIVATE geoqik::geoqik)
 create_geoqik_internal_test(SceneTest)
+create_geoqik_internal_test(GeoQikSceneRendererTest)
+target_sources(GeoQikSceneRendererTest PRIVATE
+    ${PROJECT_SOURCE_DIR}/src/geoqik/source/Rendering/GeoQikSceneRenderer.cpp)
+set_tests_properties(geoqik.GeoQikSceneRendererTest PROPERTIES
+    RESOURCE_LOCK geoqik_glfw
+    TIMEOUT 60)
 create_geoqik_internal_test(TestGeoQikLog)
 create_geoqik_internal_test(TestGeoQikLogJson)
 target_link_libraries(TestGeoQikLogJson PRIVATE nlohmann_json::nlohmann_json)
