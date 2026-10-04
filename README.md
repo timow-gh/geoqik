@@ -2,7 +2,7 @@
 
 **See your geometry while you debug it.** GeoQik is a tiny C++ library that opens a live 3D window and draws the points, lines and meshes your code produces — from any thread, while your program runs. No viewer to write, no files to export.
 
-https://github.com/timow-gh/geoqik/raw/main/assets/geoqik_spiral.mp4
+https://github.com/user-attachments/assets/aed8a220-aeaf-4044-b47a-1a9df9edd9c9
 
 ## Example
 
