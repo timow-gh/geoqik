@@ -1,154 +1,89 @@
 # GeoQik
 
-A lightweight C++ library for visualizing 3D geometry during debugging. Add points and lines from any thread while your program runs — GeoQik opens an OpenGL window and renders them in real time.
-
-> "A picture is worth a thousand words."
+**See your geometry while you debug it.** GeoQik is a tiny C++ library that opens a live 3D window and draws the points, lines and meshes your code produces — from any thread, while your program runs. No viewer to write, no files to export.
 
 https://github.com/timow-gh/geoqik/raw/main/assets/geoqik_spiral.mp4
 
-## Requirements
-
-- Windows or Linux
-- C99 or later (C++ consumers: any standard)
-- CMake 3.21+ (for `find_package` / FetchContent integration)
-
-## Build Requirements
-
-- CMake 3.28+
-- A C++20 compiler (MSVC, GCC, Clang)
-- [vcpkg](https://vcpkg.io)
-
-Windows builds are tested with the x64 MSVC/MSBuild toolchain. CI runs the MSVC presets on GitHub Actions `windows-latest` after `microsoft/setup-msbuild@v2`; Visual Studio 2022 Build Tools with the MSVC v143 toolset is the expected local setup.
-
-## Integration
-
-GeoQik is distributed as a shared library (`geoqik.dll` / `libgeoqik.so`). Consumers need no additional dependencies — everything is absorbed into the library.
-
-### via installed package
-
-GitHub Releases provide these x64 packages:
-
-| Platform | Package | Contents |
-| --- | --- | --- |
-| Ubuntu 24.04 | `geoqik-<version>-ubuntu-24.04-x86_64.tar.gz` | Complete relocatable SDK |
-| Ubuntu 24.04 | `libgeoqik0_<version>_amd64.deb` | Runtime library and server |
-| Ubuntu 24.04 | `libgeoqik-dev_<version>_amd64.deb` | Headers and CMake package; depends on the runtime package |
-| Windows | `geoqik-<version>-windows-x64.zip` | Complete relocatable SDK |
-| Windows | `geoqik-<version>-windows-x64.msi` | Windows Installer (MSI) runtime and development package |
-
-Every artifact has a matching `.sha256` checksum. Linux binaries currently target Ubuntu 24.04; broader distribution compatibility is not guaranteed.
-
-For a portable archive, extract it and pass its root as the install prefix:
-
-```cmake
-find_package(geoqik CONFIG REQUIRED)
-target_link_libraries(your_target PRIVATE geoqik::geoqik)
-```
-
-Pass the install prefix to CMake:
-
-```
-cmake -DCMAKE_PREFIX_PATH=/path/to/geoqik/install ...
-```
-
-The header-only client target is available as `geoqik::client`. It starts the packaged `geoqik_server` process and must be able to find that executable through `PATH` or `GEOQIK_EXE_PATH`. DEB packages use the standard executable location. The MSI installer adds its `bin` directory to the system `PATH`; archive users should add `<archive>/bin` themselves.
-
-### via FetchContent
-
-```cmake
-include(FetchContent)
-FetchContent_Declare(
-    geoqik
-    GIT_REPOSITORY https://github.com/timow-gh/geoqik.git
-    GIT_TAG        v0.3.0
-)
-set(geoqik_INSTALL OFF)
-FetchContent_MakeAvailable(geoqik)
-
-target_link_libraries(your_target PRIVATE geoqik::geoqik)
-```
-
-## Usage
+## Example
 
 ```cpp
 #include <GeoQik/GeoQik.hpp>
+#include <cmath>
 
 int main()
 {
     geoqik_init();
-
-    geoqik_set_point_size(5.0f);
     geoqik_set_point_color(1.0f, 0.0f, 0.0f, 1.0f); // red
-    geoqik_set_line_width(2.0f);
+    geoqik_draw();                                  // open the window
 
-    geoqik_draw(); // geometry added before this call is rendered on the first frame
+    double px = 1, py = 0, pz = 0;
+    for (int i = 1; i <= 200; ++i) {
+        double a = i * 0.1, x = std::cos(a), y = std::sin(a), z = i * 0.02;
+        geoqik_add_line(px, py, pz, x, y, z);       // appears live
+        geoqik_add_point(x, y, z);
+        px = x; py = y; pz = z;
+    }
 
-    geoqik_add_point(1.0, 0.0, 0.0);
-    geoqik_add_line(0.0, 0.0, 0.0,  1.0, 0.0, 0.0);
-
-    geoqik_wait_for_exit_and_cleanup(); // blocks until the window is closed
+    geoqik_wait_for_exit_and_cleanup();             // blocks until the window is closed
 }
 ```
 
-### Mesh
+Meshes work the same way (`geoqik_add_mesh_opts`) — see `GeoQik.hpp`.
+
+## Record and replay
+
+Every command you send to GeoQik is recorded. Save the session to a file, and replay it later to see exactly what your code did — one command at a time. Play it back, pause, and step forward or backward through each point, line and mesh (arrow keys or `A`/`D`). That makes it easy to find the exact call where your geometry went wrong, even in a run you can no longer reproduce.
 
 ```cpp
-#include <GeoQik/GeoQik.hpp>
+geoqik_save_log("session.geoqik", GEOQIK_LOG_FORMAT_BINARY);        // at the end of a run
 
-// vertices: flat XYZ — {x0,y0,z0, x1,y1,z1, ...}
-// triangleIndices: triplets of vertex indices
-float vertices[] = { 0,0,0,  1,0,0,  0,1,0 };
-uint32_t indices[] = { 0, 1, 2 };
-
-geoqik_add_mesh_opts_t opts{};  // normals auto-computed, default color
-geoqik_result_t result = geoqik_add_mesh_opts(vertices, 3, indices, 1, &opts);
-```
-
-### Log and replay
-
-GeoQik records every geometry event in memory. You can save this log to disk and replay it later:
-
-```cpp
-// Save the current session
-geoqik_save_log("session.geoqik", GEOQIK_LOG_FORMAT_BINARY);
-
-// In a later run: load and replay
+// later, in any program:
 geoqik_init();
 geoqik_draw();
-geoqik_replay_log("session.geoqik", GEOQIK_LOG_FORMAT_BINARY, NULL); // NULL = replay with default options
+geoqik_replay_log("session.geoqik", GEOQIK_LOG_FORMAT_BINARY, NULL); // NULL = default options
 geoqik_wait_for_exit_and_cleanup();
+```
+
+## Two ways to use it
+
+**Link the library.** `geoqik::geoqik` is a shared library with no further dependencies. Your program renders in-process.
+
+**Drop in the header-only client.** `GeoQikClient.hpp` has the same API, but instead of linking a library it starts the `geoqik_server` executable and talks to it over IPC. The server opens the window, so you only need GeoQik *installed* — then copy the single header into your own project and build. That makes it ideal for debugging geometry code in a library that shouldn't depend on GeoQik: swap the include and your calls are unchanged.
+
+```cpp
+#include <GeoQikClient/GeoQikClient.hpp>   // instead of <GeoQik/GeoQik.hpp>
+```
+
+## Integration
+
+Download a package from [GitHub Releases](https://github.com/timow-gh/geoqik/releases) (Windows `.msi` / `.zip`, Ubuntu 24.04 `.deb` / `.tar.gz`, each with a `.sha256`), then:
+
+```cmake
+find_package(geoqik CONFIG REQUIRED)                       # cmake -DCMAKE_PREFIX_PATH=/path/to/geoqik ...
+target_link_libraries(your_target PRIVATE geoqik::geoqik)  # link the library
+target_link_libraries(your_target PRIVATE geoqik::client)  # or: header-only client
+```
+
+The client finds `geoqik_server` through `PATH` or `GEOQIK_EXE_PATH`. The MSI and DEB packages set this up; for archives, add `<archive>/bin` to `PATH`.
+
+Or build it with FetchContent:
+
+```cmake
+include(FetchContent)
+FetchContent_Declare(geoqik
+    GIT_REPOSITORY https://github.com/timow-gh/geoqik.git
+    GIT_TAG        v0.3.1)
+set(geoqik_INSTALL OFF)
+FetchContent_MakeAvailable(geoqik)
+target_link_libraries(your_target PRIVATE geoqik::geoqik)
 ```
 
 ## Building from source
 
-The build requires vcpkg — set `VCPKG_ROOT` to your vcpkg installation directory.
+Needs CMake 3.28+, a C++20 compiler, and [vcpkg](https://vcpkg.io) (`VCPKG_ROOT` set). On Ubuntu also `sudo apt install libgl1-mesa-dev xorg-dev`.
 
-**Ubuntu** — install OpenGL and windowing system headers first:
 ```
-sudo apt install libgl1-mesa-dev xorg-dev
-```
-
-**Windows (MSVC / Visual Studio 2022 Build Tools)**
-```
-cmake --workflow --preset workflow-test-msvc-release
+cmake --workflow --preset workflow-test-msvc-release   # or -gcc- / -clang-
 ```
 
-**Ubuntu (GCC)**
-```
-cmake --workflow --preset workflow-test-gcc-release
-```
-
-**Ubuntu (Clang)**
-```
-cmake --workflow --preset workflow-test-clang-release
-```
-
-These presets configure, build, and run the test suite. All available presets are listed in `CMakePresets.json`.
-
-## Contributing and releases
-
-Commit-message and release-note conventions are documented in [CONTRIBUTING.md](CONTRIBUTING.md).
-
-## License
-
-Public domain — see [License](License).
+See [CONTRIBUTING.md](CONTRIBUTING.md) for conventions. Public domain — see [License](License).
