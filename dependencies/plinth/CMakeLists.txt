@@ -1,7 +1,7 @@
 CPMAddPackage(
         NAME plinth
         GITHUB_REPOSITORY "timow-gh/plinth"
-        GIT_TAG v3.0.0
+        GIT_TAG v3.0.1
         # Pinned to a stable release tag, so the dependency is reproducible and
         # unambiguous. The tag is immutable and shallow-fetchable by GitHub, so
         # this stays reliable as plinth/main advances.
