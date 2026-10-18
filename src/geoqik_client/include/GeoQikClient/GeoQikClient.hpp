@@ -18,7 +18,9 @@ typedef enum {
     GEOQIK_ERROR_RENDERER_INIT_FAILED = 7,
     GEOQIK_ERROR_IO = 8,
     GEOQIK_ERROR_UNSUPPORTED_FORMAT = 9,
-    GEOQIK_ERROR_INVALID_STATE = 10
+    GEOQIK_ERROR_INVALID_STATE = 10,
+    /* Widens the value range to int, so any value a C caller passes is defined in C++. */
+    GEOQIK_ERROR_CODE_MAX_ENUM = 0x7FFFFFFF
 } geoqik_error_code_t;
 
 typedef struct {
@@ -43,29 +45,39 @@ typedef struct {
 typedef enum {
     GEOQIK_LINE_CAP_BUTT = 0,
     GEOQIK_LINE_CAP_SQUARE = 1,
-    GEOQIK_LINE_CAP_ROUND = 2
+    GEOQIK_LINE_CAP_ROUND = 2,
+    /* Widens the value range to int, so any value a C caller passes is defined in C++. */
+    GEOQIK_LINE_CAP_MAX_ENUM = 0x7FFFFFFF
 } geoqik_line_cap_t;
 
 typedef enum {
     GEOQIK_LINE_JOIN_MITER = 0,
     GEOQIK_LINE_JOIN_BEVEL = 1,
-    GEOQIK_LINE_JOIN_ROUND = 2
+    GEOQIK_LINE_JOIN_ROUND = 2,
+    /* Widens the value range to int, so any value a C caller passes is defined in C++. */
+    GEOQIK_LINE_JOIN_MAX_ENUM = 0x7FFFFFFF
 } geoqik_line_join_t;
 
 typedef enum {
     GEOQIK_DASH_SPACE_WORLD = 0,
-    GEOQIK_DASH_SPACE_SCREEN = 1
+    GEOQIK_DASH_SPACE_SCREEN = 1,
+    /* Widens the value range to int, so any value a C caller passes is defined in C++. */
+    GEOQIK_DASH_SPACE_MAX_ENUM = 0x7FFFFFFF
 } geoqik_dash_space_t;
 
 typedef enum {
     GEOQIK_LINE_TYPE_LINES = 0,
     GEOQIK_LINE_TYPE_LINE_STRIP = 1,
-    GEOQIK_LINE_TYPE_LINE_LOOP = 2
+    GEOQIK_LINE_TYPE_LINE_LOOP = 2,
+    /* Widens the value range to int, so any value a C caller passes is defined in C++. */
+    GEOQIK_LINE_TYPE_MAX_ENUM = 0x7FFFFFFF
 } geoqik_line_type_t;
 
 typedef enum {
     GEOQIK_SPHERE_SIZE_SPACE_SCREEN = 0,
-    GEOQIK_SPHERE_SIZE_SPACE_WORLD = 1
+    GEOQIK_SPHERE_SIZE_SPACE_WORLD = 1,
+    /* Widens the value range to int, so any value a C caller passes is defined in C++. */
+    GEOQIK_SPHERE_SIZE_SPACE_MAX_ENUM = 0x7FFFFFFF
 } geoqik_sphere_size_space_t;
 
 typedef struct {
@@ -120,7 +132,9 @@ typedef struct {
 typedef enum {
     GEOQIK_MESH_CULL_BACK = 0,
     GEOQIK_MESH_CULL_FRONT = 1,
-    GEOQIK_MESH_CULL_NONE = 2
+    GEOQIK_MESH_CULL_NONE = 2,
+    /* Widens the value range to int, so any value a C caller passes is defined in C++. */
+    GEOQIK_MESH_CULL_MODE_MAX_ENUM = 0x7FFFFFFF
 } geoqik_mesh_cull_mode_t;
 
 typedef struct {
@@ -167,7 +181,9 @@ typedef enum {
     GEOQIK_CLIENT_ERROR_IPC_WRITE = 4,
     GEOQIK_CLIENT_ERROR_IPC_READ = 5,
     GEOQIK_CLIENT_ERROR_PROTOCOL = 6,
-    GEOQIK_CLIENT_ERROR_UNKNOWN = 7
+    GEOQIK_CLIENT_ERROR_UNKNOWN = 7,
+    /* Widens the value range to int, so any value a C caller passes is defined in C++. */
+    GEOQIK_CLIENT_ERROR_CODE_MAX_ENUM = 0x7FFFFFFF
 } geoqik_client_error_code_t;
 
 typedef struct {

@@ -1,0 +1,88 @@
+name: 'Windows CMake Workflow'
+description: 'Configure, build and test a CMake workflow preset with MSVC'
+inputs:
+  cmake_workflow:
+    description: 'The workflow preset to run (e.g. workflow-test-msvc-debug)'
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Select presets
+      id: preset
+      run: |
+        # workflow-test-msvc-debug -> conf-, build- and test-msvc-debug
+        $preset = '${{ inputs.cmake_workflow }}' -replace '^workflow-test-', ''
+        "name=$preset" >> $env:GITHUB_OUTPUT
+      shell: pwsh
+
+    # The MSVC presets use the Visual Studio generator, which ignores compiler
+    # launchers, so there is no compilation cache. Caching the vcpkg binaries saves
+    # the most time anyway.
+    - uses: ./.github/actions/setup-vcpkg
+
+    - name: Setup MSVC
+      uses: microsoft/setup-msbuild@v2
+
+    - name: Configure
+      run: |
+        # vcpkg downloads third-party source archives while configuring when the binary
+        # cache misses. Retry transient GitHub download failures with backoff.
+        for ($attempt = 1; $attempt -le 5; $attempt++) {
+          cmake --preset conf-${{ steps.preset.outputs.name }} -DBUILD_SHARED_LIBS=ON
+          if ($LASTEXITCODE -eq 0) { break }
+          if ($attempt -eq 5) { exit 1 }
+          Start-Sleep -Seconds ($attempt * 30)
+        }
+      shell: pwsh
+
+    - name: Build
+      run: cmake --build --preset build-${{ steps.preset.outputs.name }}
+      shell: pwsh
+
+    - name: Cache Mesa3D
+      id: mesa-cache
+      uses: actions/cache@v4
+      with:
+        path: ${{ runner.temp }}/mesa
+        key: mesa3d-24.3.4-release-msvc
+
+    - name: Download Mesa3D
+      if: steps.mesa-cache.outputs.cache-hit != 'true'
+      run: |
+        $MesaVersion = "24.3.4"
+        $MesaAsset = "mesa3d-${MesaVersion}-release-msvc.7z"
+        $MesaUrl = "https://github.com/pal1000/mesa-dist-win/releases/download/${MesaVersion}/${MesaAsset}"
+        $Archive = Join-Path $env:RUNNER_TEMP $MesaAsset
+        Invoke-WebRequest -Uri $MesaUrl -OutFile $Archive
+        7z x $Archive "-o$(Join-Path $env:RUNNER_TEMP 'mesa')" -y
+      shell: pwsh
+
+    - name: Install Mesa3D (software OpenGL for headless tests)
+      # windows-latest runners have no GPU. The system opengl32.dll in
+      # System32 only implements OpenGL 1.1, so glfwCreateWindow fails when
+      # asked for a 3.3 Core Profile context.
+      #
+      # Mesa3D ships a drop-in opengl32.dll backed by LLVMpipe (a CPU
+      # software renderer that supports OpenGL 4.5).  opengl32.dll is NOT a
+      # Windows KnownDLL, so it is resolved via the normal DLL search order:
+      # the executable's own directory is searched before System32.  Copying
+      # Mesa's opengl32.dll alongside each test .exe is therefore enough to
+      # make Windows load Mesa instead of the system stub, giving GLFW a
+      # working OpenGL 3.3 Core Profile context on the CPU.
+      run: |
+        # Copy ALL Mesa x64 DLLs next to every test executable.
+        # Mesa 21+ splits the driver: opengl32.dll is only an ICD loader;
+        # the actual LLVMpipe implementation lives in libgallium_wgl.dll
+        # (and related DLLs).  All of them must be co-located with the
+        # executable for Mesa to initialise successfully.
+        $MesaDlls = Join-Path $env:RUNNER_TEMP 'mesa\x64\*.dll'
+        Get-ChildItem -Path "out/build/conf-${{ steps.preset.outputs.name }}" `
+          -Filter "*.exe" -Recurse |
+          Select-Object -ExpandProperty DirectoryName -Unique |
+          ForEach-Object { Copy-Item $MesaDlls "$_\" -Force }
+      shell: pwsh
+
+    - name: Test
+      run: ctest --preset test-${{ steps.preset.outputs.name }}
+      shell: pwsh

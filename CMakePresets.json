@@ -487,6 +487,22 @@
       ]
     },
     {
+      "name": "conf-clang-debug-asan-ubsan",
+      "displayName": "clang Debug + AddressSanitizer + UndefinedBehaviorSanitizer",
+      "description": "Debug build with AddressSanitizer and UndefinedBehaviorSanitizer in one build",
+      "inherits": [
+        "conf-clang-debug",
+        "conf-asan-common"
+      ],
+      "cacheVariables": {
+        "CMAKE_CXX_FLAGS": "-stdlib=libstdc++ -fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer -g",
+        "CMAKE_C_FLAGS": "-fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer -g",
+        "CMAKE_EXE_LINKER_FLAGS": "-stdlib=libstdc++ -fsanitize=address,undefined",
+        "CMAKE_SHARED_LINKER_FLAGS": "-stdlib=libstdc++ -fsanitize=address,undefined",
+        "CMAKE_MODULE_LINKER_FLAGS": "-stdlib=libstdc++ -fsanitize=address,undefined"
+      }
+    },
+    {
       "name": "conf-clang-debug-tsan",
       "displayName": "clang Debug + ThreadSanitizer",
       "description": "Debug build with ThreadSanitizer for data race detection",
@@ -698,6 +714,12 @@
       "inherits": "build-debug",
       "configurePreset": "conf-clang-debug-asan",
       "displayName": "clang Debug + ASAN Build"
+    },
+    {
+      "name": "build-clang-debug-asan-ubsan",
+      "inherits": "build-debug",
+      "configurePreset": "conf-clang-debug-asan-ubsan",
+      "displayName": "clang Debug + ASAN + UBSAN Build"
     },
     {
       "name": "build-clang-debug-tsan",
@@ -1073,6 +1095,17 @@
         "test-debug"
       ],
       "configurePreset": "conf-clang-debug-asan"
+    },
+    {
+      "name": "test-clang-debug-asan-ubsan",
+      "displayName": "clang Debug + ASAN + UBSAN Tests",
+      "description": "Tests with AddressSanitizer and UndefinedBehaviorSanitizer enabled",
+      "inherits": [
+        "test-unix-common",
+        "test-asan-common",
+        "test-debug"
+      ],
+      "configurePreset": "conf-clang-debug-asan-ubsan"
     },
     {
       "name": "test-clang-debug-tsan",
@@ -1623,6 +1656,25 @@
         {
           "type": "test",
           "name": "test-clang-debug-asan"
+        }
+      ]
+    },
+    {
+      "name": "workflow-test-clang-debug-asan-ubsan",
+      "displayName": "Clang Debug + ASAN + UBSAN Workflow",
+      "description": "Configure, build and test with Clang, AddressSanitizer and UndefinedBehaviorSanitizer",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "conf-clang-debug-asan-ubsan"
+        },
+        {
+          "type": "build",
+          "name": "build-clang-debug-asan-ubsan"
+        },
+        {
+          "type": "test",
+          "name": "test-clang-debug-asan-ubsan"
         }
       ]
     },
