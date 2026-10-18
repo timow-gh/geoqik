@@ -15,7 +15,9 @@ typedef enum {
     GEOQIK_ERROR_RENDERER_INIT_FAILED = 7,
     GEOQIK_ERROR_IO = 8,
     GEOQIK_ERROR_UNSUPPORTED_FORMAT = 9,
-    GEOQIK_ERROR_INVALID_STATE = 10
+    GEOQIK_ERROR_INVALID_STATE = 10,
+    /* Widens the value range to int, so any value a C caller passes is defined in C++. */
+    GEOQIK_ERROR_CODE_MAX_ENUM = 0x7FFFFFFF
 } geoqik_error_code_t;
 
 typedef struct {
@@ -40,24 +42,32 @@ typedef struct {
 typedef enum {
     GEOQIK_LINE_CAP_BUTT = 0,   /* flush with the endpoint, SVG default */
     GEOQIK_LINE_CAP_SQUARE = 1, /* extends half the line width past the endpoint */
-    GEOQIK_LINE_CAP_ROUND = 2   /* semicircle centered on the endpoint */
+    GEOQIK_LINE_CAP_ROUND = 2,  /* semicircle centered on the endpoint */
+    /* Widens the value range to int, so any value a C caller passes is defined in C++. */
+    GEOQIK_LINE_CAP_MAX_ENUM = 0x7FFFFFFF
 } geoqik_line_cap_t;
 
 typedef enum {
     GEOQIK_LINE_JOIN_MITER = 0, /* sharp pointed join, SVG default */
     GEOQIK_LINE_JOIN_BEVEL = 1, /* diagonal cutoff at the join */
-    GEOQIK_LINE_JOIN_ROUND = 2  /* circular arc join */
+    GEOQIK_LINE_JOIN_ROUND = 2, /* circular arc join */
+    /* Widens the value range to int, so any value a C caller passes is defined in C++. */
+    GEOQIK_LINE_JOIN_MAX_ENUM = 0x7FFFFFFF
 } geoqik_line_join_t;
 
 typedef enum {
-    GEOQIK_DASH_SPACE_WORLD = 0, /* dash/gap lengths in world units (scale with zoom) */
-    GEOQIK_DASH_SPACE_SCREEN = 1 /* dash/gap lengths in pixels (constant on screen) */
+    GEOQIK_DASH_SPACE_WORLD = 0,  /* dash/gap lengths in world units (scale with zoom) */
+    GEOQIK_DASH_SPACE_SCREEN = 1, /* dash/gap lengths in pixels (constant on screen) */
+    /* Widens the value range to int, so any value a C caller passes is defined in C++. */
+    GEOQIK_DASH_SPACE_MAX_ENUM = 0x7FFFFFFF
 } geoqik_dash_space_t;
 
 typedef enum {
     GEOQIK_LINE_TYPE_LINES = 0,      /* independent endpoint pairs (default) */
     GEOQIK_LINE_TYPE_LINE_STRIP = 1, /* connected polyline */
-    GEOQIK_LINE_TYPE_LINE_LOOP = 2   /* closed polyline */
+    GEOQIK_LINE_TYPE_LINE_LOOP = 2,  /* closed polyline */
+    /* Widens the value range to int, so any value a C caller passes is defined in C++. */
+    GEOQIK_LINE_TYPE_MAX_ENUM = 0x7FFFFFFF
 } geoqik_line_type_t;
 
 typedef enum {
@@ -66,7 +76,9 @@ typedef enum {
      * so opts size values feel like the legacy point size. */
     GEOQIK_SPHERE_SIZE_SPACE_SCREEN = 0,
     /* Radius in world units; spheres scale with zoom/distance. */
-    GEOQIK_SPHERE_SIZE_SPACE_WORLD = 1
+    GEOQIK_SPHERE_SIZE_SPACE_WORLD = 1,
+    /* Widens the value range to int, so any value a C caller passes is defined in C++. */
+    GEOQIK_SPHERE_SIZE_SPACE_MAX_ENUM = 0x7FFFFFFF
 } geoqik_sphere_size_space_t;
 
 /* Stroke styling for line drawables. A zero-initialized struct
@@ -145,7 +157,9 @@ typedef struct {
 typedef enum {
     GEOQIK_MESH_CULL_BACK = 0,
     GEOQIK_MESH_CULL_FRONT = 1,
-    GEOQIK_MESH_CULL_NONE = 2
+    GEOQIK_MESH_CULL_NONE = 2,
+    /* Widens the value range to int, so any value a C caller passes is defined in C++. */
+    GEOQIK_MESH_CULL_MODE_MAX_ENUM = 0x7FFFFFFF
 } geoqik_mesh_cull_mode_t;
 
 typedef struct {

@@ -140,7 +140,9 @@ typedef struct {
 
 typedef enum {
     GEOQIK_LOG_FORMAT_BINARY = 0,
-    GEOQIK_LOG_FORMAT_JSON = 1
+    GEOQIK_LOG_FORMAT_JSON = 1,
+    /* Widens the value range to int, so any value a C caller passes is defined in C++. */
+    GEOQIK_LOG_FORMAT_MAX_ENUM = 0x7FFFFFFF
 } geoqik_log_format_t;
 
 typedef enum {
@@ -264,7 +266,9 @@ typedef enum {
     GEOQIK_KEY_RIGHT_CONTROL = 345,
     GEOQIK_KEY_RIGHT_ALT = 346,
     GEOQIK_KEY_RIGHT_SUPER = 347,
-    GEOQIK_KEY_MENU = 348
+    GEOQIK_KEY_MENU = 348,
+    /* Widens the value range to int, so any value a C caller passes is defined in C++. */
+    GEOQIK_KEY_MAX_ENUM = 0x7FFFFFFF
 } geoqik_key_t;
 
 typedef struct {
@@ -290,7 +294,9 @@ typedef struct {
 typedef enum {
     GEOQIK_REPLAY_INACTIVE = 0,
     GEOQIK_REPLAY_PLAYING = 1,
-    GEOQIK_REPLAY_PAUSED = 2
+    GEOQIK_REPLAY_PAUSED = 2,
+    /* Widens the value range to int, so any value a C caller passes is defined in C++. */
+    GEOQIK_REPLAY_STATE_MAX_ENUM = 0x7FFFFFFF
 } geoqik_replay_state_t;
 
 /** \brief Initializes GeoQik with default settings. Must be called once before any other function. */
@@ -562,7 +568,9 @@ typedef enum {
     GEOQIK_VIDEO_FORMAT_MP4 = 0,
     GEOQIK_VIDEO_FORMAT_WEBM = 1,
     GEOQIK_VIDEO_FORMAT_GIF = 2,
-    GEOQIK_VIDEO_FORMAT_PNG_SEQUENCE = 3
+    GEOQIK_VIDEO_FORMAT_PNG_SEQUENCE = 3,
+    /* Widens the value range to int, so any value a C caller passes is defined in C++. */
+    GEOQIK_VIDEO_FORMAT_MAX_ENUM = 0x7FFFFFFF
 } geoqik_video_format_t;
 
 /** \brief Encode quality, mapped to a codec CRF. HIGH is the sharp default. */
@@ -570,14 +578,18 @@ typedef enum {
     GEOQIK_VIDEO_QUALITY_HIGH = 0,
     GEOQIK_VIDEO_QUALITY_MEDIUM = 1,
     GEOQIK_VIDEO_QUALITY_LOW = 2,
-    GEOQIK_VIDEO_QUALITY_LOSSLESS = 3
+    GEOQIK_VIDEO_QUALITY_LOSSLESS = 3,
+    /* Widens the value range to int, so any value a C caller passes is defined in C++. */
+    GEOQIK_VIDEO_QUALITY_MAX_ENUM = 0x7FFFFFFF
 } geoqik_video_quality_t;
 
 /** \brief How an offline log->video render paces log entries. Speed and duration are mutually
  * exclusive; the field for the unused mode is ignored. Ignored by live recording. */
 typedef enum {
-    GEOQIK_VIDEO_PACING_SPEED = 0,   /* uses entriesPerSecond */
-    GEOQIK_VIDEO_PACING_DURATION = 1 /* uses targetDurationSeconds */
+    GEOQIK_VIDEO_PACING_SPEED = 0,    /* uses entriesPerSecond */
+    GEOQIK_VIDEO_PACING_DURATION = 1, /* uses targetDurationSeconds */
+    /* Widens the value range to int, so any value a C caller passes is defined in C++. */
+    GEOQIK_VIDEO_PACING_MAX_ENUM = 0x7FFFFFFF
 } geoqik_video_pacing_t;
 
 /** \brief Options for a video recording. Trailing fields left zero-initialized use defaults. */

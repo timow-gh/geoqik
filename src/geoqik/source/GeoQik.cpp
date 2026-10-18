@@ -2282,6 +2282,7 @@ namespace {
     case GEOQIK_VIDEO_FORMAT_WEBM: return geoqik::video::VideoFormat::WebM;
     case GEOQIK_VIDEO_FORMAT_GIF: return geoqik::video::VideoFormat::Gif;
     case GEOQIK_VIDEO_FORMAT_PNG_SEQUENCE: return geoqik::video::VideoFormat::PngSequence;
+    case GEOQIK_VIDEO_FORMAT_MAX_ENUM: break;
     }
     return geoqik::video::VideoFormat::Mp4;
 }
@@ -2292,6 +2293,7 @@ namespace {
     case GEOQIK_VIDEO_QUALITY_MEDIUM: return geoqik::video::VideoQuality::Medium;
     case GEOQIK_VIDEO_QUALITY_LOW: return geoqik::video::VideoQuality::Low;
     case GEOQIK_VIDEO_QUALITY_LOSSLESS: return geoqik::video::VideoQuality::Lossless;
+    case GEOQIK_VIDEO_QUALITY_MAX_ENUM: break;
     }
     return geoqik::video::VideoQuality::High;
 }
