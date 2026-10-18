@@ -1,0 +1,67 @@
+name: 'Setup vcpkg'
+description: 'Check out vcpkg at the builtin-baseline of vcpkg.json and restore its binary cache'
+
+runs:
+  using: "composite"
+  steps:
+    - name: Check out vcpkg at the baseline
+      id: vcpkg
+      run: |
+        # The runner image ships its own vcpkg checkout, which moves with every image
+        # update. Port ABI hashes include vcpkg's scripts, so a moving checkout would
+        # invalidate the binary cache. The baseline commit pins them.
+        baseline="$(jq -r '."builtin-baseline"' vcpkg.json)"
+        if [ -z "$baseline" ] || [ "$baseline" = null ]; then
+          echo "vcpkg.json has no builtin-baseline" >&2
+          exit 1
+        fi
+        # Forward slashes: CMake treats backslashes in paths as escapes.
+        temp_dir="${RUNNER_TEMP//\\//}"
+        vcpkg_root="$temp_dir/vcpkg"
+        binary_cache="$temp_dir/vcpkg-binary-cache"
+
+        git init -q "$vcpkg_root"
+        git -C "$vcpkg_root" config core.longpaths true
+        # A single commit is enough: vcpkg resolves the manifest against HEAD's trees.
+        # GitHub occasionally returns transient errors, so retry with backoff.
+        for attempt in 1 2 3; do
+          if git -C "$vcpkg_root" fetch -q --depth 1 https://github.com/microsoft/vcpkg.git "$baseline"; then
+            break
+          fi
+          if [ "$attempt" = 3 ]; then
+            exit 1
+          fi
+          sleep "$((attempt * 15))"
+        done
+        git -C "$vcpkg_root" checkout -q FETCH_HEAD
+
+        mkdir -p "$binary_cache"
+        echo "VCPKG_ROOT=$vcpkg_root" >> "$GITHUB_ENV"
+        echo "VCPKG_BINARY_SOURCES=clear;files,$binary_cache,readwrite" >> "$GITHUB_ENV"
+        echo "VCPKG_DISABLE_METRICS=1" >> "$GITHUB_ENV"
+        # Ports build with the system compiler of the runner image, which is part of
+        # their ABI hash. Keying on the image saves a fresh cache when it changes.
+        echo "image=$ImageOS-$ImageVersion" >> "$GITHUB_OUTPUT"
+      shell: bash
+
+    # Called by absolute path: bootstrap downloads vcpkg next to the script it runs.
+    - name: Bootstrap vcpkg (Linux)
+      if: runner.os != 'Windows'
+      run: '"$VCPKG_ROOT/bootstrap-vcpkg.sh" -disableMetrics'
+      shell: bash
+
+    - name: Bootstrap vcpkg (Windows)
+      if: runner.os == 'Windows'
+      run: '& "$env:VCPKG_ROOT/bootstrap-vcpkg.bat" -disableMetrics'
+      shell: pwsh
+
+    # The key never changes while the dependencies and the image stay the same. The
+    # restore key brings back the previous archive otherwise, so only ports whose ABI
+    # changed are rebuilt before the job saves the archive under the new key.
+    - name: Cache vcpkg binaries
+      uses: actions/cache@v4
+      with:
+        path: ${{ runner.temp }}/vcpkg-binary-cache
+        key: vcpkg-${{ runner.os }}-${{ steps.vcpkg.outputs.image }}-${{ hashFiles('vcpkg.json') }}
+        restore-keys: |
+          vcpkg-${{ runner.os }}-

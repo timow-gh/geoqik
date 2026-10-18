@@ -1,11 +1,15 @@
 name: 'Ubuntu CMake Workflow'
-description: 'Run a CMake workflow preset for Ubuntu builds'
+description: 'Configure, build and test CMake workflow presets on Ubuntu'
 inputs:
   cmake_workflow:
-    description: 'The cmake workflow to use.'
+    description: 'Workflow presets to run one after the other, separated by spaces (e.g. "workflow-test-gcc-release workflow-test-clang-release")'
     required: true
+  static_analysis:
+    description: 'Run clang-tidy in clang builds (geoqik_STATIC_ANALYSIS); one job per pull request is enough'
+    required: false
+    default: 'false'
   install_tools:
-    description: 'Additional tools to install (space-separated list: lcov, clang-tidy, cppcheck)'
+    description: 'Additional tools to install (space-separated list, e.g. lcov)'
     required: false
     default: ''
   build_native_args:
@@ -16,10 +20,46 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Set VCPKG_ROOT
-      run: echo "VCPKG_ROOT=$VCPKG_INSTALLATION_ROOT" >> $GITHUB_ENV
+    - name: Select packages
+      id: packages
+      env:
+        WORKFLOWS: ${{ inputs.cmake_workflow }}
+        STATIC_ANALYSIS: ${{ inputs.static_analysis }}
+      run: |
+        # ninja-build: fast build backend used by the CMake presets
+        # ccache: compiler cache, restored between runs of the same job
+        # uuid-dev: required by the stduuid dependency
+        # libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev: X11 headers needed to build GLFW
+        # libgl-dev: OpenGL headers; the system Mesa (llvmpipe) provides the runtime
+        # xvfb: X Virtual Framebuffer. GitHub Actions runners have no display server.
+        #   GeoQik uses GLFW which calls XOpenDisplay() at glfwInit() time; without a
+        #   display that call fails and every test that opens a window aborts immediately.
+        #   xvfb-run (see the test command) starts a temporary display so glfwInit()
+        #   and glfwCreateWindow() succeed against the system Mesa/llvmpipe renderer.
+        # autoconf autoconf-archive automake libtool libltdl-dev: required by vcpkg's libxcrypt port
+        packages="ninja-build ccache uuid-dev libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libgl-dev xvfb autoconf autoconf-archive automake libtool libltdl-dev"
+        # The presets pin gcc-14 and clang-20; install only the compilers the workflows use.
+        for workflow in $WORKFLOWS; do
+          case "$workflow" in
+            *-gcc-*)
+              packages="$packages gcc-14 g++-14"
+              ;;
+            *-clang-*)
+              # libclang-rt: the sanitizer runtimes
+              packages="$packages clang-20 libclang-rt-20-dev"
+              if [ "$STATIC_ANALYSIS" = true ]; then
+                packages="$packages clang-tidy-20"
+              fi
+              ;;
+            *)
+              echo "Cannot tell the compiler of $workflow" >&2
+              exit 1
+              ;;
+          esac
+        done
+        echo "packages=$packages" >> "$GITHUB_OUTPUT"
       shell: bash
-    
+
     - name: Install build tools
       run: |
         # The runner's Google Chrome repository can occasionally be mid-sync.
@@ -34,62 +74,66 @@ runs:
           sudo rm -rf /var/lib/apt/lists/*
           sleep 10
         done
-        # gcc-14/g++-14 and clang-20/clang++-20: compilers used by the presets.
-        # libclang-rt-20-dev: clang sanitizer runtime (ASan/TSan/UBSan)
-        # ninja-build: fast build backend used by the CMake presets
-        # uuid-dev: required by the stduuid dependency
-        # libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev: X11 headers needed to build GLFW
-        # libgl-dev: OpenGL headers; the system Mesa (llvmpipe) provides the runtime
-        # xvfb: X Virtual Framebuffer — GitHub Actions runners have no display server.
-        #   GeoQik uses GLFW which calls XOpenDisplay() at glfwInit() time; without a
-        #   display that call fails and every test that opens a window aborts immediately.
-        #   xvfb-run (see Test step) starts a temporary in-process display so glfwInit()
-        #   and glfwCreateWindow() succeed against the system Mesa/llvmpipe renderer.
-        # autoconf autoconf-archive automake libtool libltdl-dev: required by vcpkg's libxcrypt port
-        sudo apt-get install -y gcc-14 g++-14 clang-20 libclang-rt-20-dev ninja-build uuid-dev libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libgl-dev xvfb autoconf autoconf-archive automake libtool libltdl-dev ${{ inputs.install_tools }}
-      shell: bash
-    
-    - name: Extract preset names
-      id: preset
-      run: |
-        WORKFLOW_NAME="${{ inputs.cmake_workflow }}"
-        # Extract compiler and build type from workflow name
-        # workflow-test-gcc-release -> conf-gcc-release
-        BASE_NAME="${WORKFLOW_NAME#workflow-test-}"
-        echo "configure=conf-${BASE_NAME}" >> $GITHUB_OUTPUT
-        echo "build=build-${BASE_NAME}" >> $GITHUB_OUTPUT
-        echo "test=test-${BASE_NAME}" >> $GITHUB_OUTPUT
+        sudo apt-get install -y ${{ steps.packages.outputs.packages }} ${{ inputs.install_tools }}
       shell: bash
 
-    - name: Configure
+    - uses: ./.github/actions/setup-vcpkg
+
+    - name: Cache compilation
+      uses: hendrikmuhs/ccache-action@v1.2
+      with:
+        key: ${{ github.job }}
+        max-size: 500M
+
+    - name: Configure, build and test
+      env:
+        WORKFLOWS: ${{ inputs.cmake_workflow }}
+        STATIC_ANALYSIS: ${{ inputs.static_analysis }}
+        BUILD_NATIVE_ARGS: ${{ inputs.build_native_args }}
       run: |
-        # vcpkg downloads third-party source archives while configuring. GitHub occasionally returns
-        # transient 5xx/connection errors, so retry the complete configure step with backoff.
-        for attempt in 1 2 3 4 5; do
-          if cmake --preset ${{ steps.preset.outputs.configure }} -DBUILD_SHARED_LIBS=ON; then
-            break
-          fi
-          if [ "$attempt" = 5 ]; then
-            exit 1
-          fi
-          sleep "$((attempt * 30))"
-        done
-      shell: bash
-    
-    - name: Build
-      run: |
-        if [ -n "${{ inputs.build_native_args }}" ]; then
-          cmake --build --preset ${{ steps.preset.outputs.build }} -- ${{ inputs.build_native_args }}
+        # geoqik_STATIC_ANALYSIS defaults to ON and finds any clang-tidy on the runner,
+        # so it is switched off explicitly everywhere but the one analysis job.
+        if [ "$STATIC_ANALYSIS" = true ]; then
+          static_analysis=ON
         else
-          cmake --build --preset ${{ steps.preset.outputs.build }}
+          static_analysis=OFF
         fi
-      shell: bash
-    
-    - name: Test
-      run: |
-        # xvfb-run starts a throwaway X server for the duration of ctest so that
-        # GLFW can open an OpenGL window (rendered in software by Mesa/llvmpipe).
-        # --auto-servernum selects a free display number automatically, which avoids
-        # conflicts when multiple matrix jobs run on the same host.
-        xvfb-run --auto-servernum ctest --preset ${{ steps.preset.outputs.test }}
+        for workflow in $WORKFLOWS; do
+          # workflow-test-gcc-debug -> conf-, build- and test-gcc-debug
+          preset="${workflow#workflow-test-}"
+
+          echo "::group::Configure conf-$preset"
+          # vcpkg downloads third-party source archives while configuring when the binary
+          # cache misses. GitHub occasionally returns transient 5xx/connection errors, so
+          # retry the complete configure step with backoff.
+          # ccache replaces sccache, which the runners do not have.
+          for attempt in 1 2 3 4 5; do
+            if cmake --preset "conf-$preset" \
+                -DBUILD_SHARED_LIBS=ON \
+                -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+                -Dgeoqik_USE_SCCACHE=OFF \
+                -Dgeoqik_STATIC_ANALYSIS="$static_analysis"; then
+              break
+            fi
+            if [ "$attempt" = 5 ]; then
+              exit 1
+            fi
+            sleep "$((attempt * 30))"
+          done
+          echo "::endgroup::"
+
+          echo "::group::Build build-$preset"
+          if [ -n "$BUILD_NATIVE_ARGS" ]; then
+            cmake --build --preset "build-$preset" -- $BUILD_NATIVE_ARGS
+          else
+            cmake --build --preset "build-$preset"
+          fi
+          echo "::endgroup::"
+
+          # xvfb-run starts a throwaway X server for the duration of ctest so that
+          # GLFW can open an OpenGL window (rendered in software by Mesa/llvmpipe).
+          # --auto-servernum selects a free display number automatically.
+          xvfb-run --auto-servernum ctest --preset "test-$preset"
+        done
+        ccache --show-stats
       shell: bash

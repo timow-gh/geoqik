@@ -1,0 +1,49 @@
+name: Main
+
+# Pull requests run the checks (ci.yml). After a merge, main builds and tests the
+# optimized configurations that consumers ship, which the debug and sanitizer
+# checks do not cover. These runs also save the vcpkg binary caches on main, which
+# every pull request can restore.
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'License'
+      - 'cliff.toml'
+      - 'assets/**'
+      - 'docker/**'
+      - '.devcontainer/**'
+      - '.vscode/**'
+      - '.claude/**'
+      - '.agents/**'
+      - '.githooks/**'
+      - 'tools/git-hooks/**'
+  workflow_dispatch:
+
+concurrency:
+  group: main
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # One job for both compilers, so the runner setup and package install happen once.
+  linux-release:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/ubuntu-build-steps
+        with:
+          cmake_workflow: workflow-test-gcc-release workflow-test-clang-release
+
+  msvc-release:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/windows-build-steps
+        with:
+          cmake_workflow: workflow-test-msvc-release
